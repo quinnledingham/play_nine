@@ -1,20 +1,50 @@
+#ifdef WINDOWS
+
+	#define WIN32_EXTRA_LEAN
+	#define WIN32_EXTRA_LEAN
+	#include <windows.h>
+
+#endif // WINDOWS
+
+#ifdef OPENGL
+
+	#include <gl.h>
+	#include <gl.c>
+
+#endif // OPENGL
+
+#ifdef DX12
+
+	#include <wingdi.h>
+	#include <windef.h>
+	#include <winuser.h>
+
+	#include <d3d12.h>
+	#include <dxgi1_6.h>
+	#include <D3Dcompiler.h>
+	#include "dx12/d3dx12.h" // Helper Structures and Functions
+
+	#include <string>
+	#include <wrl.h>
+	using namespace Microsoft::WRL;
+	#include <shellapi.h>
+
+	#include <mmsystem.h>
+	#include <dsound.h>
+	#include <intrin.h>
+	#include <xinput.h>
+
+#endif // DX12
+
 #include <stdarg.h>
 #include <cstdint>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 #define internal      static
 #define local_persist static
 #define global        static
-
-#ifdef OPENGL
-
-#include <gl.h>
-#include <gl.c>
-
-#endif // OPENGL
-
-#if DX12
-
-#endif // DX12
 
 #include <SDL.h>
 
@@ -39,10 +69,12 @@ extern "C"
 
 #include "print.h"
 #include "char_array.h"
+
 #include "assets.h"
-//#include "shapes.h"
+#include "shapes.h"
 #include "types_math.h"
 #include "application.h"
+#include "renderer.h"
 
 bool8 update(Application *app);
 
@@ -58,8 +90,6 @@ bool8 update(Application *app);
 #include "assets.cpp"
 #include "shapes.cpp"
 
-#ifdef OPENGL
-
 internal void
 sdl_update_time(Application_Time *time) {
     s64 ticks = SDL_GetPerformanceCounter();
@@ -74,6 +104,8 @@ sdl_update_time(Application_Time *time) {
     // fps
     time->frames_per_s = (float32)(1.0 / time->frame_time_s);
 }
+
+#ifdef OPENGL
 
 internal void
 opengl_update_window(Application_Window *window) {
@@ -108,13 +140,17 @@ sdl_init_opengl(SDL_Window *sdl_window) {
     // DEFAULTS
     //
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glPatchParameteri(GL_PATCH_VERTICES, 4); 
+
 }
 
 #endif // OPENGL
+
+#ifdef DX12
+
+	#include "dx12.h"
+	#include "dx12.cpp"
+
+#endif // DX12
 
 internal bool8
 sdl_process_input(Application_Window *window, Application_Input *input) {
@@ -135,7 +171,11 @@ sdl_process_input(Application_Window *window, Application_Input *input) {
                         window->width  = window_event->data1;
                         window->height = window_event->data2;
                         
-                        opengl_update_window(window);
+						#ifdef OPENGL
+						    opengl_update_window(window);
+						#elif DX12
+						    dx12_resize_window(&dx12_renderer, window);
+						#endif // OPENGL / DX12
                     } break;
                 }
             } break;
@@ -160,21 +200,33 @@ int main(int argc, char *argv[]) {
     	return 1;
     }
 
+#ifdef OPENGL
     u32 sdl_window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
+#elif DX12
+    u32 sdl_window_flags = SDL_WINDOW_RESIZABLE;
+#endif // OPENGL / DX12
+
     SDL_Window *sdl_window = SDL_CreateWindow("play_nine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 900, 800, sdl_window_flags);
     if (sdl_window == NULL) {
     	print(SDL_GetError());
     	return 1;
     }
 
-    sdl_init_opengl(sdl_window);
-
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
+
+#ifdef OPENGL
+    sdl_init_opengl(sdl_window);
     opengl_update_window(&app.window);
+#elif DX12
+    dx12_init(&dx12_renderer, &app.window);
+#endif // OPENGL / DX12
 
     //srand(SDL_GetTicks()); // setup randomizer
 
-    init_shapes();
+    //init_shapes();
+    Triangle_Mesh test = get_rect_triangle_mesh();
+
+    renderer_clear_color = Vector4{ 0.0f, 0.2f, 0.4f, 1.0f };
 
     while (1) {
 
@@ -182,7 +234,18 @@ int main(int argc, char *argv[]) {
 
     	sdl_update_time(&app.time);
 
+#ifdef DX12
+        dx12_start_commands(&dx12_renderer);
+#endif // DX12
+
+        draw_triangle_mesh(&test);
     	if(update(&app)) return 0;
+
+#ifdef OPENGL
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
+        glClearColor(renderer_clear_color.r, renderer_clear_color.g, renderer_clear_color.b, renderer_clear_color.a);
+        glPatchParameteri(GL_PATCH_VERTICES, 4); 
 
     	SDL_GL_SwapWindow(sdl_window);
 
@@ -192,6 +255,9 @@ int main(int argc, char *argv[]) {
             GL_STENCIL_BUFFER_BIT;
     
         glClear(gl_clear_flags);
+#elif DX12
+        dx12_render(&dx12_renderer);
+#endif // OPENGL DX12
     }
 
 	return 0;

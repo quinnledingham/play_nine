@@ -15,16 +15,7 @@ const char *text_fs  = "#version 330 core\nin vec2 uv;out vec4 FragColor;uniform
 // Rect
 //
 
-internal void
-init_rect_triangle_indices(u32 *indices, u32 top_left, u32 top_right,
-								         u32 bottom_left, u32 bottom_right) {
-	indices[0] = top_left;
-    indices[1] = bottom_left;
-    indices[2] = bottom_right;
-    indices[3] = top_left;
-    indices[4] = bottom_right;
-    indices[5] = top_right;
-}
+void init_gpu_mesh(Triangle_Mesh *mesh);
 
 internal Triangle_Mesh
 get_rect_triangle_mesh() {
@@ -39,13 +30,34 @@ get_rect_triangle_mesh() {
 
     mesh.indices_count = 6;
     mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
-    init_rect_triangle_indices(mesh.indices, 1, 3, 0, 2);
+
+    // vertex locations
+    u32 top_left = 1, top_right = 3, bottom_left = 0, bottom_right = 2;
+    /*
+	mesh.indices[0] = top_left;
+    mesh.indices[1] = bottom_left;
+    mesh.indices[2] = bottom_right;
+    mesh.indices[3] = top_left;
+    mesh.indices[4] = bottom_right;
+    mesh.indices[5] = top_right;
+    */
+
+    mesh.indices[0] = top_left;
+    mesh.indices[1] = bottom_right;
+    mesh.indices[2] = bottom_left;
+    mesh.indices[3] = top_left;
+    mesh.indices[4] = top_right;
+    mesh.indices[5] = bottom_right;
     
     init_gpu_mesh(&mesh);
 
     return mesh;
 }
 
+//
+// Shapes
+//
+/*
 void init_shapes() {
 	shapes.rect_mesh = get_rect_triangle_mesh();
 
@@ -54,6 +66,10 @@ void init_shapes() {
 
 	compile_shader(&shapes.text_shader);
 }
+
+//
+// String
+//
 
 void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color)
 {
@@ -97,3 +113,4 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
         i++;
     }
 }
+*/

@@ -74,8 +74,6 @@ enum Texture_Parameters
 
 #ifdef OPENGL
 
-
-
 internal void
 init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
 	    GLenum target = GL_TEXTURE_2D;
@@ -137,6 +135,20 @@ free_bitmap_gpu_handle(Bitmap *bitmap) {
 }
 
 #endif // OPENGL
+
+#ifdef DX12
+
+internal void
+init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
+
+}
+
+internal void
+free_bitmap_gpu_handle(Bitmap *bitmap) {
+    
+}
+
+#endif // DX12
 
 //
 // Shader
@@ -245,6 +257,7 @@ u32 use_shader(Shader *shader)
 
 void init_gpu_mesh(Triangle_Mesh *mesh) {
 	glGenVertexArrays(1, &mesh->vertex_array_object);
+
     glGenBuffers(1, &mesh->vertex_buffer_object);
     glGenBuffers(1, &mesh->index_buffer_object);
     
@@ -265,7 +278,18 @@ void init_gpu_mesh(Triangle_Mesh *mesh) {
     glBindVertexArray(0);
 }
 
+void draw_triangle_mesh(Triangle_Mesh *mesh)
+{
+    glBindVertexArray(mesh->vertex_array_object);
+    glDrawElements(GL_TRIANGLES, mesh->indices_count, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
 #endif // OPENGL
+
+#ifdef DX12
+
+#endif // DX12
 
 //
 // Font

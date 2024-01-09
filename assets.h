@@ -56,9 +56,15 @@ struct Triangle_Mesh {
     u32 *indices;
     u32 indices_count;
 
-    u32 vertex_array_object;
+    u32 vertex_array_object; // OpenGL only
+
+#ifdef DX12
+    u64 vertex_buffer_object;
+    u64 index_buffer_object;
+#elif OPENGL
     u32 vertex_buffer_object;
     u32 index_buffer_object;
+#endif
 };
 
 struct Font_Char {

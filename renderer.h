@@ -1,0 +1,1 @@
+global Vector4 renderer_clear_color;

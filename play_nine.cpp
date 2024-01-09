@@ -21,7 +21,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "play_nine.h"
 
 bool8 update(Application *app) {
-
+	//print("%f\n", app->time.frames_per_s);
 
 	return 0;
 }

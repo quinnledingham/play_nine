@@ -10,20 +10,20 @@
 //
 
 inline Vector2 operator+(const Vector2 &l, const Vector2  &r) { return { l.x + r.x, l.y + r.y }; }
-inline Vector2 operator+(const Vector2 &l, const float32 &r) { return { l.x + r  , l.y + r   }; }
+inline Vector2 operator+(const Vector2 &l, const float32 &r)  { return { l.x + r  , l.y + r   }; }
 inline Vector2 operator-(const Vector2 &l, const Vector2  &r) { return { l.x - r.x, l.y - r.y }; }
 inline Vector2 operator*(const Vector2 &l, const Vector2  &r) { return { l.x * r.x, l.y * r.y }; }
-inline Vector2 operator*(const Vector2 &l, const float32 &r) { return { l.x * r  , l.y * r   }; }
+inline Vector2 operator*(const Vector2 &l, const float32 &r)  { return { l.x * r  , l.y * r   }; }
 inline Vector2 operator/(const Vector2 &l, const Vector2  &r) { return { l.x / r.x, l.y / r.y }; }
-inline Vector2 operator/(const Vector2 &l, const float32 &r) { return { l.x / r  , l.y / r   }; }
-inline Vector2 operator-(const Vector2 &v)               { return { -v.x     , -v.y      }; }
+inline Vector2 operator/(const Vector2 &l, const float32 &r)  { return { l.x / r  , l.y / r   }; }
+inline Vector2 operator-(const Vector2 &v)                    { return { -v.x     , -v.y      }; }
 
 inline void operator+=(Vector2 &l, const Vector2  &r) { l.x = l.x + r.x; l.y = l.y + r.y; }
 inline void operator-=(Vector2 &l, const Vector2  &r) { l.x = l.x - r.x; l.y = l.y - r.y; }
-inline void operator-=(Vector2 &l, const float32 &r) { l.x = l.x - r;   l.y = l.y - r;   }
-inline void operator*=(Vector2 &l, const float32 &r) { l.x = l.x * r;   l.y = l.y * r;   }
+inline void operator-=(Vector2 &l, const float32 &r)  { l.x = l.x - r;   l.y = l.y - r;   }
+inline void operator*=(Vector2 &l, const float32 &r)  { l.x = l.x * r;   l.y = l.y * r;   }
 inline void operator/=(Vector2 &l, const Vector2  &r) { l.x = l.x / r.x; l.y = l.y / r.y; }
-inline void operator/=(Vector2 &l, const float32 &r) { l.x = l.x / r;   l.y = l.y / r;   }
+inline void operator/=(Vector2 &l, const float32 &r)  { l.x = l.x / r;   l.y = l.y / r;   }
 
 inline float32 dot_product(const Vector2 &l, const Vector2 &r) { return (l.x * r.x) + (l.y * r.y); }
 inline float32 length_squared(const Vector2 &v) { return (v.x * v.x) + (v.y * v.y); }
