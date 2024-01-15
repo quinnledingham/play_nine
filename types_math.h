@@ -109,6 +109,13 @@ normalized(const Vector2_s32 &v)
     return n;
 }
 
+inline s32
+clamp(s32 value, s32 low, s32 high) {
+    if (value < low)       return low;
+    else if (value > high) return high;
+    else                   return value;
+}
+
 //
 // Vector3
 //

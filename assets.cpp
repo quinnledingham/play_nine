@@ -66,6 +66,31 @@ read_file_terminated(const char *filepath) {
 // Bitmap
 //
 
+internal Bitmap
+load_bitmap(const char *filename, bool8 flip_on_load) {
+    if (flip_on_load) stbi_set_flip_vertically_on_load(true);
+    else              stbi_set_flip_vertically_on_load(false);
+    Bitmap bitmap = {};
+    bitmap.channels = 4;
+    // 4 arg always get filled in with the original amount of channels the image had.
+    // Currently forcing it to have 4 channels.
+    bitmap.memory = stbi_load(filename, &bitmap.width, &bitmap.height, 0, bitmap.channels);
+    
+    if (bitmap.memory == 0) logprint("load_bitmap()" "could not load bitmap %s\n", filename);
+    bitmap.pitch = bitmap.width * bitmap.channels;
+    return bitmap;
+}
+
+internal Bitmap
+load_bitmap(const char *filename) {
+    return load_bitmap(filename, true);
+}
+
+internal void
+free_bitmap(Bitmap bitmap) {
+    stbi_image_free(bitmap.memory);
+}
+
 enum Texture_Parameters
 {
     TEXTURE_PARAMETERS_DEFAULT,
@@ -197,7 +222,7 @@ bool compile_shader(u32 handle, const char *file, int type)
 }
 
 // lines up with enum shader_types
-const u32 file_types[5] = { 
+const u32 opengl_shader_file_types[5] = { 
     GL_VERTEX_SHADER,
     GL_TESS_CONTROL_SHADER,
     GL_TESS_EVALUATION_SHADER,
@@ -221,8 +246,8 @@ void compile_shader(Shader *shader)
     for (u32 i = 0; i < SHADER_TYPE_AMOUNT; i++) {
         if (shader->files[i].memory == 0) continue; // file was not loaded
 
-        if (!compile_shader(shader->handle, (char*)shader->files[i].memory, file_types[i])) {
-            logprint("compile_shader(Shader *shader)", "could not compile %s", shader->files[i].filepath); 
+        if (!compile_shader(shader->handle, (char*)shader->files[i].memory, opengl_shader_file_types[i])) {
+            print("compile_shader() could not compile %s\n", shader->files[i].filepath); 
             return;
         }
     }
@@ -294,7 +319,7 @@ void draw_triangle_mesh(Triangle_Mesh *mesh)
 //
 // Font
 //
-
+/*
 internal Font
 load_font(const char *filepath) {
 	Font font = {};
@@ -387,3 +412,4 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 float32 get_scale_for_pixel_height(void *info, float32 pixel_height) {
     return stbtt_ScaleForPixelHeight((stbtt_fontinfo*)info, pixel_height);
 }
+*/

@@ -1,5 +1,5 @@
 struct Shapes {
-	Triangle_Mesh rect_mesh;
+	Mesh mesh;
 
 	Shader text_shader;
 };
@@ -15,11 +15,9 @@ const char *text_fs  = "#version 330 core\nin vec2 uv;out vec4 FragColor;uniform
 // Rect
 //
 
-void init_gpu_mesh(Triangle_Mesh *mesh);
-
-internal Triangle_Mesh
-get_rect_triangle_mesh() {
-	Triangle_Mesh mesh = {};
+internal Mesh
+get_rect_mesh() {
+	Mesh mesh = {};
 	mesh.vertices_count = 4;
 	mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
 
@@ -49,7 +47,7 @@ get_rect_triangle_mesh() {
     mesh.indices[4] = top_right;
     mesh.indices[5] = bottom_right;
     
-    init_gpu_mesh(&mesh);
+    render_init_mesh(&mesh);
 
     return mesh;
 }

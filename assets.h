@@ -1,6 +1,13 @@
 #ifndef ASSETS_H
 #define ASSETS_H
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb_image.h>
+#include <stb_image_resize.h>
+#include <stb_truetype.h>
+
 /*
 ../assets/bitmaps/test.png
 
@@ -39,7 +46,6 @@ struct Shader {
     File files[SHADER_TYPE_AMOUNT];
 
     bool8 compiled;
-    bool8 uniform_buffer_objects_generated;
     u32 handle;
 };
 
@@ -49,22 +55,14 @@ struct Vertex_XNU {
     Vector2 uv;
 };
 
-struct Triangle_Mesh {
+struct Mesh {
     Vertex_XNU *vertices;
     u32 vertices_count;
 
     u32 *indices;
     u32 indices_count;
 
-    u32 vertex_array_object; // OpenGL only
-
-#ifdef DX12
-    u64 vertex_buffer_object;
-    u64 index_buffer_object;
-#elif OPENGL
-    u32 vertex_buffer_object;
-    u32 index_buffer_object;
-#endif
+    void *gpu_info;
 };
 
 struct Font_Char {

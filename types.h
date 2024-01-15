@@ -83,5 +83,8 @@ struct Matrix_4x4 {
     float32 E[4][4];
 };
 
+#define internal      static
+#define local_persist static
+#define global        static
 
 #endif // TYPES_H

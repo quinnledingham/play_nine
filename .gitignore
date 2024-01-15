@@ -1,3 +1,4 @@
 /build
 /sdl-vc
+/VulkanSDK
 *.obj

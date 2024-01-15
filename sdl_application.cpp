@@ -1,52 +1,75 @@
+#include <SDL.h>
+
 #ifdef WINDOWS
 
-	#define WIN32_EXTRA_LEAN
-	#define WIN32_EXTRA_LEAN
-	#include <windows.h>
+#pragma message("WINDOWS")
+#define WIN32_EXTRA_LEAN
+#define WIN32_EXTRA_LEAN
+#include <windows.h>
+
+//
+// We prefer the discrete GPU in laptops where available
+//
+extern "C"
+{
+    __declspec(dllexport) DWORD NvOptimusEnablement = 0x01;
+    __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x01;
+}
 
 #endif // WINDOWS
 
 #ifdef OPENGL
 
-	#include <gl.h>
-	#include <gl.c>
+#pragma message("OPENGL")
+#include <gl.h>
+#include <gl.c>
 
-#endif // OPENGL
+#elif VULKAN
 
-#ifdef DX12
+#pragma message("VULKAN")
+#include <SDL_vulkan.h>
+#include <vulkan/vulkan.h>
+    
+// Compiling to SPIR in code
+#include <shaderc/env.h>
+#include <shaderc/shaderc.h>
+#include <shaderc/shaderc.hpp>
+#include <shaderc/status.h>
+#include <shaderc/visibility.h>
 
-	#include <wingdi.h>
-	#include <windef.h>
-	#include <winuser.h>
+// Provided by VK_EXT_shader_object
+VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 
-	#include <d3d12.h>
-	#include <dxgi1_6.h>
-	#include <D3Dcompiler.h>
-	#include "dx12/d3dx12.h" // Helper Structures and Functions
+#define VK_USE_PLATFORM_WIN32_KHR
 
-	#include <string>
-	#include <wrl.h>
-	using namespace Microsoft::WRL;
-	#include <shellapi.h>
+#elif DX12
 
-	#include <mmsystem.h>
-	#include <dsound.h>
-	#include <intrin.h>
-	#include <xinput.h>
+#include <wingdi.h>
+#include <windef.h>
+#include <winuser.h>
 
-#endif // DX12
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <D3Dcompiler.h>
+#include "dx12/d3dx12.h" // Helper Structures and Functions
+
+#include <string>
+#include <wrl.h>
+using namespace Microsoft::WRL;
+#include <shellapi.h>
+
+#include <mmsystem.h>
+#include <dsound.h>
+#include <intrin.h>
+#include <xinput.h>
+
+#endif // OPENGL / VULKAN / DX12
 
 #include <stdarg.h>
 #include <cstdint>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-
-#define internal      static
-#define local_persist static
-#define global        static
-
-#include <SDL.h>
 
 #include "types.h"
 
@@ -58,40 +81,41 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 #define ARRAY_COUNT(n)     (sizeof(n) / sizeof(n[0]))
 #define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t)))
 
-//
-// NOTE(casey): We prefer the discrete GPU in laptops where available
-//
-extern "C"
-{
-    __declspec(dllexport) DWORD NvOptimusEnablement = 0x01;
-    __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x01;
-}
-
 #include "print.h"
+#include "types_math.h"
 #include "char_array.h"
-
 #include "assets.h"
 #include "shapes.h"
-#include "types_math.h"
+#include "data_structs.h"
+#include "render.h"
 #include "application.h"
-#include "renderer.h"
 
-bool8 update(Application *app);
+bool8 update(App *app);
 
 #include "print.cpp"
-
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#define STB_TRUETYPE_IMPLEMENTATION
-#include <stb_image.h>
-#include <stb_image_resize.h>
-#include <stb_truetype.h>
-
 #include "assets.cpp"
 #include "shapes.cpp"
+#include "play_nine.cpp"
+
+#ifdef OPENGL
+
+#include "opengl.h"
+#include "opengl.cpp"
+
+#elif VULKAN
+
+#include "vulkan.h"
+#include "vulkan.cpp"
+
+#elif DX12
+
+#include "dx12.h"
+#include "dx12.cpp"
+
+#endif // OPENGL / VULKAN / DX12
 
 internal void
-sdl_update_time(Application_Time *time) {
+sdl_update_time(App_Time *time) {
     s64 ticks = SDL_GetPerformanceCounter();
 
     // s
@@ -104,58 +128,10 @@ sdl_update_time(Application_Time *time) {
     // fps
     time->frames_per_s = (float32)(1.0 / time->frame_time_s);
 }
-
-#ifdef OPENGL
-
-internal void
-opengl_update_window(Application_Window *window) {
-	glViewport(0, 0, window->width, window->height);
-    window->aspect_ratio = (float32)window->width / (float32)window->height;
-}
-
-internal void
-sdl_init_opengl(SDL_Window *sdl_window) {
-    SDL_GL_LoadLibrary(NULL);
-    
-    // Request an OpenGL 4.6 context (should be core)
-    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL,    1);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
-    
-    // Also request a depth buffer
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   24);
-    
-    SDL_GLContext Context = SDL_GL_CreateContext(sdl_window);
-    SDL_GL_SetSwapInterval(0); // vsync: 0 off, 1 on
-    
-    // Check OpenGL properties
-    gladLoadGL((GLADloadfunc) SDL_GL_GetProcAddress);
-    print("OpenGL loaded:\n");
-    print("Vendor:   %s\n", glGetString(GL_VENDOR));
-    print("Renderer: %s\n", glGetString(GL_RENDERER));
-    print("Version:  %s\n", glGetString(GL_VERSION));
-
-    //
-    // DEFAULTS
-    //
-
-
-}
-
-#endif // OPENGL
-
-#ifdef DX12
-
-	#include "dx12.h"
-	#include "dx12.cpp"
-
-#endif // DX12
-
 internal bool8
-sdl_process_input(Application_Window *window, Application_Input *input) {
-	SDL_Event event;
-	while(SDL_PollEvent(&event)) {
+sdl_process_input(App_Window *window, App_Input *input) {
+    SDL_Event event;
+    while(SDL_PollEvent(&event)) {
 		switch(event.type) {
 			case SDL_QUIT: return true;
 
@@ -172,7 +148,7 @@ sdl_process_input(Application_Window *window, Application_Input *input) {
                         window->height = window_event->data2;
                         
 						#ifdef OPENGL
-						    opengl_update_window(window);
+						    //opengl_update_window(window);
 						#elif DX12
 						    dx12_resize_window(&dx12_renderer, window);
 						#endif // OPENGL / DX12
@@ -188,7 +164,7 @@ sdl_process_input(Application_Window *window, Application_Input *input) {
 int main(int argc, char *argv[]) {
 	print("starting application...\n");
 
-	Application app = {};
+	App app = {};
 
 	app.time.performance_frequency = SDL_GetPerformanceFrequency();
     app.time.start_ticks = SDL_GetPerformanceCounter();
@@ -202,6 +178,8 @@ int main(int argc, char *argv[]) {
 
 #ifdef OPENGL
     u32 sdl_window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
+#elif VULKAN
+    u32 sdl_window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN;
 #elif DX12
     u32 sdl_window_flags = SDL_WINDOW_RESIZABLE;
 #endif // OPENGL / DX12
@@ -214,51 +192,39 @@ int main(int argc, char *argv[]) {
 
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
 
-#ifdef OPENGL
-    sdl_init_opengl(sdl_window);
-    opengl_update_window(&app.window);
-#elif DX12
-    dx12_init(&dx12_renderer, &app.window);
-#endif // OPENGL / DX12
+    render_sdl_init(sdl_window);
 
-    //srand(SDL_GetTicks()); // setup randomizer
+    render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //glEnable(GL_BLEND);
+    
+    Uniform_Buffer_Object scene_ubo = {};
+    Scene scene = {};
+    scene.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+    scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f });
+    scene.projection = perspective_projection(45.0f, (float32)app.window.width / (float32)app.window.height, 0.1f, 10.0f);
+    render_update_uniform_buffer_object(&scene_ubo, (void*)&scene, sizeof(Scene));
 
-    //init_shapes();
-    Triangle_Mesh test = get_rect_triangle_mesh();
-
-    renderer_clear_color = Vector4{ 0.0f, 0.2f, 0.4f, 1.0f };
+    Mesh rect = get_rect_mesh();
 
     while (1) {
 
-    	if (sdl_process_input(&app.window, &app.input)) return 0;
+    	if (sdl_process_input(&app.window, &app.input)) 
+            return 0;
 
     	sdl_update_time(&app.time);
 
-#ifdef DX12
-        dx12_start_commands(&dx12_renderer);
-#endif // DX12
+        render_start_frame();
 
-        draw_triangle_mesh(&test);
-    	if(update(&app)) return 0;
+        //update(&app);
+        vkCmdBindDescriptorSets(vulkan_info.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, 0, 1, &vulkan_info.descriptor_sets[vulkan_info.current_frame], 0, nullptr);
+        render_draw_mesh(&rect);
 
-#ifdef OPENGL
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glEnable(GL_BLEND);
-        glClearColor(renderer_clear_color.r, renderer_clear_color.g, renderer_clear_color.b, renderer_clear_color.a);
-        glPatchParameteri(GL_PATCH_VERTICES, 4); 
-
-    	SDL_GL_SwapWindow(sdl_window);
-
-    	u32 gl_clear_flags = 
-            GL_COLOR_BUFFER_BIT  | 
-            GL_DEPTH_BUFFER_BIT  | 
-            GL_STENCIL_BUFFER_BIT;
-    
-        glClear(gl_clear_flags);
-#elif DX12
-        dx12_render(&dx12_renderer);
-#endif // OPENGL DX12
+        render_end_frame();
     }
+    
+    render_cleanup();
+    SDL_DestroyWindow(sdl_window);
 
 	return 0;
 }
