@@ -672,9 +672,16 @@ vulkan_copy_buffer(Vulkan_Info *info, VkBuffer src_buffer, VkBuffer dest_buffer,
 	vulkan_end_single_time_commands(command_buffer, info->device, info->command_pool, info->graphics_queue);
 }
 
-// return the offset to the memory set in the buffer
 internal u32
-vulkan_update_buffer(Vulkan_Info *info, VkBuffer *buffer, VkDeviceMemory *memory, void *in_data, u32 in_data_size) {
+vulkan_get_next_offset(u32 in_data_size) {
+	u32 return_offset = vulkan_info.combined_buffer_offset;
+    vulkan_info.combined_buffer_offset += in_data_size;
+	return return_offset;
+}
+
+// return the offset to the memory set in the buffer
+internal void
+vulkan_update_buffer(Vulkan_Info *info, VkBuffer *buffer, VkDeviceMemory *memory, void *in_data, u32 in_data_size, u32 offset) {
 	VkDeviceSize buffer_size = in_data_size;
 	VkBuffer staging_buffer;
 	VkDeviceMemory staging_buffer_memory;
@@ -692,14 +699,14 @@ vulkan_update_buffer(Vulkan_Info *info, VkBuffer *buffer, VkDeviceMemory *memory
 	memcpy(data, in_data, buffer_size);
 	vkUnmapMemory(info->device, staging_buffer_memory);
 
-	vulkan_copy_buffer(info, staging_buffer, *buffer, buffer_size, 0, info->combined_buffer_offset);
+	vulkan_copy_buffer(info, staging_buffer, *buffer, buffer_size, 0, offset);
 	
 	vkDestroyBuffer(info->device, staging_buffer, nullptr);
 	vkFreeMemory(info->device, staging_buffer_memory, nullptr);
 
-    u32 return_offset = info->combined_buffer_offset;
-    info->combined_buffer_offset += in_data_size;
-    return return_offset;
+    //u32 return_offset = info->combined_buffer_offset;
+    //info->combined_buffer_offset += in_data_size;
+    //return return_offset;
 }
 
 internal VkDeviceSize
@@ -805,8 +812,17 @@ vulkan_create_descriptor_sets(Descriptor_Set *set) {
 	}
 }
 
+// defining where the memory for this ubo is
 internal void
-vulkan_update_descriptor_set(Descriptor_Set *set, Uniform_Buffer_Object *ubo) {
+vulkan_init_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding) {
+	// because two frames can be in flight
+	u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+
+	ubo->offsets[0] = vulkan_get_next_offset(buffer_size);
+	ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	ubo->size = size;
+
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
 
 	for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
@@ -818,7 +834,7 @@ vulkan_update_descriptor_set(Descriptor_Set *set, Uniform_Buffer_Object *ubo) {
         VkWriteDescriptorSet descriptor_write = {};
         descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptor_write.dstSet = vulkan_set->descriptor_sets[i];
-        descriptor_write.dstBinding = 0;
+        descriptor_write.dstBinding = binding;
         descriptor_write.dstArrayElement = 0;
         descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptor_write.descriptorCount = 1;
@@ -829,7 +845,7 @@ vulkan_update_descriptor_set(Descriptor_Set *set, Uniform_Buffer_Object *ubo) {
 }
 
 internal void
-vulkan_update_descriptor_sets(Descriptor_Set *set, Bitmap *bitmap) {
+vulkan_init_bitmap(Descriptor_Set *set, Bitmap *bitmap) {
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
 
@@ -856,21 +872,6 @@ vulkan_update_descriptor_sets(Descriptor_Set *set, Bitmap *bitmap) {
 void vulkan_bind_descriptor_sets(Descriptor_Set *set) {
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
 	vkCmdBindDescriptorSets(vulkan_info.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, 0, 1, &vulkan_set->descriptor_sets[vulkan_info.current_frame], 0, nullptr);
-}
-
-internal VkShaderModule
-vulkan_create_shader_module(VkDevice device, File code) {
-	VkShaderModuleCreateInfo create_info = {};
-	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	create_info.codeSize = code.size;
-	create_info.pCode = (u32*)code.memory;
-
-	VkShaderModule shader_module;
-	if (vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS) {
-		logprint("vulkan_create_shader_module()", "failed to create shader module\n");
-	}
-
-	return shader_module;
 }
 
 internal VkResult 
@@ -910,10 +911,18 @@ vulkan_create_shader_object(VkDevice device, File code, u32 stage, VkDescriptorS
 	return shader[0];
 }
 
+// lines up with enum shader_stages
+const u32 shaderc_glsl_file_types[5] = { 
+    shaderc_glsl_vertex_shader,
+    shaderc_glsl_tess_control_shader ,
+    shaderc_glsl_tess_evaluation_shader ,
+    shaderc_glsl_geometry_shader,
+    shaderc_glsl_fragment_shader,
+};
+
 internal File
-vulkan_load_shader(shaderc_compiler_t compiler, const char *filepath, shaderc_shader_kind shader_kind) {
-	File file = load_file(filepath);
-	const shaderc_compilation_result_t result = shaderc_compile_into_spv(compiler, (char*)file.memory, file.size, shader_kind, get_filename(filepath), "main", nullptr);
+vulkan_compile_shader(shaderc_compiler_t compiler, File *file, shaderc_shader_kind shader_kind) {
+	const shaderc_compilation_result_t result = shaderc_compile_into_spv(compiler, (char*)file->memory, file->size, shader_kind, get_filename(file->filepath), "main", nullptr);
 
 	u32 num_of_warnings = (u32)shaderc_result_get_num_warnings(result);
 	u32 num_of_errors = (u32)shaderc_result_get_num_errors(result);
@@ -932,40 +941,65 @@ vulkan_load_shader(shaderc_compiler_t compiler, const char *filepath, shaderc_sh
 	return result_file;
 }
 
+
 internal void
-vulkan_create_graphics_pipeline(Vulkan_Info *info, Descriptor_Set *set) {
+vulkan_compile_shader(Shader *shader) {
 	shaderc_compiler_t compiler = shaderc_compiler_initialize();
-	File vert = vulkan_load_shader(compiler, "../assets/shaders/basic.vert", shaderc_glsl_vertex_shader);
-	File frag = vulkan_load_shader(compiler, "../assets/shaders/basic.frag", shaderc_glsl_fragment_shader);
 
-	//File vert = load_file("../vert.spv");
-	//File frag = load_file("../frag.spv");
-	//VkShaderEXT test = vulkan_create_shader_object(info->device, vert, VK_SHADER_STAGE_VERTEX_BIT, &info->descriptor_set_layout);
+	for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
+        if (shader->files[i].memory == 0) continue; // file was not loaded
+	
+		shader->spirv_files[i] = vulkan_compile_shader(compiler, &shader->files[i], (shaderc_shader_kind)shaderc_glsl_file_types[i]);
+        if (shader->spirv_files[i].size == 0) {
+            print("compile_shader() could not compile %s\n", shader->files[i].filepath); 
+            return;
+        }
+    }
 
-	VkShaderModule vert_shader_module = vulkan_create_shader_module(info->device, vert);
-	VkShaderModule frag_shader_module = vulkan_create_shader_module(info->device, frag);
+}
 
-	VkPipelineShaderStageCreateInfo vert_shader_stage_info = {};
-	vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vert_shader_stage_info.module = vert_shader_module;
-	vert_shader_stage_info.pName = "main";
+internal VkShaderModule
+vulkan_create_shader_module(VkDevice device, File code) {
+	VkShaderModuleCreateInfo create_info = {};
+	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	create_info.codeSize = code.size;
+	create_info.pCode = (u32*)code.memory;
 
-	VkPipelineShaderStageCreateInfo frag_shader_stage_info = {};
-	frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	frag_shader_stage_info.module = frag_shader_module;
-	frag_shader_stage_info.pName = "main";
+	VkShaderModule shader_module;
+	if (vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS) {
+		logprint("vulkan_create_shader_module()", "failed to create shader module\n");
+	}
 
-	VkPipelineShaderStageCreateInfo shader_stages[] = { vert_shader_stage_info, frag_shader_stage_info };
+	return shader_module;
+}
 
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+internal void
+vulkan_create_graphics_pipeline(Vulkan_Info *info, Shader *shader) {
+	u32 shader_stages_index = 0;
+	VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_AMOUNT] = {};
+	VkShaderModule shader_modules[SHADER_STAGES_AMOUNT] = {};
+
+	for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
+		if (shader->spirv_files[i].size == 0)
+			continue;
+		
+		shader_modules[i] = vulkan_create_shader_module(info->device, shader->spirv_files[i]);
+
+		VkPipelineShaderStageCreateInfo shader_stage_info = {};
+		shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		shader_stage_info.stage = (VkShaderStageFlagBits)vulkan_convert_shader_stage(i);
+		shader_stage_info.module = shader_modules[i];
+		shader_stage_info.pName = "main";
+		shader_stages[shader_stages_index++] = shader_stage_info;
+	}
+
+	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)shader->descriptor_set.gpu_info;
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount         = 1;                            // Optional
+	pipeline_layout_info.setLayoutCount         = 1;                   // Optional
 	pipeline_layout_info.pSetLayouts            = &vulkan_set->layout; // Optional
-	pipeline_layout_info.pushConstantRangeCount = 0;                            // Optional
-	pipeline_layout_info.pPushConstantRanges    = nullptr;                      // Optional
+	pipeline_layout_info.pushConstantRangeCount = 0;                   // Optional
+	pipeline_layout_info.pPushConstantRanges    = nullptr;             // Optional
 
 	VkDynamicState dynamic_states[] = { 
 		VK_DYNAMIC_STATE_VIEWPORT, 
@@ -1095,8 +1129,10 @@ vulkan_create_graphics_pipeline(Vulkan_Info *info, Descriptor_Set *set) {
 		logprint("vulkan_create_graphics_pipeline()", "failed to create graphics pipelines\n");
 	}
 
-	vkDestroyShaderModule(info->device, vert_shader_module, nullptr);
-	vkDestroyShaderModule(info->device, frag_shader_module, nullptr);
+	for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
+		if (shader_modules[i] != 0)
+			vkDestroyShaderModule(info->device, shader_modules[i], nullptr);
+	}
 }
 
 internal void
@@ -1602,7 +1638,9 @@ void vulkan_init_mesh(Mesh *mesh) {
     memcpy(memory, (void*)mesh->vertices, vertices_size);
     memcpy((char*)memory + vertices_size, (void*)mesh->indices, indices_size);
 
-    vulkan_mesh->vertices_offset = vulkan_update_buffer(&vulkan_info, &vulkan_info.combined_buffer, &vulkan_info.combined_buffer_memory, memory, buffer_size);
+	vulkan_mesh->vertices_offset = vulkan_get_next_offset(buffer_size);
+
+    vulkan_update_buffer(&vulkan_info, &vulkan_info.combined_buffer, &vulkan_info.combined_buffer_memory, memory, buffer_size, vulkan_mesh->vertices_offset);
     vulkan_mesh->indices_offset = vulkan_mesh->vertices_offset + vertices_size;
     
     platform_free(memory);
@@ -1618,11 +1656,12 @@ void vulkan_draw_mesh(Mesh *mesh) {
 }
 
 internal void
-vulkan_update_uniform_buffer_object(Uniform_Buffer_Object *ubo, void *data, u32 data_size) {
-    u32 memory_size = (u32)ubo->offsets[1] + ubo->size;
+vulkan_update_uniform_buffer_object(Uniform_Buffer_Object *ubo, void *data) {
+	u32 bytes_from_0_to_1 = ubo->offsets[1] - ubo->offsets[0];
+    u32 memory_size = (u32)bytes_from_0_to_1 + ubo->size;
     void *memory = platform_malloc(memory_size);
-    memcpy((char*)memory + ubo->offsets[0], data, ubo->size);
-    memcpy((char*)memory + ubo->offsets[1], data, ubo->size);
-    vulkan_update_buffer(&vulkan_info, &vulkan_info.combined_buffer, &vulkan_info.combined_buffer_memory, memory, memory_size);
+    memcpy((char*)memory, data, ubo->size);
+    memcpy((char*)memory + bytes_from_0_to_1, data, ubo->size);
+    vulkan_update_buffer(&vulkan_info, &vulkan_info.combined_buffer, &vulkan_info.combined_buffer_memory, memory, memory_size, ubo->offsets[0]);
     platform_free(memory);
 }

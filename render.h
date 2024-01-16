@@ -10,61 +10,21 @@ struct Uniform_Buffer_Object {
 };
 
 struct Scene {
-    Matrix_4x4 model;
     Matrix_4x4 view;
     Matrix_4x4 projection;
 };
 
 struct Object {
-    
+    Matrix_4x4 model;
 };
 
-enum descriptor_types {
-    DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    DESCRIPTOR_TYPE_SAMPLER,
 
-    DESCRIPTOR_TYPES_AMOUNT
-};
-
-enum shader_stages {
-    SHADER_STAGE_VERTEX,
-    SHADER_STAGE_TESSELLATION_CONTROL,
-    SHADER_STAGE_TESSELLATION_EVALUATION,
-    SHADER_STAGE_GEOMETRY,
-    SHADER_STAGE_FRAGMENT,
-
-    SHADER_STAGES_AMOUNT
-};
-
-struct Descriptor {
-    u32 binding;
-    u32 type;
-    u32 stages[SHADER_STAGES_AMOUNT];
-    u32 stages_count;
-
-    Descriptor() {
-        
-    }
-
-    Descriptor(u32 in_binding, u32 in_type, u32 in_stage) {
-        binding = in_binding;
-        type = in_type;
-        stages[0] = in_stage;
-        stages_count = 1;
-    } 
-};
-
-struct Descriptor_Set {
-    static const u32 max_descriptors = 10;
-    Descriptor descriptors[max_descriptors];
-    u32 descriptors_count;
-
-    void *gpu_info;
-};
 
 struct Render_Pipeline {
     Shader shader;
     bool8 blend;
+
+    void *gpu_info; // OpenGL = NULL, Vulkan = VkPipeline
 };
 
 struct Render {
@@ -96,7 +56,7 @@ RENDER_FUNC(void, clear_color, Vector4 color);
 RENDER_FUNC(void, start_frame, );
 RENDER_FUNC(void, end_frame, );
 RENDER_FUNC(void, cleanup, );
-RENDER_FUNC(void, update_uniform_buffer_object, Uniform_Buffer_Object *ubo, void *data, u32 data_size);
+RENDER_FUNC(void, update_uniform_buffer_object, Uniform_Buffer_Object *ubo, void *data);
 RENDER_FUNC(void, init_mesh, Mesh *mesh);
 RENDER_FUNC(void, draw_mesh, Mesh *mesh);
 RENDER_FUNC(void, set_viewport, u32 window_width, u32 window_height);

@@ -32,18 +32,54 @@ struct Bitmap {
     void *gpu_info;
 };
 
-enum shader_types {
-    VERTEX_SHADER,                  // 0 (shader files array index)
-    TESSELLATION_CONTROL_SHADER,    // 1
-    TESSELLATION_EVALUATION_SHADER, // 2
-    GEOMETRY_SHADER,                // 3
-    FRAGMENT_SHADER,                // 4
+enum shader_stages {
+    SHADER_STAGE_VERTEX,
+    SHADER_STAGE_TESSELLATION_CONTROL,
+    SHADER_STAGE_TESSELLATION_EVALUATION,
+    SHADER_STAGE_GEOMETRY,
+    SHADER_STAGE_FRAGMENT,
 
-    SHADER_TYPE_AMOUNT              // 5
+    SHADER_STAGES_AMOUNT
+};
+
+enum descriptor_types {
+    DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    DESCRIPTOR_TYPE_SAMPLER,
+
+    DESCRIPTOR_TYPES_AMOUNT
+};
+
+struct Descriptor {
+    u32 binding;
+    u32 type;
+    u32 stages[SHADER_STAGES_AMOUNT];
+    u32 stages_count;
+
+    Descriptor() {
+        
+    }
+
+    Descriptor(u32 in_binding, u32 in_type, u32 in_stage) {
+        binding = in_binding;
+        type = in_type;
+        stages[0] = in_stage;
+        stages_count = 1;
+    } 
+};
+
+struct Descriptor_Set {
+    static const u32 max_descriptors = 10;
+    Descriptor descriptors[max_descriptors];
+    u32 descriptors_count;
+
+    void *gpu_info;
 };
 
 struct Shader {
-    File files[SHADER_TYPE_AMOUNT];
+    File files[SHADER_STAGES_AMOUNT];
+    File spirv_files[SHADER_STAGES_AMOUNT];
+
+    Descriptor_Set descriptor_set; // information about the uniforms and samplers
 
     bool8 compiled;
     u32 handle;

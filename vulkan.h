@@ -31,8 +31,7 @@ struct Vulkan_Swap_Chain_Support_Details {
 
 // info to setup a graphics pipeline
 struct Vulkan_Graphics_Pipeline {
-	File vert; // compiled shaders
-	File frag;
+	Shader *shader;
 	VkVertexInputBindingDescription binding_description;
 	VkVertexInputAttributeDescription attribute_descriptions[3];
 };
@@ -113,9 +112,10 @@ struct Vulkan_Info {
 global Vulkan_Info vulkan_info;
 
 struct Vulkan_Texture {
-	VkImage image;
 	static const VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
 	VkDeviceMemory image_memory;
+
+	VkImage image;
 	VkImageView image_view;
 	VkSampler sampler;
 };

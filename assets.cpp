@@ -183,17 +183,19 @@ free_bitmap_gpu_handle(Bitmap *bitmap) {
 void load_shader(Shader *shader)
 {
     if (shader->files[0].filepath == 0) {
-        logprint("load_opengl_shader()", "must have a vertex shader");
+        logprint("load_shader()", "must have a vertex shader");
         return;
     }
 
     print("loaded shader: ");
-    for (u32 i = 0; i < SHADER_TYPE_AMOUNT; i++) {
-        if (shader->files[i].memory != 0) platform_free(&shader->files[i].memory);
+    for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
+        if (shader->files[i].memory != 0) 
+            platform_free(&shader->files[i].memory);
         shader->files[i].memory = 0;
 
         if (shader->files[i].filepath != 0) {
-            shader->files[i] = read_file_terminated(shader->files[i].filepath);
+            //shader->files[i] = read_file_terminated(shader->files[i].filepath);
+            shader->files[i] = load_file(shader->files[i].filepath);
             print("%s ", shader->files[i].filepath);
         }
     }
@@ -221,7 +223,7 @@ bool compile_shader(u32 handle, const char *file, int type)
     return compiled_shader;
 }
 
-// lines up with enum shader_types
+// lines up with enum shader_stages
 const u32 opengl_shader_file_types[5] = { 
     GL_VERTEX_SHADER,
     GL_TESS_CONTROL_SHADER,
@@ -243,7 +245,7 @@ void compile_shader(Shader *shader)
         return;
     }
 
-    for (u32 i = 0; i < SHADER_TYPE_AMOUNT; i++) {
+    for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
         if (shader->files[i].memory == 0) continue; // file was not loaded
 
         if (!compile_shader(shader->handle, (char*)shader->files[i].memory, opengl_shader_file_types[i])) {
@@ -271,6 +273,10 @@ u32 use_shader(Shader *shader)
     glUseProgram(shader->handle);
     return shader->handle;
 }
+
+#elif VULKAN
+
+
 
 #endif // OPENGL
 

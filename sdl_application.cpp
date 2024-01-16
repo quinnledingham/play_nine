@@ -198,37 +198,41 @@ int main(int argc, char *argv[]) {
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     //glEnable(GL_BLEND);
 
-    Descriptor_Set set = {};
-    set.descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX);
-    set.descriptors[1] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT);
-    set.descriptors_count = 2;
-    vulkan_create_descriptor_sets(&set);
+    Shader basic_3D = {};
+    basic_3D.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/basic.vert";
+    basic_3D.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/basic.frag";
+    load_shader(&basic_3D);
+    vulkan_compile_shader(&basic_3D);
 
-    vulkan_create_graphics_pipeline(&vulkan_info, &set);
+    basic_3D.descriptor_set.descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX);
+    basic_3D.descriptor_set.descriptors[1] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT);
+    basic_3D.descriptor_set.descriptors[2] = Descriptor(2, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX);
+    basic_3D.descriptor_set.descriptors_count = 3;
+    vulkan_create_descriptor_sets(&basic_3D.descriptor_set);
+
+    vulkan_create_graphics_pipeline(&vulkan_info, &basic_3D);
     
     Bitmap yogi = load_bitmap("../assets/bitmaps/yogi.png");
     vulkan_create_texture(&yogi);
     free_bitmap(yogi);
 
     // tell where image is
-    vulkan_update_descriptor_sets(&set, &yogi);
+    vulkan_init_bitmap(&basic_3D.descriptor_set, &yogi);
 
     Scene scene = {};
-    scene.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
     scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f });
     scene.projection = perspective_projection(45.0f, (float32)app.window.width / (float32)app.window.height, 0.1f, 10.0f);
     
     // Init ubo
     Uniform_Buffer_Object scene_ubo = {};
-    scene_ubo.offsets[0] = 0;
-    scene_ubo.offsets[1] = (u32)vulkan_get_alignment(scene_ubo.offsets[0] + sizeof(Scene), (u32)vulkan_info.uniform_buffer_min_alignment);
-    scene_ubo.size = sizeof(Scene);
-    
+    Uniform_Buffer_Object object_ubo = {};
+
     // this is the defining of where gpu memory to a uniform
-    vulkan_update_descriptor_set(&set, &scene_ubo);
+    vulkan_init_ubo(&basic_3D.descriptor_set, &scene_ubo, sizeof(Scene), 0);
+    vulkan_init_ubo(&basic_3D.descriptor_set, &object_ubo, sizeof(Object), 2);
 
     // updates the gpu memory
-    render_update_uniform_buffer_object(&scene_ubo, (void*)&scene, sizeof(Scene));
+    render_update_uniform_buffer_object(&scene_ubo, (void*)&scene);
 
     Mesh rect = get_rect_mesh();
 
@@ -243,8 +247,15 @@ int main(int argc, char *argv[]) {
         render_set_viewport(app.window.width, app.window.height);
         render_set_scissor(app.window.width, app.window.height);
         render_bind_pipeline();
-        render_bind_descriptor_sets(&set);
+        render_bind_descriptor_sets(&basic_3D.descriptor_set);
+        
+        Object object = {};
+        object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+        render_update_uniform_buffer_object(&object_ubo, (void*)&object);
+        render_draw_mesh(&rect);
 
+        object.model = create_transform_m4x4({ 2.0f, 0.0f, 2.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+        render_update_uniform_buffer_object(&object_ubo, (void*)&object);
         render_draw_mesh(&rect);
 
         render_end_frame();
