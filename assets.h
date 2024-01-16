@@ -29,7 +29,7 @@ struct Bitmap {
     s32 pitch;
     s32 channels;
     
-    u32 gpu_handle;
+    void *gpu_info;
 };
 
 enum shader_types {

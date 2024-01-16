@@ -57,11 +57,12 @@ struct Vulkan_Info {
 
 	VkInstance instance;
 	VkPhysicalDevice physical_device;
+	VkPhysicalDeviceProperties physical_device_properties;
 	VkDevice device;
 	VkSurfaceKHR surface;
 	VkRenderPass render_pass;
 
-	VkDescriptorSetLayout descriptor_set_layout;
+	VkDeviceSize uniform_buffer_min_alignment;
 
 	VkPipelineLayout pipeline_layout;
 	VkPipeline graphics_pipeline;
@@ -91,18 +92,8 @@ struct Vulkan_Info {
     VkBuffer combined_buffer;
     VkDeviceMemory combined_buffer_memory;
     u32 combined_buffer_offset; // where to enter new bytes
-
-	// Descriptors used for uniforms in shaders
-	VkDescriptorPool descriptor_pool;
-	VkDescriptorSet descriptor_sets[MAX_FRAMES_IN_FLIGHT];
-
+	
 	// Images
-	VkImage texture_image;
-	const VkFormat texture_image_format = VK_FORMAT_R8G8B8A8_SRGB;
-	VkDeviceMemory texture_image_memory;
-	VkImageView texture_image_view;
-	VkSampler texture_sampler;
-
 	VkImage depth_image;
 	VkDeviceMemory depth_image_memory;
 	VkImageView depth_image_view;
@@ -110,8 +101,8 @@ struct Vulkan_Info {
 	// Presentation
 	VkCommandBufferBeginInfo begin_info;
 	VkClearValue clear_values[2];
-	VkViewport viewport;
-	VkRect2D scissor;
+	//VkViewport viewport;
+	//VkRect2D scissor;
 
 	VkPipelineStageFlags wait_stages[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkRenderPassBeginInfo render_pass_info;
@@ -120,6 +111,20 @@ struct Vulkan_Info {
 };
 
 global Vulkan_Info vulkan_info;
+
+struct Vulkan_Texture {
+	VkImage image;
+	static const VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
+	VkDeviceMemory image_memory;
+	VkImageView image_view;
+	VkSampler sampler;
+};
+
+struct Vulkan_Descriptor_Set {
+	VkDescriptorSetLayout layout;
+	VkDescriptorPool descriptor_pool;
+	VkDescriptorSet descriptor_sets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
+};
 
 struct Vulkan_Mesh {
     u32 vertices_offset;
