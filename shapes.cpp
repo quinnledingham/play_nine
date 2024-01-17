@@ -31,22 +31,22 @@ get_rect_mesh() {
 
     // vertex locations
     u32 top_left = 1, top_right = 3, bottom_left = 0, bottom_right = 2;
-    /*
+    
 	mesh.indices[0] = top_left;
     mesh.indices[1] = bottom_left;
     mesh.indices[2] = bottom_right;
     mesh.indices[3] = top_left;
     mesh.indices[4] = bottom_right;
     mesh.indices[5] = top_right;
-    */
-
+    
+/*
     mesh.indices[0] = top_left;
     mesh.indices[1] = bottom_right;
     mesh.indices[2] = bottom_left;
     mesh.indices[3] = top_left;
     mesh.indices[4] = top_right;
     mesh.indices[5] = bottom_right;
-    
+*/  
     render_init_mesh(&mesh);
 
     return mesh;

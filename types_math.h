@@ -360,13 +360,30 @@ get_frustum(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f)
     };
 }
 
+// Only difference is the y_max's
+#ifdef OPENGL
+
+inline Matrix_4x4
+perspective_projection(float32 fov, float32 aspect_ratio, float32 n, float32 f)
+{
+    // (fov / 2.0f) * (2PI / 360.0f)
+    // x_max = y_max * (window_width / window_height)
+    float32 y_max = n * tanf(fov * PI / 360.0f);
+    float32 x_max = y_max * aspect_ratio;
+    return get_frustum(-x_max, x_max, -y_max, y_max, n, f);
+}
+
+#elif VULKAN
+
 inline Matrix_4x4
 perspective_projection(float32 fov, float32 aspect_ratio, float32 n, float32 f)
 {
     float32 y_max = n * tanf(fov * PI / 360.0f);
     float32 x_max = y_max * aspect_ratio;
-    return get_frustum(-x_max, x_max, -y_max, y_max, n, f);
+    return get_frustum(-x_max, x_max, y_max, -y_max, n, f);
 }
+
+#endif // OPENGL / VULKAN
 
 inline Matrix_4x4
 orthographic_projection(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f)

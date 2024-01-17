@@ -24,7 +24,7 @@ print_char_array(u32 output_stream, const char *char_array) {
 
 #endif // WINDOWS
 
-#define PRINT_BUFFER_SIZE 1000
+#define PRINT_BUFFER_SIZE 2000
 
 internal void
 print_list(u32 output_stream, const char *msg, va_list list) {

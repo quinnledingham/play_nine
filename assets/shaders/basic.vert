@@ -1,11 +1,11 @@
 #version 450
 
-layout(binding = 0) uniform Scene {
+layout(set = 0, binding = 0) uniform Scene {
     mat4 view;
     mat4 projection;
 } scene;
 
-layout(binding = 2) uniform Object {
+layout(set = 1, binding = 0) uniform Object {
     mat4 model;
 } object;
 

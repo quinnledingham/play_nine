@@ -776,9 +776,12 @@ vulkan_create_descriptor(Descriptor descriptor) {
 	return layout_binding;
 }
 
+// descriptor_set_count is how many descripotr sets to allocate
 internal void
-vulkan_create_descriptor_sets(Descriptor_Set *set) {
-	Vulkan_Info *info = &vulkan_info;
+vulkan_create_descriptor_pool(Shader *shader, u32 descriptor_set_count, u32 set_index) {
+	Descriptor_Set *set = &shader->descriptor_set[set_index]; // passing the layout that was defined for the set
+	shader->descriptor_pool[set_index] = platform_malloc(sizeof(Vulkan_Descriptor_Pool));
+	Vulkan_Descriptor_Pool *vulkan_pool = (Vulkan_Descriptor_Pool *)shader->descriptor_pool[set_index];
 	
 	VkDescriptorSetLayoutBinding bindings[set->max_descriptors] = {};
 	for (u32 i = 0; i < set->descriptors_count; i++) {
@@ -789,44 +792,47 @@ vulkan_create_descriptor_sets(Descriptor_Set *set) {
 	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layout_info.bindingCount = set->descriptors_count;
 	layout_info.pBindings = bindings;
-
-	set->gpu_info = platform_malloc(sizeof(Vulkan_Descriptor_Set));
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
 	
-	if (vkCreateDescriptorSetLayout(info->device, &layout_info, nullptr, &vulkan_set->layout) != VK_SUCCESS) {
+	if (vkCreateDescriptorSetLayout(vulkan_info.device, &layout_info, nullptr, &vulkan_pool->layout) != VK_SUCCESS) {
 		logprint("vulkan_create_descriptor_set_layout()", "failed to create descriptor set layout\n");
 	}
 
-	// The descriptor pool is made for this layout
 	VkDescriptorPoolSize pool_sizes[ARRAY_COUNT(bindings)] = {};
 	for (u32 i = 0; i < set->descriptors_count; i++) {
 		pool_sizes[i].type = bindings[i].descriptorType;
-		pool_sizes[i].descriptorCount = info->MAX_FRAMES_IN_FLIGHT;
+		pool_sizes[i].descriptorCount = descriptor_set_count; // how many of that type to allocate
 	}
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = 1;
 	pool_info.pPoolSizes = pool_sizes;
-	pool_info.maxSets = info->MAX_FRAMES_IN_FLIGHT;
+	pool_info.maxSets = descriptor_set_count;
 
-	if (vkCreateDescriptorPool(info->device, &pool_info, nullptr, &vulkan_set->descriptor_pool) != VK_SUCCESS) {
+	if (vkCreateDescriptorPool(vulkan_info.device, &pool_info, nullptr, &vulkan_pool->descriptor_pool) != VK_SUCCESS) {
 		logprint("vulkan_crate_descriptor_pool()", "failed to create descriptor pool\n");
 	}
+}
+
+internal void
+vulkan_create_descriptor_sets(Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index) {
+	set->gpu_info = platform_malloc(sizeof(Vulkan_Descriptor_Set));
+	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+	Vulkan_Descriptor_Pool *vulkan_pool = (Vulkan_Descriptor_Pool *)shader->descriptor_pool[pool_index];
 
 	// Create descriptor sets
-	VkDescriptorSetLayout layouts[info->MAX_FRAMES_IN_FLIGHT];
-	for (u32 i = 0; i < info->MAX_FRAMES_IN_FLIGHT; i++) {
-		layouts[i] = vulkan_set->layout;
+	VkDescriptorSetLayout layouts[10];
+	for (u32 i = 0; i < descriptor_set_count; i++) {
+		layouts[i] = vulkan_pool->layout;
 	}
 
 	VkDescriptorSetAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocate_info.descriptorPool = vulkan_set->descriptor_pool;
-	allocate_info.descriptorSetCount = (u32)info->MAX_FRAMES_IN_FLIGHT;
+	allocate_info.descriptorPool = vulkan_pool->descriptor_pool;
+	allocate_info.descriptorSetCount = descriptor_set_count;
 	allocate_info.pSetLayouts = layouts;
 
-	if (vkAllocateDescriptorSets(info->device, &allocate_info, vulkan_set->descriptor_sets) != VK_SUCCESS) {
+	if (vkAllocateDescriptorSets(vulkan_info.device, &allocate_info, vulkan_set->descriptor_sets) != VK_SUCCESS) {
 		logprint("vulkan_create_descriptor_sets()", "failed to allocate descriptor sets\n");
 	}
 }
@@ -835,107 +841,94 @@ internal u32
 vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
 	u32 return_offset = *offset;
     *offset += in_data_size;
-	if (*offset >= 1000) {
-		*offset = in_data_size;
-		return 0;
+	if (*offset > 5000) {
+		*offset = 0;
+		return *offset;
 	}
 	return return_offset;
 }
 
-// defining where the memory for this ubo is
+// sets the ubos offsets and tells the shader where to find the memory
 internal void
-vulkan_init_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding) {
-	// because two frames can be in flight
-	//u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
-	//u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
-
-	//ubo->offsets[0] = vulkan_get_next_offset(buffer_size);
-	//ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
-	u32 buffer_size = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);	
-	ubo->size = size;
-	ubo->offset = vulkan_get_next_offset(&vulkan_info.uniform_buffer_offset, buffer_size);
-
+vulkan_init_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding, bool8 static_update) {
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+	ubo->size = size;
 
-	for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
-        VkDescriptorBufferInfo buffer_info = {};
-        buffer_info.buffer = vulkan_info.combined_buffer;
-        buffer_info.offset = ubo->offset;
-        buffer_info.range = ubo->size;
+	if (static_update) {
+		// because two frames can be in flight
+		u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
+		u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
 
-        VkWriteDescriptorSet descriptor_write = {};
-        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_write.dstSet = vulkan_set->descriptor_sets[i];
-        descriptor_write.dstBinding = binding;
-        descriptor_write.dstArrayElement = 0;
-        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptor_write.descriptorCount = 1;
-        descriptor_write.pBufferInfo = &buffer_info;
+		ubo->offsets[0] = vulkan_get_next_offset(&vulkan_info.dymanic_uniforms_offset, buffer_size);
+		ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+		
+		for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
+		    VkDescriptorBufferInfo buffer_info = {};
+		    buffer_info.buffer = vulkan_info.uniform_buffer;
+		    buffer_info.offset = ubo->offsets[i];
+		    buffer_info.range = ubo->size;
 
-        vkUpdateDescriptorSets(vulkan_info.device, 1, &descriptor_write, 0, nullptr);
+		    VkWriteDescriptorSet descriptor_write = {};
+		    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		    descriptor_write.dstSet = vulkan_set->descriptor_sets[i];
+		    descriptor_write.dstBinding = binding;
+		    descriptor_write.dstArrayElement = 0;
+		    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		    descriptor_write.descriptorCount = 1;
+		    descriptor_write.pBufferInfo = &buffer_info;
+
+		    vkUpdateDescriptorSets(vulkan_info.device, 1, &descriptor_write, 0, nullptr);
+		}
+	} else {
+		// because two frames can be in flight
+		u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
+		//u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+		u32 buffer_size = offset;
+
+		ubo->offsets[vulkan_info.current_frame] = vulkan_get_next_offset(&vulkan_info.uniform_buffer_offset, buffer_size);
+
+		if (vulkan_info.uniform_buffer_offset < vulkan_info.dymanic_uniforms_offset) {
+			vulkan_info.uniform_buffer_offset = vulkan_info.dymanic_uniforms_offset;
+			ubo->offsets[vulkan_info.current_frame] = vulkan_get_next_offset(&vulkan_info.uniform_buffer_offset, buffer_size);
+			//print("yo\n");
+		}
+		//ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+
+		VkDescriptorBufferInfo buffer_info = {};
+	    buffer_info.buffer = vulkan_info.uniform_buffer;
+	    buffer_info.offset = ubo->offsets[vulkan_info.current_frame];
+	    buffer_info.range = ubo->size;
+
+	    VkWriteDescriptorSet descriptor_write = {};
+	    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	    descriptor_write.dstSet = vulkan_set->descriptor_sets[vulkan_info.current_frame];
+	    descriptor_write.dstBinding = binding;
+	    descriptor_write.dstArrayElement = 0;
+	    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	    descriptor_write.descriptorCount = 1;
+	    descriptor_write.pBufferInfo = &buffer_info;
+
+	    vkUpdateDescriptorSets(vulkan_info.device, 1, &descriptor_write, 0, nullptr);
 	}
 }
 
-// defining where the memory for this ubo is
+// updates the ubo memory
 internal void
-vulkan_update_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding) {
-	// because two frames can be in flight
-	//u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
-	//u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
-
-	//ubo->offsets[0] = vulkan_get_next_offset(buffer_size);
-	//ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
-	u32 buffer_size = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);	
-	ubo->size = size;
-	ubo->offset = vulkan_get_next_offset(&vulkan_info.uniform_buffer_offset, buffer_size);
-
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
-
-    VkDescriptorBufferInfo buffer_info = {};
-    buffer_info.buffer = vulkan_info.uniform_buffer;
-    buffer_info.offset = ubo->offset;
-    buffer_info.range = ubo->size;
-
-    VkWriteDescriptorSet descriptor_write = {};
-    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_write.dstSet = vulkan_set->descriptor_sets[vulkan_info.current_frame];
-    descriptor_write.dstBinding = binding;
-    descriptor_write.dstArrayElement = 0;
-    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptor_write.descriptorCount = 1;
-    descriptor_write.pBufferInfo = &buffer_info;
-
-    vkUpdateDescriptorSets(vulkan_info.device, 1, &descriptor_write, 0, nullptr);
-}
-
-internal void
-vulkan_init_bitmap(Descriptor_Set *set, Bitmap *bitmap) {
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
-	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
-
-	for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
-        VkDescriptorImageInfo image_info = {};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.imageView = texture->image_view;
-        image_info.sampler = texture->sampler;
-
-        VkWriteDescriptorSet descriptor_writes[1] = {};
-
-        descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[0].dstSet = vulkan_set->descriptor_sets[i];
-        descriptor_writes[0].dstBinding = 1;
-        descriptor_writes[0].dstArrayElement = 0;
-        descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptor_writes[0].descriptorCount = 1;
-        descriptor_writes[0].pImageInfo = &image_info;
-
-        vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
+vulkan_update_ubo(Uniform_Buffer_Object *ubo, void *data, bool8 static_update) {
+	if (static_update) { // update all frames
+		for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
+			memcpy((char*)vulkan_info.uniform_data + ubo->offsets[i], data, ubo->size);
+		}
+	} else {
+		memcpy((char*)vulkan_info.uniform_data + ubo->offsets[vulkan_info.current_frame], data, ubo->size);
 	}
 }
 
-void vulkan_bind_descriptor_sets(Descriptor_Set *set) {
+
+void vulkan_bind_descriptor_sets(Descriptor_Set *set, u32 first_set) {
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
-	vkCmdBindDescriptorSets(vulkan_info.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, 0, 1, &vulkan_set->descriptor_sets[vulkan_info.current_frame], 0, nullptr);
+	//u32 first_set = 0;
+	vkCmdBindDescriptorSets(vulkan_info.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &vulkan_set->descriptor_sets[vulkan_info.current_frame], 0, nullptr);
 }
 
 internal VkResult 
@@ -1038,7 +1031,9 @@ vulkan_create_shader_module(VkDevice device, File code) {
 }
 
 internal void
-vulkan_create_graphics_pipeline(Vulkan_Info *info, Shader *shader) {
+vulkan_create_graphics_pipeline(Shader *shader) {
+	Vulkan_Info *info = &vulkan_info;
+
 	u32 shader_stages_index = 0;
 	VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_AMOUNT] = {};
 	VkShaderModule shader_modules[SHADER_STAGES_AMOUNT] = {};
@@ -1057,13 +1052,19 @@ vulkan_create_graphics_pipeline(Vulkan_Info *info, Shader *shader) {
 		shader_stages[shader_stages_index++] = shader_stage_info;
 	}
 
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)shader->descriptor_set.gpu_info;
+	VkDescriptorSetLayout layouts[2];
+	for (u32 i = 0; i < 2; i++) {
+		Vulkan_Descriptor_Pool *vulkan_pool = (Vulkan_Descriptor_Pool *)shader->descriptor_pool[i];
+		layouts[i] = vulkan_pool->layout;
+	}
+
+	
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount         = 1;                   // Optional
-	pipeline_layout_info.pSetLayouts            = &vulkan_set->layout; // Optional
-	pipeline_layout_info.pushConstantRangeCount = 0;                   // Optional
-	pipeline_layout_info.pPushConstantRanges    = nullptr;             // Optional
+	pipeline_layout_info.setLayoutCount         = 2;                    // Optional
+	pipeline_layout_info.pSetLayouts            = layouts; // Optional
+	pipeline_layout_info.pushConstantRangeCount = 0;                    // Optional
+	pipeline_layout_info.pPushConstantRanges    = nullptr;              // Optional
 
 	VkDynamicState dynamic_states[] = { 
 		VK_DYNAMIC_STATE_VIEWPORT, 
@@ -1368,8 +1369,8 @@ vulkan_cleanup() {
 	//vkDestroyDescriptorPool(info->device, info->descriptor_pool, nullptr);
 	//vkDestroyDescriptorSetLayout(info->device, info->descriptor_set_layout, nullptr);
 
-	vkDestroyBuffer(info->device, info->combined_buffer, nullptr);
-	vkFreeMemory(info->device, info->combined_buffer_memory, nullptr);
+	vkDestroyBuffer(info->device, info->static_buffer, nullptr);
+	vkFreeMemory(info->device, info->static_buffer_memory, nullptr);
 	
 	vkDestroyPipeline(info->device, info->graphics_pipeline, nullptr);
 	vkDestroyPipelineLayout(info->device, info->pipeline_layout, nullptr);
@@ -1601,8 +1602,8 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
                          1000, 
                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                         info->combined_buffer,
-                         info->combined_buffer_memory);
+                         info->static_buffer,
+                         info->static_buffer_memory);
 
 
 	vulkan_create_buffer(info->device, 
@@ -1642,7 +1643,7 @@ void vulkan_set_scissor(u32 width, u32 height) {
 	vkCmdSetScissor(vulkan_info.command_buffer, 0, 1, &scissor);
 }
 
-void vulkan_bind_pipeline() {
+void vulkan_bind_pipeline(Shader *shader) {
 	vkCmdBindPipeline(vulkan_info.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.graphics_pipeline);
 }
 
@@ -1713,9 +1714,9 @@ void vulkan_init_mesh(Mesh *mesh) {
     memcpy(memory, (void*)mesh->vertices, vertices_size);
     memcpy((char*)memory + vertices_size, (void*)mesh->indices, indices_size);
 
-	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.combined_buffer_offset, buffer_size);
+	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.static_buffer_offset, buffer_size);
 
-    vulkan_update_buffer(&vulkan_info, &vulkan_info.combined_buffer, &vulkan_info.combined_buffer_memory, memory, buffer_size, vulkan_mesh->vertices_offset);
+    vulkan_update_buffer(&vulkan_info, &vulkan_info.static_buffer, &vulkan_info.static_buffer_memory, memory, buffer_size, vulkan_mesh->vertices_offset);
     vulkan_mesh->indices_offset = vulkan_mesh->vertices_offset + vertices_size;
     
     platform_free(memory);
@@ -1725,17 +1726,34 @@ void vulkan_init_mesh(Mesh *mesh) {
 void vulkan_draw_mesh(Mesh *mesh) {
     Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)mesh->gpu_info;
     VkDeviceSize offsets[] = { vulkan_mesh->vertices_offset };
-    vkCmdBindVertexBuffers(vulkan_info.command_buffer, 0, 1, &vulkan_info.combined_buffer, offsets);
-    vkCmdBindIndexBuffer(vulkan_info.command_buffer, vulkan_info.combined_buffer, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(vulkan_info.command_buffer, 0, 1, &vulkan_info.static_buffer, offsets);
+    vkCmdBindIndexBuffer(vulkan_info.command_buffer, vulkan_info.static_buffer, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(vulkan_info.command_buffer, mesh->indices_count, 1, 0, 0, 0);
 }
 
 internal void
-vulkan_update_uniform_buffer_object(Uniform_Buffer_Object *ubo, void *data) {
-	//void *memory = platform_malloc(ubo->size);
-	//memcpy((char*)memory, data, ubo->size);
-	memcpy((char*)vulkan_info.uniform_data + ubo->offset, data, ubo->size);
-    //vulkan_update_buffer_v2(&vulkan_info, &vulkan_info.uniform_buffer, &vulkan_info.buffers_memory[vulkan_info.current_frame], memory, ubo->size, ubo->offset);
+vulkan_init_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
+	vulkan_create_texture(bitmap);
 
-    //platform_free(memory);
+	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
+
+	for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorImageInfo image_info = {};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image_info.imageView = texture->image_view;
+        image_info.sampler = texture->sampler;
+
+        VkWriteDescriptorSet descriptor_writes[1] = {};
+
+        descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[0].dstSet = vulkan_set->descriptor_sets[i];
+        descriptor_writes[0].dstBinding = binding;
+        descriptor_writes[0].dstArrayElement = 0;
+        descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_writes[0].descriptorCount = 1;
+        descriptor_writes[0].pImageInfo = &image_info;
+
+        vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
+	}
 }

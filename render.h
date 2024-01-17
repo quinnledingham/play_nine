@@ -3,7 +3,6 @@ struct Uniform_Buffer_Object {
     u32 binding;
     u32 size;
     u32 offsets[2];
-    u32 offset;
 
     u32 opengl() {
         return *(u32*)handle;
@@ -18,7 +17,6 @@ struct Scene {
 struct Object {
     Matrix_4x4 model;
 };
-
 
 
 struct Render_Pipeline {
@@ -57,10 +55,19 @@ RENDER_FUNC(void, clear_color, Vector4 color);
 RENDER_FUNC(void, start_frame, );
 RENDER_FUNC(void, end_frame, );
 RENDER_FUNC(void, cleanup, );
-RENDER_FUNC(void, update_uniform_buffer_object, Uniform_Buffer_Object *ubo, void *data);
+RENDER_FUNC(void, create_graphics_pipeline, Shader *shader);
+RENDER_FUNC(void, bind_pipeline, Shader *shader);
+
+//RENDER_FUNC(void, create_descriptor_pool, Descriptor_Set *set, u32 descriptor_count);
+//RENDER_FUNC(void, create_descriptor_sets, Descriptor_Set *set, u32 descriptor_set_count);
+RENDER_FUNC(void, init_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
+//RENDER_FUNC(void, init_ubo, Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding);
+RENDER_FUNC(void, update_ubo, Uniform_Buffer_Object *ubo, void *data, bool8 static_update);
+RENDER_FUNC(void, bind_descriptor_sets, Descriptor_Set *set, u32 first_set);
+
 RENDER_FUNC(void, init_mesh, Mesh *mesh);
 RENDER_FUNC(void, draw_mesh, Mesh *mesh);
 RENDER_FUNC(void, set_viewport, u32 window_width, u32 window_height);
 RENDER_FUNC(void, set_scissor, u32 window_width, u32 window_height);
-RENDER_FUNC(void, bind_pipeline, );
-RENDER_FUNC(void, bind_descriptor_sets, Descriptor_Set *set);
+
+RENDER_FUNC(void, compile_shader, Shader *shader);

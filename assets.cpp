@@ -101,10 +101,11 @@ enum Texture_Parameters
 
 internal void
 init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
-	    GLenum target = GL_TEXTURE_2D;
+    GLenum target = GL_TEXTURE_2D;
     
-    glGenTextures(1, &bitmap->gpu_handle);
-    glBindTexture(target, bitmap->gpu_handle);
+    bitmap->gpu_info = platform_malloc(sizeof(u32));
+    glGenTextures(1, (u32*)bitmap->gpu_info);
+    glBindTexture(target, *(u32*)bitmap->gpu_info);
     
     GLint internal_format = 0;
     GLenum data_format = 0;
@@ -124,7 +125,7 @@ init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
         } break;
         
         case 4: {
-            internal_format = GL_RGBA;
+            internal_format = GL_SRGB8_ALPHA8; //GL_RGBA no sRGB
             data_format = GL_RGBA;
             pixel_unpack_alignment = 4;
         } break;
@@ -154,9 +155,14 @@ init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
     glBindTexture(target, 0);
 }
 
+void opengl_init_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) { 
+    init_bitmap_gpu_handle(bitmap, TEXTURE_PARAMETERS_CHAR); 
+    set->descriptors[binding].handle = *(u32*)bitmap->gpu_info;
+}
+
 internal void
 free_bitmap_gpu_handle(Bitmap *bitmap) {
-    glDeleteTextures(1, &bitmap->gpu_handle);
+    glDeleteTextures(1, (u32*)bitmap->gpu_info);
 }
 
 #endif // OPENGL
@@ -233,9 +239,8 @@ const u32 opengl_shader_file_types[5] = {
 };
 
 // compiles the files
-void compile_shader(Shader *shader)
+void opengl_compile_shader(Shader *shader)
 {
-    shader->uniform_buffer_objects_generated = false;
     shader->compiled = false;
     if (shader->handle != 0) glDeleteProgram(shader->handle);
     shader->handle = glCreateProgram();
@@ -286,35 +291,7 @@ u32 use_shader(Shader *shader)
 
 #ifdef OPENGL
 
-void init_gpu_mesh(Triangle_Mesh *mesh) {
-	glGenVertexArrays(1, &mesh->vertex_array_object);
 
-    glGenBuffers(1, &mesh->vertex_buffer_object);
-    glGenBuffers(1, &mesh->index_buffer_object);
-    
-    glBindVertexArray(mesh->vertex_array_object);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->vertex_buffer_object);
-    glBufferData(GL_ARRAY_BUFFER, mesh->vertices_count * sizeof(Vertex_XNU), &mesh->vertices[0], GL_STATIC_DRAW);  
-    
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->index_buffer_object);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->indices_count * sizeof(u32), &mesh->indices[0], GL_STATIC_DRAW);
-    
-    glEnableVertexAttribArray(0); // vertex positions
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)0);
-    glEnableVertexAttribArray(1); // vertex normals
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)offsetof(Vertex_XNU, normal));
-    glEnableVertexAttribArray(2); // vertex texture coords
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)offsetof(Vertex_XNU, uv));
-    
-    glBindVertexArray(0);
-}
-
-void draw_triangle_mesh(Triangle_Mesh *mesh)
-{
-    glBindVertexArray(mesh->vertex_array_object);
-    glDrawElements(GL_TRIANGLES, mesh->indices_count, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
 
 #endif // OPENGL
 

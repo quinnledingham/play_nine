@@ -91,12 +91,13 @@ struct Vulkan_Info {
 	VkFence in_flight_fence[MAX_FRAMES_IN_FLIGHT];
 
 	// Buffers	
-    VkBuffer combined_buffer;
-    VkDeviceMemory combined_buffer_memory;
-    u32 combined_buffer_offset; // where to enter new bytes
+    VkBuffer static_buffer;
+    VkDeviceMemory static_buffer_memory;
+    u32 static_buffer_offset; // where to enter new bytes
 	
-	VkDeviceMemory uniform_buffer_memory;
 	VkBuffer uniform_buffer;
+	VkDeviceMemory uniform_buffer_memory;
+	u32 dymanic_uniforms_offset; // where to go to update the dynamic uniforms
 	u32 uniform_buffer_offset;
 	void *uniform_data;
 
@@ -128,9 +129,16 @@ struct Vulkan_Texture {
 	VkSampler sampler;
 };
 
-struct Vulkan_Descriptor_Set {
+// For the shader to store information about the layout and have a pool for this layout
+// to allocate descriptors for.
+struct Vulkan_Descriptor_Pool {
 	VkDescriptorSetLayout layout;
 	VkDescriptorPool descriptor_pool;
+};
+
+struct Vulkan_Descriptor_Set {
+	//VkDescriptorSetLayout layout;
+	//VkDescriptorPool descriptor_pool;
 	VkDescriptorSet descriptor_sets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
 };
 

@@ -55,6 +55,8 @@ struct Descriptor {
     u32 stages[SHADER_STAGES_AMOUNT];
     u32 stages_count;
 
+    u32 handle; // OpenGL
+
     Descriptor() {
         
     }
@@ -79,7 +81,8 @@ struct Shader {
     File files[SHADER_STAGES_AMOUNT];
     File spirv_files[SHADER_STAGES_AMOUNT];
 
-    Descriptor_Set descriptor_set; // information about the uniforms and samplers
+    void *descriptor_pool[2];
+    Descriptor_Set descriptor_set[2]; // information about the uniforms and samplers
 
     bool8 compiled;
     u32 handle;
