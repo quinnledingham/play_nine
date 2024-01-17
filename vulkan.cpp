@@ -672,13 +672,6 @@ vulkan_copy_buffer(Vulkan_Info *info, VkBuffer src_buffer, VkBuffer dest_buffer,
 	vulkan_end_single_time_commands(command_buffer, info->device, info->command_pool, info->graphics_queue);
 }
 
-internal u32
-vulkan_get_next_offset(u32 in_data_size) {
-	u32 return_offset = vulkan_info.combined_buffer_offset;
-    vulkan_info.combined_buffer_offset += in_data_size;
-	return return_offset;
-}
-
 // return the offset to the memory set in the buffer
 internal void
 vulkan_update_buffer(Vulkan_Info *info, VkBuffer *buffer, VkDeviceMemory *memory, void *in_data, u32 in_data_size, u32 offset) {
@@ -703,10 +696,36 @@ vulkan_update_buffer(Vulkan_Info *info, VkBuffer *buffer, VkDeviceMemory *memory
 	
 	vkDestroyBuffer(info->device, staging_buffer, nullptr);
 	vkFreeMemory(info->device, staging_buffer_memory, nullptr);
+}
 
-    //u32 return_offset = info->combined_buffer_offset;
-    //info->combined_buffer_offset += in_data_size;
-    //return return_offset;
+// return the offset to the memory set in the buffer
+internal void
+vulkan_update_buffer_v2(Vulkan_Info *info, VkBuffer *buffer, VkDeviceMemory *memory, void *in_data, u32 in_data_size, u32 offset) {
+	VkDeviceSize buffer_size = in_data_size;
+	VkBuffer staging_buffer;
+	VkDeviceMemory staging_buffer_memory;
+	
+	vulkan_create_buffer(info->device, 
+						 info->physical_device,
+						 buffer_size, 
+						 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+						 staging_buffer,
+						 staging_buffer_memory);
+
+	void *data;
+	vkMapMemory(info->device, staging_buffer_memory, 0, buffer_size, 0, &data);
+	memcpy(data, in_data, buffer_size);
+	vkUnmapMemory(info->device, staging_buffer_memory);
+
+	VkBufferCopy copy_region = {};
+	copy_region.srcOffset = 0;      // Optional
+	copy_region.dstOffset = offset; // Optional
+	copy_region.size = buffer_size;
+	vkCmdCopyBuffer(vulkan_info.command_buffer, staging_buffer, *buffer, 1, &copy_region);
+	
+	vkDestroyBuffer(info->device, staging_buffer, nullptr);
+	vkFreeMemory(info->device, staging_buffer_memory, nullptr);
 }
 
 internal VkDeviceSize
@@ -812,23 +831,36 @@ vulkan_create_descriptor_sets(Descriptor_Set *set) {
 	}
 }
 
+internal u32
+vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
+	u32 return_offset = *offset;
+    *offset += in_data_size;
+	if (*offset >= 1000) {
+		*offset = in_data_size;
+		return 0;
+	}
+	return return_offset;
+}
+
 // defining where the memory for this ubo is
 internal void
 vulkan_init_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding) {
 	// because two frames can be in flight
-	u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
-	u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	//u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	//u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
 
-	ubo->offsets[0] = vulkan_get_next_offset(buffer_size);
-	ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	//ubo->offsets[0] = vulkan_get_next_offset(buffer_size);
+	//ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	u32 buffer_size = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);	
 	ubo->size = size;
+	ubo->offset = vulkan_get_next_offset(&vulkan_info.uniform_buffer_offset, buffer_size);
 
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
 
 	for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
         VkDescriptorBufferInfo buffer_info = {};
         buffer_info.buffer = vulkan_info.combined_buffer;
-        buffer_info.offset = ubo->offsets[i];
+        buffer_info.offset = ubo->offset;
         buffer_info.range = ubo->size;
 
         VkWriteDescriptorSet descriptor_write = {};
@@ -842,6 +874,38 @@ vulkan_init_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 b
 
         vkUpdateDescriptorSets(vulkan_info.device, 1, &descriptor_write, 0, nullptr);
 	}
+}
+
+// defining where the memory for this ubo is
+internal void
+vulkan_update_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding) {
+	// because two frames can be in flight
+	//u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	//u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+
+	//ubo->offsets[0] = vulkan_get_next_offset(buffer_size);
+	//ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	u32 buffer_size = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);	
+	ubo->size = size;
+	ubo->offset = vulkan_get_next_offset(&vulkan_info.uniform_buffer_offset, buffer_size);
+
+	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+
+    VkDescriptorBufferInfo buffer_info = {};
+    buffer_info.buffer = vulkan_info.uniform_buffer;
+    buffer_info.offset = ubo->offset;
+    buffer_info.range = ubo->size;
+
+    VkWriteDescriptorSet descriptor_write = {};
+    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_write.dstSet = vulkan_set->descriptor_sets[vulkan_info.current_frame];
+    descriptor_write.dstBinding = binding;
+    descriptor_write.dstArrayElement = 0;
+    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptor_write.descriptorCount = 1;
+    descriptor_write.pBufferInfo = &buffer_info;
+
+    vkUpdateDescriptorSets(vulkan_info.device, 1, &descriptor_write, 0, nullptr);
 }
 
 internal void
@@ -1540,6 +1604,17 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
                          info->combined_buffer,
                          info->combined_buffer_memory);
 
+
+	vulkan_create_buffer(info->device, 
+                     info->physical_device,
+                     5000, 
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     info->uniform_buffer,
+                     info->uniform_buffer_memory);
+	
+	vkMapMemory(info->device, info->uniform_buffer_memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.uniform_data);
+
 	vulkan_init_presentation_settings(info);
 }
 
@@ -1638,7 +1713,7 @@ void vulkan_init_mesh(Mesh *mesh) {
     memcpy(memory, (void*)mesh->vertices, vertices_size);
     memcpy((char*)memory + vertices_size, (void*)mesh->indices, indices_size);
 
-	vulkan_mesh->vertices_offset = vulkan_get_next_offset(buffer_size);
+	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.combined_buffer_offset, buffer_size);
 
     vulkan_update_buffer(&vulkan_info, &vulkan_info.combined_buffer, &vulkan_info.combined_buffer_memory, memory, buffer_size, vulkan_mesh->vertices_offset);
     vulkan_mesh->indices_offset = vulkan_mesh->vertices_offset + vertices_size;
@@ -1657,11 +1732,10 @@ void vulkan_draw_mesh(Mesh *mesh) {
 
 internal void
 vulkan_update_uniform_buffer_object(Uniform_Buffer_Object *ubo, void *data) {
-	u32 bytes_from_0_to_1 = ubo->offsets[1] - ubo->offsets[0];
-    u32 memory_size = (u32)bytes_from_0_to_1 + ubo->size;
-    void *memory = platform_malloc(memory_size);
-    memcpy((char*)memory, data, ubo->size);
-    memcpy((char*)memory + bytes_from_0_to_1, data, ubo->size);
-    vulkan_update_buffer(&vulkan_info, &vulkan_info.combined_buffer, &vulkan_info.combined_buffer_memory, memory, memory_size, ubo->offsets[0]);
-    platform_free(memory);
+	//void *memory = platform_malloc(ubo->size);
+	//memcpy((char*)memory, data, ubo->size);
+	memcpy((char*)vulkan_info.uniform_data + ubo->offset, data, ubo->size);
+    //vulkan_update_buffer_v2(&vulkan_info, &vulkan_info.uniform_buffer, &vulkan_info.buffers_memory[vulkan_info.current_frame], memory, ubo->size, ubo->offset);
+
+    //platform_free(memory);
 }

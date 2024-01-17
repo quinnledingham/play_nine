@@ -228,34 +228,34 @@ int main(int argc, char *argv[]) {
     Uniform_Buffer_Object object_ubo = {};
 
     // this is the defining of where gpu memory to a uniform
-    vulkan_init_ubo(&basic_3D.descriptor_set, &scene_ubo, sizeof(Scene), 0);
-    vulkan_init_ubo(&basic_3D.descriptor_set, &object_ubo, sizeof(Object), 2);
-
-    // updates the gpu memory
-    render_update_uniform_buffer_object(&scene_ubo, (void*)&scene);
-
+    
     Mesh rect = get_rect_mesh();
 
     while (1) {
-
+        
     	if (sdl_process_input(&app.window, &app.input)) 
             return 0;
-
+        
     	sdl_update_time(&app.time);
-
+        print("%f\n", app.time.frames_per_s);
+        //print("%d\n", vulkan_info.uniform_buffer_offset);
+        
         render_start_frame();
+
+        // updates the gpu memory
+        vulkan_update_ubo(&basic_3D.descriptor_set, &scene_ubo, sizeof(Scene), 0);
+        vulkan_update_uniform_buffer_object(&scene_ubo, (void*)&scene);
+
+        Object object = {};
+        object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(5.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+        vulkan_update_ubo(&basic_3D.descriptor_set, &object_ubo, sizeof(Object), 2);
+        vulkan_update_uniform_buffer_object(&object_ubo, (void*)&object);
+
         render_set_viewport(app.window.width, app.window.height);
         render_set_scissor(app.window.width, app.window.height);
         render_bind_pipeline();
-        render_bind_descriptor_sets(&basic_3D.descriptor_set);
-        
-        Object object = {};
-        object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
-        render_update_uniform_buffer_object(&object_ubo, (void*)&object);
-        render_draw_mesh(&rect);
-
-        object.model = create_transform_m4x4({ 2.0f, 0.0f, 2.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
-        render_update_uniform_buffer_object(&object_ubo, (void*)&object);
+        render_bind_descriptor_sets(&basic_3D.descriptor_set);        
+    
         render_draw_mesh(&rect);
 
         render_end_frame();

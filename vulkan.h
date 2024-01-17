@@ -83,6 +83,9 @@ struct Vulkan_Info {
 	Arr<VkFramebuffer> swap_chain_framebuffers;
 
 	// sync
+	VkSemaphore copy_finished_semaphores_count[10];
+	u32 copy_find_semaphores_count;
+
 	Arr<VkSemaphore> image_available_semaphore;
 	Arr<VkSemaphore> render_finished_semaphore;
 	VkFence in_flight_fence[MAX_FRAMES_IN_FLIGHT];
@@ -92,6 +95,11 @@ struct Vulkan_Info {
     VkDeviceMemory combined_buffer_memory;
     u32 combined_buffer_offset; // where to enter new bytes
 	
+	VkDeviceMemory uniform_buffer_memory;
+	VkBuffer uniform_buffer;
+	u32 uniform_buffer_offset;
+	void *uniform_data;
+
 	// Images
 	VkImage depth_image;
 	VkDeviceMemory depth_image_memory;

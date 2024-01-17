@@ -3,6 +3,7 @@ struct Uniform_Buffer_Object {
     u32 binding;
     u32 size;
     u32 offsets[2];
+    u32 offset;
 
     u32 opengl() {
         return *(u32*)handle;

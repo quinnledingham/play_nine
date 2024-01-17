@@ -50,6 +50,9 @@ print_list(u32 output_stream, const char *msg, va_list list) {
 					}
 		            copy_char_array(&print_buffer[print_buffer_index], string);
 		        } break;
+				case 'd': {
+					int d = va_arg(list, int);
+				} break;
 		        case 'f': {
 		            double f = va_arg(list, double);
 		            const char *f_string = float_to_char_array((float)f);
@@ -59,7 +62,7 @@ print_list(u32 output_stream, const char *msg, va_list list) {
 					}
 					copy_char_array(&print_buffer[print_buffer_index], f_string);
 		            platform_free((void*)f_string);
-		        };
+		        } break;
 			}
 			print_buffer_index += length_to_add;
 		} else {
