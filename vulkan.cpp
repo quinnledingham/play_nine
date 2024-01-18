@@ -759,7 +759,7 @@ vulkan_convert_shader_stage(u32 shader_stage) {
 		default: {
 			logprint("vulkan_convert_shader_stage()", "%d is not a render shader stage\n", shader_stage);
 			return 0;
-		}
+		}1
 	};
 }
 
@@ -881,18 +881,14 @@ vulkan_init_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 b
 		}
 	} else {
 		// because two frames can be in flight
-		u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
-		//u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
-		u32 buffer_size = offset;
+		u32 buffer_size = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
 
 		ubo->offsets[vulkan_info.current_frame] = vulkan_get_next_offset(&vulkan_info.uniform_buffer_offset, buffer_size);
 
 		if (vulkan_info.uniform_buffer_offset < vulkan_info.dymanic_uniforms_offset) {
 			vulkan_info.uniform_buffer_offset = vulkan_info.dymanic_uniforms_offset;
 			ubo->offsets[vulkan_info.current_frame] = vulkan_get_next_offset(&vulkan_info.uniform_buffer_offset, buffer_size);
-			//print("yo\n");
 		}
-		//ubo->offsets[1] = (u32)vulkan_get_alignment(ubo->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
 
 		VkDescriptorBufferInfo buffer_info = {};
 	    buffer_info.buffer = vulkan_info.uniform_buffer;
@@ -912,24 +908,37 @@ vulkan_init_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 b
 	}
 }
 
-// updates the ubo memory
-internal void
-vulkan_update_ubo(Uniform_Buffer_Object *ubo, void *data, bool8 static_update) {
-	if (static_update) { // update all frames
-		for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
-			memcpy((char*)vulkan_info.uniform_data + ubo->offsets[i], data, ubo->size);
-		}
-	} else {
-		memcpy((char*)vulkan_info.uniform_data + ubo->offsets[vulkan_info.current_frame], data, ubo->size);
-	}
-}
-
-
 void vulkan_bind_descriptor_sets(Descriptor_Set *set, u32 first_set) {
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
 	//u32 first_set = 0;
 	vkCmdBindDescriptorSets(vulkan_info.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &vulkan_set->descriptor_sets[vulkan_info.current_frame], 0, nullptr);
 }
+
+// updates the ubo memory
+internal void
+vulkan_update_ubo(Shader *shader, Uniform_Buffer_Object *ubo, void *data, bool8 static_update) {
+	// pull next descriptor set: set
+	// call cmd to bind that set
+	// MAYBE NOT find and set the offsets for that set
+	// update the data at the offsets
+
+	if (static_update) { // update all frames
+		for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
+			memcpy((char*)vulkan_info.uniform_data + ubo->offsets[i], data, ubo->size);
+		}
+	} else {
+		u32 index = shader->descriptor_sets_index[ubo->set]++;
+		if (shader->descriptor_sets_index[ubo->set] == 5)
+			shader->descriptor_sets_index[ubo->set] = 0;
+
+		Descriptor_Set *set = &shader->descriptor_sets[ubo->set][index];
+
+		vulkan_bind_descriptor_sets(set, ubo->set);
+		vulkan_init_ubo(&shader->descriptor_sets[ubo->set][index], ubo, ubo->size, 0, false);	
+		memcpy((char*)vulkan_info.uniform_data + ubo->offsets[vulkan_info.current_frame], data, ubo->size);
+	}
+}
+
 
 internal VkResult 
 vulkan_create_shaders_ext(VkDevice device, u32 createInfoCount, const VkShaderCreateInfoEXT* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkShaderEXT* pShaders) {
@@ -966,53 +975,6 @@ vulkan_create_shader_object(VkDevice device, File code, u32 stage, VkDescriptorS
 		logprint("vulkan_create_shader_object()", "failed to create shader object\n");
 	}	
 	return shader[0];
-}
-
-// lines up with enum shader_stages
-const u32 shaderc_glsl_file_types[5] = { 
-    shaderc_glsl_vertex_shader,
-    shaderc_glsl_tess_control_shader ,
-    shaderc_glsl_tess_evaluation_shader ,
-    shaderc_glsl_geometry_shader,
-    shaderc_glsl_fragment_shader,
-};
-
-internal File
-vulkan_compile_shader(shaderc_compiler_t compiler, File *file, shaderc_shader_kind shader_kind) {
-	const shaderc_compilation_result_t result = shaderc_compile_into_spv(compiler, (char*)file->memory, file->size, shader_kind, get_filename(file->filepath), "main", nullptr);
-
-	u32 num_of_warnings = (u32)shaderc_result_get_num_warnings(result);
-	u32 num_of_errors = (u32)shaderc_result_get_num_errors(result);
-
-	if (num_of_warnings != 0 || num_of_errors != 0) {
-		const char *error_message = shaderc_result_get_error_message(result);
-		logprint("vulkan_load_shader()", "%s", error_message);
-	}
-
-	u32 length = (u32)shaderc_result_get_length(result);
-	const char *bytes = shaderc_result_get_bytes(result);
-
-	File result_file = {};
-	result_file.memory = (void*)bytes;
-	result_file.size = length;
-	return result_file;
-}
-
-
-internal void
-vulkan_compile_shader(Shader *shader) {
-	shaderc_compiler_t compiler = shaderc_compiler_initialize();
-
-	for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
-        if (shader->files[i].memory == 0) continue; // file was not loaded
-	
-		shader->spirv_files[i] = vulkan_compile_shader(compiler, &shader->files[i], (shaderc_shader_kind)shaderc_glsl_file_types[i]);
-        if (shader->spirv_files[i].size == 0) {
-            print("compile_shader() could not compile %s\n", shader->files[i].filepath); 
-            return;
-        }
-    }
-
 }
 
 internal VkShaderModule
@@ -1052,13 +1014,20 @@ vulkan_create_graphics_pipeline(Shader *shader) {
 		shader_stages[shader_stages_index++] = shader_stage_info;
 	}
 
+	for (u32 i = 0; i < 2; i++) {
+		for (u32 j = 0; j < 5; j++) {
+			shader->descriptor_sets[i][j].gpu_info = platform_malloc(sizeof(Vulkan_Descriptor_Set));
+			vulkan_create_descriptor_sets(&shader->descriptor_sets[i][j], shader, vulkan_info.MAX_FRAMES_IN_FLIGHT, i);
+		}
+	}
+	
+
 	VkDescriptorSetLayout layouts[2];
 	for (u32 i = 0; i < 2; i++) {
 		Vulkan_Descriptor_Pool *vulkan_pool = (Vulkan_Descriptor_Pool *)shader->descriptor_pool[i];
 		layouts[i] = vulkan_pool->layout;
 	}
 
-	
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipeline_layout_info.setLayoutCount         = 2;                    // Optional

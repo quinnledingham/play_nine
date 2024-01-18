@@ -111,29 +111,31 @@ void opengl_bind_pipeline(Shader *shader) {
     global_shader_handle = shader->handle;
 }
 
-void opengl_create_descriptor_sets(Descriptor_Set *set) {
+void opengl_create_descriptor_pool(Shader *shader, u32 descriptor_set_count, u32 set_index) {
+
+}
+
+void opengl_create_descriptor_sets(Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index) {
 
 }
 
 // block index is from glUniformBlockBinding or binding == #
-void opengl_init_ubo(Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding) {
-    ubo->binding = binding;
-    ubo->size = size;
-    ubo->handle = platform_malloc(sizeof(u32));
-    glGenBuffers(1, (u32*)ubo->handle);
+void opengl_init_ubo(Descriptor *descriptor, u32 size, u32 binding) {
+    descriptor->binding = binding; // binding point in buffer (offset)
+    descriptor->size = size;
+    descriptor->handle = platform_malloc(sizeof(u32));
+    glGenBuffers(1, (u32*)descriptor->handle);
     
     // clearing buffer
-    glBindBuffer(GL_UNIFORM_BUFFER, *(u32*)ubo->handle);
+    glBindBuffer(GL_UNIFORM_BUFFER, *(u32*)descriptor->handle);
     glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     
-    glBindBufferBase(GL_UNIFORM_BUFFER, binding, *(u32*)ubo->handle);
-
-    set->descriptors[ubo->binding].handle = *(u32*)ubo->handle;
+    glBindBufferBase(GL_UNIFORM_BUFFER, binding, *(u32*)descriptor->handle); // binding index refers to the memory
 }
 
-void opengl_set_uniform_block_binding(u32 shader_handle, const char *tag, u32 index)
-{
+// this is where I am connect memory to a point in the shader
+void opengl_set_uniform_block_binding(u32 shader_handle, const char *tag, u32 index) {
     u32 tag_uniform_block_index = glGetUniformBlockIndex(shader_handle, tag);
     glUniformBlockBinding(shader_handle, tag_uniform_block_index, index);
 }
@@ -146,7 +148,7 @@ u32 opengl_buffer_sub_data(u32 target, u32 offset, u32 size, void *data) {
 
 #define BUFFER_SUB_DATA(target, offset, n) opengl_buffer_sub_data(target, offset, sizeof(n), (void *)&n)
 
-void opengl_update_ubo(Uniform_Buffer_Object *ubo, void *data, bool8 static_update) {
+void opengl_update_ubo(Descriptor *descriptor, void *data) {
     GLenum target = GL_UNIFORM_BUFFER;
     u32 offset = 0;
 /*
@@ -157,26 +159,46 @@ void opengl_update_ubo(Uniform_Buffer_Object *ubo, void *data, bool8 static_upda
     glBindBuffer(target, 0);
 */
 
-    glBindBuffer(target, *(u32*)ubo->handle);
-//    offset = BUFFER_SUB_DATA(target, offset, data);
-    glBufferSubData(target, offset, ubo->size, data);
+    glBindBuffer(target, *(u32*)descriptor->handle);
+//  offset = BUFFER_SUB_DATA(target, offset, data);
+    glBufferSubData(target, offset, descriptor->size, data);
     glBindBuffer(target, 0);
 }
 
-void opengl_bind_descriptor_sets(Descriptor_Set *set) {
+void opengl_update_ubo_v2(Descriptor *descriptor, void *data, u32 offset) {
+    GLenum target = GL_UNIFORM_BUFFER;
+
+    glBindBuffer(target, *(u32*)descriptor->handle);
+    glBufferSubData(target, offset, sizeof(Object), data);
+    glBindBuffer(target, 0);
+}
+
+void opengl_bind_descriptor_sets(Descriptor_Set *set, u32 first_set) {
     for (u32 i = 0; i < set->descriptors_count; i++) {
         switch(set->descriptors[i].type) {
             case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-                //u32 tag_uniform_block_index = glGetUniformBlockIndex(global_shader_handle, "object");
-                //glUniformBlockBinding(global_shader_handle, i, i);
                 opengl_set_uniform_block_binding(global_shader_handle, "scene", 0);
                 opengl_set_uniform_block_binding(global_shader_handle, "object", 2);
             } break;
 
             case DESCRIPTOR_TYPE_SAMPLER: {
                 glActiveTexture(GL_TEXTURE0 + i);
-                glBindTexture(GL_TEXTURE_2D, set->descriptors[i].handle);
+                glBindTexture(GL_TEXTURE_2D, *(u32*)set->descriptors[i].handle);
             } break;
         }
+    }
+}
+
+void opengl_bind_descriptor_set(Descriptor *descriptor) {
+    switch(descriptor->type) {
+        case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
+            opengl_set_uniform_block_binding(global_shader_handle, "scene", descriptor->binding);
+            opengl_set_uniform_block_binding(global_shader_handle, "object", 2);
+        } break;
+
+        case DESCRIPTOR_TYPE_SAMPLER: {
+            glActiveTexture(GL_TEXTURE0 + 1);
+            glBindTexture(GL_TEXTURE_2D, *(u32*)descriptor->handle);
+        } break;
     }
 }

@@ -155,9 +155,9 @@ init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
     glBindTexture(target, 0);
 }
 
-void opengl_init_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) { 
+void opengl_init_bitmap(Descriptor *descriptor, Bitmap *bitmap, u32 binding) { 
     init_bitmap_gpu_handle(bitmap, TEXTURE_PARAMETERS_CHAR); 
-    set->descriptors[binding].handle = *(u32*)bitmap->gpu_info;
+    descriptor->handle = bitmap->gpu_info;
 }
 
 internal void
@@ -184,6 +184,111 @@ free_bitmap_gpu_handle(Bitmap *bitmap) {
 //
 // Shader
 //
+
+// lines up with enum shader_stages
+const u32 shaderc_glsl_file_types[5] = { 
+    shaderc_glsl_vertex_shader,
+    shaderc_glsl_tess_control_shader ,
+    shaderc_glsl_tess_evaluation_shader ,
+    shaderc_glsl_geometry_shader,
+    shaderc_glsl_fragment_shader,
+};
+
+// lines up with enum shader_stages
+const u32 opengl_shader_file_types[5] = { 
+    GL_VERTEX_SHADER,
+    GL_TESS_CONTROL_SHADER,
+    GL_TESS_EVALUATION_SHADER,
+    GL_GEOMETRY_SHADER,
+    GL_FRAGMENT_SHADER,
+};
+
+internal File
+compile_glsl_to_spv(shaderc_compiler_t compiler, File *file, shaderc_shader_kind shader_kind) {
+    const shaderc_compilation_result_t result = shaderc_compile_into_spv(compiler, (char*)file->memory, file->size, shader_kind, get_filename(file->filepath), "main", nullptr);
+
+    u32 num_of_warnings = (u32)shaderc_result_get_num_warnings(result);
+    u32 num_of_errors = (u32)shaderc_result_get_num_errors(result);
+
+    if (num_of_warnings != 0 || num_of_errors != 0) {
+        const char *error_message = shaderc_result_get_error_message(result);
+        logprint("vulkan_load_shader()", "%s", error_message);
+    }
+
+    u32 length = (u32)shaderc_result_get_length(result);
+    const char *bytes = shaderc_result_get_bytes(result);
+
+    File result_file = {};
+    result_file.memory = (void*)bytes;
+    result_file.size = length;
+    return result_file;
+}
+
+
+internal void
+vulkan_compile_shader(Shader *shader) {
+    shaderc_compiler_t compiler = shaderc_compiler_initialize();
+
+    for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
+        if (shader->files[i].memory == 0) continue; // file was not loaded
+    
+        shader->spirv_files[i] = compile_glsl_to_spv(compiler, &shader->files[i], (shaderc_shader_kind)shaderc_glsl_file_types[i]);
+        if (shader->spirv_files[i].size == 0) {
+            print("compile_shader() could not compile %s\n", shader->files[i].filepath); 
+            return;
+        }
+    }
+
+}
+
+void spirv_cross_error_callback(void *userdata, const char *error) {
+    print("spvc error: %s\n", error);
+}
+
+internal File
+compile_spv_to_glsl(File *file) {
+    spvc_context context = NULL;
+    spvc_parsed_ir ir = NULL;
+    spvc_compiler compiler_glsl = NULL;
+    spvc_compiler_options options = NULL;
+    spvc_resources resources = NULL;
+    const spvc_reflected_resource *list = NULL;
+    const char *result = NULL;
+    size_t count;
+
+    spvc_context_create(&context);
+    spvc_context_set_error_callback(context, spirv_cross_error_callback, nullptr);
+    spvc_context_parse_spirv(context, (SpvId*)file->memory, file->size / 4, &ir);
+
+    spvc_context_create_compiler(context, SPVC_BACKEND_GLSL, ir, SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, &compiler_glsl);
+
+    // Do some basic reflection.
+    spvc_compiler_create_shader_resources(compiler_glsl, &resources);
+    spvc_resources_get_resource_list_for_type(resources, SPVC_RESOURCE_TYPE_UNIFORM_BUFFER, &list, &count);
+
+/*
+    for (i = 0; i < count; i++)
+    {
+        printf("ID: %u, BaseTypeID: %u, TypeID: %u, Name: %s\n", list[i].id, list[i].base_type_id, list[i].type_id, list[i].name);
+        printf("  Set: %u, Binding: %u\n", spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationDescriptorSet), spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationBinding));
+    }
+*/
+    // Modify options.
+    spvc_compiler_create_compiler_options(compiler_glsl, &options);
+    spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_GLSL_VERSION, 330);
+    spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ES, SPVC_FALSE);
+    spvc_compiler_install_compiler_options(compiler_glsl, options);
+
+    spvc_compiler_compile(compiler_glsl, &result);
+    //printf("Cross-compiled source: %s\n", result);
+
+    spvc_context_destroy(context);
+
+    File result_file = {};
+    result_file.memory = (void*)result;
+    result_file.size = 0;
+    return result_file;
+}
 
 // loads the files
 void load_shader(Shader *shader)
@@ -229,15 +334,6 @@ bool compile_shader(u32 handle, const char *file, int type)
     return compiled_shader;
 }
 
-// lines up with enum shader_stages
-const u32 opengl_shader_file_types[5] = { 
-    GL_VERTEX_SHADER,
-    GL_TESS_CONTROL_SHADER,
-    GL_TESS_EVALUATION_SHADER,
-    GL_GEOMETRY_SHADER,
-    GL_FRAGMENT_SHADER,
-};
-
 // compiles the files
 void opengl_compile_shader(Shader *shader)
 {
@@ -253,7 +349,11 @@ void opengl_compile_shader(Shader *shader)
     for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
         if (shader->files[i].memory == 0) continue; // file was not loaded
 
-        if (!compile_shader(shader->handle, (char*)shader->files[i].memory, opengl_shader_file_types[i])) {
+        shaderc_compiler_t compiler = shaderc_compiler_initialize();
+        File spv_file = compile_glsl_to_spv(compiler, &shader->files[i], (shaderc_shader_kind)shaderc_glsl_file_types[i]);
+        File glsl_file = compile_spv_to_glsl(&spv_file);
+
+        if (!compile_shader(shader->handle, (char*)glsl_file.memory, opengl_shader_file_types[i])) {
             print("compile_shader() could not compile %s\n", shader->files[i].filepath); 
             return;
         }

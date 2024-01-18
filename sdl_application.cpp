@@ -18,6 +18,15 @@ extern "C"
 
 #endif // WINDOWS
 
+// Compiling to SPIR in code
+#include <shaderc/env.h>
+#include <shaderc/shaderc.h>
+#include <shaderc/shaderc.hpp>
+#include <shaderc/status.h>
+#include <shaderc/visibility.h>
+
+#include <spirv_cross/spirv_cross_c.h>
+
 #ifdef OPENGL
 
 #pragma message("OPENGL")
@@ -30,13 +39,6 @@ extern "C"
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
     
-// Compiling to SPIR in code
-#include <shaderc/env.h>
-#include <shaderc/shaderc.h>
-#include <shaderc/shaderc.hpp>
-#include <shaderc/status.h>
-#include <shaderc/visibility.h>
-
 // Provided by VK_EXT_shader_object
 VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 
@@ -195,8 +197,6 @@ int main(int argc, char *argv[]) {
     render_sdl_init(sdl_window);
 
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
-    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //glEnable(GL_BLEND);
 
     Shader basic_3D = {};
     basic_3D.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/basic.vert";
@@ -207,11 +207,11 @@ int main(int argc, char *argv[]) {
     basic_3D.descriptor_set[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX);
     basic_3D.descriptor_set[0].descriptors[1] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT);
     basic_3D.descriptor_set[0].descriptors_count = 2;
-    vulkan_create_descriptor_pool(&basic_3D, 10, 0);
+    render_create_descriptor_pool(&basic_3D, 15, 0);
 
-    basic_3D.descriptor_set[1].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX);
+    basic_3D.descriptor_set[1].descriptors[0] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX);
     basic_3D.descriptor_set[1].descriptors_count = 1;
-    vulkan_create_descriptor_pool(&basic_3D, 10, 1);
+    render_create_descriptor_pool(&basic_3D, 15, 1);
 
     render_create_graphics_pipeline(&basic_3D);
     
@@ -220,27 +220,22 @@ int main(int argc, char *argv[]) {
     scene.projection = perspective_projection(45.0f, (float32)app.window.width / (float32)app.window.height, 0.1f, 10.0f);
     
     // Init ubo
-    Uniform_Buffer_Object scene_ubo = {};
-    Descriptor_Set scene_set = {};
-    vulkan_create_descriptor_sets(&scene_set, &basic_3D, vulkan_info.MAX_FRAMES_IN_FLIGHT, 0);
+    Descriptor scene_ubo = basic_3D.descriptor_set[0].descriptors[0];
+    render_init_ubo(&scene_ubo, sizeof(Scene), 0);
+    render_update_ubo(&scene_ubo, (void*)&scene);
 
+    Descriptor scene_texture = basic_3D.descriptor_set[0].descriptors[1];
     Bitmap yogi = load_bitmap("../assets/bitmaps/yogi.png");
-    render_init_bitmap(&scene_set, &yogi, 1);
-    free_bitmap(yogi);    
-
-    // this is the defining of where gpu memory to a uniform   
-    vulkan_init_ubo(&scene_set, &scene_ubo, sizeof(Scene), 0, true);
-    //render_init_ubo(&basic_3D.descriptor_set, &object_ubo, sizeof(Object), 2);
-
-    render_update_ubo(&scene_ubo, (void*)&scene, true);
+    render_init_bitmap(&scene_texture, &yogi, 1);
+    free_bitmap(yogi);
 
     Object object = {};
-    Uniform_Buffer_Object object_ubo = {};
-    
-    Descriptor_Set object_set_1 = {};
-    Descriptor_Set object_set_2 = {};
-    vulkan_create_descriptor_sets(&object_set_1, &basic_3D, 2, 1);
-    vulkan_create_descriptor_sets(&object_set_2, &basic_3D, 2, 1);
+    Descriptor object_ubo = basic_3D.descriptor_set[1].descriptors[0];
+    render_init_ubo(&object_ubo, sizeof(Object), 2);
+    //render_update_ubo(&object_ubo, (void*)&object);
+    object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+    opengl_update_ubo(&object_ubo, (void*)&object);
+
     Mesh rect = get_rect_mesh();
 
     while (1) {
@@ -258,22 +253,18 @@ int main(int argc, char *argv[]) {
         render_set_scissor(app.window.width, app.window.height);
 
         render_bind_pipeline(&basic_3D);
-        render_bind_descriptor_sets(&scene_set, 0);
 
+        opengl_bind_descriptor_set(&scene_ubo);
+        opengl_bind_descriptor_set(&scene_texture);
         {
-            object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
-            vulkan_init_ubo(&object_set_1, &object_ubo, sizeof(Object), 0, false); 
-            render_update_ubo(&object_ubo, (void*)&object, false);
-            render_bind_descriptor_sets(&object_set_1, 1);
+            opengl_bind_descriptor_set(&object_ubo);
             render_draw_mesh(&rect);
         }
 
         { 
-            object.model = create_transform_m4x4({ -0.5f, 0.0f, -0.5f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
-            vulkan_init_ubo(&object_set_2, &object_ubo, sizeof(Object), 0, false); 
-            render_update_ubo(&object_ubo, (void*)&object, false);
-            render_bind_descriptor_sets(&object_set_2, 1);
-            render_draw_mesh(&rect);
+            //object.model = create_transform_m4x4({ -0.5f, 0.0f, -0.5f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+            //render_update_ubo(&object_ubo, (void*)&object);
+            //render_draw_mesh(&rect);
         }
 
         render_end_frame();

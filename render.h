@@ -1,14 +1,20 @@
+// block_indices:          position in shader
+// binding_points:         position in uniform buffer
+// uniform_buffer_objects: the memory in uniform buffer
+/*
 struct Uniform_Buffer_Object {
-    void *handle; // OpenGL = u32; Vulkan = void*
-    u32 binding;
+    void *handle; // OpenGL = u32; Vulkan = void* (is the handle to uniform buffer object)
+    u32 set;
+    u32 binding; // binding in set
     u32 size;
     u32 offsets[2];
+    u32 offsets_count; // max 10
 
     u32 opengl() {
-        return *(u32*)handle;
+        return *(u32*)handle; // 
     }
 };
-
+*/
 struct Scene {
     Matrix_4x4 view;
     Matrix_4x4 projection;
@@ -58,11 +64,11 @@ RENDER_FUNC(void, cleanup, );
 RENDER_FUNC(void, create_graphics_pipeline, Shader *shader);
 RENDER_FUNC(void, bind_pipeline, Shader *shader);
 
-//RENDER_FUNC(void, create_descriptor_pool, Descriptor_Set *set, u32 descriptor_count);
-//RENDER_FUNC(void, create_descriptor_sets, Descriptor_Set *set, u32 descriptor_set_count);
-RENDER_FUNC(void, init_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
-//RENDER_FUNC(void, init_ubo, Descriptor_Set *set, Uniform_Buffer_Object *ubo, u32 size, u32 binding);
-RENDER_FUNC(void, update_ubo, Uniform_Buffer_Object *ubo, void *data, bool8 static_update);
+RENDER_FUNC(void, create_descriptor_pool, Shader *shader, u32 descriptor_set_count, u32 set_index);
+RENDER_FUNC(void, create_descriptor_sets, Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index);
+RENDER_FUNC(void, init_bitmap, Descriptor *descriptor, Bitmap *bitmap, u32 binding);
+RENDER_FUNC(void, init_ubo, Descriptor *descriptor, u32 size, u32 binding);
+RENDER_FUNC(void, update_ubo, Descriptor *descriptor, void *data);
 RENDER_FUNC(void, bind_descriptor_sets, Descriptor_Set *set, u32 first_set);
 
 RENDER_FUNC(void, init_mesh, Mesh *mesh);

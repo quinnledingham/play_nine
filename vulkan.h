@@ -149,3 +149,11 @@ struct Vulkan_Mesh {
     u32 uniform_offsets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
     u32 uniform_size; // size of the individual uniforms
 };
+
+// How to bind uniforms
+
+// start with: shader has pool for all types of sets
+
+// render_init_ubo:   allocates a descriptor set
+// render_update_ubo: 
+// render_bind_ubo: 
