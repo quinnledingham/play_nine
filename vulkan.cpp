@@ -817,13 +817,9 @@ vulkan_create_descriptor_pool(Shader *shader, u32 max_sets, u32 set_index) {
 }
 
 internal void
-vulkan_create_descriptor_set(Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index) {
-	set->gpu_info = platform_malloc(sizeof(Vulkan_Descriptor_Set));
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+vulkan_create_descriptor_set(Shader *shader, u32 descriptor_set_count, u32 pool_index) {
 	VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_layout[pool_index];
 	VkDescriptorPool *vulkan_pool = (VkDescriptorPool *)shader->descriptor_pool[pool_index];
-
-	set->set_index = pool_index;
 
 	// Create descriptor sets
 	VkDescriptorSetLayout layouts[10];
@@ -837,7 +833,7 @@ vulkan_create_descriptor_set(Descriptor_Set *set, Shader *shader, u32 descriptor
 	allocate_info.descriptorSetCount = descriptor_set_count;
 	allocate_info.pSetLayouts = layouts;
 
-	if (vkAllocateDescriptorSets(vulkan_info.device, &allocate_info, vulkan_set->descriptor_sets) != VK_SUCCESS) {
+	if (vkAllocateDescriptorSets(vulkan_info.device, &allocate_info, shader->sets[pool_index]) != VK_SUCCESS) {
 		logprint("vulkan_create_descriptor_sets()", "failed to allocate descriptor sets\n");
 	}
 }
@@ -853,11 +849,46 @@ vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
 	return return_offset;
 }
 
+internal void
+vulkan_init_ubo_v2(Descriptor_Set_2 *set, u32 size, u32 binding) {
+	set->binding = binding;
+	set->size = size;
+
+	// because two frames can be in flight
+	u32 offset = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	u32 buffer_size = (u32)vulkan_get_alignment(offset + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+
+	set->offsets[0] = vulkan_get_next_offset(&vulkan_info.dymanic_uniforms_offset, buffer_size);
+	set->offsets[1] = (u32)vulkan_get_alignment(set->offsets[0] + size, (u32)vulkan_info.uniform_buffer_min_alignment);
+	
+	for (u32 i = 0; i < vulkan_info.MAX_FRAMES_IN_FLIGHT; i++) {
+	    VkDescriptorBufferInfo buffer_info = {};
+	    buffer_info.buffer = vulkan_info.uniform_buffer;
+	    buffer_info.offset = set->offsets[i];
+	    buffer_info.range = set->size;
+
+	    VkWriteDescriptorSet descriptor_write = {};
+	    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	    descriptor_write.dstSet = set->sets[i];
+	    descriptor_write.dstBinding = set->binding;
+	    descriptor_write.dstArrayElement = 0;
+	    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	    descriptor_write.descriptorCount = 1;
+	    descriptor_write.pBufferInfo = &buffer_info;
+
+	    vkUpdateDescriptorSets(vulkan_info.device, 1, &descriptor_write, 0, nullptr);
+	}
+}
+
 // sets the ubos offsets and tells the shader where to find the memory
 internal void
-vulkan_init_ubo(Descriptor_Set *set, u32 descriptor_index, u32 size, u32 binding) {
+vulkan_init_ubo(Descriptor_Set *set, Shader *shader, u32 set_index, u32 descriptor_index, u32 size, u32 binding) {
+	set->gpu_info = platform_malloc(sizeof(Vulkan_Descriptor_Set));
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
 	Descriptor *descriptor = &set->descriptors[descriptor_index];
+
+	vulkan_set->descriptor_sets[0] = shader->sets[set_index][shader->sets_count[set_index]++];
+	vulkan_set->descriptor_sets[1] = shader->sets[set_index][shader->sets_count[set_index]++];
 
 	descriptor->binding = binding;
 	descriptor->size = size;
@@ -987,6 +1018,23 @@ vulkan_create_graphics_pipeline(Shader *shader) {
 		shader_stage_info.pName = "main";
 		shader_stages[shader_stages_index++] = shader_stage_info;
 	}
+
+	for (u32 i = 0; i < shader->layout_count; i++) {
+		vulkan_create_descriptor_set(shader, 4, i);
+	}
+	
+	for (u32 i = 0; i < shader->layout_count; i++) {
+		u32 sets_2_index = 0;
+		for (u32 j = 0; j < shader->max_sets; j++) {
+			shader->sets_2[i][sets_2_index].sets[0] = shader->sets[i][j];
+			shader->sets_2[i][sets_2_index++].sets[1] = shader->sets[i][j];
+		}
+	}
+
+	vulkan_init_ubo_v2(&shader->sets_2[0][0], sizeof(Scene), 0);
+	vulkan_init_ubo_v2(&shader->sets_2[0][1], sizeof(Scene), 0);
+	vulkan_init_ubo_v2(&shader->sets_2[1][0], sizeof(Object), 0);
+	vulkan_init_ubo_v2(&shader->sets_2[1][1], sizeof(Object), 0);
 
 	VkDescriptorSetLayout layouts[2];
 	for (u32 i = 0; i < 2; i++) {

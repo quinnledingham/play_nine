@@ -81,9 +81,17 @@ struct Descriptor_Set {
     void *gpu_info;
 };
 
+struct Descriptor_Set_2 {
+    VkDescriptorSet sets[2]; // 2 for max frames in flight
+    u32 offsets[2];          // offsets in memory for each set
+    u32 size;
+    u32 binding;
+};
+
 struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
+    
     
     static const u32 layout_count = 2; // 2 because there are 2 sets (2 different layouts)
     void *descriptor_layout[layout_count];
@@ -92,6 +100,13 @@ struct Shader {
 
     // meant to be more of a layout tool
     Descriptor_Set descriptor_sets[layout_count]; // information about the uniforms and samplers
+
+    // where to use descriptor sets for
+    static const u32 max_sets = 4;
+    u32 sets_count[layout_count];
+    VkDescriptorSet sets[layout_count][max_sets]; // 2 for max frames in flight
+
+    Descriptor_Set_2 sets_2[layout_count][2];
 
     bool8 compiled;
     u32 handle;

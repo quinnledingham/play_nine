@@ -221,8 +221,7 @@ int main(int argc, char *argv[]) {
     
     // Init ubo
     Descriptor_Set scene_set = basic_3D.descriptor_sets[0];
-    render_create_descriptor_set(&scene_set, &basic_3D, 2, 0);
-    vulkan_init_ubo(&scene_set, 0, sizeof(Scene), 0);
+    //vulkan_init_ubo(&scene_set, &basic_3D, 0, 0, sizeof(Scene), 0);
     vulkan_update_ubo(&scene_set, 0, (void*)&scene, true);
 
     Bitmap yogi = load_bitmap("../assets/bitmaps/yogi.png");
@@ -230,14 +229,6 @@ int main(int argc, char *argv[]) {
     free_bitmap(yogi);
 
     Object object = {};
-
-    Descriptor_Set object_set = basic_3D.descriptor_sets[1];
-    render_create_descriptor_set(&object_set, &basic_3D, 2, 1);
-    vulkan_init_ubo(&object_set, 0, sizeof(Object), 2);
-
-    Descriptor_Set object_set_2 = basic_3D.descriptor_sets[1];
-    render_create_descriptor_set(&object_set_2, &basic_3D, 2, 1);
-    vulkan_init_ubo(&object_set_2, 0, sizeof(Object), 2);
 
     Mesh rect = get_rect_mesh();
 
@@ -259,17 +250,22 @@ int main(int argc, char *argv[]) {
 
         render_bind_descriptor_set(&scene_set, 0);
         {
+            Descriptor_Set object_set = basic_3D.descriptor_sets[1];
+            vulkan_init_ubo(&object_set, &basic_3D, 1, 0, sizeof(Object), 2);
             object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
             vulkan_update_ubo(&object_set, 0, (void*)&object, false);
             render_bind_descriptor_set(&object_set, 1);
+            //basic_3D.sets_count[first_set]--;
             render_draw_mesh(&rect);
         }
 
         { 
-
+            Descriptor_Set object_set_2 = basic_3D.descriptor_sets[1];
+            vulkan_init_ubo(&object_set_2, &basic_3D, 1, 0, sizeof(Object), 2);
             object.model = create_transform_m4x4({ -0.5f, 0.0f, -0.3f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
             vulkan_update_ubo(&object_set_2, 0, (void*)&object, false);
             render_bind_descriptor_set(&object_set_2, 1);
+            //basic_3D.sets_count[first_set]--;
             render_draw_mesh(&rect);
         }
 
