@@ -404,7 +404,7 @@ u32 use_shader(Shader *shader)
 //
 // Font
 //
-/*
+
 internal Font
 load_font(const char *filepath) {
 	Font font = {};
@@ -452,6 +452,9 @@ load_font_char(Font *font, u32 codepoint) {
     return font_char;
 }
 
+internal void
+vulkan_create_texture(Bitmap *bitmap);
+
 internal Font_Char_Bitmap *
 load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     if (scale == 0.0f) {
@@ -476,7 +479,7 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     // free bitmap if one is being overwritten
     if (char_bitmap->scale != 0) { 
         stbtt_FreeBitmap(char_bitmap->bitmap.memory, info->userdata);
-        free_bitmap_gpu_handle(&char_bitmap->bitmap);
+        //free_bitmap_gpu_handle(&char_bitmap->bitmap);
         char_bitmap->bitmap.memory = 0;
     }
 
@@ -489,7 +492,8 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 
     stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, 0, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
 
-    init_bitmap_gpu_handle(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
+    vulkan_create_texture(&char_bitmap->bitmap);
+    //render_init_bitmap(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
 
     return char_bitmap;
 }
@@ -497,4 +501,3 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 float32 get_scale_for_pixel_height(void *info, float32 pixel_height) {
     return stbtt_ScaleForPixelHeight((stbtt_fontinfo*)info, pixel_height);
 }
-*/

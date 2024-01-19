@@ -1,5 +1,5 @@
 struct Shapes {
-	Mesh mesh;
+	Mesh rect_mesh;
 
 	Shader text_shader;
 };
@@ -55,20 +55,32 @@ get_rect_mesh() {
 //
 // Shapes
 //
-/*
+
 void init_shapes() {
-	shapes.rect_mesh = get_rect_triangle_mesh();
+	shapes.rect_mesh = get_rect_mesh();
 
-	shapes.text_shader.files[VERTEX_SHADER].memory = (void*)basic_vs;
-	shapes.text_shader.files[FRAGMENT_SHADER].memory = (void*)text_fs;
+	shapes.text_shader.files[SHADER_STAGE_VERTEX].memory = (void*)basic_vs;
+	shapes.text_shader.files[SHADER_STAGE_FRAGMENT].memory = (void*)text_fs;
 
-	compile_shader(&shapes.text_shader);
+	render_compile_shader(&shapes.text_shader);
+
+    shapes.text_shader.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene));
+    shapes.text_shader.descriptor_sets[0].descriptors_count = 1;
+    render_create_descriptor_pool(&shapes.text_shader, 15, 0);
+
+    shapes.text_shader.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object));
+    shapes.text_shader.descriptor_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0);
+    shapes.text_shader.descriptor_sets[1].descriptors[2] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4));
+    shapes.text_shader.descriptor_sets[1].descriptors_count = 3;
+    render_create_descriptor_pool(&shapes.text_shader, 15, 1);
+
+    render_create_graphics_pipeline(&shapes.text_shader);
 }
 
 //
 // String
 //
-
+/*
 void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color)
 {
     //stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
@@ -78,8 +90,11 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     float32 current_point = coords.x;
     float32 baseline      = coords.y;
 
-    u32 shader_handle = use_shader(&shapes.text_shader);
+    render_bind_pipeline(&shapes.text_shader);
     
+    Descriptor_Set *object_set = render_get_descriptor_set(&shapes.text_shader, 1);
+    render_bind_descriptor_set(object_set, 1);
+
     uniform_s32(shader_handle, "tex0", 0);
     uniform_Vector4(shader_handle, "text_color", color);
 

@@ -1762,7 +1762,7 @@ void vulkan_draw_mesh(Mesh *mesh) {
 
 internal void
 vulkan_init_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
-	vulkan_create_texture(bitmap);
+	//vulkan_create_texture(bitmap);
 
 	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
@@ -1785,4 +1785,27 @@ vulkan_init_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
 
         vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
 	}
+}
+
+internal void
+vulkan_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
+	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
+
+	VkDescriptorImageInfo image_info = {};
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    image_info.imageView = texture->image_view;
+    image_info.sampler = texture->sampler;
+
+    VkWriteDescriptorSet descriptor_writes[1] = {};
+
+    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_writes[0].dstSet = vulkan_set->descriptor_sets[vulkan_info.current_frame];
+    descriptor_writes[0].dstBinding = binding;
+    descriptor_writes[0].dstArrayElement = 0;
+    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_writes[0].descriptorCount = 1;
+    descriptor_writes[0].pImageInfo = &image_info;
+
+    vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
 }

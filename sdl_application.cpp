@@ -91,6 +91,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 #include "shapes.h"
 #include "data_structs.h"
 #include "render.h"
+
 #include "application.h"
 
 bool8 update(App *app);
@@ -206,12 +207,12 @@ int main(int argc, char *argv[]) {
     render_compile_shader(&basic_3D);
 
     basic_3D.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene));
-    basic_3D.descriptor_sets[0].descriptors[1] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0);
-    basic_3D.descriptor_sets[0].descriptors_count = 2;
+    basic_3D.descriptor_sets[0].descriptors_count = 1;
     render_create_descriptor_pool(&basic_3D, 15, 0);
 
-    basic_3D.descriptor_sets[1].descriptors[0] = Descriptor(2, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object));
-    basic_3D.descriptor_sets[1].descriptors_count = 1;
+    basic_3D.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object));
+    basic_3D.descriptor_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0);
+    basic_3D.descriptor_sets[1].descriptors_count = 2;
     render_create_descriptor_pool(&basic_3D, 15, 1);
 
     render_create_graphics_pipeline(&basic_3D);
@@ -225,12 +226,16 @@ int main(int argc, char *argv[]) {
     render_update_ubo(scene_set, 0, (void*)&scene, true);
 
     Bitmap yogi = load_bitmap("../assets/bitmaps/yogi.png");
-    render_init_bitmap(scene_set, &yogi, 1);
+    vulkan_create_texture(&yogi);
+    //render_init_bitmap(scene_set, &yogi, 1);
     free_bitmap(yogi);
 
-    Object object = {};
+    Bitmap david = load_bitmap("../assets/bitmaps/david.jpg");
+    vulkan_create_texture(&david);
+    //render_init_bitmap(scene_set, &yogi, 1);
+    free_bitmap(david);
 
-   
+    Object object = {};
 
     Mesh rect = get_rect_mesh();
 
@@ -252,10 +257,10 @@ int main(int argc, char *argv[]) {
 
         render_bind_descriptor_set(scene_set, 0);
         {
-            
             Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
             object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
             render_update_ubo(object_set, 0, (void*)&object, false);
+            vulkan_set_bitmap(object_set, &yogi, 2);
             render_bind_descriptor_set(object_set, 1);
             render_draw_mesh(&rect);
             object_set->free_after_frame = true;
@@ -263,8 +268,9 @@ int main(int argc, char *argv[]) {
 
         { 
             Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
-            object.model = create_transform_m4x4({ -0.5f, 0.0f, -0.5f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+            object.model = create_transform_m4x4({ -0.5f, 0.0f, -0.5f }, get_rotation(app.time.run_time_s, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
             render_update_ubo(object_set, 0, (void*)&object, false);
+            vulkan_set_bitmap(object_set, &david, 2);
             render_bind_descriptor_set(object_set, 1);
             render_draw_mesh(&rect);
             object_set->free_after_frame = true;

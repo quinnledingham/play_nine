@@ -1,20 +1,3 @@
-// block_indices:          position in shader
-// binding_points:         position in uniform buffer
-// uniform_buffer_objects: the memory in uniform buffer
-/*
-struct Uniform_Buffer_Object {
-    void *handle; // OpenGL = u32; Vulkan = void* (is the handle to uniform buffer object)
-    u32 set;
-    u32 binding; // binding in set
-    u32 size;
-    u32 offsets[2];
-    u32 offsets_count; // max 10
-
-    u32 opengl() {
-        return *(u32*)handle; // 
-    }
-};
-*/
 struct Scene {
     Matrix_4x4 view;
     Matrix_4x4 projection;
