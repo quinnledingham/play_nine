@@ -59,12 +59,12 @@ struct Vulkan_Info {
 	VkPhysicalDeviceProperties physical_device_properties;
 	VkDevice device;
 	VkSurfaceKHR surface;
+
 	VkRenderPass render_pass;
+	VkPipelineLayout pipeline_layout;
+	//VkPipeline graphics_pipeline;
 
 	VkDeviceSize uniform_buffer_min_alignment;
-
-	VkPipelineLayout pipeline_layout;
-	VkPipeline graphics_pipeline;
 
 	VkQueue graphics_queue;
 	VkQueue present_queue;
@@ -121,7 +121,8 @@ struct Vulkan_Info {
 global Vulkan_Info vulkan_info;
 
 struct Vulkan_Texture {
-	static const VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
+	VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
+
 	VkDeviceMemory image_memory;
 
 	VkImage image;

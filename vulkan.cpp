@@ -781,7 +781,7 @@ vulkan_create_descriptor_set(Shader *shader, u32 descriptor_set_count, u32 pool_
 	VkDescriptorPool *vulkan_pool = (VkDescriptorPool *)shader->descriptor_pool[pool_index];
 
 	// Create descriptor sets
-	VkDescriptorSetLayout layouts[10];
+	VkDescriptorSetLayout layouts[shader->max_sets * vulkan_info.MAX_FRAMES_IN_FLIGHT];
 	for (u32 i = 0; i < descriptor_set_count; i++) {
 		layouts[i] = *vulkan_layout;
 	}
@@ -801,9 +801,10 @@ internal u32
 vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
 	u32 return_offset = *offset;
     *offset += in_data_size;
-	if (*offset > 5000) {
-		*offset = 0;
-		return *offset;
+	if (*offset > 10000) {
+		ASSERT(0);
+		//*offset = 0;
+		//return *offset;
 	}
 	return return_offset;
 }
@@ -881,14 +882,14 @@ vulkan_create_descriptor_pool(Shader *shader, u32 max_sets, u32 set_index) {
 	VkDescriptorPoolSize pool_sizes[ARRAY_COUNT(bindings)] = {};
 	for (u32 i = 0; i < layout_set->descriptors_count; i++) {
 		pool_sizes[i].type = bindings[i].descriptorType;
-		pool_sizes[i].descriptorCount = max_sets; // how many of that type to allocate
+		pool_sizes[i].descriptorCount = max_sets * vulkan_info.MAX_FRAMES_IN_FLIGHT; // how many of that type to allocate
 	}
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = 1;
 	pool_info.pPoolSizes = pool_sizes;
-	pool_info.maxSets = max_sets;
+	pool_info.maxSets = max_sets * vulkan_info.MAX_FRAMES_IN_FLIGHT;
 
 	if (vkCreateDescriptorPool(vulkan_info.device, &pool_info, nullptr, vulkan_pool) != VK_SUCCESS) {
 		logprint("vulkan_crate_descriptor_pool()", "failed to create descriptor pool\n");
@@ -1037,8 +1038,8 @@ vulkan_create_shader_module(VkDevice device, File code) {
 }
 
 internal void
-vulkan_create_graphics_pipeline(Shader *shader) {
-	Vulkan_Info *info = &vulkan_info;
+vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
+	Shader *shader = pipeline->shader;
 
 	u32 shader_stages_index = 0;
 	VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_AMOUNT] = {};
@@ -1048,7 +1049,7 @@ vulkan_create_graphics_pipeline(Shader *shader) {
 		if (shader->spirv_files[i].size == 0)
 			continue;
 		
-		shader_modules[i] = vulkan_create_shader_module(info->device, shader->spirv_files[i]);
+		shader_modules[i] = vulkan_create_shader_module(vulkan_info.device, shader->spirv_files[i]);
 
 		VkPipelineShaderStageCreateInfo shader_stage_info = {};
 		shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1057,22 +1058,7 @@ vulkan_create_graphics_pipeline(Shader *shader) {
 		shader_stage_info.pName = "main";
 		shader_stages[shader_stages_index++] = shader_stage_info;
 	}
-/*
-	VkDescriptorSet temp[shader->layout_count][shader->max_sets * 2];
-	vulkan_create_descriptor_set(shader, shader->max_sets * 2, 0, temp[0]);
-	vulkan_create_descriptor_set(shader, shader->max_sets * 2, 1, temp[1]);
 
-	for (u32 i = 0; i < shader->layout_count; i++) {
-		u32 temp_index = 0;
-		for (u32 j = 0; j < shader->max_sets; j++) {
-			shader->sets[i][j].gpu_info = platform_malloc(sizeof(Vulkan_Descriptor_Set));
-			Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set*)shader->sets[i][j].gpu_info;
-			
-			vulkan_set->descriptor_sets[0] = temp[i][temp_index++];
-			vulkan_set->descriptor_sets[1] = temp[i][temp_index++];
-		}
-	}
-*/
 	VkDescriptorSetLayout layouts[2];
 	for (u32 i = 0; i < 2; i++) {
 		VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_layout[i];
@@ -1188,7 +1174,7 @@ vulkan_create_graphics_pipeline(Shader *shader) {
 	depth_stencil.front = {};                          // Optional
 	depth_stencil.back = {};                           // Optional
 	
-	if (vkCreatePipelineLayout(info->device, &pipeline_layout_info, nullptr, &info->pipeline_layout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->pipeline_layout) != VK_SUCCESS) {
 		logprint("vulkan_create_graphics_pipeline()", "failed to create pipeline layout\n");
 	}
 	
@@ -1204,19 +1190,19 @@ vulkan_create_graphics_pipeline(Shader *shader) {
 	pipeline_create_info.pDepthStencilState  = &depth_stencil;         // Optional
 	pipeline_create_info.pColorBlendState    = &color_blending;
 	pipeline_create_info.pDynamicState       = &dynamic_state;
-	pipeline_create_info.layout              = info->pipeline_layout;
-	pipeline_create_info.renderPass          = info->render_pass;
+	pipeline_create_info.layout              = pipeline->pipeline_layout;
+	pipeline_create_info.renderPass          = vulkan_info.render_pass;
 	pipeline_create_info.subpass             = 0;
 	pipeline_create_info.basePipelineHandle  = VK_NULL_HANDLE;        // Optional
 	pipeline_create_info.basePipelineIndex   = -1;                    // Optional
 
-	if (vkCreateGraphicsPipelines(info->device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &info->graphics_pipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(vulkan_info.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &pipeline->graphics_pipeline) != VK_SUCCESS) {
 		logprint("vulkan_create_graphics_pipeline()", "failed to create graphics pipelines\n");
 	}
 
 	for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
 		if (shader_modules[i] != 0)
-			vkDestroyShaderModule(info->device, shader_modules[i], nullptr);
+			vkDestroyShaderModule(vulkan_info.device, shader_modules[i], nullptr);
 	}
 }
 
@@ -1392,8 +1378,8 @@ vulkan_cleanup() {
 	vkDestroyBuffer(info->device, info->static_buffer, nullptr);
 	vkFreeMemory(info->device, info->static_buffer_memory, nullptr);
 	
-	vkDestroyPipeline(info->device, info->graphics_pipeline, nullptr);
-	vkDestroyPipelineLayout(info->device, info->pipeline_layout, nullptr);
+	//vkDestroyPipeline(info->device, info->graphics_pipeline, nullptr);
+	//vkDestroyPipelineLayout(info->device, info->pipeline_layout, nullptr);
 	
 	vkDestroyRenderPass(info->device, info->render_pass, nullptr);
 
@@ -1445,11 +1431,14 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
 	*texture = {};
 
+	if (bitmap->channels == 1)
+		texture->image_format = VK_FORMAT_R8_SRGB;
+
     VkDeviceSize image_size = bitmap->width * bitmap->height * bitmap->channels;
 
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
-
+	
     vulkan_create_buffer(info->device, info->physical_device, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
 
 	void *data;
@@ -1628,7 +1617,7 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	vulkan_create_buffer(info->device, 
                      info->physical_device,
-                     5000, 
+                     10000, 
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      info->uniform_buffer,
@@ -1663,7 +1652,8 @@ void vulkan_set_scissor(u32 width, u32 height) {
 	vkCmdSetScissor(vulkan_info.command_buffer, 0, 1, &scissor);
 }
 
-void vulkan_bind_pipeline(Shader *shader) {
+void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
+	Shader *shader = pipeline->shader;
 	for (u32 i = 0; i < shader->layout_count; i++) {
 		for (u32 j = 0; j < shader->max_sets; j++) {
 			if (shader->sets[i][j].free_after_frame == TRUE) {
@@ -1672,8 +1662,8 @@ void vulkan_bind_pipeline(Shader *shader) {
 			}
 		}
 	}
-
-	vkCmdBindPipeline(vulkan_info.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.graphics_pipeline);
+	vulkan_info.pipeline_layout = pipeline->pipeline_layout;
+	vkCmdBindPipeline(vulkan_info.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
 }
 
 void vulkan_start_frame() {

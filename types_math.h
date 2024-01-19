@@ -373,34 +373,49 @@ perspective_projection(float32 fov, float32 aspect_ratio, float32 n, float32 f)
     return get_frustum(-x_max, x_max, -y_max, y_max, n, f);
 }
 
-#elif VULKAN
-
 inline Matrix_4x4
-perspective_projection(float32 fov, float32 aspect_ratio, float32 n, float32 f)
-{
-    float32 y_max = n * tanf(fov * PI / 360.0f);
-    float32 x_max = y_max * aspect_ratio;
-    return get_frustum(-x_max, x_max, y_max, -y_max, n, f);
-}
-
-#endif // OPENGL / VULKAN
-
-inline Matrix_4x4
-orthographic_projection(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f)
-{
-    if (l == r || t == b || n == f)
-    {
+orthographic_projection(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f) {
+    if (l == r || t == b || n == f) {
         logprint("orthographic_projection()", "Invalid arguments");
         return {};
     }
     return
     {
-        2.0f / (r - l), 0, 0, 0,
-        0, 2.0f / (t - b), 0, 0,
-        0, 0, -2.0f / (f - n), 0,
-        -((r+l)/(r-l)),-((t+b)/(t-b)),-((f+n)/(f-n)), 1
+        2.0f / (r - l),  0,              0,              0,
+        0,               2.0f / (t - b), 0,              0,
+        0,               0,             -2.0f / (f - n), 0,
+        -((r+l)/(r-l)), -((t+b)/(t-b)), -((f+n)/(f-n)),  1
     };
 }
+
+
+#elif VULKAN
+
+inline Matrix_4x4
+perspective_projection(float32 fov, float32 aspect_ratio, float32 n, float32 f) {
+    float32 y_max = n * tanf(fov * PI / 360.0f);
+    float32 x_max = y_max * aspect_ratio;
+    return get_frustum(-x_max, x_max, -y_max, y_max, n, f);
+}
+
+inline Matrix_4x4
+orthographic_projection(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f) {
+    if (l == r || t == b || n == f) {
+        logprint("orthographic_projection()", "Invalid arguments");
+        return {};
+    }
+    return
+    {
+        2.0f / (r - l),  0,              0,              0,
+        0,               2.0f / (t - b), 0,              0,
+        0,               0,             -2.0f / (f - n), 0,
+        -((r+l)/(r-l)), -((t+b)/(t-b)), -((f+n)/(f-n)),  1
+    };
+}
+//et_frustum(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f);
+
+#endif // OPENGL / VULKAN
+
 
 inline Matrix_4x4
 identity_m4x4()
@@ -424,8 +439,7 @@ look_at(const Vector3 &position, const Vector3 &target, const Vector3 &up)
     Vector3 u = normalized(cross_product(f, r));
     Vector3 t = {-dot_product(r, position), -dot_product(u, position), -dot_product(f, position)};
     
-    return
-    {
+    return {
         r.x, u.x, f.x, 0,
         r.y, u.y, f.y, 0,
         r.z, u.z, f.z, 0,

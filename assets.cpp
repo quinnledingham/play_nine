@@ -16,7 +16,7 @@ load_file(const char *filepath) {
         fread(result.memory, result.size, 1, in);
         fclose(in);
     } else { 
-    	logprint("load_file", "Cannot open file %s", filepath);
+    	logprint("load_file", "Cannot open file %s\n", filepath);
     }
     
     result.filepath = filepath;
@@ -492,7 +492,8 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 
     stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, 0, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
 
-    vulkan_create_texture(&char_bitmap->bitmap);
+    if (char_bitmap->bitmap.width != 0)
+        vulkan_create_texture(&char_bitmap->bitmap);
     //render_init_bitmap(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
 
     return char_bitmap;
@@ -500,4 +501,9 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 
 float32 get_scale_for_pixel_height(void *info, float32 pixel_height) {
     return stbtt_ScaleForPixelHeight((stbtt_fontinfo*)info, pixel_height);
+}
+
+
+s32 get_codepoint_kern_advance(void *info, s32 ch1, s32 ch2) {
+    return stbtt_GetCodepointKernAdvance((stbtt_fontinfo*)info, ch1, ch2);
 }

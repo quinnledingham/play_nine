@@ -9,8 +9,12 @@ struct Object {
 
 
 struct Render_Pipeline {
-    Shader shader;
+    Shader *shader;
     bool8 blend;
+    
+    //VkRenderPass render_pass;
+    VkPipelineLayout pipeline_layout;
+    VkPipeline graphics_pipeline;
 
     void *gpu_info; // OpenGL = NULL, Vulkan = VkPipeline
 };
@@ -44,8 +48,8 @@ RENDER_FUNC(void, clear_color, Vector4 color);
 RENDER_FUNC(void, start_frame, );
 RENDER_FUNC(void, end_frame, );
 RENDER_FUNC(void, cleanup, );
-RENDER_FUNC(void, create_graphics_pipeline, Shader *shader);
-RENDER_FUNC(void, bind_pipeline, Shader *shader);
+RENDER_FUNC(void, create_graphics_pipeline, Render_Pipeline *pipeline);
+RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
 
 RENDER_FUNC(void, create_descriptor_pool, Shader *shader, u32 descriptor_set_count, u32 set_index);
 RENDER_FUNC(Descriptor_Set*, get_descriptor_set, Shader *shader, bool8 layout_index);

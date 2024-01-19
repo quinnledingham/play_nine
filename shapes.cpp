@@ -1,7 +1,8 @@
 struct Shapes {
 	Mesh rect_mesh;
 
-	Shader text_shader;
+    Shader text_shader;
+	Render_Pipeline text_pipeline;
 };
 
 Shapes shapes = {};
@@ -20,8 +21,13 @@ get_rect_mesh() {
 	Mesh mesh = {};
 	mesh.vertices_count = 4;
 	mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
-
+/*
 	mesh.vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
+    mesh.vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
+    mesh.vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
+    mesh.vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
+*/
+    mesh.vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
     mesh.vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
     mesh.vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
     mesh.vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
@@ -30,8 +36,8 @@ get_rect_mesh() {
     mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
 
     // vertex locations
-    u32 top_left = 1, top_right = 3, bottom_left = 0, bottom_right = 2;
-    
+    u32 top_left = 0, top_right = 2, bottom_left = 1, bottom_right = 3;
+   
 	mesh.indices[0] = top_left;
     mesh.indices[1] = bottom_left;
     mesh.indices[2] = bottom_right;
@@ -46,7 +52,7 @@ get_rect_mesh() {
     mesh.indices[3] = top_left;
     mesh.indices[4] = top_right;
     mesh.indices[5] = bottom_right;
-*/  
+*/
     render_init_mesh(&mesh);
 
     return mesh;
@@ -59,28 +65,35 @@ get_rect_mesh() {
 void init_shapes() {
 	shapes.rect_mesh = get_rect_mesh();
 
-	shapes.text_shader.files[SHADER_STAGE_VERTEX].memory = (void*)basic_vs;
-	shapes.text_shader.files[SHADER_STAGE_FRAGMENT].memory = (void*)text_fs;
+    shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/basic.vert";
+    shapes.text_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/text.frag";
+    load_shader(&shapes.text_shader);
+	//shapes.text_shader.files[SHADER_STAGE_VERTEX].memory = (void*)basic_vs;
+	//shapes.text_shader.files[SHADER_STAGE_FRAGMENT].memory = (void*)text_fs;
 
 	render_compile_shader(&shapes.text_shader);
 
     shapes.text_shader.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene));
     shapes.text_shader.descriptor_sets[0].descriptors_count = 1;
-    render_create_descriptor_pool(&shapes.text_shader, 15, 0);
+    render_create_descriptor_pool(&shapes.text_shader, 30, 0);
 
     shapes.text_shader.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object));
     shapes.text_shader.descriptor_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0);
     shapes.text_shader.descriptor_sets[1].descriptors[2] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4));
     shapes.text_shader.descriptor_sets[1].descriptors_count = 3;
-    render_create_descriptor_pool(&shapes.text_shader, 15, 1);
+    render_create_descriptor_pool(&shapes.text_shader, 30, 1);
 
-    render_create_graphics_pipeline(&shapes.text_shader);
+    shapes.text_pipeline.shader = &shapes.text_shader;
+    render_create_graphics_pipeline(&shapes.text_pipeline);
 }
 
 //
 // String
 //
-/*
+
+internal void
+vulkan_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding);
+
 void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color)
 {
     //stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
@@ -90,13 +103,10 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     float32 current_point = coords.x;
     float32 baseline      = coords.y;
 
-    render_bind_pipeline(&shapes.text_shader);
-    
-    Descriptor_Set *object_set = render_get_descriptor_set(&shapes.text_shader, 1);
-    render_bind_descriptor_set(object_set, 1);
+    render_bind_pipeline(&shapes.text_pipeline);
 
-    uniform_s32(shader_handle, "tex0", 0);
-    uniform_Vector4(shader_handle, "text_color", color);
+    //uniform_s32(shader_handle, "tex0", 0);
+    //uniform_Vector4(shader_handle, "text_color", color);
 
     u32 i = 0;
     while (string[i] != 0)
@@ -107,23 +117,29 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
         Vector2 char_coords = { current_point + (font_char->lsb * scale), baseline + (float32)bitmap->bb_0.y };
 
         // Draw
-        Vector3 coords_Vector3 = { char_coord.x, char_coords.y, 0 };
+        Vector3 coords_Vector3 = { char_coords.x, char_coords.y, 0 };
         Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
-        Vector3 dim_Vector3 = { bitmap.width, bitmap.height, 1 };
-        
-		platform_set_texture(bitmap);
+        Vector3 dim_Vector3 = { (float32)bitmap->bitmap.width, (float32)bitmap->bitmap.height, 1 };
 
-		m4x4 model = create_transform_m4x4(shape.coords, shape.rotation, shape.dim);
-    	uniform_m4x4(shader_handle, "model", &model);
 
-    	draw_mesh(&shapes.rect);
+        if (bitmap->bitmap.width != 0) {        
+    		//platform_set_texture(bitmap);
+            Descriptor_Set *object_set = render_get_descriptor_set(&shapes.text_shader, 1);
+            vulkan_set_bitmap(object_set, &bitmap->bitmap, 2);
 
-        // End of Draw
+    		Matrix_4x4 model = create_transform_m4x4(coords_Vector3, rotation_quat, dim_Vector3);
 
+        	//uniform_m4x4(shader_handle, "model", &model);
+            render_update_ubo(object_set, 2, (void*)&color, false);
+            render_update_ubo(object_set, 0, (void*)&model, false);
+            render_bind_descriptor_set(object_set, 1);
+            render_draw_mesh(&shapes.rect_mesh);
+            object_set->free_after_frame = true;
+            // End of Draw
+        }
         s32 kern = get_codepoint_kern_advance(font->info, string[i], string[i + 1]);
         current_point += scale * (kern + font_char->ax);
         
         i++;
-    }
+    }   
 }
-*/

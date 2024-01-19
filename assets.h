@@ -154,7 +154,7 @@ struct Shader {
     Descriptor_Set descriptor_sets[layout_count]; // information about the uniforms and samplers
 
     // where to use descriptor sets for
-    static const u32 max_sets = 2;
+    static const u32 max_sets = 10;
     u32 sets_count[layout_count];
     Descriptor_Set sets[layout_count][max_sets];
 

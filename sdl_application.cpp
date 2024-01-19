@@ -208,36 +208,49 @@ int main(int argc, char *argv[]) {
 
     basic_3D.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene));
     basic_3D.descriptor_sets[0].descriptors_count = 1;
-    render_create_descriptor_pool(&basic_3D, 15, 0);
+    render_create_descriptor_pool(&basic_3D, 30, 0);
 
     basic_3D.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object));
     basic_3D.descriptor_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0);
     basic_3D.descriptor_sets[1].descriptors_count = 2;
-    render_create_descriptor_pool(&basic_3D, 15, 1);
+    render_create_descriptor_pool(&basic_3D, 30, 1);
 
-    render_create_graphics_pipeline(&basic_3D);
+    Render_Pipeline basic_pipeline = {};
+    basic_pipeline.shader = &basic_3D;
+
+    render_create_graphics_pipeline(&basic_pipeline);
     
     Scene scene = {};
-    scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f });
+    scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
     scene.projection = perspective_projection(45.0f, (float32)app.window.width / (float32)app.window.height, 0.1f, 10.0f);
     
     // Init ubo
     Descriptor_Set *scene_set = render_get_descriptor_set(&basic_3D, 0);
     render_update_ubo(scene_set, 0, (void*)&scene, true);
 
+    Descriptor_Set *scene_ortho_set = render_get_descriptor_set(&basic_3D, 0);
+    scene.view = identity_m4x4();
+    scene.projection = orthographic_projection(0.0f, (float32)app.window.width, 0.0f, (float32)app.window.height, -3.0f, 3.0f);
+    //scene.projection = perspective_projection(90.0f, (float32)app.window.width / (float32)app.window.height, 0.1f, 10.0f);
+    //scene.projection.E[1][1] *= -1;
+    render_update_ubo(scene_ortho_set, 0, (void*)&scene, true);
+
     Bitmap yogi = load_bitmap("../assets/bitmaps/yogi.png");
     vulkan_create_texture(&yogi);
-    //render_init_bitmap(scene_set, &yogi, 1);
     free_bitmap(yogi);
 
     Bitmap david = load_bitmap("../assets/bitmaps/david.jpg");
     vulkan_create_texture(&david);
-    //render_init_bitmap(scene_set, &yogi, 1);
     free_bitmap(david);
 
     Object object = {};
 
     Mesh rect = get_rect_mesh();
+
+    Font font = load_font("../assets/fonts/LibreCaslonCondensed-Regular.ttf");
+    init_font(&font);
+
+    init_shapes();
 
     while (1) {
         
@@ -253,22 +266,22 @@ int main(int argc, char *argv[]) {
         render_set_viewport(app.window.width, app.window.height);
         render_set_scissor(app.window.width, app.window.height);
 
-        render_bind_pipeline(&basic_3D);
+        render_bind_pipeline(&basic_pipeline);
 
         render_bind_descriptor_set(scene_set, 0);
         {
             Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
-            object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+            object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(app.time.run_time_s, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
             render_update_ubo(object_set, 0, (void*)&object, false);
             vulkan_set_bitmap(object_set, &yogi, 2);
             render_bind_descriptor_set(object_set, 1);
             render_draw_mesh(&rect);
             object_set->free_after_frame = true;
         }
-
+        render_bind_descriptor_set(scene_ortho_set, 0);
         { 
             Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
-            object.model = create_transform_m4x4({ -0.5f, 0.0f, -0.5f }, get_rotation(app.time.run_time_s, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+            object.model = create_transform_m4x4({ 100.0f, 100.0f, -0.5f }, get_rotation(0, {0, 1, 0}), {100, 100, 1.0f});
             render_update_ubo(object_set, 0, (void*)&object, false);
             vulkan_set_bitmap(object_set, &david, 2);
             render_bind_descriptor_set(object_set, 1);
@@ -276,6 +289,8 @@ int main(int argc, char *argv[]) {
             object_set->free_after_frame = true;
 
         }
+        
+        draw_string(&font, "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
 
         render_end_frame();
     }
