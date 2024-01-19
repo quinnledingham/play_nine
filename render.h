@@ -65,11 +65,9 @@ RENDER_FUNC(void, create_graphics_pipeline, Shader *shader);
 RENDER_FUNC(void, bind_pipeline, Shader *shader);
 
 RENDER_FUNC(void, create_descriptor_pool, Shader *shader, u32 descriptor_set_count, u32 set_index);
-//RENDER_FUNC(void, create_descriptor_set, Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index);
+RENDER_FUNC(Descriptor_Set*, get_descriptor_set, Shader *shader, bool8 layout_index);
 RENDER_FUNC(void, init_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
-//RENDER_FUNC(void, init_ubo, Descriptor_Set *set, u32 size, u32 binding);
-
-//RENDER_FUNC(void, update_ubo, Descriptor *descriptor, void *data);
+RENDER_FUNC(void, update_ubo, Descriptor_Set *set, u32 descriptor_index, void *data, bool8 static_update);
 
 // this is when you tell the shader where the memory is
 RENDER_FUNC(void, bind_descriptor_set, Descriptor_Set *set, u32 first_set);

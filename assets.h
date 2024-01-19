@@ -63,11 +63,12 @@ struct Descriptor {
         
     }
 
-    Descriptor(u32 in_binding, u32 in_type, u32 in_stage) {
+    Descriptor(u32 in_binding, u32 in_type, u32 in_stage, u32 in_size) {
         binding = in_binding;
         type = in_type;
         stages[0] = in_stage;
         stages_count = 1;
+        size = in_size;
     } 
 };
 
@@ -78,20 +79,15 @@ struct Descriptor_Set {
     Descriptor descriptors[max_descriptors];
     u32 descriptors_count;
 
-    void *gpu_info;
-};
+    bool8 in_use;
+    bool8 free_after_frame;
 
-struct Descriptor_Set_2 {
-    VkDescriptorSet sets[2]; // 2 for max frames in flight
-    u32 offsets[2];          // offsets in memory for each set
-    u32 size;
-    u32 binding;
+    void *gpu_info; // Vulkan Descriptor Set
 };
 
 struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
-    
     
     static const u32 layout_count = 2; // 2 because there are 2 sets (2 different layouts)
     void *descriptor_layout[layout_count];
@@ -102,11 +98,9 @@ struct Shader {
     Descriptor_Set descriptor_sets[layout_count]; // information about the uniforms and samplers
 
     // where to use descriptor sets for
-    static const u32 max_sets = 4;
+    static const u32 max_sets = 2;
     u32 sets_count[layout_count];
-    VkDescriptorSet sets[layout_count][max_sets]; // 2 for max frames in flight
-
-    Descriptor_Set_2 sets_2[layout_count][2];
+    Descriptor_Set sets[layout_count][max_sets];
 
     bool8 compiled;
     u32 handle;

@@ -99,20 +99,21 @@ void opengl_set_scissor(u32 window_width, u32 window_height) {
     glScissor(0, 0, window_width, window_height);
 }
 
-void opengl_create_graphics_pipeline(Shader *shader) {
-    
-}
-
 global u32 global_shader_handle;
 
 void opengl_bind_pipeline(Shader *shader) {
+    for (u32 i = 0; i < shader->layout_count; i++) {
+        for (u32 j = 0; j < shader->max_sets; j++) {
+            if (shader->sets[i][j].free_after_frame == TRUE) {
+                shader->sets[i][j].free_after_frame = false;
+                shader->sets[i][j].in_use = false;
+            }
+        }
+    }
+
     glUseProgram(shader->handle);
     //return shader->handle;
     global_shader_handle = shader->handle;
-}
-
-void opengl_create_descriptor_pool(Shader *shader, u32 descriptor_set_count, u32 set_index) {
-
 }
 
 void opengl_create_descriptor_sets(Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index) {
@@ -120,7 +121,7 @@ void opengl_create_descriptor_sets(Descriptor_Set *set, Shader *shader, u32 desc
 }
 
 // block index is from glUniformBlockBinding or binding == #
-void opengl_init_ubo(Descriptor *descriptor, u32 size, u32 binding) {
+void opengl_init_ubo(Descriptor_Set *set, Descriptor *descriptor, u32 size, u32 binding) {
     descriptor->binding = binding; // binding point in buffer (offset)
     descriptor->size = size;
     descriptor->handle = platform_malloc(sizeof(u32));
@@ -131,7 +132,46 @@ void opengl_init_ubo(Descriptor *descriptor, u32 size, u32 binding) {
     glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     
-    glBindBufferBase(GL_UNIFORM_BUFFER, binding, *(u32*)descriptor->handle); // binding index refers to the memory
+    //glBindBufferBase(GL_UNIFORM_BUFFER, binding, *(u32*)descriptor->handle); // binding index refers to the memory
+}
+
+void opengl_create_descriptor_pool(Shader *shader, u32 descriptor_set_count, u32 set_index) {
+    Descriptor_Set *layout_set = &shader->descriptor_sets[set_index]; // passing the layout that was defined for the set
+
+    for (u32 i = 0; i < shader->max_sets; i++) {
+        shader->sets[set_index][i] = *layout_set;
+        for (u32 j = 0; j < shader->sets[set_index][i].descriptors_count; j++) {
+            if (shader->sets[set_index][i].descriptors[j].type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                opengl_init_ubo(&shader->sets[set_index][i], 
+                                &shader->sets[set_index][i].descriptors[j], 
+                                shader->sets[set_index][i].descriptors[j].size,
+                                shader->sets[set_index][i].descriptors[j].binding);
+        }
+    }
+}
+
+void opengl_create_graphics_pipeline(Shader *shader) {
+/*
+    for (u32 i = 0; i < shader->layout_count; i++) {
+        for (u32 j = 0; j < shader->descriptor_sets[i].descriptors_count; j++) {
+            Descriptor *d = &shader->descriptor_sets[i].descriptors[j];
+            if (d->type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                opengl_init_ubo(d, d->size, d->binding); 
+        }
+    }
+*/
+}
+
+Descriptor_Set* opengl_get_descriptor_set(Shader *shader, bool8 layout_index) {
+    for (u32 i = 0; i < shader->max_sets; i++) {
+        if (shader->sets[layout_index][i].in_use == false) {
+            shader->sets[layout_index][i].in_use = true;
+            return &shader->sets[layout_index][i];
+        }
+    }
+    logprint("opengl_get_descriptor_set()", "ran out of sets to use in shader\n");
+    ASSERT(0);
+    return 0;
 }
 
 // returns the new offset
@@ -142,17 +182,17 @@ u32 opengl_buffer_sub_data(u32 target, u32 offset, u32 size, void *data) {
 
 #define BUFFER_SUB_DATA(target, offset, n) opengl_buffer_sub_data(target, offset, sizeof(n), (void *)&n)
 
-void opengl_update_ubo(Descriptor *descriptor, void *data) {
+void opengl_update_ubo(Descriptor_Set *set, u32 descriptor_index, void *data, bool8 static_update) {
     GLenum target = GL_UNIFORM_BUFFER;
     u32 offset = 0;
-/*
-    glBindBuffer(target, *(u32*)ubo->handle);
+
+/*  glBindBuffer(target, *(u32*)ubo->handle);
     offset = BUFFER_SUB_DATA(target, offset, matrices.model);
     offset = BUFFER_SUB_DATA(target, offset, matrices.view);
     offset = BUFFER_SUB_DATA(target, offset, matrices.projection);
-    glBindBuffer(target, 0);
-*/
+    glBindBuffer(target, 0);*/
 
+    Descriptor *descriptor = &set->descriptors[descriptor_index];
     glBindBuffer(target, *(u32*)descriptor->handle);
 //  offset = BUFFER_SUB_DATA(target, offset, data);
     glBufferSubData(target, offset, descriptor->size, data);
@@ -173,12 +213,11 @@ void opengl_set_uniform_block_binding(u32 shader_handle, const char *tag, u32 in
     glUniformBlockBinding(shader_handle, tag_uniform_block_index, index);
 }
 
-void opengl_bind_descriptor_sets(Descriptor_Set *set, u32 first_set) {
+void opengl_bind_descriptor_set(Descriptor_Set *set, u32 first_set) {
     for (u32 i = 0; i < set->descriptors_count; i++) {
         switch(set->descriptors[i].type) {
             case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-                opengl_set_uniform_block_binding(global_shader_handle, "scene", 0);
-                opengl_set_uniform_block_binding(global_shader_handle, "object", 2);
+                glBindBufferBase(GL_UNIFORM_BUFFER, set->descriptors[i].binding, *(u32*)set->descriptors[i].handle);
             } break;
 
             case DESCRIPTOR_TYPE_SAMPLER: {
@@ -186,19 +225,5 @@ void opengl_bind_descriptor_sets(Descriptor_Set *set, u32 first_set) {
                 glBindTexture(GL_TEXTURE_2D, *(u32*)set->descriptors[i].handle);
             } break;
         }
-    }
-}
-
-void opengl_bind_descriptor_set(Descriptor *descriptor) {
-    switch(descriptor->type) {
-        case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-            //opengl_set_uniform_block_binding(global_shader_handle, "scene", descriptor->binding);
-            //opengl_set_uniform_block_binding(global_shader_handle, "object", 2);
-        } break;
-
-        case DESCRIPTOR_TYPE_SAMPLER: {
-            glActiveTexture(GL_TEXTURE0 + 1);
-            glBindTexture(GL_TEXTURE_2D, *(u32*)descriptor->handle);
-        } break;
     }
 }

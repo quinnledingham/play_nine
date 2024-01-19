@@ -155,9 +155,9 @@ init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
     glBindTexture(target, 0);
 }
 
-void opengl_init_bitmap(Descriptor *descriptor, Bitmap *bitmap, u32 binding) { 
+void opengl_init_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) { 
     init_bitmap_gpu_handle(bitmap, TEXTURE_PARAMETERS_CHAR); 
-    descriptor->handle = bitmap->gpu_info;
+    set->descriptors[1].handle = bitmap->gpu_info;
 }
 
 internal void
@@ -271,12 +271,14 @@ compile_spv_to_glsl(File *file) {
     spvc_compiler_install_compiler_options(compiler_glsl, options);
 
     spvc_compiler_compile(compiler_glsl, &result);
-    //printf("Cross-compiled source: %s\n", result);
+    //print("Cross-compiled source: %s\n", result);
 
     spvc_context_destroy(context);
 
     File result_file = {};
-    result_file.memory = (void*)result;
+    result_file.memory = platform_malloc(1000);
+    platform_memory_set(result_file.memory, 0, 1000);
+    platform_memory_copy(result_file.memory, (void*)result, get_length(result));
     result_file.size = 0;
     return result_file;
 }

@@ -80,6 +80,7 @@ void platform_free(void *ptr)   { SDL_free(ptr); }
 void platform_memory_copy(void *dest, void *src, u32 num_of_bytes) { SDL_memcpy(dest, src, num_of_bytes); }
 void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(dest, value, num_of_bytes); }
 
+#define ASSERT(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #define ARRAY_COUNT(n)     (sizeof(n) / sizeof(n[0]))
 #define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t)))
 
@@ -204,12 +205,12 @@ int main(int argc, char *argv[]) {
     load_shader(&basic_3D);
     render_compile_shader(&basic_3D);
 
-    basic_3D.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX);
-    basic_3D.descriptor_sets[0].descriptors[1] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT);
+    basic_3D.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene));
+    basic_3D.descriptor_sets[0].descriptors[1] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0);
     basic_3D.descriptor_sets[0].descriptors_count = 2;
     render_create_descriptor_pool(&basic_3D, 15, 0);
 
-    basic_3D.descriptor_sets[1].descriptors[0] = Descriptor(2, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX);
+    basic_3D.descriptor_sets[1].descriptors[0] = Descriptor(2, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object));
     basic_3D.descriptor_sets[1].descriptors_count = 1;
     render_create_descriptor_pool(&basic_3D, 15, 1);
 
@@ -220,15 +221,16 @@ int main(int argc, char *argv[]) {
     scene.projection = perspective_projection(45.0f, (float32)app.window.width / (float32)app.window.height, 0.1f, 10.0f);
     
     // Init ubo
-    Descriptor_Set scene_set = basic_3D.descriptor_sets[0];
-    //vulkan_init_ubo(&scene_set, &basic_3D, 0, 0, sizeof(Scene), 0);
-    vulkan_update_ubo(&scene_set, 0, (void*)&scene, true);
+    Descriptor_Set *scene_set = render_get_descriptor_set(&basic_3D, 0);
+    render_update_ubo(scene_set, 0, (void*)&scene, true);
 
     Bitmap yogi = load_bitmap("../assets/bitmaps/yogi.png");
-    render_init_bitmap(&scene_set, &yogi, 1);
+    render_init_bitmap(scene_set, &yogi, 1);
     free_bitmap(yogi);
 
     Object object = {};
+
+   
 
     Mesh rect = get_rect_mesh();
 
@@ -248,25 +250,25 @@ int main(int argc, char *argv[]) {
 
         render_bind_pipeline(&basic_3D);
 
-        render_bind_descriptor_set(&scene_set, 0);
+        render_bind_descriptor_set(scene_set, 0);
         {
-            Descriptor_Set object_set = basic_3D.descriptor_sets[1];
-            vulkan_init_ubo(&object_set, &basic_3D, 1, 0, sizeof(Object), 2);
+            
+            Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
             object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
-            vulkan_update_ubo(&object_set, 0, (void*)&object, false);
-            render_bind_descriptor_set(&object_set, 1);
-            //basic_3D.sets_count[first_set]--;
+            render_update_ubo(object_set, 0, (void*)&object, false);
+            render_bind_descriptor_set(object_set, 1);
             render_draw_mesh(&rect);
+            object_set->free_after_frame = true;
         }
 
         { 
-            Descriptor_Set object_set_2 = basic_3D.descriptor_sets[1];
-            vulkan_init_ubo(&object_set_2, &basic_3D, 1, 0, sizeof(Object), 2);
-            object.model = create_transform_m4x4({ -0.5f, 0.0f, -0.3f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
-            vulkan_update_ubo(&object_set_2, 0, (void*)&object, false);
-            render_bind_descriptor_set(&object_set_2, 1);
-            //basic_3D.sets_count[first_set]--;
+            Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
+            object.model = create_transform_m4x4({ -0.5f, 0.0f, -0.5f }, get_rotation(0.0f, {0, 0, 1}), {1.0f, 1.0f, 1.0f});
+            render_update_ubo(object_set, 0, (void*)&object, false);
+            render_bind_descriptor_set(object_set, 1);
             render_draw_mesh(&rect);
+            object_set->free_after_frame = true;
+
         }
 
         render_end_frame();

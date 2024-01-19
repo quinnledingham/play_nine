@@ -17,6 +17,9 @@ typedef uint64_t u64;
 typedef float  float32;
 typedef double float64;
 
+#define FALSE 0
+#define TRUE 1
+
 union Vector2 {
 	struct {
 		float32 x, y;
