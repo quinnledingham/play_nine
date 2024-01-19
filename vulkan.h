@@ -131,10 +131,12 @@ struct Vulkan_Texture {
 
 // For the shader to store information about the layout and have a pool for this layout
 // to allocate descriptors for.
+/*
 struct Vulkan_Descriptor_Pool {
 	VkDescriptorSetLayout layout;
 	VkDescriptorPool descriptor_pool;
 };
+*/
 
 struct Vulkan_Descriptor_Set {
 	//VkDescriptorSetLayout layout;

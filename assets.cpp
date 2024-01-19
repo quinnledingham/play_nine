@@ -194,15 +194,6 @@ const u32 shaderc_glsl_file_types[5] = {
     shaderc_glsl_fragment_shader,
 };
 
-// lines up with enum shader_stages
-const u32 opengl_shader_file_types[5] = { 
-    GL_VERTEX_SHADER,
-    GL_TESS_CONTROL_SHADER,
-    GL_TESS_EVALUATION_SHADER,
-    GL_GEOMETRY_SHADER,
-    GL_FRAGMENT_SHADER,
-};
-
 internal File
 compile_glsl_to_spv(shaderc_compiler_t compiler, File *file, shaderc_shader_kind shader_kind) {
     const shaderc_compilation_result_t result = shaderc_compile_into_spv(compiler, (char*)file->memory, file->size, shader_kind, get_filename(file->filepath), "main", nullptr);
@@ -314,6 +305,15 @@ void load_shader(Shader *shader)
 }
 
 #ifdef OPENGL
+
+// lines up with enum shader_stages
+const u32 opengl_shader_file_types[5] = { 
+    GL_VERTEX_SHADER,
+    GL_TESS_CONTROL_SHADER,
+    GL_TESS_EVALUATION_SHADER,
+    GL_GEOMETRY_SHADER,
+    GL_FRAGMENT_SHADER,
+};
 
 bool compile_shader(u32 handle, const char *file, int type)
 {

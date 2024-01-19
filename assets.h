@@ -50,12 +50,13 @@ enum descriptor_types {
 };
 
 struct Descriptor {
-    u32 binding; // offset / index
+    u32 binding;
     u32 type;
     u32 stages[SHADER_STAGES_AMOUNT];
     u32 stages_count;
     
     u32 size;
+    u32 offsets[2];
     void *handle; // OpenGL
 
     Descriptor() {
@@ -70,7 +71,9 @@ struct Descriptor {
     } 
 };
 
+// use these to manage the uniforms in the game code
 struct Descriptor_Set {
+    u32 set_index; // in shader: set = 0, set = 1
     static const u32 max_descriptors = 10;
     Descriptor descriptors[max_descriptors];
     u32 descriptors_count;
@@ -81,14 +84,14 @@ struct Descriptor_Set {
 struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
-
-    void *descriptor_pool[2]; // 2 because there are 2 sets (2 different layouts)
+    
+    static const u32 layout_count = 2; // 2 because there are 2 sets (2 different layouts)
+    void *descriptor_layout[layout_count];
+    void *descriptor_pool[layout_count]; 
     // gpu_info is not set, they just contaain the layout specification
-    Descriptor_Set descriptor_set[2]; // information about the uniforms and samplers
 
-    // gpu_info
-    u32 descriptor_sets_index[2];
-    Descriptor_Set descriptor_sets[2][5]; // 2 arrays for the two layouts of 5 descriptor sets
+    // meant to be more of a layout tool
+    Descriptor_Set descriptor_sets[layout_count]; // information about the uniforms and samplers
 
     bool8 compiled;
     u32 handle;
