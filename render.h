@@ -53,7 +53,10 @@ RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
 
 RENDER_FUNC(void, create_descriptor_pool, Shader *shader, u32 descriptor_set_count, u32 set_index);
 RENDER_FUNC(Descriptor_Set*, get_descriptor_set, Shader *shader, bool8 layout_index);
-RENDER_FUNC(void, init_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
+
+RENDER_FUNC(void, create_texture, Bitmap *bitmap);
+RENDER_FUNC(void, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
+
 RENDER_FUNC(void, update_ubo, Descriptor_Set *set, u32 descriptor_index, void *data, bool8 static_update);
 
 // this is when you tell the shader where the memory is

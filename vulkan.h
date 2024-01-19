@@ -29,13 +29,6 @@ struct Vulkan_Swap_Chain_Support_Details {
 	u32 present_modes_count;
 };
 
-// info to setup a graphics pipeline
-struct Vulkan_Graphics_Pipeline {
-	Shader *shader;
-	VkVertexInputBindingDescription binding_description;
-	VkVertexInputAttributeDescription attribute_descriptions[3];
-};
-
 struct Vulkan_Info {
 	const char *device_extensions[1] = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -60,9 +53,8 @@ struct Vulkan_Info {
 	VkDevice device;
 	VkSurfaceKHR surface;
 
-	VkRenderPass render_pass;
-	VkPipelineLayout pipeline_layout;
-	//VkPipeline graphics_pipeline;
+	VkRenderPass render_pass;         // general render pass for a pipeline (also pipeline layout)
+	
 
 	VkDeviceSize uniform_buffer_min_alignment;
 
@@ -70,8 +62,10 @@ struct Vulkan_Info {
 	VkQueue present_queue;
 
 	VkCommandPool command_pool;
-	Arr<VkCommandBuffer> command_buffers;
-	VkCommandBuffer command_buffer;             // set at the start of the frame for the current frame
+	VkCommandBuffer command_buffers[MAX_FRAMES_IN_FLIGHT];
+	u32 active_command_buffer_index;
+	//VkCommandBuffer command_buffer;   // set at the start of the frame for the current frame
+	VkPipelineLayout pipeline_layout; // set this to the currently bounded layout
 
 	// swap_chain
 	VkSwapchainKHR swap_chains[1];
@@ -83,11 +77,8 @@ struct Vulkan_Info {
 	Arr<VkFramebuffer> swap_chain_framebuffers;
 
 	// sync
-	VkSemaphore copy_finished_semaphores_count[10];
-	u32 copy_find_semaphores_count;
-
-	Arr<VkSemaphore> image_available_semaphore;
-	Arr<VkSemaphore> render_finished_semaphore;
+	VkSemaphore image_available_semaphore[MAX_FRAMES_IN_FLIGHT];
+	VkSemaphore render_finished_semaphore[MAX_FRAMES_IN_FLIGHT];
 	VkFence in_flight_fence[MAX_FRAMES_IN_FLIGHT];
 
 	// Buffers	
@@ -101,7 +92,7 @@ struct Vulkan_Info {
 	u32 uniform_buffer_offset;
 	void *uniform_data;
 
-	// Images
+	// Depth Buffer
 	VkImage depth_image;
 	VkDeviceMemory depth_image_memory;
 	VkImageView depth_image_view;
@@ -109,8 +100,6 @@ struct Vulkan_Info {
 	// Presentation
 	VkCommandBufferBeginInfo begin_info;
 	VkClearValue clear_values[2];
-	//VkViewport viewport;
-	//VkRect2D scissor;
 
 	VkPipelineStageFlags wait_stages[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkRenderPassBeginInfo render_pass_info;
@@ -118,30 +107,24 @@ struct Vulkan_Info {
 	VkPresentInfoKHR present_info;
 };
 
+inline VkCommandBuffer
+vulkan_active_cmd_buffer(Vulkan_Info *info) {
+	return info->command_buffers[info->current_frame];
+}
+
 global Vulkan_Info vulkan_info;
 
 struct Vulkan_Texture {
 	VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
 
-	VkDeviceMemory image_memory;
+	VkDeviceMemory image_memory; // Could put in vulkan info an save it
 
 	VkImage image;
 	VkImageView image_view;
 	VkSampler sampler;
 };
 
-// For the shader to store information about the layout and have a pool for this layout
-// to allocate descriptors for.
-/*
-struct Vulkan_Descriptor_Pool {
-	VkDescriptorSetLayout layout;
-	VkDescriptorPool descriptor_pool;
-};
-*/
-
 struct Vulkan_Descriptor_Set {
-	//VkDescriptorSetLayout layout;
-	//VkDescriptorPool descriptor_pool;
 	VkDescriptorSet descriptor_sets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
 };
 
@@ -152,11 +135,3 @@ struct Vulkan_Mesh {
     u32 uniform_offsets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
     u32 uniform_size; // size of the individual uniforms
 };
-
-// How to bind uniforms
-
-// start with: shader has pool for all types of sets
-
-// render_init_ubo:   allocates a descriptor set
-// render_update_ubo: 
-// render_bind_ubo: 

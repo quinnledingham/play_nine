@@ -109,8 +109,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     //uniform_Vector4(shader_handle, "text_color", color);
 
     u32 i = 0;
-    while (string[i] != 0)
-    {
+    while (string[i] != 0) {
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
         Font_Char *font_char = bitmap->font_char;
         
