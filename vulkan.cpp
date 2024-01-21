@@ -684,18 +684,17 @@ vulkan_get_alignment(VkDeviceSize in, u32 alignment) {
 
 internal void
 vulkan_create_descriptor_set(Shader *shader, u32 descriptor_set_count, u32 pool_index, VkDescriptorSet *sets) {
-	VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_set_layout[pool_index];
-	VkDescriptorPool *vulkan_pool = (VkDescriptorPool *)shader->descriptor_pool[pool_index];
+	Vulkan_Shader_Info *set_info = &shader->vulkan_infos[pool_index];
 
 	// Create descriptor sets
-	VkDescriptorSetLayout layouts[shader->max_sets * vulkan_info.MAX_FRAMES_IN_FLIGHT];
+	VkDescriptorSetLayout layouts[set_info->max_sets * vulkan_info.MAX_FRAMES_IN_FLIGHT];
 	for (u32 i = 0; i < descriptor_set_count; i++) {
-		layouts[i] = *vulkan_layout;
+		layouts[i] = set_info->descriptor_set_layout;
 	}
 
 	VkDescriptorSetAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocate_info.descriptorPool = *vulkan_pool;
+	allocate_info.descriptorPool = shader->vulkan_infos[pool_index].descriptor_pool;
 	allocate_info.descriptorSetCount = descriptor_set_count;
 	allocate_info.pSetLayouts = layouts;
 
@@ -719,20 +718,20 @@ vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
 Descriptor_Set*
 vulkan_get_descriptor_set(Shader *shader, bool8 layout_index) {
 
-	u32 next_set = shader->sets_count[layout_index]++;
+	u32 next_set = shader->vulkan_infos[layout_index].sets_count++;
 
-	if (next_set > shader->max_sets) {
+	if (next_set > shader->vulkan_infos[layout_index].max_sets) {
 		logprint("vulkan_get_descriptor_set()", "ran out of sets to use in shader\n");
 		ASSERT(0);
 		return 0;
 	}
 
-	return &shader->sets[layout_index][next_set];
+	return &shader->descriptor_sets[layout_index][next_set];
 }
 
 internal void
 vulkan_init_descriptor_ub(Descriptor_Set *set, Descriptor *descriptor, u32 size, u32 binding) {
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+	VkDescriptorSet **vulkan_set = (VkDescriptorSet **)set->gpu_info;
 	
 	descriptor->size = size;
 	descriptor->binding = binding;	
@@ -752,7 +751,7 @@ vulkan_init_descriptor_ub(Descriptor_Set *set, Descriptor *descriptor, u32 size,
 
 	    VkWriteDescriptorSet descriptor_write = {};
 	    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	    descriptor_write.dstSet = vulkan_set->descriptor_sets[i];
+	    descriptor_write.dstSet = *(vulkan_set[i]);
 	    descriptor_write.dstBinding = descriptor->binding;
 	    descriptor_write.dstArrayElement = 0;
 	    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -807,29 +806,29 @@ vulkan_create_descriptor(Descriptor descriptor) {
 // descriptor_set_count is how many descripotr sets to allocate
 internal void
 vulkan_create_descriptor_pool(Shader *shader, u32 max_sets, u32 set_index) {
-	shader->descriptor_pool[set_index] = platform_malloc(sizeof(VkDescriptorPool));
-	shader->descriptor_set_layout[set_index] = platform_malloc(sizeof(VkDescriptorSetLayout));
-	VkDescriptorPool *vulkan_pool = (VkDescriptorPool *)shader->descriptor_pool[set_index];
-	VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_set_layout[set_index];
+	//shader->descriptor_pool[set_index] = platform_malloc(sizeof(VkDescriptorPool));
+	//shader->descriptor_set_layout[set_index] = platform_malloc(sizeof(VkDescriptorSetLayout));
+	//VkDescriptorPool *vulkan_pool = (VkDescriptorPool *)shader->descriptor_pool[set_index];
+	//VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_set_layout[set_index];
 	
-	Descriptor_Set *layout_set = &shader->descriptor_sets[set_index]; // passing the layout that was defined for the set
+	Descriptor_Set *set = &shader->layout_sets[set_index]; // passing the layout that was defined for the set
 
-	VkDescriptorSetLayoutBinding bindings[layout_set->max_descriptors] = {};
-	for (u32 i = 0; i < layout_set->descriptors_count; i++) {
-		bindings[i] = vulkan_create_descriptor(layout_set->descriptors[i]);
+	VkDescriptorSetLayoutBinding bindings[set->max_descriptors] = {};
+	for (u32 i = 0; i < set->descriptors_count; i++) {
+		bindings[i] = vulkan_create_descriptor(set->descriptors[i]);
 	}
 
 	VkDescriptorSetLayoutCreateInfo layout_info = {};
 	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layout_info.bindingCount = layout_set->descriptors_count;
+	layout_info.bindingCount = set->descriptors_count;
 	layout_info.pBindings = bindings;
 	
-	if (vkCreateDescriptorSetLayout(vulkan_info.device, &layout_info, nullptr, vulkan_layout) != VK_SUCCESS) {
+	if (vkCreateDescriptorSetLayout(vulkan_info.device, &layout_info, nullptr, &shader->vulkan_infos[set_index].descriptor_set_layout) != VK_SUCCESS) {
 		logprint("vulkan_create_descriptor_set_layout()", "failed to create descriptor set layout\n");
 	}
 
 	VkDescriptorPoolSize pool_sizes[ARRAY_COUNT(bindings)] = {};
-	for (u32 i = 0; i < layout_set->descriptors_count; i++) {
+	for (u32 i = 0; i < set->descriptors_count; i++) {
 		pool_sizes[i].type = bindings[i].descriptorType;
 		pool_sizes[i].descriptorCount = max_sets * vulkan_info.MAX_FRAMES_IN_FLIGHT; // how many of that type to allocate
 	}
@@ -840,7 +839,7 @@ vulkan_create_descriptor_pool(Shader *shader, u32 max_sets, u32 set_index) {
 	pool_info.pPoolSizes = pool_sizes;
 	pool_info.maxSets = max_sets * vulkan_info.MAX_FRAMES_IN_FLIGHT;
 
-	if (vkCreateDescriptorPool(vulkan_info.device, &pool_info, nullptr, vulkan_pool) != VK_SUCCESS) {
+	if (vkCreateDescriptorPool(vulkan_info.device, &pool_info, nullptr, &shader->vulkan_infos[set_index].descriptor_pool) != VK_SUCCESS) {
 		logprint("vulkan_crate_descriptor_pool()", "failed to create descriptor pool\n");
 	}
 
@@ -848,33 +847,29 @@ vulkan_create_descriptor_pool(Shader *shader, u32 max_sets, u32 set_index) {
 	// setting up shader descriptor set buffer/cache
 	//
 
-	VkDescriptorSet temp[shader->max_sets * 2];
-	vulkan_create_descriptor_set(shader, shader->max_sets * 2, set_index, temp);
+	vulkan_create_descriptor_set(shader, shader->vulkan_infos[set_index].max_sets * 2, set_index, shader->vulkan_infos[set_index].descriptor_sets);
 
 	u32 temp_index = 0;
-	for (u32 i = 0; i < shader->max_sets; i++) {
-		shader->sets[set_index][i] = *layout_set;
-		shader->sets[set_index][i].gpu_info = platform_malloc(sizeof(Vulkan_Descriptor_Set));
-		Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set*)shader->sets[set_index][i].gpu_info;
-		
-		vulkan_set->descriptor_sets[0] = temp[temp_index++];
-		vulkan_set->descriptor_sets[1] = temp[temp_index++];
+	for (u32 i = 0; i < shader->vulkan_infos[set_index].max_sets; i++) {
 
-		for (u32 j = 0; j < shader->sets[set_index][i].descriptors_count; j++) {
-			if (shader->sets[set_index][i].descriptors[j].type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-				vulkan_init_descriptor_ub(&shader->sets[set_index][i], 
-										  &shader->sets[set_index][i].descriptors[j], 
-										  shader->sets[set_index][i].descriptors[j].size,
-										  shader->sets[set_index][i].descriptors[j].binding);
+		shader->descriptor_sets[set_index][i].gpu_info[0] = &shader->vulkan_infos[set_index].descriptor_sets[shader->vulkan_infos[set_index].sets_count++];
+		shader->descriptor_sets[set_index][i].gpu_info[1] = &shader->vulkan_infos[set_index].descriptor_sets[shader->vulkan_infos[set_index].sets_count++];
+
+		for (u32 j = 0; j < shader->layout_sets[set_index].descriptors_count; j++) {
+			if (shader->layout_sets[set_index].descriptors[j].type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+				vulkan_init_descriptor_ub(&shader->descriptor_sets[set_index][i], 
+										  &shader->descriptor_sets[set_index][i].descriptors[j], 
+										   shader->layout_sets[set_index].descriptors[j].size,
+										   shader->layout_sets[set_index].descriptors[j].binding);
 		}
 	}
-	
+	shader->vulkan_infos[set_index].sets_count = 0;
 }
 
 void vulkan_bind_descriptor_set(Descriptor_Set *set, u32 first_set) {
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+	VkDescriptorSet *vulkan_set = (VkDescriptorSet *)set->gpu_info[vulkan_info.current_frame];
 	//u32 first_set = 0;
-	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &vulkan_set->descriptor_sets[vulkan_info.current_frame], 0, nullptr);
+	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, vulkan_set, 0, nullptr);
 }
 
 // updates the ubo memory
@@ -975,8 +970,7 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 
 	VkDescriptorSetLayout layouts[2];
 	for (u32 i = 0; i < 2; i++) {
-		VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_set_layout[i];
-		layouts[i] = *vulkan_layout;
+		layouts[i] = shader->vulkan_infos[i].descriptor_set_layout;
 	}
 	
 	VkPushConstantRange range = {};
@@ -1355,7 +1349,7 @@ vulkan_create_texture(Bitmap *bitmap) {
 
 internal void
 vulkan_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
-	Vulkan_Descriptor_Set *vulkan_set = (Vulkan_Descriptor_Set *)set->gpu_info;
+	VkDescriptorSet *vulkan_set = (VkDescriptorSet *)set->gpu_info[vulkan_info.current_frame];
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
 
 	VkDescriptorImageInfo image_info = {};
@@ -1366,7 +1360,7 @@ vulkan_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
     VkWriteDescriptorSet descriptor_writes[1] = {};
 
     descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[0].dstSet = vulkan_set->descriptor_sets[vulkan_info.current_frame];
+    descriptor_writes[0].dstSet = *vulkan_set;
     descriptor_writes[0].dstBinding = binding;
     descriptor_writes[0].dstArrayElement = 0;
     descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1622,7 +1616,7 @@ void vulkan_set_scissor(u32 width, u32 height) {
 void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
 	Shader *shader = pipeline->shader;
 	for (u32 i = 0; i < shader->layout_count; i++) {
-		shader->sets_count[i] = 0;
+		shader->vulkan_infos[i].sets_count = 0;
 	}
 
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout;

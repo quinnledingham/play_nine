@@ -138,6 +138,13 @@ struct Descriptor {
         size = in_size;
         scope = in_scope;
     } 
+
+    Descriptor(u32 in_stage, u32 in_size, descriptor_scope in_scope) {
+        stages[0] = in_stage;
+        stages_count = 1;
+        size = in_size;
+        scope = in_scope;
+    } 
 };
 
 // use these to manage the uniforms in the game code
@@ -147,42 +154,40 @@ struct Descriptor_Set {
     Descriptor descriptors[max_descriptors];
     u32 descriptors_count;
 
-    void *gpu_info; // Vulkan Descriptor Set
+    VkDescriptorSet *gpu_info[2]; // Vulkan Descriptor Set
+    //u32 handles[2]; // index to descriptor sets (0 - (max_sets - 1))
 };
 
 /*
 Uniform Shader Structure
-Globals: Projection / View matrices
+Scopes/Update frequency
 
-Instances: Images (sometimes) Material instance - makes sense
+Globals: Projection / View matrices - memory set once 
 
-Locals: Models one per object (can't push images)
+Instances: Images (sometimes) Material instance - makes sense - memory set once but used a lot
+
+Locals: Models one per object (can't push images) - memory changes a lot but is used a lot
 
 */
 
-/*
-struct Vulkan_Shader {
-    VkDescriptorSet descriptor_sets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
+// Contains vulkan info about each descriptor layout
+struct Vulkan_Shader_Info {
+    static const u32 max_sets = 10;
+    VkDescriptorSetLayout descriptor_set_layout;
+    VkDescriptorPool descriptor_pool;
+    VkDescriptorSet descriptor_sets[max_sets * 2]; // @TODO add MAX_FRAMES_IN_FLIGHT
+    u32 sets_count;
 };
-*/
 
 struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
-    static const u32 layout_count = 2; // 2 because there are 2 sets (2 different layouts)
-    void *descriptor_set_layout[layout_count];
-    void *descriptor_pool[layout_count]; 
-    // gpu_info is not set, they just contaain the layout specification
+    static const u32 layout_count = 3;                // layout sets for the 3 scopes
+    Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
+    Descriptor_Set descriptor_sets[layout_count][10]; //
 
-    // meant to be more of a layout tool
-    Descriptor_Set descriptor_sets[layout_count]; // information about the uniforms and samplers
-    Descriptor_Set push_constants;
-    
-    // where to use descriptor sets for
-    static const u32 max_sets = 10;
-    u32 sets_count[layout_count];
-    Descriptor_Set sets[layout_count][max_sets];
+    Vulkan_Shader_Info vulkan_infos[layout_count];
 
     bool8 compiled;
     u32 handle;

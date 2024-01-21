@@ -206,16 +206,16 @@ int main(int argc, char *argv[]) {
     load_shader(&basic_3D);
     render_compile_shader(&basic_3D);
 
-    basic_3D.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
-    basic_3D.descriptor_sets[0].descriptors_count = 1;
+    basic_3D.layout_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
+    basic_3D.layout_sets[0].descriptors_count = 1;
     render_create_descriptor_pool(&basic_3D, 30, 0);
 
-    basic_3D.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
-    basic_3D.descriptor_sets[1].descriptors_count = 1;
+    basic_3D.layout_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
+    basic_3D.layout_sets[1].descriptors_count = 1;
     render_create_descriptor_pool(&basic_3D, 30, 1);
 
-    basic_3D.push_constants.descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
-    basic_3D.push_constants.descriptors_count = 1;
+    basic_3D.layout_sets[2].descriptors[0] = Descriptor(SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
+    basic_3D.layout_sets[2].descriptors_count = 1;
 
     Render_Pipeline basic_pipeline = {};
     basic_pipeline.shader = &basic_3D;
@@ -272,7 +272,7 @@ int main(int argc, char *argv[]) {
         render_bind_descriptor_set(scene_set, 0);
         {            
             object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(app.time.run_time_s, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
-            vulkan_push_constants(&basic_3D.push_constants, (void *)&object.model);
+            vulkan_push_constants(&basic_3D.layout_sets[2], (void *)&object.model);
 
             Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
             render_set_bitmap(object_set, &yogi, 1);
@@ -283,7 +283,7 @@ int main(int argc, char *argv[]) {
         render_bind_descriptor_set(scene_ortho_set, 0);
         { 
             object.model = create_transform_m4x4({ 100.0f, 100.0f, -0.5f }, get_rotation(0, {0, 1, 0}), {100, 100, 1.0f});
-            vulkan_push_constants(&basic_3D.push_constants, (void *)&object.model);
+            vulkan_push_constants(&basic_3D.layout_sets[2], (void *)&object.model);
 
             Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
             render_set_bitmap(object_set, &david, 1);

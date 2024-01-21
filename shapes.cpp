@@ -73,14 +73,14 @@ void init_shapes() {
 
 	render_compile_shader(&shapes.text_shader);
 
-    shapes.text_shader.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
-    shapes.text_shader.descriptor_sets[0].descriptors_count = 1;
+    shapes.text_shader.layout_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
+    shapes.text_shader.layout_sets[0].descriptors_count = 1;
     render_create_descriptor_pool(&shapes.text_shader, 30, 0);
 
-    shapes.text_shader.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object), descriptor_scope::GLOBAL);
-    shapes.text_shader.descriptor_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
-    shapes.text_shader.descriptor_sets[1].descriptors[2] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4), descriptor_scope::GLOBAL);
-    shapes.text_shader.descriptor_sets[1].descriptors_count = 3;
+    shapes.text_shader.layout_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object), descriptor_scope::GLOBAL);
+    shapes.text_shader.layout_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
+    shapes.text_shader.layout_sets[1].descriptors[2] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4), descriptor_scope::GLOBAL);
+    shapes.text_shader.layout_sets[1].descriptors_count = 3;
     render_create_descriptor_pool(&shapes.text_shader, 30, 1);
 
     shapes.text_pipeline.shader = &shapes.text_shader;
