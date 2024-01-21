@@ -5,7 +5,7 @@ layout(set = 0, binding = 0) uniform Scene {
     mat4 projection;
 } scene;
 
-layout(set = 1, binding = 1) uniform Object {
+layout(push_constant, std430) uniform Object {
     mat4 model;
 } object;
 

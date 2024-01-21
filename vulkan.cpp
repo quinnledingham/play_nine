@@ -684,7 +684,7 @@ vulkan_get_alignment(VkDeviceSize in, u32 alignment) {
 
 internal void
 vulkan_create_descriptor_set(Shader *shader, u32 descriptor_set_count, u32 pool_index, VkDescriptorSet *sets) {
-	VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_layout[pool_index];
+	VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_set_layout[pool_index];
 	VkDescriptorPool *vulkan_pool = (VkDescriptorPool *)shader->descriptor_pool[pool_index];
 
 	// Create descriptor sets
@@ -718,15 +718,16 @@ vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
 
 Descriptor_Set*
 vulkan_get_descriptor_set(Shader *shader, bool8 layout_index) {
-	for (u32 i = 0; i < shader->max_sets; i++) {
-		if (shader->sets[layout_index][i].in_use == false) {
-			shader->sets[layout_index][i].in_use = true;
-			return &shader->sets[layout_index][i];
-		}
+
+	u32 next_set = shader->sets_count[layout_index]++;
+
+	if (next_set > shader->max_sets) {
+		logprint("vulkan_get_descriptor_set()", "ran out of sets to use in shader\n");
+		ASSERT(0);
+		return 0;
 	}
-	logprint("vulkan_get_descriptor_set()", "ran out of sets to use in shader\n");
-	ASSERT(0);
-	return 0;
+
+	return &shader->sets[layout_index][next_set];
 }
 
 internal void
@@ -807,9 +808,9 @@ vulkan_create_descriptor(Descriptor descriptor) {
 internal void
 vulkan_create_descriptor_pool(Shader *shader, u32 max_sets, u32 set_index) {
 	shader->descriptor_pool[set_index] = platform_malloc(sizeof(VkDescriptorPool));
-	shader->descriptor_layout[set_index] = platform_malloc(sizeof(VkDescriptorSetLayout));
+	shader->descriptor_set_layout[set_index] = platform_malloc(sizeof(VkDescriptorSetLayout));
 	VkDescriptorPool *vulkan_pool = (VkDescriptorPool *)shader->descriptor_pool[set_index];
-	VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_layout[set_index];
+	VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_set_layout[set_index];
 	
 	Descriptor_Set *layout_set = &shader->descriptor_sets[set_index]; // passing the layout that was defined for the set
 
@@ -974,16 +975,21 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 
 	VkDescriptorSetLayout layouts[2];
 	for (u32 i = 0; i < 2; i++) {
-		VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_layout[i];
+		VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_set_layout[i];
 		layouts[i] = *vulkan_layout;
 	}
+	
+	VkPushConstantRange range = {};
+	range.stageFlags = vulkan_convert_shader_stage(SHADER_STAGE_VERTEX);
+	range.offset = 0;
+	range.size = sizeof(Matrix_4x4);
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipeline_layout_info.setLayoutCount         = 2;                    // Optional
 	pipeline_layout_info.pSetLayouts            = layouts; // Optional
-	pipeline_layout_info.pushConstantRangeCount = 0;                    // Optional
-	pipeline_layout_info.pPushConstantRanges    = nullptr;              // Optional
+	pipeline_layout_info.pushConstantRangeCount = 1;                    // Optional
+	pipeline_layout_info.pPushConstantRanges    = &range;   // Optional
 
 	VkDynamicState dynamic_states[] = { 
 		VK_DYNAMIC_STATE_VIEWPORT, 
@@ -1616,13 +1622,9 @@ void vulkan_set_scissor(u32 width, u32 height) {
 void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
 	Shader *shader = pipeline->shader;
 	for (u32 i = 0; i < shader->layout_count; i++) {
-		for (u32 j = 0; j < shader->max_sets; j++) {
-			if (shader->sets[i][j].free_after_frame == TRUE) {
-				shader->sets[i][j].free_after_frame = false;
-				shader->sets[i][j].in_use = false;
-			}
-		}
+		shader->sets_count[i] = 0;
 	}
+
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout;
 	vkCmdBindPipeline(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
 }
@@ -1718,4 +1720,9 @@ void vulkan_draw_mesh(Mesh *mesh) {
     vkCmdBindVertexBuffers(vulkan_active_cmd_buffer(&vulkan_info), 0, 1, &vulkan_info.static_buffer, offsets);
     vkCmdBindIndexBuffer(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.static_buffer, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(vulkan_active_cmd_buffer(&vulkan_info), mesh->indices_count, 1, 0, 0, 0);
+}
+
+void vulkan_push_constants(Descriptor_Set *push_constants, void *data) {
+	Descriptor *push_constant = &push_constants->descriptors[0];
+	vkCmdPushConstants(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.pipeline_layout, vulkan_convert_shader_stage(push_constant->stages[0]), 0, push_constant->size, data);
 }

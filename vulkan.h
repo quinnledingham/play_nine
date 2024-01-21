@@ -55,7 +55,6 @@ struct Vulkan_Info {
 
 	VkRenderPass render_pass;         // general render pass for a pipeline (also pipeline layout)
 	
-
 	VkDeviceSize uniform_buffer_min_alignment;
 
 	VkQueue graphics_queue;

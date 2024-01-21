@@ -206,14 +206,16 @@ int main(int argc, char *argv[]) {
     load_shader(&basic_3D);
     render_compile_shader(&basic_3D);
 
-    basic_3D.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene));
+    basic_3D.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
     basic_3D.descriptor_sets[0].descriptors_count = 1;
     render_create_descriptor_pool(&basic_3D, 30, 0);
 
-    basic_3D.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object));
-    basic_3D.descriptor_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0);
-    basic_3D.descriptor_sets[1].descriptors_count = 2;
+    basic_3D.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
+    basic_3D.descriptor_sets[1].descriptors_count = 1;
     render_create_descriptor_pool(&basic_3D, 30, 1);
+
+    basic_3D.push_constants.descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
+    basic_3D.push_constants.descriptors_count = 1;
 
     Render_Pipeline basic_pipeline = {};
     basic_pipeline.shader = &basic_3D;
@@ -256,7 +258,7 @@ int main(int argc, char *argv[]) {
             return 0;
         
     	sdl_update_time(&app.time);
-        print("%f\n", app.time.frames_per_s);
+        //print("%f\n", app.time.frames_per_s);
         //print("%d\n", vulkan_info.uniform_buffer_offset);
         
         render_start_frame();
@@ -265,30 +267,32 @@ int main(int argc, char *argv[]) {
         render_set_scissor(app.window.width, app.window.height);
 
         render_bind_pipeline(&basic_pipeline);
-
+        Vector4 test = { 1, 1, 0, 1 };
+        
         render_bind_descriptor_set(scene_set, 0);
-        {
-            Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
+        {            
             object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(app.time.run_time_s, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
-            render_update_ubo(object_set, 0, (void*)&object, false);
-            render_set_bitmap(object_set, &yogi, 2);
+            vulkan_push_constants(&basic_3D.push_constants, (void *)&object.model);
+
+            Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
+            render_set_bitmap(object_set, &yogi, 1);
             render_bind_descriptor_set(object_set, 1);
+
             render_draw_mesh(&rect);
-            object_set->free_after_frame = true;
         }
         render_bind_descriptor_set(scene_ortho_set, 0);
         { 
-            Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
             object.model = create_transform_m4x4({ 100.0f, 100.0f, -0.5f }, get_rotation(0, {0, 1, 0}), {100, 100, 1.0f});
-            render_update_ubo(object_set, 0, (void*)&object, false);
-            render_set_bitmap(object_set, &david, 2);
-            render_bind_descriptor_set(object_set, 1);
-            render_draw_mesh(&rect);
-            object_set->free_after_frame = true;
+            vulkan_push_constants(&basic_3D.push_constants, (void *)&object.model);
 
+            Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
+            render_set_bitmap(object_set, &david, 1);
+            render_bind_descriptor_set(object_set, 1);
+
+            render_draw_mesh(&rect);
         }
         
-        draw_string(&font, "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
+        //draw_string(&font, "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
 
         render_end_frame();
     }

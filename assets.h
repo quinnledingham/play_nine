@@ -105,11 +105,22 @@ enum descriptor_types {
     DESCRIPTOR_TYPES_AMOUNT
 };
 
+enum struct descriptor_scope {
+    GLOBAL,   // ubo
+    INSTANCE, // ubo
+    LOCAL,    // push constant
+
+    AMOUNT
+};
+
+descriptor_scope test = descriptor_scope::INSTANCE;
+
 struct Descriptor {
     u32 binding;
     u32 type;
     u32 stages[SHADER_STAGES_AMOUNT];
     u32 stages_count;
+    descriptor_scope scope;
     
     u32 size;
     u32 offsets[2];
@@ -119,12 +130,13 @@ struct Descriptor {
         
     }
 
-    Descriptor(u32 in_binding, u32 in_type, u32 in_stage, u32 in_size) {
+    Descriptor(u32 in_binding, u32 in_type, u32 in_stage, u32 in_size, descriptor_scope in_scope) {
         binding = in_binding;
         type = in_type;
         stages[0] = in_stage;
         stages_count = 1;
         size = in_size;
+        scope = in_scope;
     } 
 };
 
@@ -135,24 +147,38 @@ struct Descriptor_Set {
     Descriptor descriptors[max_descriptors];
     u32 descriptors_count;
 
-    bool8 in_use;
-    bool8 free_after_frame;
-
     void *gpu_info; // Vulkan Descriptor Set
 };
+
+/*
+Uniform Shader Structure
+Globals: Projection / View matrices
+
+Instances: Images (sometimes) Material instance - makes sense
+
+Locals: Models one per object (can't push images)
+
+*/
+
+/*
+struct Vulkan_Shader {
+    VkDescriptorSet descriptor_sets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
+};
+*/
 
 struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
     static const u32 layout_count = 2; // 2 because there are 2 sets (2 different layouts)
-    void *descriptor_layout[layout_count];
+    void *descriptor_set_layout[layout_count];
     void *descriptor_pool[layout_count]; 
     // gpu_info is not set, they just contaain the layout specification
 
     // meant to be more of a layout tool
     Descriptor_Set descriptor_sets[layout_count]; // information about the uniforms and samplers
-
+    Descriptor_Set push_constants;
+    
     // where to use descriptor sets for
     static const u32 max_sets = 10;
     u32 sets_count[layout_count];

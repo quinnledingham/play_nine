@@ -73,13 +73,13 @@ void init_shapes() {
 
 	render_compile_shader(&shapes.text_shader);
 
-    shapes.text_shader.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene));
+    shapes.text_shader.descriptor_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
     shapes.text_shader.descriptor_sets[0].descriptors_count = 1;
     render_create_descriptor_pool(&shapes.text_shader, 30, 0);
 
-    shapes.text_shader.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object));
-    shapes.text_shader.descriptor_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0);
-    shapes.text_shader.descriptor_sets[1].descriptors[2] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4));
+    shapes.text_shader.descriptor_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object), descriptor_scope::GLOBAL);
+    shapes.text_shader.descriptor_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
+    shapes.text_shader.descriptor_sets[1].descriptors[2] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4), descriptor_scope::GLOBAL);
     shapes.text_shader.descriptor_sets[1].descriptors_count = 3;
     render_create_descriptor_pool(&shapes.text_shader, 30, 1);
 
@@ -133,7 +133,6 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             render_update_ubo(object_set, 0, (void*)&model, false);
             render_bind_descriptor_set(object_set, 1);
             render_draw_mesh(&shapes.rect_mesh);
-            object_set->free_after_frame = true;
             // End of Draw
         }
         s32 kern = get_codepoint_kern_advance(font->info, string[i], string[i + 1]);
