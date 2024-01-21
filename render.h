@@ -58,6 +58,7 @@ RENDER_FUNC(void, create_texture, Bitmap *bitmap);
 RENDER_FUNC(void, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
 
 RENDER_FUNC(void, update_ubo, Descriptor_Set *set, u32 descriptor_index, void *data, bool8 static_update);
+RENDER_FUNC(void, push_constants, Descriptor_Set *push_constants, void *data);
 
 // this is when you tell the shader where the memory is
 RENDER_FUNC(void, bind_descriptor_set, Descriptor_Set *set, u32 first_set);

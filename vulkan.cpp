@@ -972,18 +972,24 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 	for (u32 i = 0; i < 2; i++) {
 		layouts[i] = shader->vulkan_infos[i].descriptor_set_layout;
 	}
-	
-	VkPushConstantRange range = {};
-	range.stageFlags = vulkan_convert_shader_stage(SHADER_STAGE_VERTEX);
-	range.offset = 0;
-	range.size = sizeof(Matrix_4x4);
+
+	Descriptor_Set *push_set = &shader->layout_sets[2];
+	u32 push_constant_count = push_set->descriptors_count;
+	VkPushConstantRange push_constant_ranges[push_set->max_descriptors] = {};
+	for (u32 i = 0; i < push_constant_count; i++) {
+		VkPushConstantRange range = {};
+		range.stageFlags = vulkan_convert_shader_stage(push_set->descriptors[i].stages[0]);
+		range.offset = push_set->descriptors[i].offsets[0];
+		range.size = push_set->descriptors[i].size;
+		push_constant_ranges[i] = range;
+	}
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount         = 2;                    // Optional
-	pipeline_layout_info.pSetLayouts            = layouts; // Optional
-	pipeline_layout_info.pushConstantRangeCount = 1;                    // Optional
-	pipeline_layout_info.pPushConstantRanges    = &range;   // Optional
+	pipeline_layout_info.setLayoutCount         = 2;        // Optional
+	pipeline_layout_info.pSetLayouts            = layouts;  // Optional
+	pipeline_layout_info.pushConstantRangeCount = push_constant_count;        // Optional
+	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;   // Optional
 
 	VkDynamicState dynamic_states[] = { 
 		VK_DYNAMIC_STATE_VIEWPORT, 

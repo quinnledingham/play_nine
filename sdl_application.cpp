@@ -292,7 +292,7 @@ int main(int argc, char *argv[]) {
             render_draw_mesh(&rect);
         }
         
-        //draw_string(&font, "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
+        draw_string(&font, "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
 
         render_end_frame();
     }

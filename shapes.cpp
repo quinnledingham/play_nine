@@ -77,11 +77,13 @@ void init_shapes() {
     shapes.text_shader.layout_sets[0].descriptors_count = 1;
     render_create_descriptor_pool(&shapes.text_shader, 30, 0);
 
-    shapes.text_shader.layout_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Object), descriptor_scope::GLOBAL);
-    shapes.text_shader.layout_sets[1].descriptors[1] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
-    shapes.text_shader.layout_sets[1].descriptors[2] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4), descriptor_scope::GLOBAL);
-    shapes.text_shader.layout_sets[1].descriptors_count = 3;
+    shapes.text_shader.layout_sets[1].descriptors[0] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
+    shapes.text_shader.layout_sets[1].descriptors[1] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4), descriptor_scope::GLOBAL);
+    shapes.text_shader.layout_sets[1].descriptors_count = 2;
     render_create_descriptor_pool(&shapes.text_shader, 30, 1);
+
+    shapes.text_shader.layout_sets[2].descriptors[0] = Descriptor(SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
+    shapes.text_shader.layout_sets[2].descriptors_count = 1;
 
     shapes.text_pipeline.shader = &shapes.text_shader;
     render_create_graphics_pipeline(&shapes.text_pipeline);
@@ -105,9 +107,6 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
 
     render_bind_pipeline(&shapes.text_pipeline);
 
-    //uniform_s32(shader_handle, "tex0", 0);
-    //uniform_Vector4(shader_handle, "text_color", color);
-
     u32 i = 0;
     while (string[i] != 0) {
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
@@ -120,18 +119,16 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
         Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
         Vector3 dim_Vector3 = { (float32)bitmap->bitmap.width, (float32)bitmap->bitmap.height, 1 };
 
-
         if (bitmap->bitmap.width != 0) {        
-    		//platform_set_texture(bitmap);
             Descriptor_Set *object_set = render_get_descriptor_set(&shapes.text_shader, 1);
             vulkan_set_bitmap(object_set, &bitmap->bitmap, 2);
 
     		Matrix_4x4 model = create_transform_m4x4(coords_Vector3, rotation_quat, dim_Vector3);
+            render_push_constants(&shapes.text_shader.layout_sets[2], (void *)&model);
 
-        	//uniform_m4x4(shader_handle, "model", &model);
-            render_update_ubo(object_set, 2, (void*)&color, false);
-            render_update_ubo(object_set, 0, (void*)&model, false);
-            render_bind_descriptor_set(object_set, 1);
+            render_update_ubo(object_set, 1, (void*)&color, false);
+            render_bind_descriptor_set(object_set, 1);            
+        
             render_draw_mesh(&shapes.rect_mesh);
             // End of Draw
         }
