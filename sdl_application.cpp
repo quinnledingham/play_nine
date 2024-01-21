@@ -272,7 +272,7 @@ int main(int argc, char *argv[]) {
         render_bind_descriptor_set(scene_set, 0);
         {            
             object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(app.time.run_time_s, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
-            vulkan_push_constants(&basic_3D.layout_sets[2], (void *)&object.model);
+            render_push_constants(&basic_3D.layout_sets[2], (void *)&object.model);
 
             Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
             render_set_bitmap(object_set, &yogi, 1);
@@ -283,7 +283,7 @@ int main(int argc, char *argv[]) {
         render_bind_descriptor_set(scene_ortho_set, 0);
         { 
             object.model = create_transform_m4x4({ 100.0f, 100.0f, -0.5f }, get_rotation(0, {0, 1, 0}), {100, 100, 1.0f});
-            vulkan_push_constants(&basic_3D.layout_sets[2], (void *)&object.model);
+            render_push_constants(&basic_3D.layout_sets[2], (void *)&object.model);
 
             Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
             render_set_bitmap(object_set, &david, 1);
