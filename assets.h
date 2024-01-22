@@ -18,6 +18,7 @@ folder_path = ../assets/bitmaps/
 
 struct File {
 	const char *filepath;
+    char *ch; // for functions like file_get_char()
 	u32 size;
 	void *memory;
 };
@@ -167,7 +168,6 @@ Globals: Projection / View matrices - memory set once
 Instances: Images (sometimes) Material instance - makes sense - memory set once but used a lot
 
 Locals: Models one per object (can't push images) - memory changes a lot but is used a lot
-
 */
 
 // Contains vulkan info about each descriptor layout
@@ -180,7 +180,7 @@ struct Vulkan_Shader_Info {
 };
 
 struct Shader {
-    File files[SHADER_STAGES_AMOUNT];       // GLSL
+    File files[SHADER_STAGES_AMOUNT];       // GLSL`1`1
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
     static const u32 layout_count = 3;                // layout sets for the 3 scopes
@@ -191,6 +191,43 @@ struct Shader {
 
     bool8 compiled;
     u32 handle;
+};
+
+//
+// Assets Loading
+//
+
+enum Asset_Types {
+    ASSET_TYPE_BITMAP,
+    ASSET_TYPE_FONT,
+    ASSET_TYPE_SHADER,
+    ASSET_TYPE_AUDIO,
+    ASSET_TYPE_MODEL,
+
+    ASSET_TYPE_AMOUNT
+};
+
+struct Asset {
+    u32 type;
+    const char *tag;
+    u32 tag_length;
+    union {
+        Font font;
+        Shader shader;
+        void *memory;
+    };  
+};
+
+struct Asset_Array {
+    Asset *data;       // points to Assets data array
+    u32 num_of_assets;
+};
+
+struct Assets {
+    Asset *data;
+    u32 num_of_assets;
+
+    Asset_Array types[ASSET_TYPE_AMOUNT];
 };
 
 #endif // ASSETS_H

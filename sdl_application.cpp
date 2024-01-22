@@ -10,8 +10,7 @@
 //
 // We prefer the discrete GPU in laptops where available
 //
-extern "C"
-{
+extern "C" {
     __declspec(dllexport) DWORD NvOptimusEnablement = 0x01;
     __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x01;
 }
@@ -98,6 +97,7 @@ bool8 update(App *app);
 
 #include "print.cpp"
 #include "assets.cpp"
+#include "assets_loader.cpp"
 #include "shapes.cpp"
 #include "play_nine.cpp"
 

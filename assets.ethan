@@ -1,0 +1,10 @@
+SHADERS:
+BASIC3D|VERTEX,   basic.vert
+BASIC3D|FRAGMENT, basic.frag
+
+BITMAPS:
+YOGI,  yogi.png
+DAVID, david.jpg
+
+FONTS:
+CASLON, LibreCaslonCondensed-Regular.ttf
