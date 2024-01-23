@@ -50,9 +50,14 @@ print_list(u32 output_stream, const char *msg, va_list list) {
 					}
 		            copy_char_array(&print_buffer[print_buffer_index], string);
 		        } break;
-				case 'd': {
-					int d = va_arg(list, int);
+                    
+				case 'd': {                    
+					int d = va_arg(list, int);                   
+                    char buffer[10];
+                    length_to_add = s32_to_char_array(buffer, 10, d);
+                    copy_char_array(&print_buffer[print_buffer_index], buffer);
 				} break;
+                    
 		        case 'f': {
 		            double f = va_arg(list, double);
 		            const char *f_string = float_to_char_array((float)f);

@@ -20,7 +20,8 @@ load_file(const char *filepath) {
     }
     
     result.filepath = filepath;
-
+    result.ch = (char*)result.memory;
+    
     return result;
 }
 
@@ -36,10 +37,42 @@ save_file(File *file, const char *filepath) {
 }
 
 internal void
-free_file(File *file)
-{
+free_file(File *file) {
     if (file->memory != 0) platform_free(file->memory);
     *file = {}; // sets file-memory to 0
+}
+
+inline s32
+file_get_char(File *file) {
+    char *start = (char *)file->memory;
+    if ((file->ch - start) > file->size) {
+        return EOF;
+    }
+    
+    return *(file->ch++);
+}
+
+inline void
+file_un_char(File *file) {
+    file->ch--;
+}
+
+internal const char*
+file_copy_backwards(File *file, u32 length) {
+    char *str = (char *)platform_malloc(length + 1);
+    platform_memory_set(str, 0, length + 1);
+
+    const char *ptr = file->ch - length;
+    for (u32 i = 0; i < length; i++) {
+        s32 ch = *ptr++;
+        if (ch == EOF) {
+            logprint("file_copy_backwards()", "hit EOF\n");
+            break;
+        }
+        str[i] = ch;
+    }
+
+    return str;
 }
 
 // returns the file with a 0 at the end of the memory.

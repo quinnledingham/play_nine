@@ -6,28 +6,6 @@
 //
 
 inline bool8
-is_ascii(s32 ch)
-{
-    if (ch >= 0 && ch <= 127) return true;
-    else                      return false;
-}
-
-inline bool8
-is_ascii_letter(int ch)
-{
-    if      (ch >= 'A' && ch <= 'Z') return true; // uppercase
-    else if (ch >= 'a' && ch <= 'z') return true; // lowercase
-    else                             return false;
-}
-
-inline bool8
-is_ascii_digit(int ch)
-{
-    if (isdigit(ch)) return true;
-    return false;
-}
-
-inline bool8
 equal(const char* a, const char *b)
 {
     if (a == 0 && b == 0) return true;
@@ -164,29 +142,44 @@ chtos(int n, ...)
     return s;
 }
 
+inline u32
+s32_to_char_array(char *buffer, u32 size, s32 in) {
+    u32 ret = snprintf(buffer, size, "%d", in);
+    if (ret < 0) {
+        logprint("s32_to_char_array()", "snprintf() failed");
+        return 0;
+    }
+    if (ret >= size)
+        logprint("s32_to_char_array()", "snprintf(): result was truncated");
+    return ret;
+}
+
 inline const char*
-u32_to_char_array(u32 in) {
+s32_to_char_array(s32 in) {
     u32 size = 10;
     char *buffer = (char*)platform_malloc(size);
     platform_memory_set(buffer, 0, size);
     u32 ret = snprintf(buffer, size, "%d", in);
     if (ret < 0) {
-        logprint("u32_to_char_array()", "snprintf() failed");
+        logprint("s32_to_char_array()", "snprintf() failed");
         return 0;
     }
-    if (ret >= size) logprint("u32_to_char_array()", "ftos(): result was truncated");
+    if (ret >= size) logprint("s32_to_char_array()", "snprintf(): result was truncated");
     return buffer;
+}
+
+inline const char*
+u32_to_char_array(u32 in) {
+    return s32_to_char_array((s32)in);
 }
 
 // ptr must point to first char of int
 inline const char*
-char_array_to_s32(const char *ptr, s32 *result)
-{
+char_array_to_s32(const char *ptr, s32 *result) {
     u32 sign = 1;
     s32 num = 0;
 
-    if (*ptr == '-')
-    {
+    if (*ptr == '-') {
         sign = -1;
         ptr++;
     }
@@ -354,15 +347,22 @@ get_filename(const char *filepath)
     return filename;
 }
 
-struct Pair
-{
+struct Pair {
     u32 key;
     const char *value;
 };
 
+inline bool8
+pair_is_value(const Pair *pairs, u32 num_of_pairs, const char *value) {
+    for (u32 i = 0; i < num_of_pairs; i++) {
+        if (equal(pairs[i].value, value))
+            return true;
+    }
+    return false;
+}
+
 inline const char*
-pair_get_value(const Pair *pairs, u32 num_of_pairs, u32 key)
-{
+pair_get_value(const Pair *pairs, u32 num_of_pairs, u32 key) {
     for (u32 i = 0; i < num_of_pairs; i++) {
         if (pairs[i].key == key) return pairs[i].value;
     }
@@ -370,8 +370,7 @@ pair_get_value(const Pair *pairs, u32 num_of_pairs, u32 key)
 }
 
 inline u32
-pair_get_key(const Pair *pairs, u32 num_of_pairs, const char *value)
-{
+pair_get_key(const Pair *pairs, u32 num_of_pairs, const char *value) {
     for (u32 i = 0; i < num_of_pairs; i++) {
         if (equal(pairs[i].value, value)) return pairs[i].key;
     }

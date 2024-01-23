@@ -173,7 +173,10 @@ int main(int argc, char *argv[]) {
 	app.time.performance_frequency = SDL_GetPerformanceFrequency();
     app.time.start_ticks = SDL_GetPerformanceCounter();
     app.time.last_frame_ticks = app.time.start_ticks;
-
+    
+    Assets assets = {};
+    load_assets(&assets, "../assets.ethan");
+    
 	u32 sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO;
     if (SDL_Init(sdl_init_flags)) {
     	print(SDL_GetError());
