@@ -87,6 +87,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 #include "types_math.h"
 #include "char_array.h"
 #include "assets.h"
+#include "assets_loader.h"
 #include "shapes.h"
 #include "data_structs.h"
 #include "render.h"
@@ -203,25 +204,22 @@ int main(int argc, char *argv[]) {
 
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
 
-    Shader basic_3D = {};
-    basic_3D.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/basic.vert";
-    basic_3D.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/basic.frag";
-    load_shader(&basic_3D);
-    render_compile_shader(&basic_3D);
+    Shader *basic_3D = find_shader(&assets, "BASIC3D");
+    render_compile_shader(basic_3D);
 
-    basic_3D.layout_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
-    basic_3D.layout_sets[0].descriptors_count = 1;
-    render_create_descriptor_pool(&basic_3D, 30, 0);
+    basic_3D->layout_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
+    basic_3D->layout_sets[0].descriptors_count = 1;
+    render_create_descriptor_pool(basic_3D, 30, 0);
 
-    basic_3D.layout_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
-    basic_3D.layout_sets[1].descriptors_count = 1;
-    render_create_descriptor_pool(&basic_3D, 30, 1);
+    basic_3D->layout_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
+    basic_3D->layout_sets[1].descriptors_count = 1;
+    render_create_descriptor_pool(basic_3D, 30, 1);
 
-    basic_3D.layout_sets[2].descriptors[0] = Descriptor(SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
-    basic_3D.layout_sets[2].descriptors_count = 1;
+    basic_3D->layout_sets[2].descriptors[0] = Descriptor(SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
+    basic_3D->layout_sets[2].descriptors_count = 1;
 
     Render_Pipeline basic_pipeline = {};
-    basic_pipeline.shader = &basic_3D;
+    basic_pipeline.shader = basic_3D;
 
     render_create_graphics_pipeline(&basic_pipeline);
     
@@ -230,28 +228,26 @@ int main(int argc, char *argv[]) {
     scene.projection = perspective_projection(45.0f, (float32)app.window.width / (float32)app.window.height, 0.1f, 10.0f);
     
     // Init ubo
-    Descriptor_Set *scene_set = render_get_descriptor_set(&basic_3D, 0);
+    Descriptor_Set *scene_set = render_get_descriptor_set(basic_3D, 0);
     render_update_ubo(scene_set, 0, (void*)&scene, true);
 
-    Descriptor_Set *scene_ortho_set = render_get_descriptor_set(&basic_3D, 0);
+    Descriptor_Set *scene_ortho_set = render_get_descriptor_set(basic_3D, 0);
     scene.view = identity_m4x4();
     scene.projection = orthographic_projection(0.0f, (float32)app.window.width, 0.0f, (float32)app.window.height, -3.0f, 3.0f);
     render_update_ubo(scene_ortho_set, 0, (void*)&scene, true);
 
-    Bitmap yogi = load_bitmap("../assets/bitmaps/yogi.png");
-    render_create_texture(&yogi);
-    free_bitmap(yogi);
+    Bitmap *yogi = find_bitmap(&assets, "YOGI");
+    render_create_texture(yogi);
 
-    Bitmap david = load_bitmap("../assets/bitmaps/david.jpg");
-    render_create_texture(&david);
-    free_bitmap(david);
+    Bitmap *david = find_bitmap(&assets, "DAVID");
+    render_create_texture(david);
 
     Object object = {};
 
     Mesh rect = get_rect_mesh();
 
-    Font font = load_font("../assets/fonts/LibreCaslonCondensed-Regular.ttf");
-    init_font(&font);
+    Font *font = find_font(&assets, "CASLON");
+    init_font(font);
 
     init_shapes();
 
@@ -275,10 +271,10 @@ int main(int argc, char *argv[]) {
         render_bind_descriptor_set(scene_set, 0);
         {            
             object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(app.time.run_time_s, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
-            render_push_constants(&basic_3D.layout_sets[2], (void *)&object.model);
+            render_push_constants(&basic_3D->layout_sets[2], (void *)&object.model);
 
-            Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
-            render_set_bitmap(object_set, &yogi, 1);
+            Descriptor_Set *object_set = render_get_descriptor_set(basic_3D, 1);
+            render_set_bitmap(object_set, yogi, 1);
             render_bind_descriptor_set(object_set, 1);
 
             render_draw_mesh(&rect);
@@ -286,16 +282,16 @@ int main(int argc, char *argv[]) {
         render_bind_descriptor_set(scene_ortho_set, 0);
         { 
             object.model = create_transform_m4x4({ 100.0f, 100.0f, -0.5f }, get_rotation(0, {0, 1, 0}), {100, 100, 1.0f});
-            render_push_constants(&basic_3D.layout_sets[2], (void *)&object.model);
+            render_push_constants(&basic_3D->layout_sets[2], (void *)&object.model);
 
-            Descriptor_Set *object_set = render_get_descriptor_set(&basic_3D, 1);
-            render_set_bitmap(object_set, &david, 1);
+            Descriptor_Set *object_set = render_get_descriptor_set(basic_3D, 1);
+            render_set_bitmap(object_set, david, 1);
             render_bind_descriptor_set(object_set, 1);
 
             render_draw_mesh(&rect);
         }
         
-        draw_string(&font, "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
+        draw_string(font, "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
 
         render_end_frame();
     }

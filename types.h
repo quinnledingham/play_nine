@@ -20,6 +20,10 @@ typedef double float64;
 #define FALSE 0
 #define TRUE 1
 
+#define internal      static
+#define local_persist static
+#define global        static
+
 union Vector2 {
 	struct {
 		float32 x, y;
@@ -86,8 +90,5 @@ struct Matrix_4x4 {
     float32 E[4][4];
 };
 
-#define internal      static
-#define local_persist static
-#define global        static
 
 #endif // TYPES_H

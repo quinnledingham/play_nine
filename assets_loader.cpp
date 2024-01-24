@@ -1,77 +1,3 @@
-const char *asset_folders[5] = {
-    "/assets/bitmaps/",
-    "/assets/fonts/",
-    "/assets/shaders/",
-};
-
-enum Asset_Token_Type {
-    ATT_KEYWORD,
-    ATT_ID,
-    ATT_SEPERATOR,
-    ATT_ERROR,
-    ATT_WARNING,
-    ATT_END
-};
-
-const Pair asset_types[ASSET_TYPE_AMOUNT] = {
-    { ASSET_TYPE_BITMAP, "BITMAPS" },
-    { ASSET_TYPE_SHADER, "SHADERS" },
-    { ASSET_TYPE_FONT,   "FONTS"   },
-};
-
-struct Asset_Token {
-    s32 type;
-    const char *lexeme;
-};
-
-inline bool8
-is_ascii(s32 ch) {
-    if (ch >= 0 && ch <= 127) return true;
-    else                      return false;
-}
-
-inline bool8
-is_ascii_letter(s32 ch) {
-    if      (ch >= 'A' && ch <= 'Z') return true;
-    else if (ch >= 'a' && ch <= 'z') return true;
-    else                             return false;
-}
-
-inline bool8
-is_ascii_digit(s32 ch) {
-    if (ch >= '0' && ch <= '9') return true;
-    else                        return false;
-}
-
-inline bool8
-is_file_path_ch(s32 ch) {
-    switch(ch) {
-    case '.':
-    case '/':
-    case '-':
-    case '_':
-        return true;
-    default:
-        return false;
-    }
-}
-
-inline bool8
-is_valid_body_ch(s32 ch) {
-    if (is_ascii_letter(ch) || is_ascii_digit(ch) || is_file_path_ch(ch))
-        return true;
-    else
-        return false;
-}
-
-inline bool8
-is_valid_start_ch(s32 ch) {
-    if (is_ascii_letter(ch) || is_file_path_ch(ch))
-        return true;
-    else
-        return false;
-}
-
 internal Asset_Token
 scan_asset_file(File *file, s32 *line_num) {
     X:
@@ -117,16 +43,7 @@ scan_asset_file(File *file, s32 *line_num) {
     return { ATT_ERROR, 0 };
 }
 
-struct Asset_Parse_Info {
-    s32 type;
-    s32 indexes[ASSET_TYPE_AMOUNT];
 
-    const char *tag; // name
-    const char *filename;
-    const char *path;
-
-    const char *file_paths[SHADER_STAGES_AMOUNT];
-};
 
 internal void
 parse_asset_file(Assets *assets, File *file, void (action)(void *data, void *args)) {
@@ -157,8 +74,8 @@ parse_asset_file(Assets *assets, File *file, void (action)(void *data, void *arg
 
             info.type = type;
 
-            token = scan_asset_file(file, &line_num, token);
-            if (!equal(tok.lexeme, ":")) {
+            token = scan_asset_file(file, &line_num);
+            if (!equal(token.lexeme, ":")) {
                 logprint("parse_asset_file()", "expected ':' (got %c) @ %d\n", token.lexeme, line_num);
                 break;
             }
@@ -167,29 +84,62 @@ parse_asset_file(Assets *assets, File *file, void (action)(void *data, void *arg
         case ATT_ID: {
             if (info.type == ASSET_TYPE_SHADER) {
                 if (equal(last_token.lexeme, ",")) {
-                    info.file_paths[shader_type] = tok.lexeme;
+                    info.file_paths[shader_type] = token.lexeme;
                 } else if (equal(last_token.lexeme, "|")) {
-                    shader_type = pair_get_key(shader_types, SHADER_TYPE_AMOUNT, token.lexeme);
+                    shader_type = pair_get_key(shader_types, SHADER_STAGES_AMOUNT, token.lexeme);
 
-                    token = scan_asset_file(file, &line_num, token);
+                    token = scan_asset_file(file, &line_num);
                     if (!equal(token.lexeme, ",")) {
                         logprint("parse_asset_file()", "expected ',' @ %d\n", line_num);
                         break;
                     }
                 } else {
-                    info.tag = tok.lexeme;
+                    info.tag = token.lexeme;
 
                     if (shader_tag == 0) {
-
+                        // first shader being added
+                        shader_tag = info.tag;
                     } else if (!equal(shader_tag, info.tag)) {
+                        // new shader was started after starting another one
+                        const char *new_tag = info.tag;
+                        info.tag = shader_tag;
+                        action((void*)assets, (void*)&info);
 
+                        int indexes[ASSET_TYPE_AMOUNT];
+                        for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++) 
+                            indexes[i] = info.indexes[i];
+
+                        info = {};
+                        info.type = ASSET_TYPE_SHADER;
+
+                        for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++) 
+                            info.indexes[i] = indexes[i];
+
+                        info.tag = new_tag;
+                        shader_tag = info.tag;
+                    }
+
+                    // check that | comes after
+                    token = scan_asset_file(file, &line_num);
+                    if (!equal(token.lexeme, "|")) {
+                        logprint("parse_asset_file()", "expected '|' @ %d\n", line_num);
+                        break;
                     }
                 }
             } else {
+                // Fonts, Bitmaps, Audios, Models 
                 if (!equal(last_token.lexeme, ",")) {
-
+                    info.tag = token.lexeme;
+                    
+                    // check thst comma comes after
+                    token = scan_asset_file(file, &line_num);
+                    if (!equal(token.lexeme, ",")) {
+                        logprint("parse_asset_file()", "expected ',' @ %d", line_num);
+                        break;
+                    }
                 } else {
-
+                    info.filename = token.lexeme;
+                    action((void*)assets, (void*)&info);
                 }
             }
         } break;
@@ -202,26 +152,79 @@ parse_asset_file(Assets *assets, File *file, void (action)(void *data, void *arg
 }
 
 internal void
-load_asset(void *data, void *args) {
-    Assets *assets = (Assets *)data;
+load_asset(Asset *asset, Asset_Parse_Info *info) {
+    asset->type = info->type;
+    asset->tag = info->tag;
+    asset->tag_length = get_length(asset->tag);
+    //log("loading: %s", asset->tag);
+
+    const char *filename = char_array_concat(asset_folders[asset->type], info->filename);
+
+    // how to load the various assets
+    switch(asset->type) {
+        case ASSET_TYPE_FONT:   asset->font   = load_font(filename);   break;
+        case ASSET_TYPE_BITMAP: asset->bitmap = load_bitmap(filename); break;
+            //        case ASSET_TYPE_AUDIO:  asset->audio  = load_audio(filename);  break;
+            //        case ASSET_TYPE_MODEL:  asset->model  = load_obj(filename);    break;
+        case ASSET_TYPE_SHADER: {
+            for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
+                const char *new_path = 0;
+                if (info->file_paths[i] != 0)
+                    new_path = char_array_concat(asset_folders[asset->type], info->file_paths[i]);
+                asset->shader.files[i].filepath = new_path;
+            }
+            load_shader(&asset->shader);
+        } break;         
+    }
+
+    platform_free((void *)filename);
+    platform_free((void *)info->filename);
+}
+
+internal void
+add_asset(void *data, void *args) {
+    Assets *assets = (Assets*)data;
+    Asset_Parse_Info *info = (Asset_Parse_Info*)args;
+
+    u32 asset_array_index = info->indexes[info->type]++;
+    Asset *asset = &assets->types[info->type].data[asset_array_index];
+    load_asset(asset, info);
+}
+
+internal void
+count_asset(void *data, void *args) {
+    Assets *assets = (Assets*)data;
+    Asset_Parse_Info *info = (Asset_Parse_Info*)args;
+
+    assets->num_of_assets++;
+    assets->types[info->type].num_of_assets++;
+}
+
+internal void
+init_types_array(Asset *data, Asset_Array *types) {
+    u32 running_total_of_assets = 0;
+    for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++) {
+        types[i].data = data + (running_total_of_assets);
+        running_total_of_assets += types[i].num_of_assets;
+    }
 }
 
 // returns true if loading the assets fails
 internal bool8
 load_assets(Assets *assets, const char *filepath) {
-    File assets_file = load_file(filepath);
-    if (assets_file.size == 0) {
+    File file = load_file(filepath);
+    if (file.size == 0) {
         logprint("load_assets()", "could not open file %s\n", filepath);
-        return true;
+        return 1;
     }
+    
+    parse_asset_file(assets, &file, count_asset);
+    assets->data = ARRAY_MALLOC(Asset, assets->num_of_assets);
+    init_types_array(assets->data, assets->types);
 
-    s32 line_num = 0;
-    Asset_Token token = {};
-    do {
-        token = scan_asset_file(&assets_file, &line_num);
-        if (token.type < 3)
-            print("%d %s @ %d\n", token.type, token.lexeme, line_num);
-    } while(token.type != ATT_END);
+    file_reset_char(&file);
+    parse_asset_file(assets, &file, add_asset);
+    free_file(&file);
 
-    return false;
+    return 0;
 }

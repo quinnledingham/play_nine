@@ -18,6 +18,7 @@ folder_path = ../assets/bitmaps/
 
 struct File {
 	const char *filepath;
+    const char *path;
     char *ch; // for functions like file_get_char()
 	u32 size;
 	void *memory;
@@ -32,6 +33,10 @@ struct Bitmap {
     
     void *gpu_info;
 };
+
+//
+// Mesh
+//
 
 struct Vertex_XNU {
     Vector3 position;
@@ -48,6 +53,14 @@ struct Mesh {
 
     void *gpu_info;
 };
+
+struct Model {
+
+};
+
+//
+// Font
+//
 
 struct Font_Char {
     u32 codepoint; // ascii
@@ -83,6 +96,10 @@ struct Font {
     
     Font_Char font_chars[255];
     Font_Char_Bitmap bitmaps[300];
+};
+
+struct Audio {
+
 };
 
 //
@@ -145,6 +162,8 @@ struct Descriptor {
         stages_count = 1;
         size = in_size;
         scope = in_scope;
+        offsets[0] = 0;
+        offsets[1] = 0;
     } 
 };
 
@@ -212,8 +231,11 @@ struct Asset {
     const char *tag;
     u32 tag_length;
     union {
+        Bitmap bitmap;
         Font font;
         Shader shader;
+        Audio audio;
+        Model model;
         void *memory;
     };  
 };
@@ -229,5 +251,20 @@ struct Assets {
 
     Asset_Array types[ASSET_TYPE_AMOUNT];
 };
+
+internal void*
+find_asset(Assets *assets, u32 type, const char *tag) {
+    for (u32 i = 0; i < assets->types[type].num_of_assets; i++) {
+        if (equal(tag, assets->types[type].data[i].tag))
+            return &assets->types[type].data[i].memory;
+    }
+    logprint("find_asset()", "Could not find asset, type: %d, tag: %s\n", type, tag);
+    return 0;
+}
+
+inline Bitmap* find_bitmap(Assets *assets, const char *tag) { return (Bitmap*) find_asset(assets, ASSET_TYPE_BITMAP, tag); }
+inline Font*   find_font  (Assets *assets, const char *tag) { return (Font*)   find_asset(assets, ASSET_TYPE_FONT,   tag); }
+inline Shader* find_shader(Assets *assets, const char *tag) { return (Shader*) find_asset(assets, ASSET_TYPE_SHADER, tag); }
+inline Model*  find_model (Assets *assets, const char *tag) { return (Model*)  find_asset(assets, ASSET_TYPE_MODEL,  tag); }
 
 #endif // ASSETS_H

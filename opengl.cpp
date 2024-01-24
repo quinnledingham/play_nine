@@ -227,3 +227,71 @@ void opengl_bind_descriptor_set(Descriptor_Set *set, u32 first_set) {
         }
     }
 }
+
+//
+// Shaders
+//
+
+bool compile_shader(u32 handle, const char *file, int type)
+{
+    u32 shader =  glCreateShader((GLenum)type);
+    glShaderSource(shader, 1, &file, NULL);
+    glCompileShader(shader);
+    
+    GLint compiled_shader = 0;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled_shader);  
+    if (!compiled_shader) {
+        opengl_debug(GL_SHADER, shader);
+    } else {
+        glAttachShader(handle, shader);
+    }
+    
+    glDeleteShader(shader);
+    
+    return compiled_shader;
+}
+
+// compiles the files
+void opengl_compile_shader(Shader *shader)
+{
+    shader->compiled = false;
+    if (shader->handle != 0) glDeleteProgram(shader->handle);
+    shader->handle = glCreateProgram();
+    
+    if (shader->files[0].memory == 0) {
+        logprint("compile_shader(Shader *shader)", "vertex shader required");
+        return;
+    }
+
+    for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
+        if (shader->files[i].memory == 0) continue; // file was not loaded
+
+        shaderc_compiler_t compiler = shaderc_compiler_initialize();
+        File spv_file = compile_glsl_to_spv(compiler, &shader->files[i], (shaderc_shader_kind)shaderc_glsl_file_types[i]);
+        File glsl_file = compile_spv_to_glsl(&spv_file);
+
+        if (!compile_shader(shader->handle, (char*)glsl_file.memory, opengl_shader_file_types[i])) {
+            print("compile_shader() could not compile %s\n", shader->files[i].filepath); 
+            return;
+        }
+    }
+
+    // Link
+    glLinkProgram(shader->handle);
+
+    GLint linked_program = 0;
+    glGetProgramiv(shader->handle, GL_LINK_STATUS, &linked_program);
+    if (!linked_program) {
+        opengl_debug(GL_PROGRAM, shader->handle);
+        logprint("compile_shader()", "link failed");
+        return;
+    }
+
+    shader->compiled = true;
+}
+
+u32 use_shader(Shader *shader)
+{
+    glUseProgram(shader->handle);
+    return shader->handle;
+}
