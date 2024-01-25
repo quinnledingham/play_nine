@@ -6,7 +6,7 @@ const char *asset_folders[5] = {
     "../assets/fonts/",
     "../assets/shaders/",
     "../assets/audios/",
-    "../assets/models/"
+    "../assets/objs/"
 };
 
 const Pair asset_types[ASSET_TYPE_AMOUNT] = {

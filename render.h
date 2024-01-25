@@ -25,6 +25,22 @@ struct Render {
 
 global Render render_info = {};
 
+union Camera {
+    struct {
+        Vector3 position;
+        Vector3 target;
+        Vector3 up;
+        float32 fov;
+        float32 yaw;
+        float32 pitch;
+    };
+    float32 E[12];
+};
+
+inline Matrix_4x4 get_view(Camera camera)  { 
+    return look_at(camera.position, camera.position + camera.target, camera.up); 
+}
+
 #if OPENGL
 
 #define GPU_EXT(n) opengl_##n

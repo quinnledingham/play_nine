@@ -35,30 +35,6 @@ struct Bitmap {
 };
 
 //
-// Mesh
-//
-
-struct Vertex_XNU {
-    Vector3 position;
-    Vector3 normal;
-    Vector2 uv;
-};
-
-struct Mesh {
-    Vertex_XNU *vertices;
-    u32 vertices_count;
-
-    u32 *indices;
-    u32 indices_count;
-
-    void *gpu_info;
-};
-
-struct Model {
-
-};
-
-//
 // Font
 //
 
@@ -199,7 +175,7 @@ struct Vulkan_Shader_Info {
 };
 
 struct Shader {
-    File files[SHADER_STAGES_AMOUNT];       // GLSL`1`1
+    File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
     static const u32 layout_count = 3;                // layout sets for the 3 scopes
@@ -210,6 +186,48 @@ struct Shader {
 
     bool8 compiled;
     u32 handle;
+};
+
+//
+// Mesh
+//
+
+struct Vertex_XNU {
+    Vector3 position;
+    Vector3 normal;
+    Vector2 uv;
+};
+
+struct Material {
+    Vector3 ambient;           // Ka (in .obj files)
+    Vector3 diffuse;           // Kd
+    Vector3 specular;          // Ks
+    float32 specular_exponent; // Ns
+    
+    Bitmap ambient_map;
+    Bitmap diffuse_map;    // map_Kd
+    
+    const char *id; // id from mtl file
+};
+
+struct Mesh {
+    Vertex_XNU *vertices;
+    u32 vertices_count;
+
+    u32 *indices;
+    u32 indices_count;
+
+    Material material;
+
+    void *gpu_info;
+};
+
+struct Model {
+    Mesh *meshes;
+    u32 meshes_count;
+
+    Shader *color_shader;
+    Shader *texture_shader;
 };
 
 //

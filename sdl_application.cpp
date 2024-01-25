@@ -98,6 +98,7 @@ bool8 update(App *app);
 
 #include "print.cpp"
 #include "assets.cpp"
+#include "obj.cpp"
 #include "assets_loader.cpp"
 #include "shapes.cpp"
 #include "play_nine.cpp"
@@ -118,6 +119,35 @@ bool8 update(App *app);
 #include "dx12.cpp"
 
 #endif // OPENGL / VULKAN / DX12
+
+internal void
+update_camera_target(Camera *camera) {
+    Vector3 camera_direction = 
+    {
+        cosf(DEG2RAD * camera->yaw) * cosf(DEG2RAD * camera->pitch),
+        sinf(DEG2RAD * camera->pitch),
+        sinf(DEG2RAD * camera->yaw) * cosf(DEG2RAD * camera->pitch)
+    };
+    camera->target = normalized(camera_direction);
+}
+
+// delta_mouse is a relative mouse movement amount
+// as opposed to the screen coords of the mouse
+internal void
+update_camera_with_mouse(Camera *camera, Vector2_s32 delta_mouse, Vector2 move_speed) {    
+    camera->yaw   += (float32)delta_mouse.x * move_speed.x;
+    camera->pitch -= (float32)delta_mouse.y * move_speed.y;
+    
+    // doesnt break withou this - just so it does not keep getting higher and higher
+    float32 max_yaw = 360.0f;
+    if (camera->yaw > max_yaw) camera->yaw = 0;
+    if (camera->yaw < 0)       camera->yaw = max_yaw;
+
+    // breaks with out this check
+    float32 max_pitch = 89.0f;
+    if (camera->pitch >  max_pitch) camera->pitch =  max_pitch;
+    if (camera->pitch < -max_pitch) camera->pitch = -max_pitch;
+}
 
 internal void
 sdl_update_time(App_Time *time) {
@@ -172,8 +202,8 @@ int main(int argc, char *argv[]) {
 	App app = {};
 
 	app.time.performance_frequency = SDL_GetPerformanceFrequency();
-    app.time.start_ticks = SDL_GetPerformanceCounter();
-    app.time.last_frame_ticks = app.time.start_ticks;
+    app.time.start_ticks           = SDL_GetPerformanceCounter();
+    app.time.last_frame_ticks      = app.time.start_ticks;
     
     Assets assets = {};
     load_assets(&assets, "../assets.ethan");
@@ -232,9 +262,10 @@ int main(int argc, char *argv[]) {
     render_update_ubo(scene_set, 0, (void*)&scene, true);
 
     Descriptor_Set *scene_ortho_set = render_get_descriptor_set(basic_3D, 0);
-    scene.view = identity_m4x4();
-    scene.projection = orthographic_projection(0.0f, (float32)app.window.width, 0.0f, (float32)app.window.height, -3.0f, 3.0f);
-    render_update_ubo(scene_ortho_set, 0, (void*)&scene, true);
+    Scene ortho_scene = {};
+    ortho_scene.view = identity_m4x4();
+    ortho_scene.projection = orthographic_projection(0.0f, (float32)app.window.width, 0.0f, (float32)app.window.height, -3.0f, 3.0f);
+    render_update_ubo(scene_ortho_set, 0, (void*)&ortho_scene, true);
 
     Bitmap *yogi = find_bitmap(&assets, "YOGI");
     render_create_texture(yogi);
@@ -251,6 +282,16 @@ int main(int argc, char *argv[]) {
 
     init_shapes();
 
+    init_model(find_model(&assets, "TAILS"));
+
+    Camera camera = {};
+    camera.position = { 5, 40, 0 };
+    camera.target   = { 0, 0, -2 };
+    camera.up       = { 0, 1, 0 };
+    camera.fov      = 70.0f;
+    camera.yaw      = 0.0f;
+    camera.pitch    = -85.0f;
+
     while (1) {
         
     	if (sdl_process_input(&app.window, &app.input)) 
@@ -259,7 +300,10 @@ int main(int argc, char *argv[]) {
     	sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
         //print("%d\n", vulkan_info.uniform_buffer_offset);
-        
+
+        //scene.view = get_view(camera);
+        //render_update_ubo(scene_set, 0, (void*)&scene, true);
+
         render_start_frame();
 
         render_set_viewport(app.window.width, app.window.height);
@@ -279,6 +323,9 @@ int main(int argc, char *argv[]) {
 
             render_draw_mesh(&rect);
         }
+        
+        vulkan_draw_model(find_model(&assets, "TAILS"), basic_3D, { 0, 0, 0 }, get_rotation(0, {0, 1, 0}));
+
         render_bind_descriptor_set(scene_ortho_set, 0);
         { 
             object.model = create_transform_m4x4({ 100.0f, 100.0f, -0.5f }, get_rotation(0, {0, 1, 0}), {100, 100, 1.0f});

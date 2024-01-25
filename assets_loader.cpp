@@ -165,7 +165,7 @@ load_asset(Asset *asset, Asset_Parse_Info *info) {
         case ASSET_TYPE_FONT:   asset->font   = load_font(filename);   break;
         case ASSET_TYPE_BITMAP: asset->bitmap = load_bitmap(filename); break;
             //        case ASSET_TYPE_AUDIO:  asset->audio  = load_audio(filename);  break;
-            //        case ASSET_TYPE_MODEL:  asset->model  = load_obj(filename);    break;
+        case ASSET_TYPE_MODEL:  asset->model  = load_obj(filename);    break;
         case ASSET_TYPE_SHADER: {
             for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
                 const char *new_path = 0;

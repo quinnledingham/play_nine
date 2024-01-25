@@ -64,6 +64,21 @@ file_un_char(File *file) {
     file->ch--;
 }
 
+inline s32
+file_previous_char(File *file) {
+    if (file->ch == 0) 
+        file->ch = (char*)file->memory;
+    char *ptr = file->ch - 2;
+    return *ptr;
+}
+
+inline s32
+file_peek_char(File *file) {
+    const char *ptr = file->ch;
+    return *ptr;
+}
+
+
 internal const char*
 file_copy_backwards(File *file, u32 length) {
     char *str = (char *)platform_malloc(length + 1);

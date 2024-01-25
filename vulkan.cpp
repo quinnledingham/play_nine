@@ -703,11 +703,13 @@ vulkan_create_descriptor_set(Shader *shader, u32 descriptor_set_count, u32 pool_
 	}
 }
 
+#define VULKAN_STATIC_BUFFER_SIZE 20000000
+
 internal u32
 vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
 	u32 return_offset = *offset;
     *offset += in_data_size;
-	if (*offset > 10000) {
+	if (*offset > VULKAN_STATIC_BUFFER_SIZE) {
 		ASSERT(0);
 		//*offset = 0;
 		//return *offset;
@@ -1571,7 +1573,7 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	vulkan_create_buffer(info->device, 
                          info->physical_device,
-                         1000, 
+                         VULKAN_STATIC_BUFFER_SIZE, 
                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                          info->static_buffer,
@@ -1725,4 +1727,29 @@ void vulkan_draw_mesh(Mesh *mesh) {
 void vulkan_push_constants(Descriptor_Set *push_constants, void *data) {
 	Descriptor *push_constant = &push_constants->descriptors[0];
 	vkCmdPushConstants(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.pipeline_layout, vulkan_convert_shader_stage(push_constant->stages[0]), 0, push_constant->size, data);
+}
+
+internal void
+init_model(Model *model) {
+    for (u32 mesh_index = 0; mesh_index < model->meshes_count; mesh_index++) {
+        Mesh *mesh = &model->meshes[mesh_index];
+        render_init_mesh(mesh);
+        render_create_texture(&mesh->material.diffuse_map);
+    }
+}
+
+void vulkan_draw_model(Model *model, Shader *shader, Vector3 position, Quaternion rotation) {
+	for (u32 i = 0; i < model->meshes_count; i++) {
+
+		Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, {0.1f, 0.1f, 0.1f});
+		render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
+
+		if (model->meshes[i].material.diffuse_map.memory != 0) {
+			Descriptor_Set *object_set = render_get_descriptor_set(shader, 1);
+            render_set_bitmap(object_set, &model->meshes[i].material.diffuse_map, 1);
+            render_bind_descriptor_set(object_set, 1);
+		}
+
+		render_draw_mesh(&model->meshes[i]);
+	}
 }
