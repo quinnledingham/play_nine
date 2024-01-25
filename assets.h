@@ -264,9 +264,9 @@ struct Asset_Array {
 };
 
 struct Assets {
-    Asset *data;
     u32 num_of_assets;
 
+    Asset *data;
     Asset_Array types[ASSET_TYPE_AMOUNT];
 };
 

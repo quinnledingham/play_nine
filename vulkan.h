@@ -3,7 +3,7 @@ struct Vulkan_Validation_Layers {
 	const u32 count = ARRAY_COUNT(data);
 
 #ifdef DEBUG
-	const bool8 enable = true;
+	const bool8 enable = true; // it really does slow the performance down a lot.
 #else
 	const bool8 enable = false;
 #endif // DEBUG
@@ -63,7 +63,6 @@ struct Vulkan_Info {
 	VkCommandPool command_pool;
 	VkCommandBuffer command_buffers[MAX_FRAMES_IN_FLIGHT];
 	u32 active_command_buffer_index;
-	//VkCommandBuffer command_buffer;   // set at the start of the frame for the current frame
 	VkPipelineLayout pipeline_layout; // set this to the currently bounded layout
 
 	// swap_chain
@@ -116,11 +115,11 @@ global Vulkan_Info vulkan_info;
 struct Vulkan_Texture {
 	VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
 
-	VkDeviceMemory image_memory; // Could put in vulkan info an save it
+	VkDeviceMemory image_memory; // Could put in vulkan info and save it
 
-	VkImage image;
-	VkImageView image_view;
-	VkSampler sampler;
+	VkImage image;	 		// similar to VkBuffer
+	VkImageView image_view; // provides more info about the image
+	VkSampler sampler;      // allows the shader to sample the image
 };
 
 struct Vulkan_Descriptor_Set {

@@ -41,6 +41,8 @@ inline Matrix_4x4 get_view(Camera camera)  {
     return look_at(camera.position, camera.position + camera.target, camera.up); 
 }
 
+// defining render functions
+
 #if OPENGL
 
 #define GPU_EXT(n) opengl_##n
@@ -72,6 +74,9 @@ RENDER_FUNC(Descriptor_Set*, get_descriptor_set, Shader *shader, bool8 layout_in
 
 RENDER_FUNC(void, create_texture, Bitmap *bitmap);
 RENDER_FUNC(void, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
+
+//RENDER_FUNC(void, init_model, Model *model);
+//RENDER_FUNC(void, draw_model, Model *model, Shader *shader, Vector3 position, Quaternion rotation);
 
 RENDER_FUNC(void, update_ubo, Descriptor_Set *set, u32 descriptor_index, void *data, bool8 static_update);
 RENDER_FUNC(void, push_constants, Descriptor_Set *push_constants, void *data);

@@ -94,6 +94,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 
 #include "application.h"
 
+bool8 init_data(App *app);
 bool8 update(App *app);
 
 #include "print.cpp"
@@ -101,6 +102,7 @@ bool8 update(App *app);
 #include "obj.cpp"
 #include "assets_loader.cpp"
 #include "shapes.cpp"
+#include "render.cpp"
 #include "play_nine.cpp"
 
 #ifdef OPENGL
@@ -121,35 +123,6 @@ bool8 update(App *app);
 #endif // OPENGL / VULKAN / DX12
 
 internal void
-update_camera_target(Camera *camera) {
-    Vector3 camera_direction = 
-    {
-        cosf(DEG2RAD * camera->yaw) * cosf(DEG2RAD * camera->pitch),
-        sinf(DEG2RAD * camera->pitch),
-        sinf(DEG2RAD * camera->yaw) * cosf(DEG2RAD * camera->pitch)
-    };
-    camera->target = normalized(camera_direction);
-}
-
-// delta_mouse is a relative mouse movement amount
-// as opposed to the screen coords of the mouse
-internal void
-update_camera_with_mouse(Camera *camera, Vector2_s32 delta_mouse, Vector2 move_speed) {    
-    camera->yaw   += (float32)delta_mouse.x * move_speed.x;
-    camera->pitch -= (float32)delta_mouse.y * move_speed.y;
-    
-    // doesnt break withou this - just so it does not keep getting higher and higher
-    float32 max_yaw = 360.0f;
-    if (camera->yaw > max_yaw) camera->yaw = 0;
-    if (camera->yaw < 0)       camera->yaw = max_yaw;
-
-    // breaks with out this check
-    float32 max_pitch = 89.0f;
-    if (camera->pitch >  max_pitch) camera->pitch =  max_pitch;
-    if (camera->pitch < -max_pitch) camera->pitch = -max_pitch;
-}
-
-internal void
 sdl_update_time(App_Time *time) {
     s64 ticks = SDL_GetPerformanceCounter();
 
@@ -165,20 +138,21 @@ sdl_update_time(App_Time *time) {
 }
 internal bool8
 sdl_process_input(App_Window *window, App_Input *input) {
+    input->mouse = {};
+    input->mouse_rel = {};
+    input->key_events_count = 0;
+    
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
 		switch(event.type) {
 			case SDL_QUIT: return true;
 
-			case SDL_WINDOWEVENT:
-            {
+			case SDL_WINDOWEVENT: {
                 SDL_WindowEvent *window_event = &event.window;
                 
-                switch(window_event->event)
-                {
+                switch(window_event->event) {
                     case SDL_WINDOWEVENT_RESIZED:
-                    case SDL_WINDOWEVENT_SIZE_CHANGED:
-                    {
+                    case SDL_WINDOWEVENT_SIZE_CHANGED: {
                         window->width  = window_event->data1;
                         window->height = window_event->data2;
                         
@@ -189,6 +163,28 @@ sdl_process_input(App_Window *window, App_Input *input) {
 						#endif // OPENGL / DX12
                     } break;
                 }
+            } break;
+
+            case SDL_MOUSEMOTION: {
+                SDL_MouseMotionEvent *mouse_motion_event = &event.motion;
+                input->mouse.x = mouse_motion_event->x;
+                input->mouse.y = mouse_motion_event->y;
+                input->mouse_rel.x = mouse_motion_event->xrel;
+                input->mouse_rel.y = mouse_motion_event->yrel;
+            } break;
+
+            case SDL_KEYDOWN:
+            case SDL_KEYUP: {
+                SDL_KeyboardEvent *keyboard_event = &event.key;
+                s32 key_id = keyboard_event->keysym.sym;
+                bool8 shift = keyboard_event->keysym.mod & KMOD_LSHIFT;
+                bool8 state = false;
+                if (keyboard_event->state == SDL_PRESSED) 
+                    state = true;
+                
+                App_Key_Event *key = &input->key_events[input->key_events_count++];
+                key->id = key_id;
+                key->state = state;
             } break;
 		}
 	}
@@ -204,9 +200,6 @@ int main(int argc, char *argv[]) {
 	app.time.performance_frequency = SDL_GetPerformanceFrequency();
     app.time.start_ticks           = SDL_GetPerformanceCounter();
     app.time.last_frame_ticks      = app.time.start_ticks;
-    
-    Assets assets = {};
-    load_assets(&assets, "../assets.ethan");
     
 	u32 sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO;
     if (SDL_Init(sdl_init_flags)) {
@@ -229,118 +222,25 @@ int main(int argc, char *argv[]) {
     }
 
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     render_sdl_init(sdl_window);
-
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
 
-    Shader *basic_3D = find_shader(&assets, "BASIC3D");
-    render_compile_shader(basic_3D);
-
-    basic_3D->layout_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
-    basic_3D->layout_sets[0].descriptors_count = 1;
-    render_create_descriptor_pool(basic_3D, 30, 0);
-
-    basic_3D->layout_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
-    basic_3D->layout_sets[1].descriptors_count = 1;
-    render_create_descriptor_pool(basic_3D, 30, 1);
-
-    basic_3D->layout_sets[2].descriptors[0] = Descriptor(SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
-    basic_3D->layout_sets[2].descriptors_count = 1;
-
-    Render_Pipeline basic_pipeline = {};
-    basic_pipeline.shader = basic_3D;
-
-    render_create_graphics_pipeline(&basic_pipeline);
-    
-    Scene scene = {};
-    scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
-    scene.projection = perspective_projection(45.0f, (float32)app.window.width / (float32)app.window.height, 0.1f, 10.0f);
-    
-    // Init ubo
-    Descriptor_Set *scene_set = render_get_descriptor_set(basic_3D, 0);
-    render_update_ubo(scene_set, 0, (void*)&scene, true);
-
-    Descriptor_Set *scene_ortho_set = render_get_descriptor_set(basic_3D, 0);
-    Scene ortho_scene = {};
-    ortho_scene.view = identity_m4x4();
-    ortho_scene.projection = orthographic_projection(0.0f, (float32)app.window.width, 0.0f, (float32)app.window.height, -3.0f, 3.0f);
-    render_update_ubo(scene_ortho_set, 0, (void*)&ortho_scene, true);
-
-    Bitmap *yogi = find_bitmap(&assets, "YOGI");
-    render_create_texture(yogi);
-
-    Bitmap *david = find_bitmap(&assets, "DAVID");
-    render_create_texture(david);
-
-    Object object = {};
-
-    Mesh rect = get_rect_mesh();
-
-    Font *font = find_font(&assets, "CASLON");
-    init_font(font);
-
+    init_data(&app);
     init_shapes();
 
-    init_model(find_model(&assets, "TAILS"));
-
-    Camera camera = {};
-    camera.position = { 5, 40, 0 };
-    camera.target   = { 0, 0, -2 };
-    camera.up       = { 0, 1, 0 };
-    camera.fov      = 70.0f;
-    camera.yaw      = 0.0f;
-    camera.pitch    = -85.0f;
-
     while (1) {
-        
+        if (app.input.relative_mouse_mode) SDL_SetRelativeMouseMode(SDL_TRUE);
+        else                               SDL_SetRelativeMouseMode(SDL_FALSE);
+
     	if (sdl_process_input(&app.window, &app.input)) 
             return 0;
         
     	sdl_update_time(&app.time);
-        //print("%f\n", app.time.frames_per_s);
-        //print("%d\n", vulkan_info.uniform_buffer_offset);
+        print("%f\n", app.time.frames_per_s);
 
-        //scene.view = get_view(camera);
-        //render_update_ubo(scene_set, 0, (void*)&scene, true);
-
-        render_start_frame();
-
-        render_set_viewport(app.window.width, app.window.height);
-        render_set_scissor(app.window.width, app.window.height);
-
-        render_bind_pipeline(&basic_pipeline);
-        Vector4 test = { 1, 1, 0, 1 };
-        
-        render_bind_descriptor_set(scene_set, 0);
-        {            
-            object.model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(app.time.run_time_s, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
-            render_push_constants(&basic_3D->layout_sets[2], (void *)&object.model);
-
-            Descriptor_Set *object_set = render_get_descriptor_set(basic_3D, 1);
-            render_set_bitmap(object_set, yogi, 1);
-            render_bind_descriptor_set(object_set, 1);
-
-            render_draw_mesh(&rect);
-        }
-        
-        vulkan_draw_model(find_model(&assets, "TAILS"), basic_3D, { 0, 0, 0 }, get_rotation(0, {0, 1, 0}));
-
-        render_bind_descriptor_set(scene_ortho_set, 0);
-        { 
-            object.model = create_transform_m4x4({ 100.0f, 100.0f, -0.5f }, get_rotation(0, {0, 1, 0}), {100, 100, 1.0f});
-            render_push_constants(&basic_3D->layout_sets[2], (void *)&object.model);
-
-            Descriptor_Set *object_set = render_get_descriptor_set(basic_3D, 1);
-            render_set_bitmap(object_set, david, 1);
-            render_bind_descriptor_set(object_set, 1);
-
-            render_draw_mesh(&rect);
-        }
-        
-        draw_string(font, "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
-
-        render_end_frame();
+        update(&app);
     }
     
     render_cleanup();

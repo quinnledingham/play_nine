@@ -25,8 +25,19 @@ get_seconds_elapsed(App_Time *time, s64 start, s64 end) {
     return result;
 }
 
-struct App_Input {
+struct App_Key_Event {
+	s32 id;
+	bool8 state; // true if pressed, false if released
+};
 
+struct App_Input {
+	Vector2_s32 mouse;
+	Vector2_s32 mouse_rel;
+	bool8 relative_mouse_mode = true;
+
+	static const u32 keys_buffer_size = 10;
+	App_Key_Event key_events[keys_buffer_size];
+	u32 key_events_count;
 };
 
 struct App {

@@ -1046,7 +1046,7 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
-	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT ;
 	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizer.depthBiasEnable = VK_FALSE;
 	rasterizer.depthBiasConstantFactor = 0.0f;      // Optional
@@ -1729,27 +1729,5 @@ void vulkan_push_constants(Descriptor_Set *push_constants, void *data) {
 	vkCmdPushConstants(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.pipeline_layout, vulkan_convert_shader_stage(push_constant->stages[0]), 0, push_constant->size, data);
 }
 
-internal void
-init_model(Model *model) {
-    for (u32 mesh_index = 0; mesh_index < model->meshes_count; mesh_index++) {
-        Mesh *mesh = &model->meshes[mesh_index];
-        render_init_mesh(mesh);
-        render_create_texture(&mesh->material.diffuse_map);
-    }
-}
 
-void vulkan_draw_model(Model *model, Shader *shader, Vector3 position, Quaternion rotation) {
-	for (u32 i = 0; i < model->meshes_count; i++) {
 
-		Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, {0.1f, 0.1f, 0.1f});
-		render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
-
-		if (model->meshes[i].material.diffuse_map.memory != 0) {
-			Descriptor_Set *object_set = render_get_descriptor_set(shader, 1);
-            render_set_bitmap(object_set, &model->meshes[i].material.diffuse_map, 1);
-            render_bind_descriptor_set(object_set, 1);
-		}
-
-		render_draw_mesh(&model->meshes[i]);
-	}
-}
