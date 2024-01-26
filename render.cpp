@@ -51,7 +51,7 @@ void render_init_model(Model *model) {
     for (u32 mesh_index = 0; mesh_index < model->meshes_count; mesh_index++) {
         Mesh *mesh = &model->meshes[mesh_index];
         render_init_mesh(mesh);
-        render_create_texture(&mesh->material.diffuse_map);
+        render_create_texture(&mesh->material.diffuse_map, TEXTURE_PARAMETERS_DEFAULT);
     }
 }
 

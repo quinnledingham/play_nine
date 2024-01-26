@@ -41,6 +41,11 @@ inline Matrix_4x4 get_view(Camera camera)  {
     return look_at(camera.position, camera.position + camera.target, camera.up); 
 }
 
+enum Texture_Parameters {
+    TEXTURE_PARAMETERS_DEFAULT,
+    TEXTURE_PARAMETERS_CHAR,
+};
+
 // defining render functions
 
 #if OPENGL
@@ -72,7 +77,7 @@ RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
 RENDER_FUNC(void, create_descriptor_pool, Shader *shader, u32 descriptor_set_count, u32 set_index);
 RENDER_FUNC(Descriptor_Set*, get_descriptor_set, Shader *shader, bool8 layout_index);
 
-RENDER_FUNC(void, create_texture, Bitmap *bitmap);
+RENDER_FUNC(void, create_texture, Bitmap *bitmap, u32 texture_parameters);
 RENDER_FUNC(void, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
 
 //RENDER_FUNC(void, init_model, Model *model);

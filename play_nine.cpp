@@ -46,10 +46,10 @@ bool8 init_data(App *app) {
 	
 	// Init assets
 	Bitmap *yogi = find_bitmap(&game->assets, "YOGI");
-    render_create_texture(yogi);
+    render_create_texture(yogi, TEXTURE_PARAMETERS_DEFAULT);
 
 	Bitmap *david = find_bitmap(&game->assets, "DAVID");
-    render_create_texture(david);
+    render_create_texture(david, TEXTURE_PARAMETERS_DEFAULT);
 	
 	Font *font = find_font(&game->assets, "CASLON");
     init_font(font);
@@ -134,6 +134,8 @@ bool8 update(App *app) {
                                 is_down(game->controller.forward),  is_down(game->controller.backward),
                                 is_down(game->controller.left),  is_down(game->controller.right),
                                 is_down(game->controller.up),  is_down(game->controller.down));								
+
+		//print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
 	}
 
     render_start_frame();
@@ -148,7 +150,7 @@ bool8 update(App *app) {
 
     render_bind_descriptor_set(game->scene_set, 0);
     {            
-        Matrix_4x4 model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(app->time.run_time_s, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
+        Matrix_4x4 model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
         render_push_constants(&basic_3D->layout_sets[2], (void *)&model);
 
         Descriptor_Set *object_set = render_get_descriptor_set(basic_3D, 1);

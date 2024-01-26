@@ -238,7 +238,7 @@ int main(int argc, char *argv[]) {
             return 0;
         
     	sdl_update_time(&app.time);
-        print("%f\n", app.time.frames_per_s);
+        //print("%f\n", app.time.frames_per_s);
 
         update(&app);
     }

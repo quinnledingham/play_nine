@@ -146,12 +146,6 @@ free_bitmap(Bitmap bitmap) {
     stbi_image_free(bitmap.memory);
 }
 
-enum Texture_Parameters
-{
-    TEXTURE_PARAMETERS_DEFAULT,
-    TEXTURE_PARAMETERS_CHAR,
-};
-
 #ifdef OPENGL
 
 internal void
@@ -412,9 +406,6 @@ load_font_char(Font *font, u32 codepoint) {
     return font_char;
 }
 
-internal void
-vulkan_create_texture(Bitmap *bitmap);
-
 internal Font_Char_Bitmap *
 load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     if (scale == 0.0f) {
@@ -453,7 +444,7 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, 0, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
 
     if (char_bitmap->bitmap.width != 0)
-        vulkan_create_texture(&char_bitmap->bitmap);
+        render_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
     //render_init_bitmap(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
 
     return char_bitmap;

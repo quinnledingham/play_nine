@@ -27,10 +27,10 @@ get_rect_mesh() {
     mesh.vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
     mesh.vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
 */
-    mesh.vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
-    mesh.vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
-    mesh.vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
-    mesh.vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
+    mesh.vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, -1}, {0, 0} };
+    mesh.vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, -1}, {0, 1} };
+    mesh.vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, -1}, {1, 0} };
+    mesh.vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, -1}, {1, 1} };
 
     mesh.indices_count = 6;
     mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
@@ -39,11 +39,11 @@ get_rect_mesh() {
     u32 top_left = 0, top_right = 2, bottom_left = 1, bottom_right = 3;
    
 	mesh.indices[0] = top_left;
-    mesh.indices[1] = bottom_left;
-    mesh.indices[2] = bottom_right;
+    mesh.indices[1] = bottom_right;
+    mesh.indices[2] = bottom_left;
     mesh.indices[3] = top_left;
-    mesh.indices[4] = bottom_right;
-    mesh.indices[5] = top_right;
+    mesh.indices[4] = top_right;
+    mesh.indices[5] = bottom_right;
     
 /*
     mesh.indices[0] = top_left;
@@ -113,17 +113,20 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
         Font_Char *font_char = bitmap->font_char;
         
         Vector2 char_coords = { current_point + (font_char->lsb * scale), baseline + (float32)bitmap->bb_0.y };
-
+        
         // Draw
-        Vector3 coords_Vector3 = { char_coords.x, char_coords.y, 0 };
-        Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
-        Vector3 dim_Vector3 = { (float32)bitmap->bitmap.width, (float32)bitmap->bitmap.height, 1 };
+        if (bitmap->bitmap.width != 0) {     
+            Vector3 coords_v3 = { char_coords.x, char_coords.y, 0 };
+            Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
+            Vector3 dim_v3 = { (float32)bitmap->bitmap.width, (float32)bitmap->bitmap.height, 1 };
 
-        if (bitmap->bitmap.width != 0) {        
+           
             Descriptor_Set *object_set = render_get_descriptor_set(&shapes.text_shader, 1);
             vulkan_set_bitmap(object_set, &bitmap->bitmap, 2);
 
-    		Matrix_4x4 model = create_transform_m4x4(coords_Vector3, rotation_quat, dim_Vector3);
+            coords_v3.x += dim_v3.x / 2.0f;
+            coords_v3.y += dim_v3.y / 2.0f; // coords = top left corner
+    		Matrix_4x4 model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
             render_push_constants(&shapes.text_shader.layout_sets[2], (void *)&model);
 
             render_update_ubo(object_set, 1, (void*)&color, false);

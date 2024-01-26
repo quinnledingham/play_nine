@@ -1046,8 +1046,8 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
-	rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT ;
-	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT ;
+	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterizer.depthBiasEnable = VK_FALSE;
 	rasterizer.depthBiasConstantFactor = 0.0f;      // Optional
 	rasterizer.depthBiasClamp = 0.0f;               // Optional
@@ -1321,17 +1321,31 @@ vulkan_create_texture_image_view(Vulkan_Texture *texture) {
 }
 
 internal void
-vulkan_create_texture_sampler(Vulkan_Texture *texture) {
+vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters) {
 	VkPhysicalDeviceProperties properties = {};
 	vkGetPhysicalDeviceProperties(vulkan_info.physical_device, &properties);
 	
 	VkSamplerCreateInfo sampler_info = {};
 	sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	sampler_info.magFilter = VK_FILTER_LINEAR;
-	sampler_info.minFilter = VK_FILTER_LINEAR;
-	sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+	switch(texture_parameters) {
+		case TEXTURE_PARAMETERS_DEFAULT:
+		sampler_info.minFilter = VK_FILTER_LINEAR;
+		sampler_info.magFilter = VK_FILTER_LINEAR;
+		sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		break;
+
+		case TEXTURE_PARAMETERS_CHAR:
+		sampler_info.minFilter = VK_FILTER_LINEAR;
+		sampler_info.magFilter = VK_FILTER_NEAREST;
+		sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		break;
+	}
+
 	sampler_info.anisotropyEnable = VK_TRUE;
 	sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
 	sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -1349,10 +1363,10 @@ vulkan_create_texture_sampler(Vulkan_Texture *texture) {
 }
 
 internal void
-vulkan_create_texture(Bitmap *bitmap) {
+vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
 	vulkan_create_texture_image(bitmap);
     vulkan_create_texture_image_view((Vulkan_Texture *)bitmap->gpu_info);
-    vulkan_create_texture_sampler((Vulkan_Texture *)bitmap->gpu_info);
+    vulkan_create_texture_sampler((Vulkan_Texture *)bitmap->gpu_info, texture_parameters);
 }
 
 internal void

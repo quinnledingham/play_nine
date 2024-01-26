@@ -246,27 +246,24 @@ inline bool operator==(const Vector4 &l, const Vector4 &r) { if (l.x == r.x && l
 inline float32 length_squared(const Quaternion &v) { return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w; }
 
 inline Quaternion 
-operator*(const Quaternion &l, const Quaternion &r) 
-{
+operator*(const Quaternion &l, const Quaternion &r)  {
     return {
-        r.x * l.w + r.y * l.z - r.z * l.y + r.w * l.x,
+         r.x * l.w + r.y * l.z - r.z * l.y + r.w * l.x,
         -r.x * l.z + r.y * l.w + r.z * l.x + r.w * l.y,
-        r.x * l.y - r.y * l.x + r.z * l.w + r.w * l.z,
+         r.x * l.y - r.y * l.x + r.z * l.w + r.w * l.z,
         -r.x * l.x - r.y * l.y - r.z * l.z + r.w * l.w
     };
 }
 
 inline Vector3 
-operator*(const Quaternion& q, const Vector3& v)
-{
-    return q.vector * 2.0f * dot_product(q.vector, v) + 
-        v * (q.scalar * q.scalar - dot_product(q.vector, q.vector)) +
-        cross_product(q.vector, v) * 2.0f * q.scalar;
+operator*(const Quaternion& q, const Vector3& v) {
+    return q.vector * 2.0f * dot_product(q.vector, v) + v * 
+           (q.scalar * q.scalar - dot_product(q.vector, q.vector)) + 
+           cross_product(q.vector, v) * 2.0f * q.scalar;
 }
 
 inline Quaternion
-normalized(const Quaternion &v)
-{
+normalized(const Quaternion &v) {
     float32 len_sq = length_squared(v);
     if (len_sq < EPSILON) return { 0, 0, 0, 1 };
     float32 inverse_length = 1.0f / sqrtf(len_sq);
@@ -274,8 +271,7 @@ normalized(const Quaternion &v)
 }
 
 inline Quaternion 
-get_rotation(float32 angle, const Vector3& axis)
-{
+get_rotation(float32 angle, const Vector3& axis) {
     Vector3 norm = normalized(axis);
     float32 s = sinf(angle * 0.5f);
     return { norm.x * s, norm.y * s, norm.z * s, cosf(angle * 0.5f) };
@@ -284,8 +280,7 @@ get_rotation(float32 angle, const Vector3& axis)
 // Returns a Quaternion which contains the rotation between two vectors.
 // The two vectors are treated like they are points in the same sphere.
 internal Quaternion
-from_to(const Vector3& from, const Vector3& to)
-{
+from_to(const Vector3& from, const Vector3& to) {
     Vector3 f = normalized(from);
     Vector3 t = normalized(to);
     if (f == t)
@@ -308,8 +303,7 @@ from_to(const Vector3& from, const Vector3& to)
 }
 
 inline Quaternion 
-get_rotation_to_direction(const Vector3& direction, const Vector3& up)
-{
+get_rotation_to_direction(const Vector3& direction, const Vector3& up) {
     // Find orthonormal basis vectors
     Vector3 forward = normalized(direction);
     Vector3 norm_up = normalized(up);
@@ -330,10 +324,8 @@ get_rotation_to_direction(const Vector3& direction, const Vector3& up)
 //
 
 inline void
-print_m4x4(Matrix_4x4 matrix)
-{
-    for (int i = 0; i < 16; i++)
-    {
+print_m4x4(Matrix_4x4 matrix) {
+    for (int i = 0; i < 16; i++) {
         s32 row = i / 4;
         s32 column = i - (row * 4);
         printf("%f ", matrix.E[row][column]);
@@ -343,16 +335,13 @@ print_m4x4(Matrix_4x4 matrix)
 }
 
 inline Matrix_4x4
-get_frustum(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f)
-{
-    if (l == r || t == b || n == f)
-    {
+get_frustum(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f) {
+    if (l == r || t == b || n == f) {
         logprint("get_frustum", "Invalid frustum");
         return {};
     }
     
-    return
-    {
+    return {
         (2.0f * n) / (r - l), 0, 0, 0,
         0, (2.0f * n) / (t - b), 0, 0,
         (r + l) / (r - l), (t + b) / (t - b), (-(f + n)) / (f - n), -1,
@@ -418,10 +407,8 @@ orthographic_projection(float32 l, float32 r, float32 b, float32 t, float32 n, f
 
 
 inline Matrix_4x4
-identity_m4x4()
-{
-    return
-    {
+identity_m4x4() {
+    return {
         1, 0, 0, 0,
         0, 1, 0, 0,
         0, 0, 1, 0,
@@ -430,8 +417,7 @@ identity_m4x4()
 }
 
 inline Matrix_4x4
-look_at(const Vector3 &position, const Vector3 &target, const Vector3 &up)
-{
+look_at(const Vector3 &position, const Vector3 &target, const Vector3 &up) {
     Vector3 f = normalized(target - position) * -1.0f;
     Vector3 r = cross_product(up, f);
     if (r == 0) return identity_m4x4();
@@ -448,8 +434,7 @@ look_at(const Vector3 &position, const Vector3 &target, const Vector3 &up)
 }
 
 inline Matrix_4x4 
-create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale)
-{
+create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale) {
     Vector3 x = {1, 0, 0};
     Vector3 y = {0, 1, 0};
     Vector3 z = {0, 0, 1};
@@ -462,8 +447,7 @@ create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale)
     y = y * scale.y;
     z = z * scale.z;
     
-    return
-    {
+    return {
         x.x, x.y, x.z, 0,
         y.x, y.y, y.z, 0,
         z.x, z.y, z.z, 0,
