@@ -135,7 +135,7 @@ bool8 update(App *app) {
                                 is_down(game->controller.left),  is_down(game->controller.right),
                                 is_down(game->controller.up),  is_down(game->controller.down));								
 
-		//print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
+		print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
 	}
 
     render_start_frame();
@@ -174,7 +174,7 @@ bool8 update(App *app) {
         render_draw_mesh(&game->rect);
     }
     
-    draw_string(find_font(&game->assets, "CASLON"), "supgamer", {200, 200}, 100.0f, { 255, 255, 255, 1 });
+    draw_string(find_font(&game->assets, "CASLON"), "supgamer", {200, 200}, 100.0f, { 255, 0, 255, 1 });
 
     render_end_frame();
 

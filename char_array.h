@@ -146,11 +146,11 @@ inline u32
 s32_to_char_array(char *buffer, u32 size, s32 in) {
     u32 ret = snprintf(buffer, size, "%d", in);
     if (ret < 0) {
-        logprint("s32_to_char_array()", "snprintf() failed");
+        logprint("s32_to_char_array()", "snprintf() failed\n");
         return 0;
     }
     if (ret >= size)
-        logprint("s32_to_char_array()", "snprintf(): result was truncated");
+        logprint("s32_to_char_array()", "snprintf(): result was truncated\n");
     return ret;
 }
 
@@ -161,10 +161,10 @@ s32_to_char_array(s32 in) {
     platform_memory_set(buffer, 0, size);
     u32 ret = snprintf(buffer, size, "%d", in);
     if (ret < 0) {
-        logprint("s32_to_char_array()", "snprintf() failed");
+        logprint("s32_to_char_array()", "snprintf() failed\n");
         return 0;
     }
-    if (ret >= size) logprint("s32_to_char_array()", "snprintf(): result was truncated");
+    if (ret >= size) logprint("s32_to_char_array()", "snprintf(): result was truncated\n");
     return buffer;
 }
 

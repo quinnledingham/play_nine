@@ -12,9 +12,11 @@ struct Render_Pipeline {
     Shader *shader;
     bool8 blend;
     
+#ifdef VULKAN
     //VkRenderPass render_pass;
     VkPipelineLayout pipeline_layout;
     VkPipeline graphics_pipeline;
+#endif
 
     void *gpu_info; // OpenGL = NULL, Vulkan = VkPipeline
 };
@@ -41,12 +43,15 @@ inline Matrix_4x4 get_view(Camera camera)  {
     return look_at(camera.position, camera.position + camera.target, camera.up); 
 }
 
+// used with render_create_texture function
 enum Texture_Parameters {
     TEXTURE_PARAMETERS_DEFAULT,
     TEXTURE_PARAMETERS_CHAR,
 };
 
-// defining render functions
+//
+// Defining render functions
+//
 
 #if OPENGL
 

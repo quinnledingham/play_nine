@@ -31,7 +31,7 @@ save_file(File *file, const char *filepath) {
     if(in) {
         fwrite(file->memory, file->size, 1, in);
     } else {
-    	logprint("save_file", "Cannot open file %s", filepath);
+    	logprint("save_file", "Cannot open file %s\n", filepath);
     }
     fclose(in);
 }
@@ -146,89 +146,6 @@ free_bitmap(Bitmap bitmap) {
     stbi_image_free(bitmap.memory);
 }
 
-#ifdef OPENGL
-
-internal void
-init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
-    GLenum target = GL_TEXTURE_2D;
-    
-    bitmap->gpu_info = platform_malloc(sizeof(u32));
-    glGenTextures(1, (u32*)bitmap->gpu_info);
-    glBindTexture(target, *(u32*)bitmap->gpu_info);
-    
-    GLint internal_format = 0;
-    GLenum data_format = 0;
-    GLint pixel_unpack_alignment = 0;
-    
-    switch(bitmap->channels) {
-        case 1: {
-            internal_format = GL_RED,
-            data_format = GL_RED,
-            pixel_unpack_alignment = 1; 
-        } break;
-
-        case 3: {
-            internal_format = GL_RGB;
-            data_format = GL_RGB;
-            pixel_unpack_alignment = 1; // because RGB is weird case unpack alignment can't be 3
-        } break;
-        
-        case 4: {
-            internal_format = GL_SRGB8_ALPHA8; //GL_RGBA no sRGB
-            data_format = GL_RGBA;
-            pixel_unpack_alignment = 4;
-        } break;
-    }
-    
-    glPixelStorei(GL_UNPACK_ALIGNMENT, pixel_unpack_alignment);
-    glTexImage2D(target, 0, internal_format, bitmap->width, bitmap->height, 0, data_format, GL_UNSIGNED_BYTE, bitmap->memory);
-    glGenerateMipmap(target);
-    
-    switch(texture_parameters)
-    {
-        case TEXTURE_PARAMETERS_DEFAULT:
-        glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-        glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        break;
-
-        case TEXTURE_PARAMETERS_CHAR:
-        glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        break;
-    }
-    
-    glBindTexture(target, 0);
-}
-
-void opengl_init_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) { 
-    init_bitmap_gpu_handle(bitmap, TEXTURE_PARAMETERS_CHAR); 
-    set->descriptors[1].handle = bitmap->gpu_info;
-}
-
-internal void
-free_bitmap_gpu_handle(Bitmap *bitmap) {
-    glDeleteTextures(1, (u32*)bitmap->gpu_info);
-}
-
-#endif // OPENGL
-
-#ifdef DX12
-
-internal void
-init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
-
-}
-
-internal void
-free_bitmap_gpu_handle(Bitmap *bitmap) {
-    
-}
-
-#endif // DX12
 
 //
 // Shader
@@ -322,13 +239,14 @@ compile_spv_to_glsl(File *file) {
     spvc_compiler_compile(compiler_glsl, &result);
     //print("Cross-compiled source: %s\n", result);
 
-    spvc_context_destroy(context);
-
     File result_file = {};
     result_file.memory = platform_malloc(1000);
     platform_memory_set(result_file.memory, 0, 1000);
     platform_memory_copy(result_file.memory, (void*)result, get_length(result));
     result_file.size = 0;
+
+    spvc_context_destroy(context);
+
     return result_file;
 }
 

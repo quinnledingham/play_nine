@@ -93,11 +93,7 @@ void init_shapes() {
 // String
 //
 
-internal void
-vulkan_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding);
-
-void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color)
-{
+void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color) {
     //stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
     float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
     float32 string_x_coord = 0.0f;
@@ -119,19 +115,17 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             Vector3 coords_v3 = { char_coords.x, char_coords.y, 0 };
             Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
             Vector3 dim_v3 = { (float32)bitmap->bitmap.width, (float32)bitmap->bitmap.height, 1 };
-
-           
+            
             Descriptor_Set *object_set = render_get_descriptor_set(&shapes.text_shader, 1);
-            vulkan_set_bitmap(object_set, &bitmap->bitmap, 2);
+            render_bind_descriptor_set(object_set, 1);   
+            render_set_bitmap(object_set, &bitmap->bitmap, 2);
+            render_update_ubo(object_set, 1, (void*)&color, false);
 
             coords_v3.x += dim_v3.x / 2.0f;
             coords_v3.y += dim_v3.y / 2.0f; // coords = top left corner
     		Matrix_4x4 model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
-            render_push_constants(&shapes.text_shader.layout_sets[2], (void *)&model);
-
-            render_update_ubo(object_set, 1, (void*)&color, false);
-            render_bind_descriptor_set(object_set, 1);            
-        
+            render_push_constants(&shapes.text_shader.layout_sets[2], (void *)&model);  
+                     
             render_draw_mesh(&shapes.rect_mesh);
             // End of Draw
         }

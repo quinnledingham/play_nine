@@ -804,7 +804,6 @@ vulkan_create_descriptor(Descriptor descriptor) {
 	return layout_binding;
 }
 
-
 // descriptor_set_count is how many descripotr sets to allocate
 internal void
 vulkan_create_descriptor_pool(Shader *shader, u32 max_sets, u32 set_index) {

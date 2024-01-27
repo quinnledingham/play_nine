@@ -25,11 +25,15 @@ void opengl_sdl_init(SDL_Window *sdl_window) {
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
-    //glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    //glClearColor(0.0f, 0.0f, 0.`0f, 0.0f);
     glPatchParameteri(GL_PATCH_VERTICES, 4); 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_FRAMEBUFFER_SRGB); 
     glPointSize(4.0f);
+
+    glEnable(GL_CULL_FACE);  
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CW);  
 }
 
 void opengl_clear_color(Vector4 color) {
@@ -101,14 +105,10 @@ void opengl_set_scissor(u32 window_width, u32 window_height) {
 
 global u32 global_shader_handle;
 
-void opengl_bind_pipeline(Shader *shader) {
+void opengl_bind_pipeline(Render_Pipeline *pipeline) {
+    Shader *shader = pipeline->shader;
     for (u32 i = 0; i < shader->layout_count; i++) {
-        for (u32 j = 0; j < shader->max_sets; j++) {
-            if (shader->sets[i][j].free_after_frame == TRUE) {
-                shader->sets[i][j].free_after_frame = false;
-                shader->sets[i][j].in_use = false;
-            }
-        }
+        shader->sets_count[i] = 0;
     }
 
     glUseProgram(shader->handle);
@@ -136,21 +136,20 @@ void opengl_init_ubo(Descriptor_Set *set, Descriptor *descriptor, u32 size, u32 
 }
 
 void opengl_create_descriptor_pool(Shader *shader, u32 descriptor_set_count, u32 set_index) {
-    Descriptor_Set *layout_set = &shader->descriptor_sets[set_index]; // passing the layout that was defined for the set
-
     for (u32 i = 0; i < shader->max_sets; i++) {
-        shader->sets[set_index][i] = *layout_set;
-        for (u32 j = 0; j < shader->sets[set_index][i].descriptors_count; j++) {
-            if (shader->sets[set_index][i].descriptors[j].type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                opengl_init_ubo(&shader->sets[set_index][i], 
-                                &shader->sets[set_index][i].descriptors[j], 
-                                shader->sets[set_index][i].descriptors[j].size,
-                                shader->sets[set_index][i].descriptors[j].binding);
+        for (u32 j = 0; j < shader->layout_sets[set_index].descriptors_count; j++) {
+            shader->descriptor_sets[set_index][i].descriptors_count = shader->layout_sets[set_index].descriptors_count;
+            shader->descriptor_sets[set_index][i].descriptors[j].type = shader->layout_sets[set_index].descriptors[j].type;
+            if (shader->layout_sets[set_index].descriptors[j].type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                opengl_init_ubo(&shader->descriptor_sets[set_index][i], 
+                                &shader->descriptor_sets[set_index][i].descriptors[j], 
+                                shader->layout_sets[set_index].descriptors[j].size,
+                                shader->layout_sets[set_index].descriptors[j].binding);
         }
     }
 }
 
-void opengl_create_graphics_pipeline(Shader *shader) {
+void opengl_create_graphics_pipeline(Render_Pipeline *pipeline) {
 /*
     for (u32 i = 0; i < shader->layout_count; i++) {
         for (u32 j = 0; j < shader->descriptor_sets[i].descriptors_count; j++) {
@@ -163,15 +162,15 @@ void opengl_create_graphics_pipeline(Shader *shader) {
 }
 
 Descriptor_Set* opengl_get_descriptor_set(Shader *shader, bool8 layout_index) {
-    for (u32 i = 0; i < shader->max_sets; i++) {
-        if (shader->sets[layout_index][i].in_use == false) {
-            shader->sets[layout_index][i].in_use = true;
-            return &shader->sets[layout_index][i];
-        }
+    u32 next_set = shader->sets_count[layout_index]++;
+
+    if (next_set > shader->max_sets) {
+        logprint("opengl_get_descriptor_set()", "ran out of sets to use in shader\n");
+        ASSERT(0);
+        return 0;
     }
-    logprint("opengl_get_descriptor_set()", "ran out of sets to use in shader\n");
-    ASSERT(0);
-    return 0;
+
+    return &shader->descriptor_sets[layout_index][next_set];
 }
 
 // returns the new offset
@@ -217,15 +216,22 @@ void opengl_bind_descriptor_set(Descriptor_Set *set, u32 first_set) {
     for (u32 i = 0; i < set->descriptors_count; i++) {
         switch(set->descriptors[i].type) {
             case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
+                opengl_set_uniform_block_binding(global_shader_handle, "scene", 0); 
+
                 glBindBufferBase(GL_UNIFORM_BUFFER, set->descriptors[i].binding, *(u32*)set->descriptors[i].handle);
             } break;
 
             case DESCRIPTOR_TYPE_SAMPLER: {
-                glActiveTexture(GL_TEXTURE0 + i);
-                glBindTexture(GL_TEXTURE_2D, *(u32*)set->descriptors[i].handle);
+                //glActiveTexture(GL_TEXTURE0 + i);
+                //glBindTexture(GL_TEXTURE_2D, *(u32*)set->descriptors[i].handle);
             } break;
         }
     }
+}
+
+void opengl_push_constants(Descriptor_Set *push_constants, void *data) {
+    GLint location = glGetUniformLocation(global_shader_handle, "object.model");
+    glUniformMatrix4fv(location, (GLsizei)1, false, (GLfloat *)data);
 }
 
 //
@@ -294,4 +300,78 @@ u32 use_shader(Shader *shader)
 {
     glUseProgram(shader->handle);
     return shader->handle;
+}
+
+//
+// Textures
+//
+
+internal void
+init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
+    GLenum target = GL_TEXTURE_2D;
+    
+    bitmap->gpu_info = platform_malloc(sizeof(u32));
+    glGenTextures(1, (u32*)bitmap->gpu_info);
+    glBindTexture(target, *(u32*)bitmap->gpu_info);
+    
+    GLint internal_format = 0;
+    GLenum data_format = 0;
+    GLint pixel_unpack_alignment = 0;
+    
+    switch(bitmap->channels) {
+        case 1: {
+            internal_format = GL_RED,
+            data_format = GL_RED,
+            pixel_unpack_alignment = 1; 
+        } break;
+
+        case 3: {
+            internal_format = GL_RGB;
+            data_format = GL_RGB;
+            pixel_unpack_alignment = 1; // because RGB is weird case unpack alignment can't be 3
+        } break;
+        
+        case 4: {
+            internal_format = GL_SRGB8_ALPHA8; //GL_RGBA no sRGB
+            data_format = GL_RGBA;
+            pixel_unpack_alignment = 4;
+        } break;
+    }
+    
+    glPixelStorei(GL_UNPACK_ALIGNMENT, pixel_unpack_alignment);
+    glTexImage2D(target, 0, internal_format, bitmap->width, bitmap->height, 0, data_format, GL_UNSIGNED_BYTE, bitmap->memory);
+    glGenerateMipmap(target);
+    
+    switch(texture_parameters)
+    {
+        case TEXTURE_PARAMETERS_DEFAULT:
+        glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+        glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        break;
+
+        case TEXTURE_PARAMETERS_CHAR:
+        glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        break;
+    }
+    
+    glBindTexture(target, 0);
+}
+
+void opengl_create_texture(Bitmap *bitmap, u32 texture_parameters) { 
+    init_bitmap_gpu_handle(bitmap, texture_parameters); 
+}
+
+void opengl_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
+    glActiveTexture(GL_TEXTURE0 + binding);
+    glBindTexture(GL_TEXTURE_2D, *(u32*)bitmap->gpu_info);
+}
+
+internal void
+free_bitmap_gpu_handle(Bitmap *bitmap) {
+    glDeleteTextures(1, (u32*)bitmap->gpu_info);
 }
