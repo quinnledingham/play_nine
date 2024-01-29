@@ -28,7 +28,7 @@ inline void operator/=(Vector2 &l, const float32 &r)  { l.x = l.x / r;   l.y = l
 inline float32 dot_product(const Vector2 &l, const Vector2 &r) { return (l.x * r.x) + (l.y * r.y); }
 inline float32 length_squared(const Vector2 &v) { return (v.x * v.x) + (v.y * v.y); }
 inline void print(const Vector2 &v) { print("Vector2: %f, %f", v.x, v.y); }
-inline Vector2_s32 cVector2(Vector2 v) { return { (s32)v.x, (s32)v.y }; }
+inline Vector2_s32 cv2(Vector2 v) { return { (s32)v.x, (s32)v.y }; }
 
 inline 
 Vector2 pow(const Vector2 &v, u32 exponent)

@@ -104,6 +104,8 @@ struct State {
     Descriptor_Set *scene_ortho_set;
     Camera camera;
     Mesh rect;
+    
+    Bitmap test;
 
     Assets assets;
 };

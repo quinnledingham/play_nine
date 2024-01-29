@@ -79,6 +79,84 @@ deal_cards(Game *game) {
     }
 }
 
+internal void
+copy_bitmap_into_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
+    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
+    u8 *src_ptr = src.memory;
+    for (s32 y = 0; y < src.height; y++) {
+        for (s32 x = 0; x < src.width; x++) {   
+            u8 color = 0xFF ^ (*src_ptr);
+            
+            for (s32 i = 0; i < dest.channels; i++) {
+                for (s32 j = 0; j < src.channels; j++)
+                    dest_ptr[i] = 0xFF ^ (*src_ptr);
+            }
+
+            dest_ptr += dest.channels;
+            src_ptr += src.channels;
+        }   
+
+        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
+    }
+}
+
+internal Bitmap
+create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
+    Bitmap bitmap = {};
+    
+    float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
+
+    float32 current_point = 0.0f;
+
+    s32 height = 0;
+    float32 left = 0.0f;
+
+    u32 i = 0;
+    while (str[i] != 0 ) {
+        Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
+        Font_Char *font_char = fbitmap->font_char;
+
+        Vector2 char_coords = { current_point + (font_char->lsb * scale), (float32)fbitmap->bb_0.y };
+        s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
+
+        if (char_height > height)
+            height = char_height;
+        if (char_coords.x < 0)
+            left = char_coords.x;
+
+        s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
+        current_point += scale * (kern + font_char->ax);
+        
+        i++;
+    }
+
+    bitmap.width = s32(current_point - left);
+    bitmap.height = s32(height);
+    bitmap.channels = 1;
+    bitmap.pitch = bitmap.width * bitmap.channels;
+    bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
+    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
+
+    current_point = 0.0f;
+
+    i = 0;
+    while (str[i] != 0 ) {
+        Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
+        Font_Char *font_char = fbitmap->font_char;
+
+        Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, (float32)0 };
+
+        copy_bitmap_into_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords));
+
+        s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
+        current_point += scale * (kern + font_char->ax);
+        
+        i++;
+    }
+
+    return bitmap;
+}
+
 internal Bitmap
 create_card_bitmap(Font *font, s32 number) {
     Bitmap bitmap = {};
@@ -87,34 +165,30 @@ create_card_bitmap(Font *font, s32 number) {
     bitmap.channels = 4;
     bitmap.pitch = bitmap.width * bitmap.channels;
     bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    
+    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
+
+/*
     float32 scale = get_scale_for_pixel_height(font->info, 500.0f);
     Font_Char_Bitmap *char_bitmap = load_font_char_bitmap(font, number + 48, scale);
     u32 char_bitmap_size = char_bitmap->bitmap.width * char_bitmap->bitmap.height * char_bitmap->bitmap.channels;
     char_bitmap->bitmap.pitch = char_bitmap->bitmap.width * char_bitmap->bitmap.channels;
-    
-    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
-
-    u32 x_center = (bitmap.width / 2) - (char_bitmap->bitmap.width / 2);
-    u32 y_center = (bitmap.height / 2) - (char_bitmap->bitmap.height / 2);
-
-    u8 *ptr = bitmap.memory + (x_center * bitmap.channels) + (y_center * bitmap.pitch);
-    u8 *char_ptr = char_bitmap->bitmap.memory;
-    for (s32 y = 0; y < char_bitmap->bitmap.height; y++) {
-        for (s32 x = 0; x < char_bitmap->bitmap.width; x++) {   
-            u8 color = 0xFF ^ (*char_ptr);
-
-            ptr[0] = color;
-            ptr[1] = color;
-            ptr[2] = color;
-            ptr += 4;
-
-            char_ptr++;
-        }   
-        ptr = bitmap.memory + (x_center * bitmap.channels) + (y_center * bitmap.pitch) + (y * bitmap.pitch);
+*/
+  
+    char str[3] = {};
+    switch(number) {
+        case -5: str[0] = '-'; str[1] = '5'; break;
+        case 10: str[0] = '1'; str[1] = '0'; break;
+        case 11: str[0] = '1'; str[1] = '1'; break;
+        case 12: str[0] = '1'; str[1] = '2'; break;
+        default: str[0] = number + 48; break;
     }
-    
-    //bitmap = char_bitmap->bitmap;
+
+    Bitmap str_bitmap = create_string_into_bitmap(font, 500.0f, str);
+
+    u32 x_center = (bitmap.width / 2) - (str_bitmap.width / 2);
+    u32 y_center = (bitmap.height / 2) - (str_bitmap.height / 2);
+    copy_bitmap_into_bitmap(bitmap, str_bitmap, { s32(x_center), s32(y_center) });
+
     render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
 
     platform_free(bitmap.memory);
@@ -248,6 +322,9 @@ bool8 init_data(App *app) {
     game->game.num_of_players = 3;
     deal_cards(&game->game);
 
+    game->test = create_string_into_bitmap(font, 500.0f, "yo");
+    render_create_texture(&game->test, TEXTURE_PARAMETERS_CHAR);
+
 	return false;
 }
 
@@ -307,7 +384,7 @@ bool8 update(App *app) {
                                 is_down(game->controller.left),  is_down(game->controller.right),
                                 is_down(game->controller.up),  is_down(game->controller.down));								
 
-		print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
+		//print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
 	}
 
     Shader *basic_3D = find_shader(assets, "BASIC3D");
@@ -327,7 +404,7 @@ bool8 update(App *app) {
         render_push_constants(&basic_3D->layout_sets[2], (void *)&model);
 
         Descriptor_Set *object_set = render_get_descriptor_set(basic_3D, 1);
-        render_set_bitmap(object_set, find_bitmap(&game->assets, "YOGI"), 1);
+        render_set_bitmap(object_set, &game->test, 1);
         render_bind_descriptor_set(object_set, 1);
 
         render_draw_mesh(&game->rect);

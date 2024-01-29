@@ -1598,7 +1598,7 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	vulkan_create_buffer(info->device, 
                      info->physical_device,
-                     10000, 
+                     100000, 
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      info->uniform_buffer,
