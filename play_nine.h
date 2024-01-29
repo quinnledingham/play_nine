@@ -12,6 +12,7 @@ struct Card {
 #define DECK_SIZE 108
 global Card deck[DECK_SIZE];
 global Bitmap card_bitmaps[14];
+global Vector2 hand_coords[8];
 
 enum Turn_Stages {
     SELECT_PILE,
@@ -35,6 +36,7 @@ struct Game {
     Player players[6];
     u32 num_of_players;
     u32 active_player;
+    
 };
 
 //

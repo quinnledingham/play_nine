@@ -63,6 +63,20 @@ deal_cards(Game *game) {
             game->players[i].cards[card_index] = game->pile[game->top_of_pile++];
         }
     }
+
+    float32 card_width = 2.0f;
+    float32 card_height = 3.2f;
+    float32 padding = 0.2f;
+
+    u32 card_index = 0;
+    for (s32 y = 1; y >= 0; y--) {
+        for (s32 x = -2; x <= 1; x++) {
+             hand_coords[card_index++] = { 
+                float32(x) * card_width + (float32(x) * padding) + (card_width / 2.0f) + (padding / 2.0f), 
+                float32(y) * card_height + (float32(y) * padding) - (card_height / 2.0f) - (padding / 2.0f)
+            };
+        }
+    }
 }
 
 internal Bitmap
@@ -130,23 +144,17 @@ draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 d
 
 internal void
 draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 position, float32 degrees) {
-    float32 rad = degrees * DEG2RAD;     
-    float32 x = cosf(rad);
-    float32 z = sinf(rad);
-
-    float32 card_width = 2.2f;
-    float32 card_height = 3.4f;
-    Vector3 card_pos = position;
+    float32 rad = -degrees * DEG2RAD;     
 
     for (u32 i = 0; i < 8; i++) {
+        Vector3 card_pos = { hand_coords[i].x, 0.0f, hand_coords[i].y };
+        card_pos = { 
+            cosf(rad) * card_pos.x + sinf(rad) * card_pos.z, 
+            0.0f, 
+            -sinf(rad) * card_pos.x + cosf(rad) * card_pos.z 
+        };
+        card_pos += position;
         draw_card(assets, shader, deck[player->cards[i]], card_pos, degrees);
-
-        card_pos.x += card_height * x;
-        card_pos.z += card_height * z;
-        if (i == 3) {
-            card_pos.x = position.x + card_height * z;
-            card_pos.z = position.z + card_height * x;
-        }
     }
 }   
 
@@ -155,7 +163,7 @@ draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 positi
 //       0
 internal void
 draw_game(Assets *assets, Shader *shader, Game *game) {
-    float32 hyp = 10.0f;
+    float32 hyp = 7.0f;
     float32 deg = 360.0f / float32(game->num_of_players);
     float32 rad = deg * DEG2RAD;
     for (u32 i = 0; i < game->num_of_players; i++) {
@@ -324,7 +332,7 @@ bool8 update(App *app) {
 
         render_draw_mesh(&game->rect);
 
-        //draw_player_cards(&game->assets, basic_3D, &game->game.players[0], { 0, 0, 0 });
+        //draw_player_cards(&game->assets, basic_3D, &game->game.players[0], { 0, 0, 0 }, 0);
         draw_game(&game->assets, basic_3D, &game->game);
     }
 
