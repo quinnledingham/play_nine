@@ -55,6 +55,7 @@ bool8 init_data(App *app) {
     init_font(font);
 
 	render_init_model(find_model(&game->assets, "TAILS"));
+    render_init_model(find_model(&game->assets, "CARD"));
 
 	// Rendering
 	game->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
@@ -135,7 +136,7 @@ bool8 update(App *app) {
                                 is_down(game->controller.left),  is_down(game->controller.right),
                                 is_down(game->controller.up),  is_down(game->controller.down));								
 
-		print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
+		//print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
 	}
 
     render_start_frame();
@@ -157,9 +158,10 @@ bool8 update(App *app) {
         render_set_bitmap(object_set, find_bitmap(&game->assets, "YOGI"), 1);
         render_bind_descriptor_set(object_set, 1);
 
-        render_draw_mesh(&game->rect);
+        //render_draw_mesh(&game->rect);
 
-		render_draw_model(find_model(&game->assets, "TAILS"), basic_3D, { 0, 0, 0 }, get_rotation(0, {0, 1, 0}));
+		//render_draw_model(find_model(&game->assets, "TAILS"), basic_3D, { 0, 0, 0 }, get_rotation(0, {0, 1, 0}));
+        render_draw_model(find_model(&game->assets, "CARD"), basic_3D, { 0, 0, 0 }, get_rotation(app->time.run_time_s, {0, 1, 0}));
     }
     
     render_bind_descriptor_set(game->scene_ortho_set, 0);

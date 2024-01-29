@@ -11,6 +11,7 @@ enum OBJ_Token_Type {
     OBJ_TOKEN_LINE,
     OBJ_TOKEN_USEMTL,
     OBJ_TOKEN_MTLLIB,
+    OBJ_TOKEN_SMOOTH_SHADING,
     
     OBJ_TOKEN_ERROR,
     OBJ_TOKEN_EOF
@@ -116,6 +117,7 @@ scan_obj(File *file, s32 *line_num, bool8 strings, char *buffer) {
                 else if (ch == 'l' && next_ch == ' ') return { OBJ_TOKEN_LINE, "l", ch };
                 else if (ch == 'm') { if (scan_is_string(file, &ch, "mtllib", 6)) return { OBJ_TOKEN_MTLLIB, "mtllib", ch }; }
                 else if (ch == 'u') { if (scan_is_string(file, &ch, "usemtl", 6)) return { OBJ_TOKEN_USEMTL, "usemtl", ch }; }
+                else if (ch == 's') return { OBJ_TOKEN_SMOOTH_SHADING, "s", ch };
             }
             
             if (strings) {

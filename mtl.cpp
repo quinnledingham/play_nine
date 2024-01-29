@@ -89,6 +89,9 @@ scan_mtl(File *file, s32 *line_num)
                 int length = 0;
                 do {
                     ch = file_get_char(file);
+                    if (ch == EOF)
+                        return (void*)create_mtl_token({ MTL_TOKEN_EOF, 0, ch });
+                    
                     length++;
                 } while((isalpha(ch) || isdigit(ch) || is_valid_mtl_char(ch)) && ch != ' ' && ch != EOF);
                 
