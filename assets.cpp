@@ -46,8 +46,9 @@ free_file(File *file) {
 inline s32
 file_get_char(File *file) {
     char *start = (char *)file->memory;
-    if ((file->ch - start) > file->size) {
-        logprint("file_get_char()", "returned EOF using size checking\n");
+    u64 i = (file->ch - start);
+    if (i >= file->size) {
+        //logprint("file_get_char()", "returned EOF using size checking\n");
         return EOF;
     }
     

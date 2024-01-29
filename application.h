@@ -6,6 +6,7 @@ struct App_Window {
 	s32 width;
 	s32 height;
 	float32 aspect_ratio;
+	bool8 resized;
 };
 
 struct App_Time {

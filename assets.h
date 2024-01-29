@@ -170,7 +170,7 @@ Locals: Models one per object (can't push images) - memory changes a lot but is 
 // Contains vulkan info about each descriptor layout
 #ifdef VULKAN
 struct Vulkan_Shader_Info {
-    static const u32 max_sets = 10;
+    static const u32 max_sets = 60;
     VkDescriptorSetLayout descriptor_set_layout;
     VkDescriptorPool descriptor_pool;
     VkDescriptorSet descriptor_sets[max_sets * 2]; // @TODO add MAX_FRAMES_IN_FLIGHT
@@ -182,11 +182,11 @@ struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
-    static const u32 max_sets = 10;
+    static const u32 max_sets = 60;
     static const u32 layout_count = 3;                // layout sets for the 3 scopes
     u32 sets_count[layout_count];
     Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
-    Descriptor_Set descriptor_sets[layout_count][10]; //
+    Descriptor_Set descriptor_sets[layout_count][max_sets]; //
 
 #ifdef VULKAN
     Vulkan_Shader_Info vulkan_infos[layout_count];

@@ -192,7 +192,7 @@ vulkan_query_swap_chain_support(VkPhysicalDevice device, VkSurfaceKHR surface) {
 	vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.present_modes_count, nullptr);
 	if (details.present_modes_count != 0) {
 		details.present_modes = ARRAY_MALLOC(VkPresentModeKHR, details.present_modes_count);
-		vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.present_modes_count, nullptr);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.present_modes_count, details.present_modes);
 	}
 
 	return details;
@@ -320,7 +320,7 @@ vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
 internal VkPresentModeKHR
 vulkan_choose_swap_present_mode(VkPresentModeKHR *modes, u32 count) {
 	for (u32 i = 0; i < count; i++) {
-		if (modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+		if (modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
 			return modes[i];
 		}
 	}
@@ -395,6 +395,9 @@ vulkan_create_swap_chain(Vulkan_Info *info) {
 
 	info->swap_chain_image_format = surface_format.format;
 	info->swap_chain_extent = extent;
+
+	platform_free(swap_chain_support.formats);
+	platform_free(swap_chain_support.present_modes);
 }
 
 internal VkFormat
@@ -1418,7 +1421,7 @@ vulkan_cleanup_swap_chain(Vulkan_Info *info) {
 
 internal void
 vulkan_recreate_swap_chain(Vulkan_Info *info) {
-	vkDeviceWaitIdle(info->device);
+	//vkDeviceWaitIdle(info->device);
 
 	if (info->window_width == 0 || info->window_height == 0) {
 		/*SDL_Event event;
@@ -1696,6 +1699,7 @@ void vulkan_end_frame() {
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkan_info.framebuffer_resized) {
 		vulkan_info.framebuffer_resized = false;
 		vulkan_recreate_swap_chain(&vulkan_info);
+		vulkan_info.render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
 		return;
 	} else if (result != VK_SUCCESS) {
 		logprint("vulkan_draw_frame()", "failed to acquire swap chain");

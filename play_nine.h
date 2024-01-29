@@ -1,3 +1,46 @@
+struct Card {
+	s32 number;
+	const char *name; // i.e. mulligan, birdie
+	bool8 flipped;
+
+	// Drawing
+	//Bitmap front;
+	//Bitmap back;
+	//Mesh mesh;
+};
+
+#define DECK_SIZE 108
+global Card deck[DECK_SIZE];
+global Bitmap card_bitmaps[14];
+
+enum Turn_Stages {
+    SELECT_PILE,
+    SELECT_CARD,
+};
+
+struct Player {
+    const char *name;
+    u32 cards[8];
+    u32 new_card; // the card that was just picked up
+    u32 turn_stage;
+};
+
+struct Game {
+	u32 pile[DECK_SIZE];
+	u32 top_of_pile;
+
+    u32 discard_pile[DECK_SIZE];
+    u32 top_of_discard_pile;
+
+    Player players[6];
+    u32 num_of_players;
+    u32 active_player;
+};
+
+//
+// State
+//
+
 struct Button {
     s32 id;
     
@@ -27,19 +70,19 @@ is_down(Button button) {
 inline bool8 
 on_down(Button button) {
     if (button.current_state && button.current_state != button.previous_state) 
-		return true;
+        return true;
     return false;
 }
 
 struct Controller {
     union {
         struct {
-			Button forward;
-			Button backward;
-			Button left;
-			Button right;
-			Button up;
-			Button down;
+            Button forward;
+            Button backward;
+            Button left;
+            Button right;
+            Button up;
+            Button down;
 
             Button pause;
         };
@@ -47,34 +90,18 @@ struct Controller {
     };
 };
 
+struct State {
+    Game game;
 
-struct Card {
-	s32 number;
-	const char *name; // i.e. mulligan, birdie
-	bool8 flipped;
+    Controller controller = {};
 
-	// Drawing
-	//Bitmap front;
-	//Bitmap back;
-	//Mesh mesh;
-};
+    Render_Pipeline basic_pipeline;
+    Scene scene;
+    Scene ortho_scene;
+    Descriptor_Set *scene_set;
+    Descriptor_Set *scene_ortho_set;
+    Camera camera;
+    Mesh rect;
 
-#define DECK_SIZE 108
-global Card deck[DECK_SIZE];
-
-struct Game {
-	u32 pile[DECK_SIZE];
-	u32 top_of_pile;
-
-	Controller controller = {};
-
-	Render_Pipeline basic_pipeline;
-	Scene scene;
-	Scene ortho_scene;
-	Descriptor_Set *scene_set;
-	Descriptor_Set *scene_ortho_set;
-	Camera camera;
-	Mesh rect;
-
-	Assets assets;
+    Assets assets;
 };

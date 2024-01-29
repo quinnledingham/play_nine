@@ -85,20 +85,32 @@ print_ll(LL* list) {
     for (u32 i = 0; i < list->size - 1; i++) { printf("%p\n", node->data); node = node->next; }
 }
 
+internal void
+ll_free(LL *list) {
+    LL_Node *node = list->head;
+    for (u32 i = 0; i < list->size - 1; i++) { 
+        platform_free(node->data);
+        LL_Node *free_node = node;
+        node = node->next; 
+        platform_free(free_node);
+    }
+}
+
 struct Lexer {
     File file;
     LL tokens;
     LL_Node *cursor;
     s32 line_num = 1;
     
-    void *(*scan)(File *file, s32 *line_num);
+    void *(*scan)(File *file, s32 *line_num, char *buffer, u32 buffer_length);
     u32 token_size;
 };
 
 internal void*
 lex(Lexer *lexer) {
     if (lexer->cursor == 0 || lexer->cursor->next == 0)  {
-        void *token = lexer->scan(&lexer->file, &lexer->line_num);
+        char *buffer = (char *)platform_malloc(40);
+        void *token = lexer->scan(&lexer->file, &lexer->line_num, buffer, 40);
         LL_Node *new_node = create_ll_node(token);
         ll_add(&lexer->tokens, new_node);
         lexer->cursor = new_node;

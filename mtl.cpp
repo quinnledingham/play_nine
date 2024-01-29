@@ -59,8 +59,7 @@ create_mtl_token(MTL_Token token) {
 }
 
 internal void*
-scan_mtl(File *file, s32 *line_num)
-{
+scan_mtl(File *file, s32 *line_num, char *buffer, u32 buffer_length) {
     X:
     
     s32 ch;
@@ -85,24 +84,19 @@ scan_mtl(File *file, s32 *line_num)
         } break;
         
         default: {
-            if (isalpha(ch) || isdigit(ch) || is_valid_mtl_char(ch)) {
-                int length = 0;
-                do {
-                    ch = file_get_char(file);
-                    if (ch == EOF)
-                        return (void*)create_mtl_token({ MTL_TOKEN_EOF, 0, ch });
-                    
-                    length++;
-                } while((isalpha(ch) || isdigit(ch) || is_valid_mtl_char(ch)) && ch != ' ' && ch != EOF);
-                
-                file_un_char(file);
-                const char *sequence = file_copy_backwards(file, length);
-                
-                if (isalpha(sequence[0])) 
-                    return (void*)create_mtl_token({ MTL_TOKEN_KEYWORD, sequence });
-                return (void*)create_mtl_token({ MTL_TOKEN_NUMBER, sequence });
-            }
-            
+            u32 length = 0;
+            buffer[length] = ch;
+            do {
+                if (length >= buffer_length) return (void*)create_mtl_token({ MTL_TOKEN_ERROR, "mtl over buffer", ch });
+                buffer[length++] = ch;
+                ch = file_get_char(file);
+            } while((isalpha(ch) || isdigit(ch) || is_valid_mtl_char(ch)) && ch != ' ' && ch != EOF);
+            buffer[length] = 0;
+
+            if (isalpha(buffer[0])) 
+                return (void*)create_mtl_token({ MTL_TOKEN_KEYWORD, buffer });
+            return (void*)create_mtl_token({ MTL_TOKEN_NUMBER, buffer });
+
             logprint("scan_mtl()", "not a valid ch (%d) @ %d\n", ch, line_num);
         } break;
     }
@@ -111,8 +105,7 @@ scan_mtl(File *file, s32 *line_num)
 }
 
 internal void
-parse_v3(Lexer *lexer, Vector3 *v)
-{
+parse_v3(Lexer *lexer, Vector3 *v) {
     MTL_Token *token = 0;
     for (u32 i = 0; i < 3; i++) {
         token = (MTL_Token*)lex(lexer);
@@ -121,8 +114,7 @@ parse_v3(Lexer *lexer, Vector3 *v)
 }
 
 internal MTL
-load_mtl(const char *path, const char *filename)
-{
+load_mtl(const char *path, const char *filename) {
     MTL mtl = {};
     Lexer lexer = {};
     const char *filepath = char_array_insert(path, get_length(path), filename);
@@ -185,6 +177,8 @@ load_mtl(const char *path, const char *filename)
     if (material.id != 0)
         mtl.materials[material_index++] = material;
     
+    ll_free(&lexer.tokens);
+
     platform_free((void*)filepath);
     free_file(&lexer.file);
     

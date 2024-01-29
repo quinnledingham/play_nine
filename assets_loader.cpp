@@ -134,7 +134,7 @@ parse_asset_file(Assets *assets, File *file, void (action)(void *data, void *arg
                     // check thst comma comes after
                     token = scan_asset_file(file, &line_num);
                     if (!equal(token.lexeme, ",")) {
-                        logprint("parse_asset_file()", "expected ',' @ %d", line_num);
+                        logprint("parse_asset_file()", "expected ',' @ %d\n", line_num);
                         break;
                     }
                 } else {

@@ -39,11 +39,11 @@ get_rect_mesh() {
     u32 top_left = 0, top_right = 2, bottom_left = 1, bottom_right = 3;
    
 	mesh.indices[0] = top_left;
-    mesh.indices[1] = bottom_right;
-    mesh.indices[2] = bottom_left;
+    mesh.indices[1] = bottom_left;
+    mesh.indices[2] = bottom_right;
     mesh.indices[3] = top_left;
-    mesh.indices[4] = top_right;
-    mesh.indices[5] = bottom_right;
+    mesh.indices[4] = bottom_right;
+    mesh.indices[5] = top_right;
     
 /*
     mesh.indices[0] = top_left;
@@ -75,12 +75,12 @@ void init_shapes() {
 
     shapes.text_shader.layout_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
     shapes.text_shader.layout_sets[0].descriptors_count = 1;
-    render_create_descriptor_pool(&shapes.text_shader, 30, 0);
+    render_create_descriptor_pool(&shapes.text_shader, 62, 0);
 
     shapes.text_shader.layout_sets[1].descriptors[0] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
     shapes.text_shader.layout_sets[1].descriptors[1] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4), descriptor_scope::GLOBAL);
     shapes.text_shader.layout_sets[1].descriptors_count = 2;
-    render_create_descriptor_pool(&shapes.text_shader, 30, 1);
+    render_create_descriptor_pool(&shapes.text_shader, 62, 1);
 
     shapes.text_shader.layout_sets[2].descriptors[0] = Descriptor(SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
     shapes.text_shader.layout_sets[2].descriptors_count = 1;

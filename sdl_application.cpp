@@ -103,7 +103,7 @@ bool8 update(App *app);
 #include "assets_loader.cpp"
 #include "shapes.cpp"
 #include "render.cpp"
-#include "play_nine.cpp"
+
 
 #ifdef OPENGL
 
@@ -121,7 +121,7 @@ bool8 update(App *app);
 #include "dx12.cpp"
 
 #endif // OPENGL / VULKAN / DX12
-
+#include "play_nine.cpp"
 internal void
 sdl_update_time(App_Time *time) {
     s64 ticks = SDL_GetPerformanceCounter();
@@ -138,6 +138,8 @@ sdl_update_time(App_Time *time) {
 }
 internal bool8
 sdl_process_input(App_Window *window, App_Input *input) {
+    window->resized = false;
+
     input->mouse = {};
     input->mouse_rel = {};
     input->key_events_count = 0;
@@ -155,9 +157,14 @@ sdl_process_input(App_Window *window, App_Input *input) {
                     case SDL_WINDOWEVENT_SIZE_CHANGED: {
                         window->width  = window_event->data1;
                         window->height = window_event->data2;
+                        window->resized = true;
                         
 						#ifdef OPENGL
 						    //opengl_update_window(window);
+                        #elif VULKAN
+                            vulkan_info.window_width = window->width;
+                            vulkan_info.window_height = window->height;
+                            vulkan_info.framebuffer_resized = true;
 						#elif DX12
 						    dx12_resize_window(&dx12_renderer, window);
 						#endif // OPENGL / DX12
@@ -229,6 +236,8 @@ int main(int argc, char *argv[]) {
 
     init_data(&app);
     init_shapes();
+
+    srand(SDL_GetTicks());
 
     while (1) {
         if (app.input.relative_mouse_mode) SDL_SetRelativeMouseMode(SDL_TRUE);
