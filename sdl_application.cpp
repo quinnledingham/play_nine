@@ -137,7 +137,6 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
 
     input->mouse = {};
     input->mouse_rel = {};
-    input->key_events_count = 0;
     
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
