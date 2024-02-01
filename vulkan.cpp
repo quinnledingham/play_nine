@@ -951,13 +951,14 @@ vulkan_create_shader_module(VkDevice device, File code) {
 }
 
 internal void
-vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
+vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
 	Shader *shader = pipeline->shader;
 
 	u32 shader_stages_index = 0;
 	VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_AMOUNT] = {};
 	VkShaderModule shader_modules[SHADER_STAGES_AMOUNT] = {};
-
+	
+	// Creating shader modules
 	for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
 		if (shader->spirv_files[i].size == 0)
 			continue;
@@ -972,6 +973,7 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 		shader_stages[shader_stages_index++] = shader_stage_info;
 	}
 
+	// Setting up layouts
 	VkDescriptorSetLayout layouts[2];
 	for (u32 i = 0; i < 2; i++) {
 		layouts[i] = shader->vulkan_infos[i].descriptor_set_layout;
@@ -995,6 +997,10 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 	pipeline_layout_info.pushConstantRangeCount = push_constant_count;        // Optional
 	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;   // Optional
 
+	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->pipeline_layout) != VK_SUCCESS) {
+		logprint("vulkan_create_graphics_pipeline()", "failed to create pipeline layout\n");
+	}
+
 	VkDynamicState dynamic_states[] = { 
 		VK_DYNAMIC_STATE_VIEWPORT, 
 		VK_DYNAMIC_STATE_SCISSOR 
@@ -1004,37 +1010,38 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 	dynamic_state.dynamicStateCount = ARRAY_COUNT(dynamic_states);
 	dynamic_state.pDynamicStates = dynamic_states;
 
+	// Create the pipeline vertex input info
+	u32 vertex_size = 0;
+	for (u32 i = 0; i < vertex_info.attributes_count; i++) {
+		switch(vertex_info.formats[i]) {
+			case VECTOR2: vertex_size += sizeof(Vector2); break;
+			case VECTOR3: vertex_size += sizeof(Vector3); break;
+		}
+	}
+
 	VkVertexInputBindingDescription binding_description = {};
-	VkVertexInputAttributeDescription attribute_descriptions[3] = {};
 	binding_description.binding = 0;
-	binding_description.stride = sizeof(Vertex_XNU);
+	binding_description.stride = vertex_size;
 	binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	
-	attribute_descriptions[0].binding = 0;
-	attribute_descriptions[0].location = 0;
-	attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	attribute_descriptions[0].offset = offsetof(Vertex_XNU, position);
-
-	attribute_descriptions[1].binding = 0;
-	attribute_descriptions[1].location = 1;
-	attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-	attribute_descriptions[1].offset = offsetof(Vertex_XNU, normal);	
-
-	attribute_descriptions[2].binding = 0;
-	attribute_descriptions[2].location = 2;
-	attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-	attribute_descriptions[2].offset = offsetof(Vertex_XNU, uv);
+	VkVertexInputAttributeDescription attribute_descriptions[5] = {}; // 5 = vertex max attributes
+	for (u32 i = 0; i < vertex_info.attributes_count; i++) {
+		attribute_descriptions[i].binding = 0;
+		attribute_descriptions[i].location = i;
+		attribute_descriptions[i].format = convert_to_vulkan(vertex_info.formats[i]);
+		attribute_descriptions[i].offset = vertex_info.offsets[i];
+	}
 
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
-	vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertex_input_info.vertexBindingDescriptionCount = 1;
-	vertex_input_info.pVertexBindingDescriptions = &binding_description;     // Optional
-	vertex_input_info.vertexAttributeDescriptionCount = 3;
-	vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions; // Optional
+	vertex_input_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertex_input_info.vertexBindingDescriptionCount   = 1;
+	vertex_input_info.pVertexBindingDescriptions      = &binding_description;         // Optional
+	vertex_input_info.vertexAttributeDescriptionCount = vertex_info.attributes_count;
+	vertex_input_info.pVertexAttributeDescriptions    = attribute_descriptions;       // Optional
 
 	VkPipelineInputAssemblyStateCreateInfo input_assembly = {};
-	input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	input_assembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	input_assembly.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	input_assembly.primitiveRestartEnable = VK_FALSE;
 
 	VkPipelineViewportStateCreateInfo viewport_state = {};
@@ -1043,17 +1050,17 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 	viewport_state.scissorCount = 1;
 
 	VkPipelineRasterizationStateCreateInfo rasterizer = {};
-	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizer.depthClampEnable = VK_FALSE;
+	rasterizer.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.depthClampEnable        = VK_FALSE;
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterizer.lineWidth = 1.0f;
-	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT ;
-	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-	rasterizer.depthBiasEnable = VK_FALSE;
-	rasterizer.depthBiasConstantFactor = 0.0f;      // Optional
-	rasterizer.depthBiasClamp = 0.0f;               // Optional
-	rasterizer.depthBiasSlopeFactor = 0.0f;         // Optional
+	rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
+	rasterizer.lineWidth               = 1.0f;
+	rasterizer.cullMode                = VK_CULL_MODE_BACK_BIT ;
+	rasterizer.frontFace               = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer.depthBiasEnable         = VK_FALSE;
+	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+	rasterizer.depthBiasClamp          = 0.0f; // Optional
+	rasterizer.depthBiasSlopeFactor    = 0.0f; // Optional
 
 	VkPipelineMultisampleStateCreateInfo multisampling = {};
 	multisampling.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -1096,10 +1103,6 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline) {
 	depth_stencil.stencilTestEnable = VK_FALSE;
 	depth_stencil.front = {};                          // Optional
 	depth_stencil.back = {};                           // Optional
-	
-	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->pipeline_layout) != VK_SUCCESS) {
-		logprint("vulkan_create_graphics_pipeline()", "failed to create pipeline layout\n");
-	}
 	
 	VkGraphicsPipelineCreateInfo pipeline_create_info = {};
 	pipeline_create_info.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -1642,8 +1645,7 @@ void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
 	for (u32 i = 0; i < shader->layout_count; i++) {
 		shader->vulkan_infos[i].sets_count = 0;
 	}
-
-	vulkan_info.pipeline_layout = pipeline->pipeline_layout;
+	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
 	vkCmdBindPipeline(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
 }
 
@@ -1715,7 +1717,7 @@ void vulkan_end_frame() {
 void vulkan_init_mesh(Mesh *mesh) {
     Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)platform_malloc(sizeof(Vulkan_Mesh));
 
-    u32 vertices_size = mesh->vertices_count * sizeof(mesh->vertices[0]);
+    u32 vertices_size = mesh->vertices_count * mesh->vertex_info.size;
     u32 indices_size = mesh->indices_count * sizeof(mesh->indices[0]);   
     u32 buffer_size = vertices_size + indices_size;
 

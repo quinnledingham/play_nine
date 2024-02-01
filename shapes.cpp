@@ -1,16 +1,43 @@
-struct Shapes {
-	Mesh rect_mesh;
+typedef enum {
+    SHAPE_RECT,
+    SHAPE_CIRCLE,
+    SHAPE_CUBE,
+    SHAPE_SPHERE,
+} Shape_Type;
 
+enum struct Shape_Draw_Type {
+    COLOR,
+    TEXTURE,
+    TEXT,
+};
+
+struct Shape {
+    Shape_Type type;
+    Vector3 coords;
+    Quaternion rotation;
+    Vector3 dim;
+
+    Shape_Draw_Type draw_type;
+    Vector4 color;
+    Bitmap *bitmap;
+};
+
+struct Shapes {
+    Mesh rect_mesh;
+
+    Shader color_shader;
+    Shader texture_shader;
     Shader text_shader;
-	Render_Pipeline text_pipeline;
+    
+    Render_Pipeline color_pipeline;
+    Render_Pipeline texture_pipeline;
+    Render_Pipeline text_pipeline;
 };
 
 Shapes shapes = {};
 
-const char *basic_vs = "#version 330 core\nlayout (location = 0) in vec3 position;layout (location = 1) in vec3 normal;layout (location = 2) in vec2 texture_coords;out vec2 uv;layout (std140) uniform Matrices{mat4 projection;mat4 view;};uniform mat4 model; void main(void) { gl_Position = projection * view * model * vec4(position, 1.0f); uv = texture_coords;}";
-const char *color_fs = "#version 330 core\nuniform vec4 user_color;in vec2 uv; out vec4 FragColor;void main() { FragColor  = vec4(user_color.x/255, user_color.y/255, user_color.z/255, user_color.w);}";
-const char *tex_fs   = "#version 330 core\nuniform sampler2D tex0;in vec2 uv;out vec4 FragColor;void main() { vec4 tex = texture(tex0, uv); FragColor = tex;}";
-const char *text_fs  = "#version 330 core\nin vec2 uv;out vec4 FragColor;uniform sampler2D tex0;uniform vec4 text_color;void main() { vec3 norm_text_color = vec3(text_color.x/255, text_color.y/255, text_color.z/255);float alpha = texture(tex0, uv).r * text_color.a;vec4 tex = vec4(1.0, 1.0, 1.0, alpha); FragColor = vec4(norm_text_color, 1.0) * tex;}";
+void init_shapes(Shader *color, Shader *texture, Shader *text);
+void draw_shape(Shape shape);
 
 //
 // Rect
@@ -20,17 +47,19 @@ internal Mesh
 get_rect_mesh() {
 	Mesh mesh = {};
 	mesh.vertices_count = 4;
+    
 	mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+    Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
 /*
 	mesh.vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
     mesh.vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
     mesh.vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
     mesh.vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
 */
-    mesh.vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, -1}, {0, 0} };
-    mesh.vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, -1}, {0, 1} };
-    mesh.vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, -1}, {1, 0} };
-    mesh.vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, -1}, {1, 1} };
+    vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, -1}, {0, 0} };
+    vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, -1}, {0, 1} };
+    vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, -1}, {1, 0} };
+    vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, -1}, {1, 1} };
 
     mesh.indices_count = 6;
     mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
@@ -53,9 +82,58 @@ get_rect_mesh() {
     mesh.indices[4] = top_right;
     mesh.indices[5] = bottom_right;
 */
+
+    mesh.vertex_info = get_vertex_xnu_info();
     render_init_mesh(&mesh);
 
     return mesh;
+}
+
+internal Mesh
+get_rect_mesh_2D() {
+    Mesh mesh = {};
+    mesh.vertices_count = 4;
+    
+    mesh.vertices = ARRAY_MALLOC(Vertex_XU, mesh.vertices_count);
+    Vertex_XU *vertices = (Vertex_XU *)mesh.vertices;
+
+    vertices[0] = Vertex_XU{ {-0.5, -0.5 }, {0, 0} };
+    vertices[1] = Vertex_XU{ {-0.5,  0.5 }, {0, 1} };
+    vertices[2] = Vertex_XU{ { 0.5, -0.5 }, {1, 0} };
+    vertices[3] = Vertex_XU{ { 0.5,  0.5 }, {1, 1} };
+
+    mesh.indices_count = 6;
+    mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+
+    // vertex locations
+    u32 top_left = 0, top_right = 2, bottom_left = 1, bottom_right = 3;
+   
+    mesh.indices[0] = top_left;
+    mesh.indices[1] = bottom_right;
+    mesh.indices[2] = bottom_left;
+    mesh.indices[3] = top_left;
+    mesh.indices[4] = top_right;
+    mesh.indices[5] = bottom_right;
+
+    mesh.vertex_info = get_vertex_xu_info();
+    render_init_mesh(&mesh);
+
+    return mesh;
+}
+
+void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Vector4 color) {
+    Vector3 coords_v3 = { coords.x, coords.y, 0 };
+    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
+    Vector3 dim_v3 = { dim.x, dim.y, 1 };
+    
+    Shape shape = {};
+    shape.type = SHAPE_RECT;
+    shape.coords = coords_v3;
+    shape.rotation = rotation_quat;
+    shape.dim = dim_v3;
+    shape.draw_type = Shape_Draw_Type::COLOR;
+    shape.color = color;
+    draw_shape(shape);
 }
 
 //
@@ -63,30 +141,44 @@ get_rect_mesh() {
 //
 
 void init_shapes() {
-	shapes.rect_mesh = get_rect_mesh();
+	shapes.rect_mesh = get_rect_mesh_2D();
 
-    shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/basic.vert";
+    shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
     shapes.text_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/text.frag";
     load_shader(&shapes.text_shader);
-	//shapes.text_shader.files[SHADER_STAGE_VERTEX].memory = (void*)basic_vs;
-	//shapes.text_shader.files[SHADER_STAGE_FRAGMENT].memory = (void*)text_fs;
-
 	render_compile_shader(&shapes.text_shader);
 
-    shapes.text_shader.layout_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
-    shapes.text_shader.layout_sets[0].descriptors_count = 1;
-    render_create_descriptor_pool(&shapes.text_shader, 62, 0);
-
-    shapes.text_shader.layout_sets[1].descriptors[0] = Descriptor(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
-    shapes.text_shader.layout_sets[1].descriptors[1] = Descriptor(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, sizeof(Vector4), descriptor_scope::GLOBAL);
-    shapes.text_shader.layout_sets[1].descriptors_count = 2;
-    render_create_descriptor_pool(&shapes.text_shader, 62, 1);
-
-    shapes.text_shader.layout_sets[2].descriptors[0] = Descriptor(SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
-    shapes.text_shader.layout_sets[2].descriptors_count = 1;
+    init_basic_vert_layout(&shapes.text_shader);
+    init_text_frag_layout(&shapes.text_shader);
 
     shapes.text_pipeline.shader = &shapes.text_shader;
-    render_create_graphics_pipeline(&shapes.text_pipeline);
+
+    render_create_graphics_pipeline(&shapes.text_pipeline, get_vertex_xu_info());
+}
+
+internal void
+draw_shape(Shape shape) {
+    Shader *shader = 0;
+    Descriptor_Set *set = 0;
+    switch(shape.draw_type) {
+        case Shape_Draw_Type::COLOR: {
+            render_bind_pipeline(&shapes.color_pipeline);
+            shader = shapes.color_pipeline.shader;
+            set = render_get_descriptor_set(shapes.color_pipeline.shader, 1);
+            render_update_ubo(set, 1, (void*)&shape.color, false);
+        } break;
+    }
+
+    if (shape.type == SHAPE_RECT || shape.type == SHAPE_CIRCLE)
+        shape.coords += shape.dim / 2.0f; // coords = top left corner
+
+    Matrix_4x4 model = create_transform_m4x4(shape.coords, shape.rotation, shape.dim);
+    render_push_constants(&shader->layout_sets[2], (void *)&model);  
+
+    switch(shape.type) {
+        case SHAPE_RECT: render_draw_mesh(&shapes.rect_mesh); break;
+        default: logprint("draw_shape()", "not a valid shape type\n");
+    }
 }
 
 //
@@ -108,10 +200,10 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
         Font_Char *font_char = bitmap->font_char;
         
-        Vector2 char_coords = { current_point + (font_char->lsb * scale), baseline + (float32)bitmap->bb_0.y };
-        
         // Draw
-        if (bitmap->bitmap.width != 0) {     
+        if (bitmap->bitmap.width != 0) {    
+            Vector2 char_coords = { current_point + (font_char->lsb * scale), baseline + (float32)bitmap->bb_0.y };
+        
             Vector3 coords_v3 = { char_coords.x, char_coords.y, 0 };
             Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
             Vector3 dim_v3 = { (float32)bitmap->bitmap.width, (float32)bitmap->bitmap.height, 1 };

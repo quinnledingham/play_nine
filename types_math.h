@@ -1,10 +1,6 @@
 #ifndef TYPES_MATH_H
 #define TYPES_MATH_H
 
-#define DEG2RAD 0.0174533f
-#define PI      3.14159265359f
-#define EPSILON 0.00001f
-
 //
 // Vector2
 //

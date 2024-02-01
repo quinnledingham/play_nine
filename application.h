@@ -1,7 +1,6 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-
 struct App_Window {
 	s32 width;
 	s32 height;
@@ -41,12 +40,22 @@ struct App_Input {
 	u32 key_events_count;
 };
 
+typedef enum {
+	APP_INIT,
+	APP_KEYDOWN,
+	APP_KEYUP,
+} App_System_Event;
+
 struct App {
 	App_Window window;
 	App_Time time;
 	App_Input input;
 
+	bool8 (*update)(App *app);
+
 	void *data;
 };
+
+s32 event_handler(App *app, App_System_Event event, u32 arg);
 
 #endif // APPLICATION_H

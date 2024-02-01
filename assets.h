@@ -99,6 +99,17 @@ enum descriptor_types {
     DESCRIPTOR_TYPES_AMOUNT
 };
 
+/*
+Uniform Shader Structure
+Scopes/Update frequency
+
+Globals: Projection / View matrices - memory set once 
+
+Instances: Images (sometimes) Material instance - makes sense - memory set once but used a lot
+
+Locals: Models one per object (can't push images) - memory changes a lot but is used a lot
+*/
+
 enum struct descriptor_scope {
     GLOBAL,   // ubo
     INSTANCE, // ubo
@@ -106,8 +117,6 @@ enum struct descriptor_scope {
 
     AMOUNT
 };
-
-descriptor_scope test = descriptor_scope::INSTANCE;
 
 struct Descriptor {
     u32 binding;
@@ -156,25 +165,15 @@ struct Descriptor_Set {
     //u32 handles[2]; // index to descriptor sets (0 - (max_sets - 1))
 };
 
-/*
-Uniform Shader Structure
-Scopes/Update frequency
-
-Globals: Projection / View matrices - memory set once 
-
-Instances: Images (sometimes) Material instance - makes sense - memory set once but used a lot
-
-Locals: Models one per object (can't push images) - memory changes a lot but is used a lot
-*/
-
 // Contains vulkan info about each descriptor layout
 #ifdef VULKAN
 struct Vulkan_Shader_Info {
     static const u32 max_sets = 60;
+    u32 sets_count;
+
     VkDescriptorSetLayout descriptor_set_layout;
     VkDescriptorPool descriptor_pool;
-    VkDescriptorSet descriptor_sets[max_sets * 2]; // @TODO add MAX_FRAMES_IN_FLIGHT
-    u32 sets_count;
+    VkDescriptorSet descriptor_sets[max_sets * 2]; // @TODO add MAX_FRAMES_IN_FLIGHT    
 };
 #endif
 
@@ -200,11 +199,73 @@ struct Shader {
 // Mesh
 //
 
+typedef enum {
+    VECTOR2,
+    VECTOR3
+} Vector_Type;
+
+inline VkFormat
+convert_to_vulkan(Vector_Type type) {
+    switch(type) {
+        case VECTOR2: return VK_FORMAT_R32G32_SFLOAT;
+        case VECTOR3: return VK_FORMAT_R32G32B32_SFLOAT;
+        default: {
+            logprint("convert_to_vulkan()", "not a valid vector type\n");
+            ASSERT(0);
+            return VK_FORMAT_R32G32B32_SFLOAT;
+        } break;
+    }
+}
+
+struct Vertex_Info {
+    static const u32 max_attributes = 5;
+    u32 attributes_count;
+    Vector_Type formats[max_attributes];
+    u32 offsets[max_attributes];
+
+    u32 size;
+
+    void add(Vector_Type format, u32 offset) {
+        if (attributes_count >= max_attributes) {
+            logprint("Vertex_Info add()", "tried to add too many attributes\n");
+            return;
+        }
+
+        formats[attributes_count] = format;
+        offsets[attributes_count] = offset;
+        attributes_count++;
+    }
+};
+
 struct Vertex_XNU {
     Vector3 position;
     Vector3 normal;
     Vector2 uv;
 };
+
+inline Vertex_Info
+get_vertex_xnu_info() {
+    Vertex_Info basic_info = {};
+    basic_info.add(VECTOR3, offsetof(Vertex_XNU, position));
+    basic_info.add(VECTOR3, offsetof(Vertex_XNU, normal));
+    basic_info.add(VECTOR2, offsetof(Vertex_XNU, uv));
+    basic_info.size = sizeof(Vertex_XNU);
+    return basic_info;
+}
+
+struct Vertex_XU {
+    Vector2 position;
+    Vector2 uv;
+};
+
+inline Vertex_Info
+get_vertex_xu_info() {
+    Vertex_Info basic_info = {};
+    basic_info.add(VECTOR2, offsetof(Vertex_XU, position));
+    basic_info.add(VECTOR2, offsetof(Vertex_XU, uv));
+    basic_info.size = sizeof(Vertex_XU);
+    return basic_info;
+}
 
 struct Material {
     Vector3 ambient;           // Ka (in .obj files)
@@ -219,7 +280,8 @@ struct Material {
 };
 
 struct Mesh {
-    Vertex_XNU *vertices;
+    Vertex_Info vertex_info;
+    void *vertices;
     u32 vertices_count;
 
     u32 *indices;

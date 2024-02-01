@@ -72,16 +72,13 @@ using namespace Microsoft::WRL;
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "defines.h"
 #include "types.h"
 
 void *platform_malloc(u32 size) { return SDL_malloc(size); }
 void platform_free(void *ptr)   { SDL_free(ptr); }
 void platform_memory_copy(void *dest, void *src, u32 num_of_bytes) { SDL_memcpy(dest, src, num_of_bytes); }
 void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(dest, value, num_of_bytes); }
-
-#define ASSERT(Expression) if(!(Expression)) {*(int *)0 = 0;}
-#define ARRAY_COUNT(n)     (sizeof(n) / sizeof(n[0]))
-#define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t)))
 
 #include "print.h"
 #include "types_math.h"
@@ -91,11 +88,8 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 #include "shapes.h"
 #include "data_structs.h"
 #include "render.h"
-
+#include "shaders.h"
 #include "application.h"
-
-bool8 init_data(App *app);
-bool8 update(App *app);
 
 #include "print.cpp"
 #include "assets.cpp"
@@ -103,7 +97,6 @@ bool8 update(App *app);
 #include "assets_loader.cpp"
 #include "shapes.cpp"
 #include "render.cpp"
-
 
 #ifdef OPENGL
 
@@ -121,7 +114,9 @@ bool8 update(App *app);
 #include "dx12.cpp"
 
 #endif // OPENGL / VULKAN / DX12
+
 #include "play_nine.cpp"
+
 internal void
 sdl_update_time(App_Time *time) {
     s64 ticks = SDL_GetPerformanceCounter();
@@ -137,7 +132,7 @@ sdl_update_time(App_Time *time) {
     time->frames_per_s = (float32)(1.0 / time->frame_time_s);
 }
 internal bool8
-sdl_process_input(App_Window *window, App_Input *input) {
+sdl_process_input(App *app, App_Window *window, App_Input *input) {
     window->resized = false;
 
     input->mouse = {};
@@ -180,18 +175,16 @@ sdl_process_input(App_Window *window, App_Input *input) {
                 input->mouse_rel.y = mouse_motion_event->yrel;
             } break;
 
-            case SDL_KEYDOWN:
+            case SDL_KEYDOWN: {
+                SDL_KeyboardEvent *keyboard_event = &event.key;
+                u32 key_id = keyboard_event->keysym.sym;
+                event_handler(app, APP_KEYDOWN, key_id);
+            } break;
+
             case SDL_KEYUP: {
                 SDL_KeyboardEvent *keyboard_event = &event.key;
-                s32 key_id = keyboard_event->keysym.sym;
-                bool8 shift = keyboard_event->keysym.mod & KMOD_LSHIFT;
-                bool8 state = false;
-                if (keyboard_event->state == SDL_PRESSED) 
-                    state = true;
-                
-                App_Key_Event *key = &input->key_events[input->key_events_count++];
-                key->id = key_id;
-                key->state = state;
+                u32 key_id = keyboard_event->keysym.sym;
+                event_handler(app, APP_KEYUP, key_id);
             } break;
 		}
 	}
@@ -214,12 +207,13 @@ int main(int argc, char *argv[]) {
     	return 1;
     }
 
-#ifdef OPENGL
-    u32 sdl_window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
-#elif VULKAN
-    u32 sdl_window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN;
-#elif DX12
     u32 sdl_window_flags = SDL_WINDOW_RESIZABLE;
+#ifdef OPENGL
+    sdl_window_flags |= SDL_WINDOW_OPENGL;
+#elif VULKAN
+    sdl_window_flags |= SDL_WINDOW_VULKAN;
+#elif DX12
+    
 #endif // OPENGL / DX12
 
     SDL_Window *sdl_window = SDL_CreateWindow("play_nine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 900, 800, sdl_window_flags);
@@ -234,7 +228,8 @@ int main(int argc, char *argv[]) {
     render_sdl_init(sdl_window);
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
 
-    init_data(&app);
+    event_handler(&app, APP_INIT, 0);    
+
     init_shapes();
 
     srand(SDL_GetTicks());
@@ -243,13 +238,13 @@ int main(int argc, char *argv[]) {
         if (app.input.relative_mouse_mode) SDL_SetRelativeMouseMode(SDL_TRUE);
         else                               SDL_SetRelativeMouseMode(SDL_FALSE);
 
-    	if (sdl_process_input(&app.window, &app.input)) 
+    	if (sdl_process_input(&app, &app.window, &app.input)) 
             return 0;
         
     	sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
 
-        update(&app);
+        app.update(&app);
     }
     
     render_cleanup();

@@ -17,7 +17,7 @@ get_file_stream(u32 output_stream) {
 
 #ifdef WINDOWS
 
-internal void
+inline void
 print_char_array(u32 output_stream, const char *char_array) {
 	OutputDebugStringA((LPCSTR)char_array);
 }

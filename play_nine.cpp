@@ -3,11 +3,9 @@
 #include <ctype.h>
 #include <stdio.h>
 
-#define internal      static
-#define local_persist static
-#define global        static
-
+#include "defines.h"
 #include "types.h"
+#include "types_math.h"
 
 void *platform_malloc(u32 size);
 void platform_free(void *ptr);
@@ -159,21 +157,14 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
 
 internal Bitmap
 create_card_bitmap(Font *font, s32 number) {
-    Bitmap bitmap = {};
-    bitmap.width = 1024;
-    bitmap.height = 1638;
+    Bitmap bitmap   = {};
+    bitmap.width    = 1024;
+    bitmap.height   = 1638;
     bitmap.channels = 4;
-    bitmap.pitch = bitmap.width * bitmap.channels;
-    bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
+    bitmap.pitch    = bitmap.width * bitmap.channels;
+    bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
     memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
 
-/*
-    float32 scale = get_scale_for_pixel_height(font->info, 500.0f);
-    Font_Char_Bitmap *char_bitmap = load_font_char_bitmap(font, number + 48, scale);
-    u32 char_bitmap_size = char_bitmap->bitmap.width * char_bitmap->bitmap.height * char_bitmap->bitmap.channels;
-    char_bitmap->bitmap.pitch = char_bitmap->bitmap.width * char_bitmap->bitmap.channels;
-*/
-  
     char str[3] = {};
     switch(number) {
         case -5: str[0] = '-'; str[1] = '5'; break;
@@ -191,8 +182,9 @@ create_card_bitmap(Font *font, s32 number) {
 
     render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
 
+    platform_free(str_bitmap.memory);
     platform_free(bitmap.memory);
-
+  
     return bitmap;
 }
 
@@ -257,20 +249,11 @@ bool8 init_data(App *app) {
 
 	Shader *basic_3D = find_shader(&game->assets, "BASIC3D");
     render_compile_shader(basic_3D);
-
-    basic_3D->layout_sets[0].descriptors[0] = Descriptor(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, sizeof(Scene), descriptor_scope::GLOBAL);
-    basic_3D->layout_sets[0].descriptors_count = 1;
-    render_create_descriptor_pool(basic_3D, 62, 0);
-
-    basic_3D->layout_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
-    basic_3D->layout_sets[1].descriptors_count = 1;
-    render_create_descriptor_pool(basic_3D, 62, 1);
-
-    basic_3D->layout_sets[2].descriptors[0] = Descriptor(SHADER_STAGE_VERTEX, sizeof(Matrix_4x4), descriptor_scope::LOCAL);
-    basic_3D->layout_sets[2].descriptors_count = 1;
-
+    init_basic_vert_layout(basic_3D);
+    init_basic_frag_layout(basic_3D);
     game->basic_pipeline.shader = basic_3D;
-	render_create_graphics_pipeline(&game->basic_pipeline);
+
+	render_create_graphics_pipeline(&game->basic_pipeline, get_vertex_xnu_info());
 	
 	// Init assets
 	Bitmap *yogi = find_bitmap(&game->assets, "YOGI");
@@ -307,7 +290,7 @@ bool8 init_data(App *app) {
 	
 	game->rect = get_rect_mesh();
 	
-	set(&game->controller.forward, SDLK_w);
+	set(&game->controller.forward, 'w');
 	set(&game->controller.backward, SDLK_s);
 	set(&game->controller.left, SDLK_a);
 	set(&game->controller.right, SDLK_d);
@@ -324,7 +307,8 @@ bool8 init_data(App *app) {
 
     game->test = create_string_into_bitmap(font, 500.0f, "yo");
     render_create_texture(&game->test, TEXTURE_PARAMETERS_CHAR);
-
+    clear_font_bitmap_cache(font);
+    
 	return false;
 }
 
@@ -335,7 +319,7 @@ prepare_controller_for_input(Controller *controller) {
 }
 
 internal void
-controller_process_input(Controller *controller, s32 id, bool8 state) {
+    controller_process_input(Controller *controller, s32 id, bool8 state) {
     for (u32 i = 0; i < ARRAY_COUNT(controller->buttons); i++) {
         // loop through all ids associated with button
         for (u32 j = 0; j < controller->buttons[i].num_of_ids; j++) {
@@ -355,11 +339,6 @@ bool8 update(App *app) {
         game->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
         render_update_ubo(game->scene_ortho_set, 0, (void*)&game->ortho_scene, true);
     }
-
-	prepare_controller_for_input(&game->controller);
-	for (u32 i = 0; i < app->input.key_events_count; i++) {
-		controller_process_input(&game->controller, app->input.key_events[i].id, app->input.key_events[i].state);
-	}
 
 	if (on_down(game->controller.pause)) {
 		app->input.relative_mouse_mode = !app->input.relative_mouse_mode;
@@ -396,8 +375,6 @@ bool8 update(App *app) {
 
     render_bind_pipeline(&game->basic_pipeline);
 
-
-
     render_bind_descriptor_set(game->scene_set, 0);
     {
         Matrix_4x4 model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0, {0, 1, 0}), {1, 1, 1.0f});
@@ -429,5 +406,28 @@ bool8 update(App *app) {
 
     render_end_frame();
 
+    prepare_controller_for_input(&game->controller);
+
 	return 0;
+}
+
+s32 event_handler(App *app, App_System_Event event, u32 arg) {
+    State *game = (State *)app->data;
+
+    switch(event) {
+        case APP_INIT: {
+            app->update = &update;
+            init_data(app);
+        } break;
+
+        case APP_KEYDOWN: {
+            controller_process_input(&game->controller, arg, true);
+        } break;
+
+        case APP_KEYUP: {
+            controller_process_input(&game->controller, arg, false);
+        } break;
+    }
+
+    return 0;
 }

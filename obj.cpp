@@ -340,7 +340,8 @@ model_create_meshes(Model *model, OBJ obj, MTL mtl) {
         for (s32 i = lower_range; i < mesh_face_vertices_count + lower_range; i++) {
             mesh->indices[indices_index++] = vertices_index;
             
-            Vertex_XNU *vertex = &mesh->vertices[vertices_index++];
+            Vertex_XNU *vertices = (Vertex_XNU *)mesh->vertices;
+            Vertex_XNU *vertex = &vertices[vertices_index++];
             vertex->position   = obj.vertices[obj.face_vertices[i].position_index - 1];
             vertex->normal     = obj.normals [obj.face_vertices[i].normal_index   - 1];
             vertex->uv         = obj.uvs     [obj.face_vertices[i].uv_index       - 1];

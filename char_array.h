@@ -324,8 +324,10 @@ get_path(const char *file)
 }
 
 internal const char*
-get_filename(const char *filepath)
-{
+get_filename(const char *filepath) {
+    if (filepath == 0)
+        return 0;
+
     u32 length = get_length(filepath);
     char *ptr = (char*)filepath;
     ptr += length;

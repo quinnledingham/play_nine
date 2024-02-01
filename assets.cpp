@@ -170,7 +170,7 @@ compile_glsl_to_spv(shaderc_compiler_t compiler, File *file, shaderc_shader_kind
 
     if (num_of_warnings != 0 || num_of_errors != 0) {
         const char *error_message = shaderc_result_get_error_message(result);
-        logprint("vulkan_load_shader()", "%s", error_message);
+        logprint("compile_glsl_to_spv()", "%s", error_message);
     }
 
     u32 length = (u32)shaderc_result_get_length(result);
@@ -369,10 +369,20 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     return char_bitmap;
 }
 
+internal void
+clear_font_bitmap_cache(Font *font) {
+    stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
+    for (s32 i = 0; i < font->bitmaps_cached; i++) {
+        stbtt_FreeBitmap(font->bitmaps[i].bitmap.memory, info->userdata);
+        font->bitmaps[i].bitmap.memory = 0;
+    }
+
+    font->bitmaps_cached = 0;
+}
+
 float32 get_scale_for_pixel_height(void *info, float32 pixel_height) {
     return stbtt_ScaleForPixelHeight((stbtt_fontinfo*)info, pixel_height);
 }
-
 
 s32 get_codepoint_kern_advance(void *info, s32 ch1, s32 ch2) {
     return stbtt_GetCodepointKernAdvance((stbtt_fontinfo*)info, ch1, ch2);

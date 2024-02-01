@@ -50,9 +50,13 @@ update_camera_with_keys(Camera *camera, Vector3 target, Vector3 up_v, Vector3 ma
 void render_init_model(Model *model) {
     for (u32 mesh_index = 0; mesh_index < model->meshes_count; mesh_index++) {
         Mesh *mesh = &model->meshes[mesh_index];
+        mesh->vertex_info = get_vertex_xnu_info();
         render_init_mesh(mesh);
+        platform_free(mesh->vertices);
+        platform_free(mesh->indices);
         if (mesh->material.diffuse_map.memory != 0)
             render_create_texture(&mesh->material.diffuse_map, TEXTURE_PARAMETERS_DEFAULT);
+            free_bitmap(mesh->material.diffuse_map);
     }
 }
 

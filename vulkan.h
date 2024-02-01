@@ -122,10 +122,6 @@ struct Vulkan_Texture {
 	VkSampler sampler;      // allows the shader to sample the image
 };
 
-struct Vulkan_Descriptor_Set {
-	VkDescriptorSet descriptor_sets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
-};
-
 struct Vulkan_Mesh {
     u32 vertices_offset;
     u32 indices_offset;
