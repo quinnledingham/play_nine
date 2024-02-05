@@ -90,6 +90,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 #include "render.h"
 #include "shaders.h"
 #include "application.h"
+#include "gui.h"
 
 #include "print.cpp"
 #include "assets.cpp"
@@ -97,6 +98,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 #include "assets_loader.cpp"
 #include "shapes.cpp"
 #include "render.cpp"
+#include "gui.cpp"
 
 #ifdef OPENGL
 

@@ -103,6 +103,10 @@ struct Vulkan_Info {
 	VkRenderPassBeginInfo render_pass_info;
 	VkSubmitInfo submit_info;
 	VkPresentInfoKHR present_info;
+
+	// Shaders
+	u32 shader_handles[10];
+	u32 shader_count;
 };
 
 inline VkCommandBuffer

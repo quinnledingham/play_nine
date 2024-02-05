@@ -2,8 +2,13 @@
 #define APPLICATION_H
 
 struct App_Window {
-	s32 width;
-	s32 height;
+	union {
+		struct {
+			s32 width;
+			s32 height;
+		};
+		Vector2_s32 dim;
+	};
 	float32 aspect_ratio;
 	bool8 resized;
 };
@@ -33,7 +38,7 @@ struct App_Key_Event {
 struct App_Input {
 	Vector2_s32 mouse;
 	Vector2_s32 mouse_rel;
-	bool8 relative_mouse_mode = true;
+	bool8 relative_mouse_mode = false;
 };
 
 typedef enum {

@@ -302,7 +302,7 @@ bool8 init_data(App *app) {
     init_deck();
     init_card_bitmaps(card_bitmaps, font);
     shuffle_pile(game->game.pile);
-    game->game.num_of_players = 3;
+    game->game.num_of_players = 4;
     deal_cards(&game->game);
 
     game->test = create_string_into_bitmap(font, 500.0f, "yo");
@@ -328,6 +328,52 @@ internal void
     }
 }
 
+// returns game mode
+internal s32
+draw_main_menu(State *game, Assets *assets, App_Input *input, Vector2_s32 window_dim)
+{
+    //Controller *menu_controller = input->active_controller;
+
+    Rect window_rect = {};
+    window_rect.coords = { 0, 0 };
+    window_rect.dim    = cv2(window_dim);
+
+    Menu main_menu = {};
+    main_menu.font = find_font(assets, "CASLON");
+    main_menu.rect = get_centered_rect(window_rect, 0.5f, 0.5f);
+
+    main_menu.button_style.default_back_color = {  34,  44, 107, 1 };
+    main_menu.button_style.active_back_color  = {  42,  55, 131, 1 };
+    main_menu.button_style.default_text_color = { 234,   0,  39, 1 };
+    main_menu.button_style.active_text_color  = { 171, 160, 200, 1 };;
+    //main_menu.button_style.active_text_color = { ,   0,  255, 1 };
+    
+    main_menu.button_style.dim = { main_menu.rect.dim.x, main_menu.rect.dim.y / 5.0f };
+
+    //bool8 select = on_down(menu_controller->select);
+    bool8 select = false;
+    u32 index = 0;
+
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 37, 38, 90, 1.0f} );
+/*
+    draw_rect(main_menu.rect.coords, 0, main_menu.rect.dim, { 0, 0, 0, 0.2f} );
+
+    if (menu_button(&main_menu, "Play Local",   index++, game->active, select)) 
+        game->mode = MAIN_MENU;
+
+    if (menu_button(&main_menu, "3D",   index++, game->active, select))
+        game->mode = IN_GAME_3D;    
+    if (menu_button(&main_menu, "Quit", index++, game->active, select)) 
+        return true;
+    if (menu_button(&main_menu, "Px++", index++, game->active, select))
+        game->test_pixel_height++;
+    if (menu_button(&main_menu, "Px--", index++, game->active, select))
+        game->test_pixel_height--;
+*/
+
+    return false;
+}
+
 bool8 update(App *app) {
 	State *game = (State *)app->data;
 	Assets *assets = &game->assets;
@@ -339,7 +385,7 @@ bool8 update(App *app) {
         game->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
         render_update_ubo(game->scene_ortho_set, 0, (void*)&game->ortho_scene, true);
     }
-
+/*
 	if (on_down(game->controller.pause)) {
 		app->input.relative_mouse_mode = !app->input.relative_mouse_mode;
         game->game.top_of_pile = 0;
@@ -365,7 +411,7 @@ bool8 update(App *app) {
 
 		//print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
 	}
-
+*/
     Shader *basic_3D = find_shader(assets, "BASIC3D");
 
     render_start_frame();
@@ -375,7 +421,14 @@ bool8 update(App *app) {
 
     render_bind_pipeline(&game->basic_pipeline);
 
-    render_bind_descriptor_set(game->scene_set, 0);
+    render_bind_descriptor_set(game->scene_ortho_set, 0);
+
+    switch(game->mode) {
+        case MAIN_MENU: {
+            //draw_main_menu(game, assets, &app->input, app->window.dim);
+        }
+    }
+/*
     {
         Matrix_4x4 model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0, {0, 1, 0}), {1, 1, 1.0f});
         render_push_constants(&basic_3D->layout_sets[2], (void *)&model);
@@ -391,18 +444,12 @@ bool8 update(App *app) {
     }
 
     render_bind_descriptor_set(game->scene_ortho_set, 0);
-    {
-        Matrix_4x4 model = create_transform_m4x4({ 100.0f, 100.0f, -0.5f }, get_rotation(0, {0, 1, 0}), {100, 100, 1.0f});
-        render_push_constants(&basic_3D->layout_sets[2], (void *)&model);
+*/
+    draw_rect({100, 200}, 0, {100, 100}, {0, 255, 0, 1});
+    draw_rect({100, 100}, 0, {100, 100}, {255, 0, 0, 1});
 
-        Descriptor_Set *object_set = render_get_descriptor_set(basic_3D, 1);
-        render_set_bitmap(object_set, find_bitmap(&game->assets, "DAVID"), 1);
-        render_bind_descriptor_set(object_set, 1);
+    draw_string(find_font(&game->assets, "CASLON"), "supgamer", {200, 200}, 100.0f, { 255, 0, 255, 1 });
 
-        render_draw_mesh(&game->rect);
-        
-        draw_string(find_font(&game->assets, "CASLON"), "supgamer", {200, 200}, 100.0f, { 255, 0, 255, 1 });
-    }
 
     render_end_frame();
 

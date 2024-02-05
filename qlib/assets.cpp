@@ -387,3 +387,43 @@ float32 get_scale_for_pixel_height(void *info, float32 pixel_height) {
 s32 get_codepoint_kern_advance(void *info, s32 ch1, s32 ch2) {
     return stbtt_GetCodepointKernAdvance((stbtt_fontinfo*)info, ch1, ch2);
 }
+
+Vector2 get_string_dim(Font *font, const char *string, s32 length, float32 pixel_height, Vector4 color) {
+    Vector2 dim = { 0, 0 };
+
+    if (string == 0) {
+        return dim;
+    } else if (font == 0) {
+        logprint("get_string_dim()", "no font\n");
+        return dim;
+    }
+
+    stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
+    float32 scale = stbtt_ScaleForPixelHeight(info, pixel_height);
+    u32 index = 0;
+
+    while (string[index] != 0) {
+        if (length != -1) {
+            // if a length is set then only include in the dim the chars up to that point
+            if (index == length) break;
+        }
+
+        Font_Char *font_char = load_font_char(font, string[index]);
+        
+        if (dim.y < (float32)font_char->bb_1.y) 
+            dim.y = (float32)font_char->bb_1.y;
+        
+        int kern = stbtt_GetCodepointKernAdvance(info, string[index], string[index + 1]);
+        dim.x += (kern + font_char->ax);
+        
+        index++;
+    }
+
+    dim *= scale;
+    
+    return dim;
+}
+
+Vector2 get_string_dim(Font *font, const char *string, float32 pixel_height, Vector4 color) {
+    return get_string_dim(font, string, -1, pixel_height, color);
+}

@@ -1,7 +1,7 @@
 #version 450
 
-layout(set = 1, binding = 2) uniform sampler2D texSampler;
-layout(set = 1, binding = 3) uniform Text {
+layout(set = 1, binding = 1) uniform sampler2D texSampler;
+layout(set = 1, binding = 2) uniform Text {
     vec4 color;
 } text;
 

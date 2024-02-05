@@ -152,8 +152,18 @@ void init_shapes() {
     init_text_frag_layout(&shapes.text_shader);
 
     shapes.text_pipeline.shader = &shapes.text_shader;
-
     render_create_graphics_pipeline(&shapes.text_pipeline, get_vertex_xu_info());
+
+    shapes.color_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
+    shapes.color_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/color.frag";
+    load_shader(&shapes.color_shader);
+    render_compile_shader(&shapes.color_shader);
+
+    init_basic_vert_layout(&shapes.color_shader);
+    init_color_frag_layout(&shapes.color_shader);
+
+    shapes.color_pipeline.shader = &shapes.color_shader;
+    render_create_graphics_pipeline(&shapes.color_pipeline, get_vertex_xu_info());
 }
 
 internal void
@@ -165,12 +175,19 @@ draw_shape(Shape shape) {
             render_bind_pipeline(&shapes.color_pipeline);
             shader = shapes.color_pipeline.shader;
             set = render_get_descriptor_set(shapes.color_pipeline.shader, 1);
-            render_update_ubo(set, 1, (void*)&shape.color, false);
+            render_bind_descriptor_set(set, 1);   
+            render_update_ubo(set, 0, (void*)&shape.color, false);
+        } break;
+
+        case Shape_Draw_Type::TEXT: {
+            
         } break;
     }
 
-    if (shape.type == SHAPE_RECT || shape.type == SHAPE_CIRCLE)
-        shape.coords += shape.dim / 2.0f; // coords = top left corner
+    if (shape.type == SHAPE_RECT || shape.type == SHAPE_CIRCLE) {
+        shape.coords.x += shape.dim.x / 2.0f;
+        shape.coords.y += shape.dim.y / 2.0f; // coords = top left corner
+    }
 
     Matrix_4x4 model = create_transform_m4x4(shape.coords, shape.rotation, shape.dim);
     render_push_constants(&shader->layout_sets[2], (void *)&model);  
@@ -210,7 +227,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             
             Descriptor_Set *object_set = render_get_descriptor_set(&shapes.text_shader, 1);
             render_bind_descriptor_set(object_set, 1);   
-            render_set_bitmap(object_set, &bitmap->bitmap, 2);
+            render_set_bitmap(object_set, &bitmap->bitmap, 1);
             render_update_ubo(object_set, 1, (void*)&color, false);
 
             coords_v3.x += dim_v3.x / 2.0f;

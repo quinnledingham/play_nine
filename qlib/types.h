@@ -46,7 +46,6 @@ union Vector4 {
 	};
 	struct {
 		Vector3 rgb;
-		float32 a;
 	};
 	float32 E[4];
 };

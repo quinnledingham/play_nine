@@ -92,10 +92,20 @@ struct Controller {
     };
 };
 
+enum Game_Mode {
+    MAIN_MENU,
+    LOCAL,
+    ONLINE,
+};
+
 struct State {
     Game game;
 
     Controller controller = {};
+
+    // Menus
+    enum Game_Mode mode = MAIN_MENU;
+    s32 active;
 
     Render_Pipeline basic_pipeline;
     Scene scene;
