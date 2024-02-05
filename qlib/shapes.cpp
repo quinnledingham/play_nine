@@ -25,9 +25,9 @@ struct Shape {
 struct Shapes {
     Mesh rect_mesh;
 
-    Shader color_shader;
-    Shader texture_shader;
-    Shader text_shader;
+    Shader *color_shader;
+    Shader *texture_shader;
+    Shader *text_shader;
     
     Render_Pipeline color_pipeline;
     Render_Pipeline texture_pipeline;
@@ -140,29 +140,33 @@ void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Vector4 color) {
 // Shapes
 //
 
-void init_shapes() {
+void init_shapes(Assets *assets) {
 	shapes.rect_mesh = get_rect_mesh_2D();
 
-    shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
-    shapes.text_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/text.frag";
-    load_shader(&shapes.text_shader);
-	render_compile_shader(&shapes.text_shader);
+    //shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
+    //shapes.text_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/text.frag";
+    shapes.text_shader = find_shader(assets, "TEXT");
+    load_shader(shapes.text_shader);
+	render_compile_shader(shapes.text_shader);
 
-    init_basic_vert_layout(&shapes.text_shader);
-    init_text_frag_layout(&shapes.text_shader);
+    init_basic_vert_layout(shapes.text_shader);
+    init_text_frag_layout(shapes.text_shader);
 
-    shapes.text_pipeline.shader = &shapes.text_shader;
+    shapes.text_pipeline.shader = shapes.text_shader;
+    shapes.text_pipeline.depth_test = false;
     render_create_graphics_pipeline(&shapes.text_pipeline, get_vertex_xu_info());
 
-    shapes.color_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
-    shapes.color_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/color.frag";
-    load_shader(&shapes.color_shader);
-    render_compile_shader(&shapes.color_shader);
+    //shapes.color_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
+    //shapes.color_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/color.frag";
+    shapes.color_shader = find_shader(assets, "COLOR");
+    load_shader(shapes.color_shader);
+    render_compile_shader(shapes.color_shader);
 
-    init_basic_vert_layout(&shapes.color_shader);
-    init_color_frag_layout(&shapes.color_shader);
+    init_basic_vert_layout(shapes.color_shader);
+    init_color_frag_layout(shapes.color_shader);
 
-    shapes.color_pipeline.shader = &shapes.color_shader;
+    shapes.color_pipeline.shader = shapes.color_shader;
+    shapes.color_pipeline.depth_test = false;
     render_create_graphics_pipeline(&shapes.color_pipeline, get_vertex_xu_info());
 }
 
@@ -225,7 +229,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
             Vector3 dim_v3 = { (float32)bitmap->bitmap.width, (float32)bitmap->bitmap.height, 1 };
             
-            Descriptor_Set *object_set = render_get_descriptor_set(&shapes.text_shader, 1);
+            Descriptor_Set *object_set = render_get_descriptor_set(shapes.text_shader, 1);
             render_bind_descriptor_set(object_set, 1);   
             render_set_bitmap(object_set, &bitmap->bitmap, 1);
             render_update_ubo(object_set, 1, (void*)&color, false);
@@ -233,7 +237,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             coords_v3.x += dim_v3.x / 2.0f;
             coords_v3.y += dim_v3.y / 2.0f; // coords = top left corner
     		Matrix_4x4 model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
-            render_push_constants(&shapes.text_shader.layout_sets[2], (void *)&model);  
+            render_push_constants(&shapes.text_shader->layout_sets[2], (void *)&model);  
                      
             render_draw_mesh(&shapes.rect_mesh);
             // End of Draw

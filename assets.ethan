@@ -2,6 +2,12 @@ SHADERS:
 BASIC3D|VERTEX,   basic.vert
 BASIC3D|FRAGMENT, basic.frag
 
+TEXT|VERTEX,      2D.vert
+TEXT|FRAGMENT,    text.frag
+
+COLOR|VERTEX,     2D.vert
+COLOR|FRAGMENT,   color.frag
+
 BITMAPS:
 YOGI,  yogi.png
 DAVID, david.jpg

@@ -950,6 +950,12 @@ vulkan_create_shader_module(VkDevice device, File code) {
 	return shader_module;
 }
 
+inline VkBool32
+vulkan_bool(bool8 in) {
+	if (in) return VK_TRUE;
+	else    return VK_FALSE;
+}
+
 internal void
 vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
 	Shader *shader = pipeline->shader;
@@ -1045,9 +1051,9 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 	input_assembly.primitiveRestartEnable = VK_FALSE;
 
 	VkPipelineViewportStateCreateInfo viewport_state = {};
-	viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewport_state.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	viewport_state.viewportCount = 1;
-	viewport_state.scissorCount = 1;
+	viewport_state.scissorCount  = 1;
 
 	VkPipelineRasterizationStateCreateInfo rasterizer = {};
 	rasterizer.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -1082,27 +1088,27 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 	color_blend_attachment.alphaBlendOp        = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendStateCreateInfo color_blending = {};
-	color_blending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	color_blending.logicOpEnable = VK_FALSE;
-	color_blending.logicOp = VK_LOGIC_OP_COPY;           // Optional
-	color_blending.attachmentCount = 1;
-	color_blending.pAttachments = &color_blend_attachment;
+	color_blending.sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	color_blending.logicOpEnable     = VK_FALSE;
+	color_blending.logicOp           = VK_LOGIC_OP_COPY; // Optional
+	color_blending.attachmentCount   = 1;
+	color_blending.pAttachments      = &color_blend_attachment;
 	color_blending.blendConstants[0] = 0.0f;             // Optional
 	color_blending.blendConstants[1] = 0.0f;             // Optional
 	color_blending.blendConstants[2] = 0.0f;             // Optional
 	color_blending.blendConstants[3] = 0.0f;             // Optional
 	
 	VkPipelineDepthStencilStateCreateInfo depth_stencil = {};
-	depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depth_stencil.depthTestEnable = VK_TRUE;
-	depth_stencil.depthWriteEnable = VK_TRUE;
-	depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depth_stencil.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depth_stencil.depthTestEnable       = vulkan_bool(pipeline->depth_test);
+	depth_stencil.depthWriteEnable      = VK_TRUE;
+	depth_stencil.depthCompareOp        = VK_COMPARE_OP_LESS;
 	depth_stencil.depthBoundsTestEnable = VK_FALSE;
-	depth_stencil.minDepthBounds = 0.0f;               // Optional
-	depth_stencil.maxDepthBounds = 1.0f;               // Optional
-	depth_stencil.stencilTestEnable = VK_FALSE;
-	depth_stencil.front = {};                          // Optional
-	depth_stencil.back = {};                           // Optional
+	depth_stencil.minDepthBounds        = 0.0f;               // Optional
+	depth_stencil.maxDepthBounds        = 1.0f;               // Optional
+	depth_stencil.stencilTestEnable     = VK_FALSE;
+	depth_stencil.front                 = {};                 // Optional
+	depth_stencil.back                  = {};                 // Optional
 	
 	VkGraphicsPipelineCreateInfo pipeline_create_info = {};
 	pipeline_create_info.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -1452,6 +1458,8 @@ vulkan_recreate_swap_chain(Vulkan_Info *info) {
 internal void
 vulkan_cleanup() {
 	Vulkan_Info *info = &vulkan_info;
+	vkDeviceWaitIdle(info->device);
+
 	vulkan_cleanup_swap_chain(info);
 	
 	// Depth buffer
@@ -1476,6 +1484,9 @@ vulkan_cleanup() {
 
 	vkDestroyBuffer(info->device, info->static_buffer, nullptr);
 	vkFreeMemory(info->device, info->static_buffer_memory, nullptr);
+
+	vkDestroyBuffer(info->device, info->uniform_buffer, nullptr);
+	vkFreeMemory(info->device, info->uniform_buffer_memory, nullptr);
 	
 	//vkDestroyPipeline(info->device, info->graphics_pipeline, nullptr);
 	//vkDestroyPipelineLayout(info->device, info->pipeline_layout, nullptr);
@@ -1641,12 +1652,18 @@ void vulkan_set_scissor(u32 width, u32 height) {
 }
 
 void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
-	Shader *shader = pipeline->shader;
-	for (u32 i = 0; i < shader->layout_count; i++) {
-		shader->vulkan_infos[i].sets_count = 0;
-	}
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
 	vkCmdBindPipeline(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
+}
+
+void vulkan_reset_descriptor_sets(Assets *assets) {
+	Asset_Array *array = &assets->types[ASSET_TYPE_SHADER];
+	for (u32 i = 0; i < array->num_of_assets; i++) {
+		Shader *shader = (Shader *)&array->data[i].memory;
+		for (u32 layout_i = 0; layout_i < shader->layout_count; layout_i++) {
+			shader->vulkan_infos[layout_i].sets_count = 0;
+		}
+    }
 }
 
 void vulkan_start_frame() {

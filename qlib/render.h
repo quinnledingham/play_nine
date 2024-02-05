@@ -11,6 +11,7 @@ struct Object {
 struct Render_Pipeline {
     Shader *shader;
     bool8 blend;
+    bool8 depth_test = TRUE;
     
 #ifdef VULKAN
     //VkRenderPass render_pass;

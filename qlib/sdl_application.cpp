@@ -229,9 +229,8 @@ int main(int argc, char *argv[]) {
     render_sdl_init(sdl_window);
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
 
-    event_handler(&app, APP_INIT, 0);    
-
-    init_shapes();
+    if (event_handler(&app, APP_INIT, 0) == 1)
+        return 1;
 
     srand(SDL_GetTicks());
 
@@ -240,12 +239,13 @@ int main(int argc, char *argv[]) {
         else                               SDL_SetRelativeMouseMode(SDL_FALSE);
 
     	if (sdl_process_input(&app, &app.window, &app.input)) 
-            return 0;
+            break;
         
     	sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
 
-        app.update(&app);
+        if (app.update(&app))
+            break;
     }
     
     render_cleanup();

@@ -76,7 +76,7 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
     }
 }
 
-void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternion rotation, Bitmap *bitmap) {
+void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternion rotation, Bitmap *bitmap, Bitmap *back) {
     for (u32 i = 0; i < model->meshes_count; i++) {
 
         Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, {1.0f, 0.5f, 1.0f});
@@ -95,6 +95,10 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
             render_set_bitmap(object_set, &model->meshes[i].material.diffuse_map, 1);
             render_bind_descriptor_set(object_set, 1);
         } 
+
+        Descriptor_Set *object_set = render_get_descriptor_set(shader, 1);
+        render_set_bitmap(object_set, back, 1);
+        render_bind_descriptor_set(object_set, 1);
 
         render_draw_mesh(&model->meshes[i]);
     }

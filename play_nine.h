@@ -36,7 +36,10 @@ struct Game {
     Player players[6];
     u32 num_of_players;
     u32 active_player;
-    
+
+    // Game Draw info
+    float32 degrees_between_players;
+    float32 radius;
 };
 
 //
@@ -87,9 +90,15 @@ struct Controller {
             Button down;
 
             Button pause;
+            Button select;
         };
-        Button buttons[7];
+        Button buttons[8];
     };
+};
+
+enum Camera_Mode {
+    FREE_CAMERA,
+    PLAYER_CAMERA,
 };
 
 enum Game_Mode {
@@ -102,6 +111,7 @@ struct State {
     Game game;
 
     Controller controller = {};
+    enum Camera_Mode camera_mode = PLAYER_CAMERA;
 
     // Menus
     enum Game_Mode mode = MAIN_MENU;

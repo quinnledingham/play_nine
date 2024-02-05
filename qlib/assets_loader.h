@@ -92,7 +92,7 @@ is_valid_body_ch(s32 ch) {
 
 inline bool8
 is_valid_start_ch(s32 ch) {
-    if (is_ascii_letter(ch) || is_file_path_ch(ch))
+    if (is_ascii_letter(ch) || is_ascii_digit(ch) || is_file_path_ch(ch))
         return true;
     else
         return false;

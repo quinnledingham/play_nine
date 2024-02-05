@@ -205,7 +205,7 @@ draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 d
     else 
         bitmap_index = card.number;
 
-    render_draw_model(find_model(assets, "CARD"), shader, position, get_rotation(degrees * DEG2RAD, {0, -1, 0}), &card_bitmaps[bitmap_index]);
+    render_draw_model(find_model(assets, "CARD"), shader, position, get_rotation(degrees * DEG2RAD, {0, -1, 0}), &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"));
 }
 
 internal void
@@ -224,19 +224,23 @@ draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 positi
     }
 }   
 
+internal Vector3
+get_hand_position(float32 hyp, float32 deg, u32 i) {
+    float32 rad = deg * DEG2RAD;
+    Vector3 position = { 0, 0, 0 };
+    position.x = hyp * cosf(i * rad);
+    position.z = hyp * sinf(i * rad);
+    return position;
+}
+
 //      180
 // 270        90
 //       0
 internal void
 draw_game(Assets *assets, Shader *shader, Game *game) {
-    float32 hyp = 7.0f;
-    float32 deg = 360.0f / float32(game->num_of_players);
-    float32 rad = deg * DEG2RAD;
     for (u32 i = 0; i < game->num_of_players; i++) {
-        Vector3 position = { 0, 0, 0 };
-        position.x = hyp * cosf(i * rad);
-        position.z = hyp * sinf(i * rad);
-        draw_player_cards(assets, shader, &game->players[i], position, (i * deg) + 90.0f);
+        Vector3 position = get_hand_position(game->radius, game->degrees_between_players, i);
+        draw_player_cards(assets, shader, &game->players[i], position, (game->degrees_between_players * i) + 90.0f);
     }
 }
 
@@ -245,7 +249,8 @@ bool8 init_data(App *app) {
 	platform_memory_set(app->data, 0, sizeof(State));
     State *game = (State *)app->data;
 	game->assets = {};
-	load_assets(&game->assets, "../assets.ethan");
+	if (load_assets(&game->assets, "../assets.ethan"))
+        return true;
 
 	Shader *basic_3D = find_shader(&game->assets, "BASIC3D");
     render_compile_shader(basic_3D);
@@ -285,8 +290,8 @@ bool8 init_data(App *app) {
     game->camera.target   = { 0, 0, 0 };
     game->camera.up       = { 0, -1, 0 };
     game->camera.fov      = 75.0f;
-    game->camera.yaw      = 0.0f;
-    game->camera.pitch    = 0.0f;
+    game->camera.yaw      = 180.0f;
+    game->camera.pitch    = -75.0f;
 	
 	game->rect = get_rect_mesh();
 	
@@ -297,19 +302,29 @@ bool8 init_data(App *app) {
 	set(&game->controller.up, SDLK_SPACE);
 	set(&game->controller.down, SDLK_LSHIFT);
 
-	set(&game->controller.pause, SDLK_ESCAPE);
+    set(&game->controller.select, SDLK_RETURN);
+	set(&game->controller.pause,  SDLK_ESCAPE);
 
     init_deck();
     init_card_bitmaps(card_bitmaps, font);
-    shuffle_pile(game->game.pile);
-    game->game.num_of_players = 4;
-    deal_cards(&game->game);
 
-    game->test = create_string_into_bitmap(font, 500.0f, "yo");
-    render_create_texture(&game->test, TEXTURE_PARAMETERS_CHAR);
     clear_font_bitmap_cache(font);
     
+    init_shapes(&game->assets);
+
+    game->camera_mode = PLAYER_CAMERA;
+
 	return false;
+}
+
+internal void
+start_game(Game *game, u32 num_of_players) {
+    shuffle_pile(game->pile);
+    game->num_of_players = num_of_players;
+    deal_cards(game);
+
+    game->degrees_between_players = 360.0f / float32(game->num_of_players);
+    game->radius = 7.0f;
 }
 
 internal void
@@ -328,50 +343,124 @@ internal void
     }
 }
 
+internal void
+menu_update_active(s32 *active, s32 lower, s32 upper, Button increase, Button decrease) {
+    if (on_down(increase)) {
+        (*active)++;
+        if (*active > upper)
+            *active = upper;
+    }
+    if (on_down(decrease)) {
+        (*active)--;
+        if (*active < lower)
+            *active = lower;
+    }
+}
+
 // returns game mode
 internal s32
-draw_main_menu(State *game, Assets *assets, App_Input *input, Vector2_s32 window_dim)
+draw_main_menu(State *game, Font *font, Controller *controller, Vector2_s32 window_dim)
 {
-    //Controller *menu_controller = input->active_controller;
-
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
     window_rect.dim    = cv2(window_dim);
 
     Menu main_menu = {};
-    main_menu.font = find_font(assets, "CASLON");
+    main_menu.font = font;
     main_menu.rect = get_centered_rect(window_rect, 0.5f, 0.5f);
 
     main_menu.button_style.default_back_color = {  34,  44, 107, 1 };
     main_menu.button_style.active_back_color  = {  42,  55, 131, 1 };
     main_menu.button_style.default_text_color = { 234,   0,  39, 1 };
     main_menu.button_style.active_text_color  = { 171, 160, 200, 1 };;
-    //main_menu.button_style.active_text_color = { ,   0,  255, 1 };
     
-    main_menu.button_style.dim = { main_menu.rect.dim.x, main_menu.rect.dim.y / 5.0f };
+    u32 buttons_count = 3;
+    main_menu.button_style.dim = { main_menu.rect.dim.x, main_menu.rect.dim.y / float32(buttons_count) };
 
-    //bool8 select = on_down(menu_controller->select);
-    bool8 select = false;
+    bool8 select = on_down(controller->select);
     u32 index = 0;
 
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 37, 38, 90, 1.0f} );
-/*
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 37, 38, 90, 1 } );
     draw_rect(main_menu.rect.coords, 0, main_menu.rect.dim, { 0, 0, 0, 0.2f} );
 
-    if (menu_button(&main_menu, "Play Local",   index++, game->active, select)) 
-        game->mode = MAIN_MENU;
-
-    if (menu_button(&main_menu, "3D",   index++, game->active, select))
-        game->mode = IN_GAME_3D;    
-    if (menu_button(&main_menu, "Quit", index++, game->active, select)) 
+    if (menu_button(&main_menu, "Local",  index++, game->active, select)) {
+        game->mode = LOCAL;
+        start_game(&game->game, 4);
+    }
+    if (menu_button(&main_menu, "Online", index++, game->active, select))
+        game->mode = ONLINE;    
+    if (menu_button(&main_menu, "Quit",   index++, game->active, select)) 
         return true;
-    if (menu_button(&main_menu, "Px++", index++, game->active, select))
-        game->test_pixel_height++;
-    if (menu_button(&main_menu, "Px--", index++, game->active, select))
-        game->test_pixel_height--;
-*/
 
     return false;
+}
+
+bool8 update_game(State *state, App *app) {
+    switch(state->camera_mode) {
+        case FREE_CAMERA: {
+            if (on_down(state->controller.pause)) {
+/*
+                app->input.relative_mouse_mode = !app->input.relative_mouse_mode;
+                state->game.top_of_pile = 0;
+                shuffle_pile(state->game.pile);
+                deal_cards(&state->game);
+*/
+                state->camera_mode = PLAYER_CAMERA;
+                app->input.relative_mouse_mode = false;
+            }
+
+            if (app->input.relative_mouse_mode) {
+                float32 mouse_m_per_s = 100.0f;
+                float32 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
+                update_camera_with_mouse(&state->camera, app->input.mouse_rel, { mouse_move_speed, mouse_move_speed });
+                update_camera_target(&state->camera);    
+                state->scene.view = get_view(state->camera);
+                render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
+
+                float32 m_per_s = 6.0f; 
+                float32 m_moved = m_per_s * app->time.frame_time_s;
+                Vector3 move_vector = {m_moved, m_moved, m_moved};
+                update_camera_with_keys(&state->camera, state->camera.target, state->camera.up, move_vector,
+                                        is_down(state->controller.forward),  is_down(state->controller.backward),
+                                        is_down(state->controller.left),  is_down(state->controller.right),
+                                        is_down(state->controller.up),  is_down(state->controller.down));                             
+
+                print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
+            }
+        } break;
+
+        case PLAYER_CAMERA: {
+            if (on_down(state->controller.pause)) {
+                state->camera_mode = FREE_CAMERA;
+                app->input.relative_mouse_mode = true;
+            }
+            
+            Game *game = &state->game;
+            if (on_down(state->controller.right)) {
+                game->active_player++;
+                if (game->active_player >= game->num_of_players)
+                    game->active_player = 0;
+            }
+
+
+            Vector3 position = get_hand_position(game->radius, game->degrees_between_players, game->active_player);
+            float32 cam_dis = 8.0f;
+            float32 deg = game->degrees_between_players * game->active_player;
+            float32 rad = deg * DEG2RAD;
+            float32 x = cam_dis * cosf(rad);
+            float32 y = cam_dis * sinf(rad);
+
+            state->camera.position = position + Vector3{ x, 14.0f, y };
+            state->camera.yaw      = deg + 180.0f;
+            state->camera.pitch    = -50.0f;
+
+            update_camera_target(&state->camera);    
+            state->scene.view = get_view(state->camera);
+            render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
+        } break;
+    }
+
+    return 0;
 }
 
 bool8 update(App *app) {
@@ -385,70 +474,44 @@ bool8 update(App *app) {
         game->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
         render_update_ubo(game->scene_ortho_set, 0, (void*)&game->ortho_scene, true);
     }
-/*
-	if (on_down(game->controller.pause)) {
-		app->input.relative_mouse_mode = !app->input.relative_mouse_mode;
-        game->game.top_of_pile = 0;
-        shuffle_pile(game->game.pile);
-        deal_cards(&game->game);
-	}
+    
+    // Update
+    switch(game->mode) {
+        case MAIN_MENU: {
+            menu_update_active(&game->active, 0, 2, game->controller.down,  game->controller.up);
+        } break;
 
-	if (app->input.relative_mouse_mode) {
-		float32 mouse_m_per_s = 100.0f;
-		float32 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
-		update_camera_with_mouse(&game->camera, app->input.mouse_rel, { mouse_move_speed, mouse_move_speed });
-		update_camera_target(&game->camera);	
-	    game->scene.view = get_view(game->camera);
-		render_update_ubo(game->scene_set, 0, (void*)&game->scene, true);
+        case LOCAL: {
+            update_game(game, app);
+        }
+    }
 
-		float32 m_per_s = 6.0f; 
-        float32 m_moved = m_per_s * app->time.frame_time_s;
-        Vector3 move_vector = {m_moved, m_moved, m_moved};
-        update_camera_with_keys(&game->camera, game->camera.target, game->camera.up, move_vector,
-                                is_down(game->controller.forward),  is_down(game->controller.backward),
-                                is_down(game->controller.left),  is_down(game->controller.right),
-                                is_down(game->controller.up),  is_down(game->controller.down));								
-
-		//print("%f %f %f\n", game->camera.position.x, game->camera.position.y, game->camera.position.z);
-	}
-*/
+    // Draw
     Shader *basic_3D = find_shader(assets, "BASIC3D");
 
+    vulkan_reset_descriptor_sets(assets);
     render_start_frame();
 
     render_set_viewport(app->window.width, app->window.height);
     render_set_scissor(app->window.width, app->window.height);
 
-    render_bind_pipeline(&game->basic_pipeline);
-
-    render_bind_descriptor_set(game->scene_ortho_set, 0);
-
     switch(game->mode) {
         case MAIN_MENU: {
-            //draw_main_menu(game, assets, &app->input, app->window.dim);
-        }
+            render_bind_pipeline(&shapes.color_pipeline);
+            render_bind_descriptor_set(game->scene_ortho_set, 0);
+            if (draw_main_menu(game, find_font(assets, "CASLON"), &game->controller, app->window.dim))
+                return 1;
+        } break;
+
+        case LOCAL: {
+            render_bind_pipeline(&game->basic_pipeline);
+            render_bind_descriptor_set(game->scene_set, 0);
+
+
+
+            draw_game(&game->assets, basic_3D, &game->game);
+        } break;
     }
-/*
-    {
-        Matrix_4x4 model = create_transform_m4x4({ 0.0f, 0.0f, 0.0f }, get_rotation(0, {0, 1, 0}), {1, 1, 1.0f});
-        render_push_constants(&basic_3D->layout_sets[2], (void *)&model);
-
-        Descriptor_Set *object_set = render_get_descriptor_set(basic_3D, 1);
-        render_set_bitmap(object_set, &game->test, 1);
-        render_bind_descriptor_set(object_set, 1);
-
-        render_draw_mesh(&game->rect);
-
-        //draw_player_cards(&game->assets, basic_3D, &game->game.players[0], { 0, 0, 0 }, 0);
-        draw_game(&game->assets, basic_3D, &game->game);
-    }
-
-    render_bind_descriptor_set(game->scene_ortho_set, 0);
-*/
-    draw_rect({100, 200}, 0, {100, 100}, {0, 255, 0, 1});
-    draw_rect({100, 100}, 0, {100, 100}, {255, 0, 0, 1});
-
-    draw_string(find_font(&game->assets, "CASLON"), "supgamer", {200, 200}, 100.0f, { 255, 0, 255, 1 });
 
 
     render_end_frame();
@@ -464,7 +527,8 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
     switch(event) {
         case APP_INIT: {
             app->update = &update;
-            init_data(app);
+            if (init_data(app))
+                return 1;
         } break;
 
         case APP_KEYDOWN: {
