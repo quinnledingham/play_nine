@@ -26,6 +26,15 @@ enum Turn_Stages {
     FLIP_CARD,   // flip card if discard new card
 };
 
+/*
+
+Card indices
+
+0 1 2 3
+4 5 6 7
+
+*/
+
 struct Player {
     const char *name;
     u32 cards[8];

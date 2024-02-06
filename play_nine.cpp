@@ -177,10 +177,10 @@ draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 d
     if (card.number == -5)
         bitmap_index = 13;
 
-    Quaternion rotation = get_rotation(degrees * DEG2RAD, {0, -1, 0});
+    Quaternion rotation = get_rotation(degrees * DEG2RAD, {0, 1, 0});
     if (!card.flipped) {
-        Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, -1});
-        rotation = rotation * flip;
+        Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
+        rotation = flip * rotation;
     }
 
     render_draw_model(find_model(assets, "CARD"), shader, position, rotation, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 0.5f, 1.0f});
@@ -188,7 +188,7 @@ draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 d
 
 internal void
 draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 position, float32 degrees) {
-    float32 rad = -degrees * DEG2RAD;     
+    float32 rad = degrees * DEG2RAD;     
 
     for (u32 i = 0; i < 8; i++) {
         Vector3 card_pos = { hand_coords[i].x, 0.0f, hand_coords[i].y };
@@ -202,9 +202,11 @@ draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 positi
     }
 }   
 
+// -deg: negative because I want to go counter clockwise but still
+// have degrees between players be positive
 internal Vector3
 get_hand_position(float32 hyp, float32 deg, u32 i) {
-    float32 rad = deg * DEG2RAD;
+    float32 rad = -deg * DEG2RAD;
     Vector3 position = { 0, 0, 0 };
     position.x = hyp * cosf(i * rad);
     position.z = hyp * sinf(i * rad);
@@ -218,7 +220,7 @@ internal void
 draw_game(Assets *assets, Shader *shader, Game *game) {
     for (u32 i = 0; i < game->num_of_players; i++) {
         Vector3 position = get_hand_position(game->radius, game->degrees_between_players, i);
-        draw_player_cards(assets, shader, &game->players[i], position, (game->degrees_between_players * i) + 90.0f);
+        draw_player_cards(assets, shader, &game->players[i], position, (game->degrees_between_players * i) - 90.0f);
         if (game->players[i].turn_stage == SELECT_CARD) {
             draw_card(assets, shader, deck[game->players[i].new_card], {3.1f, 1.0f, 0}, 0.0f);
         }
@@ -304,8 +306,93 @@ start_game(Game *game, u32 num_of_players) {
 
     game->round_type = FLIP_ROUND;
 
-    game->degrees_between_players = -360.0f / float32(game->num_of_players);
+    game->degrees_between_players = 360.0f / float32(game->num_of_players);
     game->radius = 8.0f;
+}
+
+//
+// Scoring
+// 
+
+struct Card_Pair {
+    bool8 matching;
+    s32 score;
+    s32 number;
+};
+
+inline Card_Pair
+create_pair(u32 top, u32 bottom) {
+    Card_Pair result = {};
+    Card top_card = deck[top];
+    Card bottom_card = deck[bottom];
+
+    if (top_card.number == bottom_card.number) {
+        result.matching = true;
+        result.number = top_card.number; // matching so top and bottom same number
+    }
+
+    if (!result.matching || (top_card.number == -5))
+        result.score += top_card.number + bottom_card.number;
+
+    return result;
+} 
+
+struct Card_Pair_Match {
+    s32 number;
+    s32 pairs;
+};
+
+internal s32
+get_score(u32 *cards) {
+    s32 score = 0;
+
+    Card_Pair pairs[4] = {
+        create_pair(cards[0], cards[4]),
+        create_pair(cards[1], cards[5]),
+        create_pair(cards[2], cards[6]),
+        create_pair(cards[3], cards[7])
+    };
+
+    for (u32 i = 0; i < 4; i++) {
+        score += pairs[i].score;
+    }
+
+    u32 match_index = 0;
+    Card_Pair_Match matches[4];
+    for (u32 i = 0; i < 4; i++) {
+        if (pairs[i].matching) {
+            bool8 found_match = false;
+            for (u32 j = 0; j < match_index; j++) {
+                if (matches[j].number == pairs[i].number) {
+                    matches[j].pairs++;
+                    found_match = true;
+                }
+            }
+            if (found_match)
+                continue;
+            matches[match_index++] = { pairs[i].number, 1 };
+        }
+    }
+
+    for (u32 i = 0; i < match_index; i++) {
+        Card_Pair_Match match = matches[i];
+        switch(match.pairs) {
+            case 2: score -= 10; break;
+            case 3: score -= 15; break;
+            case 4: score -= 20; break;
+        }
+    }
+
+    return score;
+}
+
+internal void
+update_scores(Game *game) {
+    for (u32 i = 0; i < game->num_of_players; i++) {
+        Player *player = &game->players[i];
+        u32 *cards = player->cards;            
+        print("Player %d: %d\n", i, get_score(cards));
+    }
 }
 
 internal void
@@ -318,11 +405,18 @@ next_player(Game *game) {
     }
 
     game->active_player++;
+
+    // end of round: loop back around if required
     if (game->active_player >= game->num_of_players) {
         game->active_player = 0;
 
-        if (game->round_type == FLIP_ROUND)
-            game->round_type = REGULAR_ROUND;
+
+        switch(game->round_type) {
+            case FLIP_ROUND: game->round_type = REGULAR_ROUND; break;
+            case FINAL_ROUND: {
+                update_scores(game);
+            } break;
+        }
     }
 }
 
@@ -461,7 +555,7 @@ bool8 update_game(State *state, App *app) {
                                         is_down(state->controller.left),  is_down(state->controller.right),
                                         is_down(state->controller.up),  is_down(state->controller.down));                             
 
-                print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
+                //print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
             }
         } break;
 
@@ -478,7 +572,7 @@ bool8 update_game(State *state, App *app) {
 
             Vector3 position = get_hand_position(game->radius, game->degrees_between_players, game->active_player);
             float32 cam_dis = 8.0f;
-            float32 deg = game->degrees_between_players * game->active_player;
+            float32 deg = -game->degrees_between_players * game->active_player;
             float32 rad = deg * DEG2RAD;
             float32 x = cam_dis * cosf(rad);
             float32 y = cam_dis * sinf(rad);
@@ -701,8 +795,6 @@ bool8 update(App *app) {
         case LOCAL: {
             render_bind_pipeline(&game->basic_pipeline);
             render_bind_descriptor_set(game->scene_set, 0);
-
-            
 
             draw_game(&game->assets, basic_3D, &game->game);
         } break;
