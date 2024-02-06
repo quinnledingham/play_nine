@@ -14,16 +14,24 @@ global Card deck[DECK_SIZE];
 global Bitmap card_bitmaps[14];
 global Vector2 hand_coords[8];
 
+enum Round_Types {
+    FLIP_ROUND,
+    REGULAR_ROUND,
+    FINAL_ROUND,
+};
+
 enum Turn_Stages {
-    SELECT_PILE,
-    SELECT_CARD,
+    SELECT_PILE, // pick either pile or discard pile
+    SELECT_CARD, // pick where to place new card - in hand or discard
+    FLIP_CARD,   // flip card if discard new card
 };
 
 struct Player {
     const char *name;
     u32 cards[8];
     u32 new_card; // the card that was just picked up
-    u32 turn_stage;
+    bool8 pile_card; // flag to flip if discard new card
+    enum Turn_Stages turn_stage;
 };
 
 struct Game {
@@ -36,6 +44,8 @@ struct Game {
     Player players[6];
     u32 num_of_players;
     u32 active_player;
+
+    enum Round_Types round_type;
 
     // Game Draw info
     float32 degrees_between_players;
@@ -82,6 +92,23 @@ on_down(Button button) {
 struct Controller {
     union {
         struct {
+            // Game Controls
+
+            Button one;
+            Button two;
+            Button three;
+            Button four;
+            
+            Button five;
+            Button six;
+            Button seven;
+            Button eight;
+
+            Button nine;
+            Button zero;
+
+            // Camera Controls
+
             Button forward;
             Button backward;
             Button left;
@@ -92,7 +119,7 @@ struct Controller {
             Button pause;
             Button select;
         };
-        Button buttons[8];
+        Button buttons[18];
     };
 };
 

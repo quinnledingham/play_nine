@@ -19,6 +19,222 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "play_nine.h"
 
 internal void
+copy_bitmap_into_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
+    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
+    u8 *src_ptr = src.memory;
+    for (s32 y = 0; y < src.height; y++) {
+        for (s32 x = 0; x < src.width; x++) {   
+            u8 color = 0xFF ^ (*src_ptr);
+
+            for (s32 i = 0; i < dest.channels; i++) {
+                for (s32 j = 0; j < src.channels; j++) {
+                    dest_ptr[i] = src_ptr[j];
+                }
+            }
+
+            dest_ptr += dest.channels;
+            src_ptr += src.channels;
+        }   
+
+        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
+    }
+}
+
+internal Vector4
+get_color(Vector4 c1, Vector4 c2) {
+    float32 alpha = 255 - ((255 - c1.E[3]) * (255 - c2.E[3]) / 255);
+    float32 red   = (c1.E[0] * (255 - c2.E[3]) + c2.E[0] * c2.E[3]) / 255;
+    float32 green = (c1.E[1] * (255 - c2.E[3]) + c2.E[1] * c2.E[3]) / 255;
+    float32 blue  = (c1.E[2] * (255 - c2.E[3]) + c2.E[2] * c2.E[3]) / 255;
+    return {red, green, blue, alpha};
+}
+
+internal void
+copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
+    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
+    u8 *src_ptr = src.memory;
+    for (s32 y = 0; y < src.height; y++) {
+        for (s32 x = 0; x < src.width; x++) {   
+            Vector4 src_color = { 0x00, 0x00, 0x00, float32(*src_ptr) };
+            Vector4 dest_color = { float32(dest_ptr[0]), float32(dest_ptr[1]), float32(dest_ptr[2]), float32(dest_ptr[3]) };
+            Vector4 blend_color = get_color(dest_color, src_color);
+
+            dest_ptr[0] = (u8)blend_color.r;
+            dest_ptr[1] = (u8)blend_color.g;
+            dest_ptr[2] = (u8)blend_color.b;
+            dest_ptr[3] = (u8)blend_color.a;
+
+            dest_ptr += dest.channels;
+            src_ptr += src.channels;
+        }   
+
+        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
+    }
+}
+
+internal Bitmap
+create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
+    Bitmap bitmap = {};
+    
+    float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
+
+    float32 current_point = 0.0f;
+
+    s32 height = 0;
+    float32 left = 0.0f;
+
+    u32 i = 0;
+    while (str[i] != 0 ) {
+        Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
+        Font_Char *font_char = fbitmap->font_char;
+
+        Vector2 char_coords = { current_point + (font_char->lsb * scale), (float32)fbitmap->bb_0.y };
+        s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
+
+        if (char_height > height)
+            height = char_height;
+        if (char_coords.x < 0)
+            left = char_coords.x;
+
+        s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
+        current_point += scale * (kern + font_char->ax);
+        
+        i++;
+    }
+
+    bitmap.width = s32(current_point - left);
+    bitmap.height = s32(height);
+    bitmap.channels = 1;
+    bitmap.pitch = bitmap.width * bitmap.channels;
+    bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
+    memset(bitmap.memory, 0x00, bitmap.width * bitmap.height * bitmap.channels);
+
+    current_point = 0.0f;
+
+    i = 0;
+    while (str[i] != 0 ) {
+        Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
+        Font_Char *font_char = fbitmap->font_char;
+
+        Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, (float32)0 };
+
+        copy_bitmap_into_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords));
+
+        s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
+        current_point += scale * (kern + font_char->ax);
+        
+        i++;
+    }
+
+    return bitmap;
+}
+
+internal Bitmap
+create_card_bitmap(Font *font, s32 number) {
+    Bitmap bitmap   = {};
+    bitmap.width    = 1024;
+    bitmap.height   = 1638;
+    bitmap.channels = 4;
+    bitmap.pitch    = bitmap.width * bitmap.channels;
+    bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
+    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
+
+    char str[3] = {};
+    switch(number) {
+        case -5: str[0] = '-'; str[1] = '5'; break;
+        case 10: str[0] = '1'; str[1] = '0'; break;
+        case 11: str[0] = '1'; str[1] = '1'; break;
+        case 12: str[0] = '1'; str[1] = '2'; break;
+        default: str[0] = number + 48; break;
+    }
+
+    Bitmap str_bitmap = create_string_into_bitmap(font, 500.0f, str);
+
+    u32 x_center = (bitmap.width  / 2) - (str_bitmap.width  / 2);
+    u32 y_center = (bitmap.height / 2) - (str_bitmap.height / 2);
+    copy_blend_bitmap(bitmap, str_bitmap, { s32(x_center), s32(y_center) });
+
+    render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
+
+    platform_free(str_bitmap.memory);
+    platform_free(bitmap.memory);
+  
+    return bitmap;
+}
+
+internal void
+init_card_bitmaps(Bitmap *bitmaps, Font *font) {
+    for (s32 i = 0; i <= 12; i++) {
+        bitmaps[i] = create_card_bitmap(font, i);
+    }
+
+    bitmaps[13] = create_card_bitmap(font, -5);
+}
+
+internal void
+draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 degrees) {
+    u32 bitmap_index = card.number;
+    if (card.number == -5)
+        bitmap_index = 13;
+
+    Quaternion rotation = get_rotation(degrees * DEG2RAD, {0, -1, 0});
+    if (!card.flipped) {
+        Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, -1});
+        rotation = rotation * flip;
+    }
+
+    render_draw_model(find_model(assets, "CARD"), shader, position, rotation, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 0.5f, 1.0f});
+}
+
+internal void
+draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 position, float32 degrees) {
+    float32 rad = -degrees * DEG2RAD;     
+
+    for (u32 i = 0; i < 8; i++) {
+        Vector3 card_pos = { hand_coords[i].x, 0.0f, hand_coords[i].y };
+        card_pos = { 
+            cosf(rad) * card_pos.x + sinf(rad) * card_pos.z, 
+            0.0f, 
+            -sinf(rad) * card_pos.x + cosf(rad) * card_pos.z 
+        };
+        card_pos += position;
+        draw_card(assets, shader, deck[player->cards[i]], card_pos, degrees);
+    }
+}   
+
+internal Vector3
+get_hand_position(float32 hyp, float32 deg, u32 i) {
+    float32 rad = deg * DEG2RAD;
+    Vector3 position = { 0, 0, 0 };
+    position.x = hyp * cosf(i * rad);
+    position.z = hyp * sinf(i * rad);
+    return position;
+}
+
+//      180
+// 270        90
+//       0
+internal void
+draw_game(Assets *assets, Shader *shader, Game *game) {
+    for (u32 i = 0; i < game->num_of_players; i++) {
+        Vector3 position = get_hand_position(game->radius, game->degrees_between_players, i);
+        draw_player_cards(assets, shader, &game->players[i], position, (game->degrees_between_players * i) + 90.0f);
+        if (game->players[i].turn_stage == SELECT_CARD) {
+            draw_card(assets, shader, deck[game->players[i].new_card], {3.1f, 1.0f, 0}, 0.0f);
+        }
+    }
+
+    Card top_deck_card = deck[game->pile[game->top_of_pile]];
+    u32 bitmap_index = top_deck_card.number;
+    if (bitmap_index == -5)
+        bitmap_index = 13;
+    render_draw_model(find_model(assets, "CARD"), shader, {-1.1f, 0.5, 0}, get_rotation(180.0f * DEG2RAD, {0, 0, 1}), &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 4.0f, 1.0f});
+
+    if (game->top_of_discard_pile != 0)
+        draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], {1.1f, 0, 0}, 0.0f);
+}
+
+internal void
 init_deck() {
     u32 deck_index = 0;
     for (s32 i = 0; i <= 12; i++) {
@@ -70,179 +286,223 @@ deal_cards(Game *game) {
     for (s32 y = 1; y >= 0; y--) {
         for (s32 x = -2; x <= 1; x++) {
              hand_coords[card_index++] = { 
-                float32(x) * card_width + (float32(x) * padding) + (card_width / 2.0f) + (padding / 2.0f), 
+                float32(x) * card_width  + (float32(x) * padding) + (card_width / 2.0f)  + (padding / 2.0f), 
                 float32(y) * card_height + (float32(y) * padding) - (card_height / 2.0f) - (padding / 2.0f)
             };
         }
     }
+
+    game->discard_pile[game->top_of_discard_pile++] = game->pile[game->top_of_pile]++;
+    deck[game->discard_pile[game->top_of_discard_pile - 1]].flipped = true;
 }
 
 internal void
-copy_bitmap_into_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
-    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
-    u8 *src_ptr = src.memory;
-    for (s32 y = 0; y < src.height; y++) {
-        for (s32 x = 0; x < src.width; x++) {   
-            u8 color = 0xFF ^ (*src_ptr);
-            
-            for (s32 i = 0; i < dest.channels; i++) {
-                for (s32 j = 0; j < src.channels; j++)
-                    dest_ptr[i] = 0xFF ^ (*src_ptr);
+start_game(Game *game, u32 num_of_players) {
+    shuffle_pile(game->pile);
+    game->num_of_players = num_of_players;
+    deal_cards(game);
+
+    game->round_type = FLIP_ROUND;
+
+    game->degrees_between_players = -360.0f / float32(game->num_of_players);
+    game->radius = 8.0f;
+}
+
+internal void
+next_player(Game *game) {
+    // Flip all cards after final turn
+    if (game->round_type == FINAL_ROUND) {
+        for (u32 i = 0; i < 8; i++) {
+            deck[game->players[game->active_player].cards[i]].flipped = true;
+        }
+    }
+
+    game->active_player++;
+    if (game->active_player >= game->num_of_players) {
+        game->active_player = 0;
+
+        if (game->round_type == FLIP_ROUND)
+            game->round_type = REGULAR_ROUND;
+    }
+}
+
+internal void
+flip_round_update(Game *game, Controller *controller) {
+    Player *active_player = &game->players[game->active_player];
+    for (u32 i = 0; i < 8; i++) {
+        if (on_down(controller->buttons[i])) {
+            deck[active_player->cards[i]].flipped = true;
+
+            u32 card_flipped = 0;
+            for (u32 card_i = 0; card_i < 8; card_i++) {
+                if (deck[active_player->cards[card_i]].flipped) {
+                    card_flipped++;
+                    if (card_flipped == 2) {
+                        next_player(game);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal bool8
+one_card_not_flipped(Player *player) {
+    u32 not_flipped = 0;
+    for (u32 i = 0; i < 8; i++) {
+        if (deck[player->cards[i]].flipped == false) {
+            not_flipped++;
+            if (not_flipped > 1)
+                return false;
+        }
+    }
+    if (not_flipped == 1)
+        return true;
+    else
+        return false;
+}
+
+internal bool8
+all_cards_flipped(Player *player) {
+    for (u32 i = 0; i < 8; i++) {
+        if (deck[player->cards[i]].flipped == false)
+            return false;
+    }
+    return true;
+}
+
+internal void
+regular_round_update(Game *game, Controller *controller) {
+    Player *active_player = &game->players[game->active_player];
+    switch(active_player->turn_stage) {
+        case SELECT_PILE: {
+            if (on_down(controller->nine)) {
+                active_player->new_card = game->pile[game->top_of_pile++];
+                deck[active_player->new_card].flipped = true;
+                active_player->turn_stage = SELECT_CARD;
+                active_player->pile_card = true;
+            } else if (on_down(controller->zero)) {
+                active_player->new_card = game->discard_pile[game->top_of_discard_pile - 1];
+                game->top_of_discard_pile--;
+                active_player->turn_stage = SELECT_CARD;
+            }
+        } break;
+
+        case SELECT_CARD: {
+            for (u32 i = 0; i < 8; i++) {
+                if (on_down(controller->buttons[i])) {
+                    game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
+                    deck[game->discard_pile[game->top_of_discard_pile - 1]].flipped = true;
+                    active_player->cards[i] = active_player->new_card;
+                    active_player->new_card = 0;
+                    active_player->turn_stage = SELECT_PILE;
+                    active_player->pile_card = false;
+                    if (all_cards_flipped(active_player))
+                        game->round_type = FINAL_ROUND;
+                    next_player(game);
+                    return;
+                }
             }
 
-            dest_ptr += dest.channels;
-            src_ptr += src.channels;
-        }   
+            if (on_down(controller->zero) && active_player->pile_card) {
+                game->discard_pile[game->top_of_discard_pile++] = active_player->new_card;
+                active_player->new_card = 0;
+                active_player->turn_stage = FLIP_CARD;
+                return;
+            }
+        } break;
 
-        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
+        case FLIP_CARD: {
+            for (u32 i = 0; i < 8; i++) {
+                Card *card = &deck[active_player->cards[i]];
+                if (on_down(controller->buttons[i]) && !card->flipped) {
+                    card->flipped = true;
+                    active_player->turn_stage = SELECT_PILE;
+                    active_player->pile_card = false;
+                    if (all_cards_flipped(active_player))
+                        game->round_type = FINAL_ROUND;
+                    next_player(game);
+                    return;
+                }
+
+                if (on_down(controller->zero) && one_card_not_flipped(active_player)) {
+                    active_player->turn_stage = SELECT_PILE;
+                    active_player->pile_card = false;
+                    next_player(game);
+                    return;
+                }
+            }
+        } break;
     }
 }
 
-internal Bitmap
-create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
-    Bitmap bitmap = {};
-    
-    float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
+bool8 update_game(State *state, App *app) {
+    switch(state->camera_mode) {
+        case FREE_CAMERA: {
+            if (on_down(state->controller.pause)) {
+                state->camera_mode = PLAYER_CAMERA;
+                app->input.relative_mouse_mode = false;
+            }
 
-    float32 current_point = 0.0f;
+            if (app->input.relative_mouse_mode) {
+                float32 mouse_m_per_s = 100.0f;
+                float32 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
+                update_camera_with_mouse(&state->camera, app->input.mouse_rel, { mouse_move_speed, mouse_move_speed });
+                update_camera_target(&state->camera);    
+                state->scene.view = get_view(state->camera);
+                render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
-    s32 height = 0;
-    float32 left = 0.0f;
+                float32 m_per_s = 6.0f; 
+                float32 m_moved = m_per_s * app->time.frame_time_s;
+                Vector3 move_vector = {m_moved, m_moved, m_moved};
+                update_camera_with_keys(&state->camera, state->camera.target, state->camera.up, move_vector,
+                                        is_down(state->controller.forward),  is_down(state->controller.backward),
+                                        is_down(state->controller.left),  is_down(state->controller.right),
+                                        is_down(state->controller.up),  is_down(state->controller.down));                             
 
-    u32 i = 0;
-    while (str[i] != 0 ) {
-        Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
-        Font_Char *font_char = fbitmap->font_char;
+                print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
+            }
+        } break;
 
-        Vector2 char_coords = { current_point + (font_char->lsb * scale), (float32)fbitmap->bb_0.y };
-        s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
+        case PLAYER_CAMERA: {
+            if (on_down(state->controller.pause)) {
+                state->camera_mode = FREE_CAMERA;
+                app->input.relative_mouse_mode = true;
+            }
+            
+            Game *game = &state->game;
+            if (on_down(state->controller.right)) {
+                next_player(game);
+            }
 
-        if (char_height > height)
-            height = char_height;
-        if (char_coords.x < 0)
-            left = char_coords.x;
+            Vector3 position = get_hand_position(game->radius, game->degrees_between_players, game->active_player);
+            float32 cam_dis = 8.0f;
+            float32 deg = game->degrees_between_players * game->active_player;
+            float32 rad = deg * DEG2RAD;
+            float32 x = cam_dis * cosf(rad);
+            float32 y = cam_dis * sinf(rad);
 
-        s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
-        current_point += scale * (kern + font_char->ax);
-        
-        i++;
+            state->camera.position = position + Vector3{ x, 14.0f, y };
+            state->camera.yaw      = deg + 180.0f;
+            state->camera.pitch    = -50.0f;
+
+            update_camera_target(&state->camera);    
+            state->scene.view = get_view(state->camera);
+            render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
+
+            // game logic
+            switch(game->round_type) {
+                case FLIP_ROUND:    flip_round_update(   game, &state->controller); break;
+                case FINAL_ROUND:
+                case REGULAR_ROUND: regular_round_update(game, &state->controller); break;
+            }
+        } break;
     }
 
-    bitmap.width = s32(current_point - left);
-    bitmap.height = s32(height);
-    bitmap.channels = 1;
-    bitmap.pitch = bitmap.width * bitmap.channels;
-    bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
-
-    current_point = 0.0f;
-
-    i = 0;
-    while (str[i] != 0 ) {
-        Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
-        Font_Char *font_char = fbitmap->font_char;
-
-        Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, (float32)0 };
-
-        copy_bitmap_into_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords));
-
-        s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
-        current_point += scale * (kern + font_char->ax);
-        
-        i++;
-    }
-
-    return bitmap;
+    return 0;
 }
 
-internal Bitmap
-create_card_bitmap(Font *font, s32 number) {
-    Bitmap bitmap   = {};
-    bitmap.width    = 1024;
-    bitmap.height   = 1638;
-    bitmap.channels = 4;
-    bitmap.pitch    = bitmap.width * bitmap.channels;
-    bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
-
-    char str[3] = {};
-    switch(number) {
-        case -5: str[0] = '-'; str[1] = '5'; break;
-        case 10: str[0] = '1'; str[1] = '0'; break;
-        case 11: str[0] = '1'; str[1] = '1'; break;
-        case 12: str[0] = '1'; str[1] = '2'; break;
-        default: str[0] = number + 48; break;
-    }
-
-    Bitmap str_bitmap = create_string_into_bitmap(font, 500.0f, str);
-
-    u32 x_center = (bitmap.width / 2) - (str_bitmap.width / 2);
-    u32 y_center = (bitmap.height / 2) - (str_bitmap.height / 2);
-    copy_bitmap_into_bitmap(bitmap, str_bitmap, { s32(x_center), s32(y_center) });
-
-    render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
-
-    platform_free(str_bitmap.memory);
-    platform_free(bitmap.memory);
-  
-    return bitmap;
-}
-
-internal void
-init_card_bitmaps(Bitmap *bitmaps, Font *font) {
-    for (s32 i = 0; i <= 12; i++) {
-        bitmaps[i] = create_card_bitmap(font, i);
-    }
-
-    bitmaps[13] = create_card_bitmap(font, -5);
-}
-
-internal void
-draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 degrees) {
-    u32 bitmap_index = 0;
-    if (card.number == -5)
-        bitmap_index = 13;
-    else 
-        bitmap_index = card.number;
-
-    render_draw_model(find_model(assets, "CARD"), shader, position, get_rotation(degrees * DEG2RAD, {0, -1, 0}), &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"));
-}
-
-internal void
-draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 position, float32 degrees) {
-    float32 rad = -degrees * DEG2RAD;     
-
-    for (u32 i = 0; i < 8; i++) {
-        Vector3 card_pos = { hand_coords[i].x, 0.0f, hand_coords[i].y };
-        card_pos = { 
-            cosf(rad) * card_pos.x + sinf(rad) * card_pos.z, 
-            0.0f, 
-            -sinf(rad) * card_pos.x + cosf(rad) * card_pos.z 
-        };
-        card_pos += position;
-        draw_card(assets, shader, deck[player->cards[i]], card_pos, degrees);
-    }
-}   
-
-internal Vector3
-get_hand_position(float32 hyp, float32 deg, u32 i) {
-    float32 rad = deg * DEG2RAD;
-    Vector3 position = { 0, 0, 0 };
-    position.x = hyp * cosf(i * rad);
-    position.z = hyp * sinf(i * rad);
-    return position;
-}
-
-//      180
-// 270        90
-//       0
-internal void
-draw_game(Assets *assets, Shader *shader, Game *game) {
-    for (u32 i = 0; i < game->num_of_players; i++) {
-        Vector3 position = get_hand_position(game->radius, game->degrees_between_players, i);
-        draw_player_cards(assets, shader, &game->players[i], position, (game->degrees_between_players * i) + 90.0f);
-    }
-}
 
 bool8 init_data(App *app) {
 	app->data = platform_malloc(sizeof(State));
@@ -257,7 +517,7 @@ bool8 init_data(App *app) {
     init_basic_vert_layout(basic_3D);
     init_basic_frag_layout(basic_3D);
     game->basic_pipeline.shader = basic_3D;
-
+    game->basic_pipeline.depth_test = true;
 	render_create_graphics_pipeline(&game->basic_pipeline, get_vertex_xnu_info());
 	
 	// Init assets
@@ -305,6 +565,19 @@ bool8 init_data(App *app) {
     set(&game->controller.select, SDLK_RETURN);
 	set(&game->controller.pause,  SDLK_ESCAPE);
 
+    set(&game->controller.one,   SDLK_y);
+    set(&game->controller.two,   SDLK_u);
+    set(&game->controller.three, SDLK_i);
+    set(&game->controller.four,  SDLK_o);
+
+    set(&game->controller.five,  SDLK_h);
+    set(&game->controller.six,   SDLK_j);
+    set(&game->controller.seven, SDLK_k);
+    set(&game->controller.eight, SDLK_l);
+
+    set(&game->controller.nine,  SDLK_9);
+    set(&game->controller.zero,  SDLK_0);
+
     init_deck();
     init_card_bitmaps(card_bitmaps, font);
 
@@ -318,23 +591,13 @@ bool8 init_data(App *app) {
 }
 
 internal void
-start_game(Game *game, u32 num_of_players) {
-    shuffle_pile(game->pile);
-    game->num_of_players = num_of_players;
-    deal_cards(game);
-
-    game->degrees_between_players = 360.0f / float32(game->num_of_players);
-    game->radius = 7.0f;
-}
-
-internal void
 prepare_controller_for_input(Controller *controller) {
     for (u32 j = 0; j < ARRAY_COUNT(controller->buttons); j++)
         controller->buttons[j].previous_state = controller->buttons[j].current_state;
 }
 
 internal void
-    controller_process_input(Controller *controller, s32 id, bool8 state) {
+controller_process_input(Controller *controller, s32 id, bool8 state) {
     for (u32 i = 0; i < ARRAY_COUNT(controller->buttons); i++) {
         // loop through all ids associated with button
         for (u32 j = 0; j < controller->buttons[i].num_of_ids; j++) {
@@ -395,74 +658,6 @@ draw_main_menu(State *game, Font *font, Controller *controller, Vector2_s32 wind
     return false;
 }
 
-bool8 update_game(State *state, App *app) {
-    switch(state->camera_mode) {
-        case FREE_CAMERA: {
-            if (on_down(state->controller.pause)) {
-/*
-                app->input.relative_mouse_mode = !app->input.relative_mouse_mode;
-                state->game.top_of_pile = 0;
-                shuffle_pile(state->game.pile);
-                deal_cards(&state->game);
-*/
-                state->camera_mode = PLAYER_CAMERA;
-                app->input.relative_mouse_mode = false;
-            }
-
-            if (app->input.relative_mouse_mode) {
-                float32 mouse_m_per_s = 100.0f;
-                float32 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
-                update_camera_with_mouse(&state->camera, app->input.mouse_rel, { mouse_move_speed, mouse_move_speed });
-                update_camera_target(&state->camera);    
-                state->scene.view = get_view(state->camera);
-                render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
-
-                float32 m_per_s = 6.0f; 
-                float32 m_moved = m_per_s * app->time.frame_time_s;
-                Vector3 move_vector = {m_moved, m_moved, m_moved};
-                update_camera_with_keys(&state->camera, state->camera.target, state->camera.up, move_vector,
-                                        is_down(state->controller.forward),  is_down(state->controller.backward),
-                                        is_down(state->controller.left),  is_down(state->controller.right),
-                                        is_down(state->controller.up),  is_down(state->controller.down));                             
-
-                print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
-            }
-        } break;
-
-        case PLAYER_CAMERA: {
-            if (on_down(state->controller.pause)) {
-                state->camera_mode = FREE_CAMERA;
-                app->input.relative_mouse_mode = true;
-            }
-            
-            Game *game = &state->game;
-            if (on_down(state->controller.right)) {
-                game->active_player++;
-                if (game->active_player >= game->num_of_players)
-                    game->active_player = 0;
-            }
-
-
-            Vector3 position = get_hand_position(game->radius, game->degrees_between_players, game->active_player);
-            float32 cam_dis = 8.0f;
-            float32 deg = game->degrees_between_players * game->active_player;
-            float32 rad = deg * DEG2RAD;
-            float32 x = cam_dis * cosf(rad);
-            float32 y = cam_dis * sinf(rad);
-
-            state->camera.position = position + Vector3{ x, 14.0f, y };
-            state->camera.yaw      = deg + 180.0f;
-            state->camera.pitch    = -50.0f;
-
-            update_camera_target(&state->camera);    
-            state->scene.view = get_view(state->camera);
-            render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
-        } break;
-    }
-
-    return 0;
-}
-
 bool8 update(App *app) {
 	State *game = (State *)app->data;
 	Assets *assets = &game->assets;
@@ -507,7 +702,7 @@ bool8 update(App *app) {
             render_bind_pipeline(&game->basic_pipeline);
             render_bind_descriptor_set(game->scene_set, 0);
 
-
+            
 
             draw_game(&game->assets, basic_3D, &game->game);
         } break;

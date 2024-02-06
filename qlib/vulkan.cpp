@@ -1341,16 +1341,16 @@ vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters) {
 
 	switch(texture_parameters) {
 		case TEXTURE_PARAMETERS_DEFAULT:
-		sampler_info.minFilter = VK_FILTER_LINEAR;
-		sampler_info.magFilter = VK_FILTER_LINEAR;
+		sampler_info.minFilter    = VK_FILTER_LINEAR;
+		sampler_info.magFilter    = VK_FILTER_LINEAR;
 		sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		break;
 
 		case TEXTURE_PARAMETERS_CHAR:
-		sampler_info.minFilter = VK_FILTER_LINEAR;
-		sampler_info.magFilter = VK_FILTER_NEAREST;
+		sampler_info.minFilter    = VK_FILTER_LINEAR;
+		sampler_info.magFilter    = VK_FILTER_NEAREST;
 		sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;

@@ -76,10 +76,11 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
     }
 }
 
-void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternion rotation, Bitmap *bitmap, Bitmap *back) {
+void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternion rotation,
+                       Bitmap *bitmap, Bitmap *back, Vector3 scale) {
     for (u32 i = 0; i < model->meshes_count; i++) {
 
-        Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, {1.0f, 0.5f, 1.0f});
+        Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, scale);
         render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
 
         if (i == 1) {
