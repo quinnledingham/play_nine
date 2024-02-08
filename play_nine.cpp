@@ -183,7 +183,7 @@ draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 d
         rotation = flip * rotation;
     }
 
-    render_draw_model(find_model(assets, "CARD"), shader, position, rotation, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 0.5f, 1.0f});
+    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, position, rotation, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 0.5f, 1.0f});
 }
 
 internal void
@@ -230,7 +230,7 @@ draw_game(Assets *assets, Shader *shader, Game *game) {
     u32 bitmap_index = top_deck_card.number;
     if (bitmap_index == -5)
         bitmap_index = 13;
-    render_draw_model(find_model(assets, "CARD"), shader, {-1.1f, 0.5, 0}, get_rotation(180.0f * DEG2RAD, {0, 0, 1}), &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 4.0f, 1.0f});
+    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, {-1.1f, 0.5, 0}, get_rotation(180.0f * DEG2RAD, {0, 0, 1}), &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 4.0f, 1.0f});
 
     if (game->top_of_discard_pile != 0)
         draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], {1.1f, 0, 0}, 0.0f);
@@ -610,10 +610,18 @@ bool8 init_data(App *app) {
     render_compile_shader(basic_3D);
     init_basic_vert_layout(basic_3D);
     init_basic_frag_layout(basic_3D);
-    game->basic_pipeline.shader = basic_3D;
-    game->basic_pipeline.depth_test = true;
-	render_create_graphics_pipeline(&game->basic_pipeline, get_vertex_xnu_info());
+    basic_pipeline.shader = basic_3D;
+    basic_pipeline.depth_test = true;
+	render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
 	
+    Shader *color_3D = find_shader(&game->assets, "COLOR3D");
+    render_compile_shader(color_3D);
+    init_basic_vert_layout(color_3D);
+    init_color3D_frag_layout(color_3D);
+    color_pipeline.shader = color_3D;
+    color_pipeline.depth_test = true;
+    render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
+
 	// Init assets
 	Bitmap *yogi = find_bitmap(&game->assets, "YOGI");
     render_create_texture(yogi, TEXTURE_PARAMETERS_DEFAULT);
@@ -793,7 +801,7 @@ bool8 update(App *app) {
         } break;
 
         case LOCAL: {
-            render_bind_pipeline(&game->basic_pipeline);
+            render_bind_pipeline(&color_pipeline);
             render_bind_descriptor_set(game->scene_set, 0);
 
             draw_game(&game->assets, basic_3D, &game->game);

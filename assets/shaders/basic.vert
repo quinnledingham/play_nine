@@ -19,7 +19,7 @@ layout(location = 2) out vec3 fragPos;
 
 void main() {
     gl_Position = scene.projection * scene.view * object.model * vec4(inPosition, 1.0);
-    fragNormal = inNormal;
+    fragNormal = vec3(mat3(object.model) * inNormal);
     fragTexCoord = inTexCoord;
     fragPos = vec3(object.model * vec4(inPosition, 1.0f));
 }

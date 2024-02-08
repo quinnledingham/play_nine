@@ -1,6 +1,8 @@
 #version 450
 
-layout(set = 1, binding = 1) uniform sampler2D texSampler;
+layout(set = 1, binding = 1) uniform Color {
+    vec4 c;
+} color;
 
 layout(location = 0) in vec3 fragNormal;
 layout(location = 1) in vec2 fragTexCoord;
@@ -9,13 +11,13 @@ layout(location = 2) in vec3 fragPos;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec3 tex = texture(texSampler, fragTexCoord).rgb;
+    vec3 col = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w).rgb;
 
     vec3 light_position = vec3(2.0, 5.0, 0.0);
     vec3 light_color = vec3(1.0, 1.0, 1.0);
 
     // ambient
-    float ambient_strength = 0.1;
+    float ambient_strength = 0.4;
     vec3 ambient = ambient_strength * light_color;
 
     // diffuse 
@@ -31,8 +33,10 @@ void main() {
     vec3 reflectDir = reflect(-lightDir, norm);  
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
     vec3 specular = light.specular * (spec * material.specular);  
-  */      
-    vec3 result = (ambient + diffuse) * tex;
+*/      
+    vec3 result = (ambient + diffuse) * col;
 
-    outColor = vec4(result, 1.0);
+    outColor = vec4(result, color.c.w);
+    //outColor = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w);
+    //outColor = vec4(1, 1, 1, 1);
 }

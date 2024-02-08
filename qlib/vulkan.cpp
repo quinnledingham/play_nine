@@ -810,11 +810,6 @@ vulkan_create_descriptor(Descriptor descriptor) {
 // descriptor_set_count is how many descripotr sets to allocate
 internal void
 vulkan_create_descriptor_pool(Shader *shader, u32 max_sets, u32 set_index) {
-	//shader->descriptor_pool[set_index] = platform_malloc(sizeof(VkDescriptorPool));
-	//shader->descriptor_set_layout[set_index] = platform_malloc(sizeof(VkDescriptorSetLayout));
-	//VkDescriptorPool *vulkan_pool = (VkDescriptorPool *)shader->descriptor_pool[set_index];
-	//VkDescriptorSetLayout *vulkan_layout = (VkDescriptorSetLayout *)shader->descriptor_set_layout[set_index];
-	
 	Descriptor_Set *set = &shader->layout_sets[set_index]; // passing the layout that was defined for the set
 
 	VkDescriptorSetLayoutBinding bindings[set->max_descriptors] = {};
@@ -913,15 +908,15 @@ vulkan_create_shaders_ext(VkDevice device, u32 createInfoCount, const VkShaderCr
 internal VkShaderEXT
 vulkan_create_shader_object(VkDevice device, File code, u32 stage, VkDescriptorSetLayout *layout) {
 	VkShaderCreateInfoEXT create_info = {};
-	create_info.sType = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT;
-	create_info.pNext = NULL;
-	create_info.flags = VK_SHADER_CREATE_LINK_STAGE_BIT_EXT;
-	create_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	create_info.sType     = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT;
+	create_info.pNext     = NULL;
+	create_info.flags     = VK_SHADER_CREATE_LINK_STAGE_BIT_EXT;
+	create_info.stage     = VK_SHADER_STAGE_VERTEX_BIT;
 	create_info.nextStage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	create_info.codeType = VK_SHADER_CODE_TYPE_SPIRV_EXT;
-	create_info.codeSize = code.size;
-	create_info.pCode = code.memory;
-	create_info.pName = "main"; 
+	create_info.codeType  = VK_SHADER_CODE_TYPE_SPIRV_EXT;
+	create_info.codeSize  = code.size;
+	create_info.pCode     = code.memory;
+	create_info.pName     = "main"; 
 	create_info.setLayoutCount         = 1;
 	create_info.pSetLayouts            = layout;
 	create_info.pushConstantRangeCount = 0;     
@@ -1612,7 +1607,7 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	vulkan_create_buffer(info->device, 
                      info->physical_device,
-                     100000, 
+                     1000000, 
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      info->uniform_buffer,

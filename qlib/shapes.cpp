@@ -146,7 +146,7 @@ void init_shapes(Assets *assets) {
     //shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
     //shapes.text_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/text.frag";
     shapes.text_shader = find_shader(assets, "TEXT");
-    load_shader(shapes.text_shader);
+    //load_shader(shapes.text_shader);
 	render_compile_shader(shapes.text_shader);
 
     init_basic_vert_layout(shapes.text_shader);
@@ -159,7 +159,7 @@ void init_shapes(Assets *assets) {
     //shapes.color_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
     //shapes.color_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/color.frag";
     shapes.color_shader = find_shader(assets, "COLOR");
-    load_shader(shapes.color_shader);
+    //load_shader(shapes.color_shader);
     render_compile_shader(shapes.color_shader);
 
     init_basic_vert_layout(shapes.color_shader);

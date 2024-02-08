@@ -143,6 +143,9 @@ enum Game_Mode {
     ONLINE,
 };
 
+Render_Pipeline basic_pipeline;
+Render_Pipeline color_pipeline;
+
 struct State {
     Game game;
 
@@ -153,7 +156,6 @@ struct State {
     enum Game_Mode mode = MAIN_MENU;
     s32 active;
 
-    Render_Pipeline basic_pipeline;
     Scene scene;
     Scene ortho_scene;
     Descriptor_Set *scene_set;

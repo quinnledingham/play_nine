@@ -2,6 +2,9 @@ SHADERS:
 BASIC3D|VERTEX,   basic.vert
 BASIC3D|FRAGMENT, basic.frag
 
+COLOR3D|VERTEX,   basic.vert
+COLOR3D|FRAGMENT, color3D.frag
+
 TEXT|VERTEX,      2D.vert
 TEXT|FRAGMENT,    text.frag
 
