@@ -172,7 +172,7 @@ init_card_bitmaps(Bitmap *bitmaps, Font *font) {
 }
 
 internal void
-draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 degrees) {
+draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 degrees, Vector3 scale) {
     u32 bitmap_index = card.number;
     if (card.number == -5)
         bitmap_index = 13;
@@ -183,22 +183,27 @@ draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 d
         rotation = flip * rotation;
     }
 
-    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, position, rotation, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 0.5f, 1.0f});
+    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, position, rotation, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), scale);
 }
 
 internal void
-draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 position, float32 degrees) {
+rotate_coords(Vector3 *coords, float32 rad) {
+    *coords = { 
+         cosf(rad) * coords->x + sinf(rad) * coords->z, 
+         coords->y, 
+        -sinf(rad) * coords->x + cosf(rad) * coords->z 
+    };
+}
+
+internal void
+draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 position, float32 degrees, Vector3 scale) {
     float32 rad = degrees * DEG2RAD;     
 
     for (u32 i = 0; i < 8; i++) {
         Vector3 card_pos = { hand_coords[i].x, 0.0f, hand_coords[i].y };
-        card_pos = { 
-            cosf(rad) * card_pos.x + sinf(rad) * card_pos.z, 
-            0.0f, 
-            -sinf(rad) * card_pos.x + cosf(rad) * card_pos.z 
-        };
+        rotate_coords(&card_pos, rad);
         card_pos += position;
-        draw_card(assets, shader, deck[player->cards[i]], card_pos, degrees);
+        draw_card(assets, shader, deck[player->cards[i]], card_pos, degrees, scale);
     }
 }   
 
@@ -213,27 +218,62 @@ get_hand_position(float32 hyp, float32 deg, u32 i) {
     return position;
 }
 
+internal float32
+process_rotation(Rotation *rot, float32 seconds) {
+    if (!rot->rotating)
+        return rot->dest_degrees;
+
+    if (rot->speed > 0.0f) {
+        if (rot->degrees < rot->dest_degrees) {
+            rot->degrees += seconds * rot->speed;
+        } else {
+            rot->rotating = false;
+        }
+    } else if (rot->speed < 0.0f) { 
+        if (rot->degrees > rot->dest_degrees) {
+            rot->degrees += seconds * rot->speed;
+        } else {
+            rot->rotating = false;
+        }
+    }
+
+    return rot->degrees;
+}
+
 //      180
 // 270        90
 //       0
 internal void
-draw_game(Assets *assets, Shader *shader, Game *game) {
+draw_game(Assets *assets, Shader *shader, Game *game, float32 seconds) {
     for (u32 i = 0; i < game->num_of_players; i++) {
         Vector3 position = get_hand_position(game->radius, game->degrees_between_players, i);
-        draw_player_cards(assets, shader, &game->players[i], position, (game->degrees_between_players * i) - 90.0f);
+        draw_player_cards(assets, shader, &game->players[i], position, (game->degrees_between_players * i) - 90.0f, {1.0f, 0.5f, 1.0f});
+
+        // draw card selected from pile
         if (game->players[i].turn_stage == SELECT_CARD) {
-            draw_card(assets, shader, deck[game->players[i].new_card], {3.1f, 1.0f, 0}, 0.0f);
+            Vector3 selected_card_coords = {0.0f, 1.0f, -3.1f};
+            float32 selected_card_degs = ((game->degrees_between_players * i) - 90.0f);
+            rotate_coords(&selected_card_coords, selected_card_degs * DEG2RAD);
+            draw_card(assets, shader, deck[game->players[i].new_card], selected_card_coords, selected_card_degs, {1.0f, 0.5f, 1.0f});
         }
     }
 
-    Card top_deck_card = deck[game->pile[game->top_of_pile]];
-    u32 bitmap_index = top_deck_card.number;
-    if (bitmap_index == -5)
-        bitmap_index = 13;
-    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, {-1.1f, 0.5, 0}, get_rotation(180.0f * DEG2RAD, {0, 0, 1}), &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), {1.0f, 4.0f, 1.0f});
+    Vector3 pile_coords = { -1.1f, 0.5, 0 };
+    Vector3 discard_pile_coords = { 1.1f, 0, 0 };
 
+    float32 pile_degs = ((game->degrees_between_players * game->active_player) - 90.0f);
+    pile_degs -= process_rotation(&game->pile_rotation, seconds);
+    float32 pile_rad = pile_degs * DEG2RAD;    
+
+    rotate_coords(&pile_coords, pile_rad);
+    rotate_coords(&discard_pile_coords, pile_rad);
+
+    // pile
+    draw_card(assets, shader, deck[game->pile[game->top_of_pile]], pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
+
+    // discard pile
     if (game->top_of_discard_pile != 0)
-        draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], {1.1f, 0, 0}, 0.0f);
+        draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], discard_pile_coords, pile_degs, {1.0f, 0.5f, 1.0f});
 }
 
 internal void
@@ -410,14 +450,28 @@ next_player(Game *game) {
     if (game->active_player >= game->num_of_players) {
         game->active_player = 0;
 
-
         switch(game->round_type) {
             case FLIP_ROUND: game->round_type = REGULAR_ROUND; break;
             case FINAL_ROUND: {
                 update_scores(game);
+                return;
             } break;
         }
     }
+
+    game->camera_rotation = {
+        true,
+        game->degrees_between_players,
+        0.0f,
+        -game->rotation_speed
+    };
+
+    game->pile_rotation = {
+        true,
+        game->degrees_between_players,
+        0.0f,
+        -game->rotation_speed
+    };
 }
 
 internal void
@@ -570,14 +624,28 @@ bool8 update_game(State *state, App *app) {
                 next_player(game);
             }
 
-            Vector3 position = get_hand_position(game->radius, game->degrees_between_players, game->active_player);
-            float32 cam_dis = 8.0f;
+            float32 cam_dis = 8.0f + game->radius;
+/*
+            
+
+            if (game->move_camera) {
+
+                if (game->camera_move_degrees > 0.0f) {
+                    deg += game->camera_move_degrees;
+                    game->camera_move_degrees -= (app->time.frame_time_s * game->rotation_speed);
+                } else {
+                    game->move_camera = false;
+                }
+                
+            }
+*/
             float32 deg = -game->degrees_between_players * game->active_player;
+            deg += process_rotation(&game->camera_rotation, app->time.frame_time_s);
             float32 rad = deg * DEG2RAD;
             float32 x = cam_dis * cosf(rad);
             float32 y = cam_dis * sinf(rad);
 
-            state->camera.position = position + Vector3{ x, 14.0f, y };
+            state->camera.position =  Vector3{ x, 14.0f, y };
             state->camera.yaw      = deg + 180.0f;
             state->camera.pitch    = -50.0f;
 
@@ -687,6 +755,7 @@ bool8 init_data(App *app) {
     
     init_shapes(&game->assets);
 
+    game->game.rotation_speed = 100.0f;
     game->camera_mode = PLAYER_CAMERA;
 
 	return false;
@@ -734,10 +803,10 @@ draw_main_menu(State *game, Font *font, Controller *controller, Vector2_s32 wind
     main_menu.font = font;
     main_menu.rect = get_centered_rect(window_rect, 0.5f, 0.5f);
 
-    main_menu.button_style.default_back_color = {  34,  44, 107, 1 };
-    main_menu.button_style.active_back_color  = {  42,  55, 131, 1 };
-    main_menu.button_style.default_text_color = { 234,   0,  39, 1 };
-    main_menu.button_style.active_text_color  = { 171, 160, 200, 1 };;
+    main_menu.button_style.default_back_color = {  231,213,36, 1 };
+    main_menu.button_style.active_back_color  = {  240, 229, 118, 1 };
+    main_menu.button_style.default_text_color = { 39,77,20, 1 };
+    main_menu.button_style.active_text_color  = { 39,77,20, 1 };;
     
     u32 buttons_count = 3;
     main_menu.button_style.dim = { main_menu.rect.dim.x, main_menu.rect.dim.y / float32(buttons_count) };
@@ -745,7 +814,7 @@ draw_main_menu(State *game, Font *font, Controller *controller, Vector2_s32 wind
     bool8 select = on_down(controller->select);
     u32 index = 0;
 
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 37, 38, 90, 1 } );
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
     draw_rect(main_menu.rect.coords, 0, main_menu.rect.dim, { 0, 0, 0, 0.2f} );
 
     if (menu_button(&main_menu, "Local",  index++, game->active, select)) {
@@ -804,7 +873,7 @@ bool8 update(App *app) {
             render_bind_pipeline(&color_pipeline);
             render_bind_descriptor_set(game->scene_set, 0);
 
-            draw_game(&game->assets, basic_3D, &game->game);
+            draw_game(&game->assets, basic_3D, &game->game, app->time.frame_time_s);
         } break;
     }
 

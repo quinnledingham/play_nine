@@ -43,6 +43,15 @@ struct Player {
     enum Turn_Stages turn_stage;
 };
 
+struct Rotation {
+    bool8 rotating;
+    
+    float32 degrees;      // how much to rotate the object
+    float32 dest_degrees;
+
+    float32 speed;
+};
+
 struct Game {
 	u32 pile[DECK_SIZE];
 	u32 top_of_pile;
@@ -57,6 +66,11 @@ struct Game {
     enum Round_Types round_type;
 
     // Game Draw info
+    Rotation pile_rotation;
+    Rotation camera_rotation;
+
+    float32 rotation_speed;
+
     float32 degrees_between_players;
     float32 radius;
 };
@@ -162,7 +176,7 @@ struct State {
     Descriptor_Set *scene_ortho_set;
     Camera camera;
     Mesh rect;
-    
+
     Bitmap test;
 
     Assets assets;
