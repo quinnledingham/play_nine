@@ -453,4 +453,9 @@ create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale) {
     };
 }
 
+inline Matrix_4x4
+inverse(Matrix_4x4 m) {
+    
+}
+
 #endif // TYPES_MATH_H

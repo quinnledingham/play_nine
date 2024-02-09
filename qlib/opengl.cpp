@@ -82,7 +82,7 @@ void opengl_init_mesh(Mesh *mesh) {
     
     glBindVertexArray(0);
 
-    mesh->gpu_info = (void*)gl_mesh;
+    mesh->gpu_info = (void *)gl_mesh;
 }
 
 void opengl_draw_mesh(Mesh *mesh)

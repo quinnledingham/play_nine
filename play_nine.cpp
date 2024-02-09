@@ -450,6 +450,8 @@ next_player(Game *game) {
     if (game->active_player >= game->num_of_players) {
         game->active_player = 0;
 
+        // Actually this isn't when I should do it
+        // I have to do it one round after the first player to flip all their cards
         switch(game->round_type) {
             case FLIP_ROUND: game->round_type = REGULAR_ROUND; break;
             case FINAL_ROUND: {
@@ -585,6 +587,34 @@ regular_round_update(Game *game, Controller *controller) {
     }
 }
 
+struct Triangle {
+    Vector3 a, b, c;
+};
+
+// https://antongerdelan.net/opengl/raycasting.html
+internal void
+set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, Vector2_s32 mouse, Vector2_s32 screen_dim) {
+    Vector3 ray_nds = {
+        (2.0f * mouse.x) / screen_dim.width - 1.0f,
+        1.0f - (2.0f * mouse.y) / screen_dim.height,
+        1.0f
+    };
+
+    Vector4 ray_clip = {
+        ray_nds.x,
+        ray_nds.y,
+        -1.0f,
+        1.0f,
+    };
+
+    Vector4 ray_eye = inverse(projection) * ray_clip;
+}
+
+internal Ray_Intersection
+intersect_triangle(Ray ray, Triangle triangle) {
+    
+}
+
 bool8 update_game(State *state, App *app) {
     switch(state->camera_mode) {
         case FREE_CAMERA: {
@@ -625,20 +655,6 @@ bool8 update_game(State *state, App *app) {
             }
 
             float32 cam_dis = 8.0f + game->radius;
-/*
-            
-
-            if (game->move_camera) {
-
-                if (game->camera_move_degrees > 0.0f) {
-                    deg += game->camera_move_degrees;
-                    game->camera_move_degrees -= (app->time.frame_time_s * game->rotation_speed);
-                } else {
-                    game->move_camera = false;
-                }
-                
-            }
-*/
             float32 deg = -game->degrees_between_players * game->active_player;
             deg += process_rotation(&game->camera_rotation, app->time.frame_time_s);
             float32 rad = deg * DEG2RAD;

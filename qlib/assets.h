@@ -204,6 +204,7 @@ typedef enum {
     VECTOR3
 } Vector_Type;
 
+#ifdef VULKAN
 inline VkFormat
 convert_to_vulkan(Vector_Type type) {
     switch(type) {
@@ -216,6 +217,7 @@ convert_to_vulkan(Vector_Type type) {
         } break;
     }
 }
+#endif // VULKAN
 
 struct Vertex_Info {
     static const u32 max_attributes = 5;

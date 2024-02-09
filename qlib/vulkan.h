@@ -1,3 +1,8 @@
+/*
+TODO:
+- put all descriptors and buffers in vulkan info in a way that is easy to clean up
+*/
+
 struct Vulkan_Validation_Layers {
 	const char *data[1] = { "VK_LAYER_KHRONOS_validation" };
 	const u32 count = ARRAY_COUNT(data);

@@ -1,3 +1,19 @@
+/*
+TODO
+- Write inverse/determinant functions
+- Mouse Controls
+- Highlight card choices
+- Flip "animation"
+- Reset game
+- Scoreboard
+- On screen announcements
+
+- Pause menu
+- Textbox
+
+- Online
+*/
+
 struct Card {
 	s32 number;
 	const char *name; // i.e. mulligan, birdie
@@ -180,4 +196,19 @@ struct State {
     Bitmap test;
 
     Assets assets;
+};
+
+//
+// Raycasting
+// 
+
+struct Ray {
+    Vector3 origin;
+    Vector3 direction;
+};
+
+struct Ray_Intersection {
+    u32 number_of_intersections;
+    Vector3 point;
+    Vector3 normal;
 };
