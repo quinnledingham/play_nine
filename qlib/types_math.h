@@ -129,13 +129,13 @@ inline Vector3 operator/(const Vector3 &l, const Vector3  &r) { return { l.x / r
 inline Vector3 operator/(const Vector3 &l, const float32 &r) { return { l.x / r,   l.y / r,   l.z / r   }; }
 inline Vector3 operator-(const Vector3 &v)               { return {-v.x    ,  -v.y    ,  -v.z       }; }
 
-inline void operator+=(Vector3 &l, const Vector3 &r)  { l.x = l.x + r.x; l.y = l.y + r.y; l.z = l.z + r.z; }
+inline void operator+=(Vector3 &l, const Vector3 &r) { l.x = l.x + r.x; l.y = l.y + r.y; l.z = l.z + r.z; }
 inline void operator+=(Vector3 &l, const float32 &r) { l.x = l.x + r;   l.y = l.y + r;   l.z = l.z + r;   }
-inline void operator-=(Vector3 &l, const Vector3 &r)  { l.x = l.x - r.x; l.y = l.y - r.y; l.z = l.z - r.z; }
+inline void operator-=(Vector3 &l, const Vector3 &r) { l.x = l.x - r.x; l.y = l.y - r.y; l.z = l.z - r.z; }
 inline void operator-=(Vector3 &l, const float32 &r) { l.x = l.x - r;   l.y = l.y - r;   l.z = l.z - r;   }
-inline void operator*=(Vector3 &l, Vector3 &r)        { l.x *= r.x;      l.y *= r.y;      l.z *= r.z;      }
+inline void operator*=(Vector3 &l, Vector3 &r)       { l.x *= r.x;      l.y *= r.y;      l.z *= r.z;      }
 inline bool operator==(const Vector3 &l, const Vector3 &r) { if (l.x == r.x && l.y == r.y && l.z == r.z) return true; return false; }
-inline bool operator==(const Vector3 &v, float f)     { if (v.x == f   && v.y == f   && v.z == f)   return true; return false; }
+inline bool operator==(const Vector3 &v, float f)          { if (v.x == f   && v.y == f   && v.z == f)   return true; return false; }
 
 inline float32 dot_product(const Vector3 &l, const Vector3 &r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z); }
 inline float32 length_squared(const Vector3 &v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
@@ -239,6 +239,7 @@ inline Vector4 operator*(const Vector4 &l, const Vector4 &r) { return { l.x * r.
 inline Vector4 operator*(const Vector4 &l, float     r) { return { l.x * r, l.y * r, l.z * r, l.w * r }; }
 inline float32 length_squared(const Vector4 &v) { return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w; }
 inline bool operator==(const Vector4 &l, const Vector4 &r) { if (l.x == r.x && l.y == r.y && l.z == r.z && l.w == r.w) return true; return false; }
+float32 v4_dot_product(const Vector4 l, const Vector4 r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z) + (l.w * r.w); }
 
 //
 // Quaternion
@@ -453,9 +454,33 @@ create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale) {
     };
 }
 
+Vector4 m4x4_get_row(Matrix_4x4 m, u32 i) {
+    Vector4 row;
+    row.E[0] = m.E[0][i];
+    row.E[1] = m.E[1][i];
+    row.E[2] = m.E[2][i];
+    row.E[3] = m.E[3][i];
+    return row;
+}
+
+Vector4 m4x4_mul_v4(Matrix_4x4 m, Vector4 v) {
+    
+    Vector4 result =  {
+        v4_dot_product(m4x4_get_row(m, 0), v),
+        v4_dot_product(m4x4_get_row(m, 1), v),
+        v4_dot_product(m4x4_get_row(m, 2), v),
+        v4_dot_product(m4x4_get_row(m, 3), v)
+    };
+    return result;
+}
+
 inline Matrix_4x4
 inverse(Matrix_4x4 m) {
-    
+    /*float32 a00 = m.E[0][0]*
+
+    return {
+
+    }*/
 }
 
 #endif // TYPES_MATH_H

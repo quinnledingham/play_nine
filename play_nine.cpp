@@ -607,7 +607,7 @@ set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, 
         1.0f,
     };
 
-    Vector4 ray_eye = inverse(projection) * ray_clip;
+    Vector4 ray_eye = m4x4_mul_v4(inverse(projection), ray_clip);
 }
 
 internal Ray_Intersection
