@@ -608,6 +608,15 @@ set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, 
     };
 
     Vector4 ray_eye = m4x4_mul_v4(inverse(projection), ray_clip);
+    ray_eye = { ray_eye.x, ray_eye.y, -1.0f, 0.0 };
+    Vector4 ray_world_v4 = m4x4_mul_v4(inverse(view), ray_eye);
+    Vector3 ray_world = ray_world_v4.xyz;
+    normalize(ray_world);
+
+    ray->origin = ray_world;
+    ray->direction = camera.target;
+
+    print("%f %f %f\n", ray->origin.x, ray->origin.y, ray->origin.z);
 }
 
 internal Ray_Intersection
@@ -668,6 +677,10 @@ bool8 update_game(State *state, App *app) {
             update_camera_target(&state->camera);    
             state->scene.view = get_view(state->camera);
             render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
+
+            Ray ray = {};
+            if (on_down(state->controller.mouse_left))
+                set_ray_coords(&ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
 
             // game logic
             switch(game->round_type) {
@@ -763,6 +776,8 @@ bool8 init_data(App *app) {
 
     set(&game->controller.nine,  SDLK_9);
     set(&game->controller.zero,  SDLK_0);
+
+    set(&game->controller.mouse_left, SDL_BUTTON_LEFT);
 
     init_deck();
     init_card_bitmaps(card_bitmaps, font);
@@ -916,6 +931,14 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
         } break;
 
         case APP_KEYUP: {
+            controller_process_input(&game->controller, arg, false);
+        } break;
+
+        case APP_MOUSEDOWN: {
+            controller_process_input(&game->controller, arg, true);
+        } break;
+
+        case APP_MOUSEUP: {
             controller_process_input(&game->controller, arg, false);
         } break;
     }

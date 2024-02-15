@@ -47,6 +47,9 @@ union Vector4 {
 	struct {
 		Vector3 rgb;
 	};
+	struct {
+		Vector3 xyz;
+	};
 	float32 E[4];
 };
 
@@ -61,10 +64,19 @@ union Quaternion {
     float32 E[4];
 };
 
+/*
+0 -> 0 1 2 3
+1 -> 4 5 6 7
+2 -> 8 9 1 2
+3 -> 3 4 5 6
+*/
+
+struct Matrix_3x3 {
+	float32 E[3][3];
+};
 
 struct Matrix_4x4 {
     float32 E[4][4];
 };
-
 
 #endif // TYPES_H

@@ -45,6 +45,9 @@ typedef enum {
 	APP_INIT,
 	APP_KEYDOWN,
 	APP_KEYUP,
+
+	APP_MOUSEDOWN,
+	APP_MOUSEUP,
 } App_System_Event;
 
 struct App {

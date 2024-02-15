@@ -137,7 +137,7 @@ internal bool8
 sdl_process_input(App *app, App_Window *window, App_Input *input) {
     window->resized = false;
 
-    input->mouse = {};
+    //input->mouse = {};
     input->mouse_rel = {};
     
     SDL_Event event;
@@ -174,6 +174,17 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
                 input->mouse.y = mouse_motion_event->y;
                 input->mouse_rel.x = mouse_motion_event->xrel;
                 input->mouse_rel.y = mouse_motion_event->yrel;
+            } break;
+
+            case SDL_MOUSEBUTTONDOWN: {
+                SDL_MouseButtonEvent *mouse_event = &event.button;
+                event_handler(app, APP_MOUSEDOWN, mouse_event->button);
+            } break;
+
+            case SDL_MOUSEBUTTONUP: {
+                SDL_MouseButtonEvent *mouse_event = &event.button;
+                input->mouse = { mouse_event->x, mouse_event->y };
+                event_handler(app, APP_MOUSEUP, mouse_event->button);
             } break;
 
             case SDL_KEYDOWN: {
@@ -224,7 +235,7 @@ int main(int argc, char *argv[]) {
     }
 
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
-    SDL_SetRelativeMouseMode(SDL_TRUE);
+    SDL_SetRelativeMouseMode(SDL_FALSE);
 
     render_sdl_init(sdl_window);
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
@@ -242,7 +253,7 @@ int main(int argc, char *argv[]) {
             break;
         
     	sdl_update_time(&app.time);
-        print("%f\n", app.time.frames_per_s);
+        //print("%f\n", app.time.frames_per_s);
 
         if (app.update(&app))
             break;

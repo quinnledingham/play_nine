@@ -157,8 +157,11 @@ struct Controller {
 
             Button pause;
             Button select;
+
+            // Mouse Controls
+            Button mouse_left;
         };
-        Button buttons[18];
+        Button buttons[19];
     };
 };
 
