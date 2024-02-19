@@ -171,7 +171,7 @@ init_card_bitmaps(Bitmap *bitmaps, Font *font) {
     bitmaps[13] = create_card_bitmap(font, -5);
 }
 
-internal void
+internal Matrix_4x4
 draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 degrees, Vector3 scale) {
     u32 bitmap_index = card.number;
     if (card.number == -5)
@@ -184,6 +184,9 @@ draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 d
     }
 
     render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, position, rotation, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), scale);
+
+    Matrix_4x4 model = create_transform_m4x4(position, rotation, scale);
+    return model;
 }
 
 internal void
@@ -194,18 +197,6 @@ rotate_coords(Vector3 *coords, float32 rad) {
         -sinf(rad) * coords->x + cosf(rad) * coords->z 
     };
 }
-
-internal void
-draw_player_cards(Assets *assets, Shader *shader, Player *player, Vector3 position, float32 degrees, Vector3 scale) {
-    float32 rad = degrees * DEG2RAD;     
-
-    for (u32 i = 0; i < 8; i++) {
-        Vector3 card_pos = { hand_coords[i].x, 0.0f, hand_coords[i].y };
-        rotate_coords(&card_pos, rad);
-        card_pos += position;
-        draw_card(assets, shader, deck[player->cards[i]], card_pos, degrees, scale);
-    }
-}   
 
 // -deg: negative because I want to go counter clockwise but still
 // have degrees between players be positive
@@ -245,35 +236,47 @@ process_rotation(Rotation *rot, float32 seconds) {
 //       0
 internal void
 draw_game(Assets *assets, Shader *shader, Game *game, float32 seconds) {
-    for (u32 i = 0; i < game->num_of_players; i++) {
-        Vector3 position = get_hand_position(game->radius, game->degrees_between_players, i);
-        draw_player_cards(assets, shader, &game->players[i], position, (game->degrees_between_players * i) - 90.0f, {1.0f, 0.5f, 1.0f});
+    game->models_count = 0;
 
-        // draw card selected from pile
-        if (game->players[i].turn_stage == SELECT_CARD) {
-            Vector3 selected_card_coords = {0.0f, 1.0f, -3.1f};
-            float32 selected_card_degs = ((game->degrees_between_players * i) - 90.0f);
-            rotate_coords(&selected_card_coords, selected_card_degs * DEG2RAD);
-            draw_card(assets, shader, deck[game->players[i].new_card], selected_card_coords, selected_card_degs, {1.0f, 0.5f, 1.0f});
+    Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
+    Vector3 selected_card_coords = {0.0f, 1.0f, -3.1f};
+    Vector3 pile_coords          = { -1.1f, 0.5, 0 };
+    Vector3 discard_pile_coords  = { 1.1f, 0, 0 };
+
+    for (u32 i = 0; i < game->num_of_players; i++) {
+        float32 degrees = (game->degrees_between_players * i) - 90.0f;
+        float32 rad = degrees * DEG2RAD; 
+        Vector3 position = get_hand_position(game->radius, game->degrees_between_players, i);
+        
+        // draw player cards    
+        for (u32 card_index = 0; card_index < 8; card_index++) {
+            Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
+            rotate_coords(&card_pos, rad);
+            card_pos += position;
+            game->models[game->models_count++] = draw_card(assets, shader, deck[game->players[i].cards[card_index]], card_pos, degrees, card_scale);
         }
     }
 
-    Vector3 pile_coords = { -1.1f, 0.5, 0 };
-    Vector3 discard_pile_coords = { 1.1f, 0, 0 };
+    // draw card selected from pile
+    float32 degrees = (game->degrees_between_players * game->active_player) - 90.0f;
+    float32 rad = degrees * DEG2RAD; 
+    if (game->players[game->active_player].turn_stage == SELECT_CARD) {
+        rotate_coords(&selected_card_coords, rad);
+        game->models[game->models_count++] = draw_card(assets, shader, deck[game->players[game->active_player].new_card], selected_card_coords, degrees, card_scale);
+    }
 
-    float32 pile_degs = ((game->degrees_between_players * game->active_player) - 90.0f);
-    pile_degs -= process_rotation(&game->pile_rotation, seconds);
+    float32 pile_degs = degrees - process_rotation(&game->pile_rotation, seconds);
     float32 pile_rad = pile_degs * DEG2RAD;    
 
     rotate_coords(&pile_coords, pile_rad);
     rotate_coords(&discard_pile_coords, pile_rad);
 
     // pile
-    draw_card(assets, shader, deck[game->pile[game->top_of_pile]], pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
+    game->models[game->models_count++] = draw_card(assets, shader, deck[game->pile[game->top_of_pile]], pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
 
     // discard pile
     if (game->top_of_discard_pile != 0)
-        draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], discard_pile_coords, pile_degs, {1.0f, 0.5f, 1.0f});
+        game->models[game->models_count++] = draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], discard_pile_coords, pile_degs, card_scale);
 }
 
 internal void
@@ -608,10 +611,12 @@ set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, 
     };
 
     Vector4 ray_eye = m4x4_mul_v4(inverse(projection), ray_clip);
-    ray_eye = { ray_eye.x, ray_eye.y, -1.0f, 0.0 };
+    //ray_eye = { ray_eye.x, ray_eye.y, -1.0f, 0.0 };
+    
     Vector4 ray_world_v4 = m4x4_mul_v4(inverse(view), ray_eye);
     Vector3 ray_world = ray_world_v4.xyz;
-    normalize(ray_world);
+    //ray_world = normalized(ray_world);
+    ray_world = ray_world / ray_world_v4.w;
 
     ray->origin = ray_world;
     ray->direction = camera.target;
@@ -619,9 +624,81 @@ set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, 
     print("%f %f %f\n", ray->origin.x, ray->origin.y, ray->origin.z);
 }
 
+// https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
 internal Ray_Intersection
-intersect_triangle(Ray ray, Triangle triangle) {
+intersect_triangle(Ray ray, Triangle triangle) {    
+    Vector3 edge1 = triangle.b - triangle.a;
+    Vector3 edge2 = triangle.c - triangle.a;
+    Vector3 ray_cross_e2 = cross_product(ray.direction, edge2);
+    float32 det = dot_product(edge1, ray_cross_e2);
+
+    if (det > -EPSILON && det < EPSILON) {
+        return Ray_Intersection{}; // no intersection. this ray is parallel to this triangle
+    }
+
+    float32 inv_det = 1.0f / det;
+    Vector3 s = ray.origin - triangle.a;
+    float32 u = inv_det * dot_product(s, ray_cross_e2);
+    if (u < 0 || u > 1) {
+        return Ray_Intersection{}; // no intersection
+    }
+
+    Vector3 s_cross_e1 = cross_product(s, edge1);
+    float32 v = inv_det * dot_product(ray.direction, s_cross_e1);
+
+    if (v < 0 || u + v > 1) {
+        return Ray_Intersection{}; // no intersection
+    }
+
+    // At this stage we can compute t to find out where the intersection point is on the line.
+    float32 t = inv_det * dot_product(edge2, s_cross_e1);
+
+    // ray intersection
+    if (t > EPSILON) {
+        Ray_Intersection p;
+        p.point = ray.origin + ray.direction * t;
+        //p.normal = normalized(cross_product(edge1, edge2));
+        //p.material = material;
+        p.number_of_intersections = 1;
+        return p;
+    } else {
+        // This means that there is a line intersection but not a ray intersection.
+        return Ray_Intersection{}; // no intersection
+    }
+}
+
+internal Ray_Intersection
+intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
+    Ray_Intersection result = {};
+    float32 min = 9999.9f;
     
+    for (u32 i = 0; i < mesh->indices_count; i += 3) {
+        u32 i1 = mesh->indices[i + 0];
+        u32 i2 = mesh->indices[i + 1];
+        u32 i3 = mesh->indices[i + 2];
+    
+        Vertex_XNU v1 = ((Vertex_XNU *)mesh->vertices)[i1];
+        Vertex_XNU v2 = ((Vertex_XNU *)mesh->vertices)[i2];
+        Vertex_XNU v3 = ((Vertex_XNU *)mesh->vertices)[i3];
+
+        Vector4 a = m4x4_mul_v4(model, { v1.position.x, v1.position.y, v1.position.z, 1.0f });
+        Vector4 b = m4x4_mul_v4(model, { v2.position.x, v2.position.y, v2.position.z, 1.0f });
+        Vector4 c = m4x4_mul_v4(model, { v3.position.x, v3.position.y, v3.position.z, 1.0f });
+    
+        Triangle triangle = { 
+            a.xyz,
+            b.xyz,
+            c.xyz
+        };
+
+        Ray_Intersection intersection = intersect_triangle(ray, triangle);
+        if (intersection.number_of_intersections != 0 && distance(intersection.point, ray.origin) < min) {
+            min = distance(intersection.point, ray.origin);
+            result = intersection;
+        }
+    }
+
+    return result;
 }
 
 bool8 update_game(State *state, App *app) {
@@ -673,14 +750,29 @@ bool8 update_game(State *state, App *app) {
             state->camera.position =  Vector3{ x, 14.0f, y };
             state->camera.yaw      = deg + 180.0f;
             state->camera.pitch    = -50.0f;
-
+/*
+            state->camera.position = Vector3{0, 0, 0};
+            state->camera.yaw = 0.0f;
+            state->camera.pitch = 0.0f;
+*/
             update_camera_target(&state->camera);    
             state->scene.view = get_view(state->camera);
             render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
             Ray ray = {};
-            if (on_down(state->controller.mouse_left))
+            if (on_down(state->controller.mouse_left)) {
                 set_ray_coords(&ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
+                
+                Model *card_model = find_model(&state->assets, "CARD");
+                for (u32 model_index = 0; model_index < game->models_count; model_index++) {
+                    for (u32 i = 0; i < card_model->meshes_count; i++) {
+                        Ray_Intersection p = intersect_triangle_mesh(ray, &card_model->meshes[i], game->models[model_index]);
+                        if (p.number_of_intersections != 0) {
+                            print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+                        }
+                    }
+                }
+            }
 
             // game logic
             switch(game->round_type) {

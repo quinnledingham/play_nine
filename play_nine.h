@@ -1,5 +1,7 @@
 /*
 TODO
+- Singleplayer (Bot)
+
 - Write inverse/determinant functions
 - Mouse Controls
 - Highlight card choices
@@ -78,6 +80,9 @@ struct Game {
     Player players[6];
     u32 num_of_players;
     u32 active_player;
+
+    Matrix_4x4 models[50]; // (6 * 8) + 2 + 1 = 50, 2: piles, 1: card picked up
+    u32 models_count;
 
     enum Round_Types round_type;
 

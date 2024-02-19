@@ -231,6 +231,14 @@ print(const Vector3 v) {
     print("%f %f %f", v.x, v.y, v.z);
 }
 
+inline float32
+distance(const Vector3 v1, const Vector3 v2) {
+    float32 x = powf(v2.x - v1.x, 2);
+    float32 y = powf(v2.y - v1.y, 2);
+    float32 z = powf(v2.z - v1.z, 2);
+    return sqrtf(x + y + z);
+}
+
 //
 // Vector4
 //

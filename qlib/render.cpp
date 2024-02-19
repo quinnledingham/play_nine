@@ -52,8 +52,8 @@ void render_init_model(Model *model) {
         Mesh *mesh = &model->meshes[mesh_index];
         mesh->vertex_info = get_vertex_xnu_info();
         render_init_mesh(mesh);
-        platform_free(mesh->vertices);
-        platform_free(mesh->indices);
+        //platform_free(mesh->vertices);
+        //platform_free(mesh->indices);
         if (mesh->material.diffuse_map.memory != 0)
             render_create_texture(&mesh->material.diffuse_map, TEXTURE_PARAMETERS_DEFAULT);
             free_bitmap(mesh->material.diffuse_map);
