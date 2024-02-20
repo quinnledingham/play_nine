@@ -231,6 +231,13 @@ process_rotation(Rotation *rot, float32 seconds) {
     return rot->degrees;
 }
 
+internal void
+draw_ray(Ray *ray) {
+    //draw_sphere(game->mouse_ray.origin, 0.0f, { 1, 1, 1 }, { 255, 0, 255, 1 });
+    for (float32 i = 0; i < 30; i += 2.0f)
+        draw_sphere(ray->origin + (ray->direction * i), 0.0f, { 1, 1, 1 }, { 0, 255, 0, 1 });
+}
+
 //      180
 // 270        90
 //       0
@@ -277,6 +284,8 @@ draw_game(Assets *assets, Shader *shader, Game *game, float32 seconds) {
     // discard pile
     if (game->top_of_discard_pile != 0)
         game->models[game->models_count++] = draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], discard_pile_coords, pile_degs, card_scale);
+
+    draw_ray(&game->mouse_ray);
 }
 
 internal void
@@ -599,7 +608,7 @@ internal void
 set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, Vector2_s32 mouse, Vector2_s32 screen_dim) {
     Vector3 ray_nds = {
         (2.0f * mouse.x) / screen_dim.width - 1.0f,
-        1.0f - (2.0f * mouse.y) / screen_dim.height,
+        (2.0f * mouse.y) / screen_dim.height - 1.0f,
         1.0f
     };
 
@@ -610,16 +619,13 @@ set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, 
         1.0f,
     };
 
-    Vector4 ray_eye = m4x4_mul_v4(inverse(projection), ray_clip);
-    //ray_eye = { ray_eye.x, ray_eye.y, -1.0f, 0.0 };
-    
+    Vector4 ray_eye = m4x4_mul_v4(inverse(projection), ray_clip);    
     Vector4 ray_world_v4 = m4x4_mul_v4(inverse(view), ray_eye);
     Vector3 ray_world = ray_world_v4.xyz;
-    //ray_world = normalized(ray_world);
     ray_world = ray_world / ray_world_v4.w;
 
     ray->origin = ray_world;
-    ray->direction = camera.target;
+    ray->direction = normalized(ray->origin - camera.position);
 
     print("%f %f %f\n", ray->origin.x, ray->origin.y, ray->origin.z);
 }
@@ -702,6 +708,8 @@ intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
 }
 
 bool8 update_game(State *state, App *app) {
+    Game *game = &state->game;
+
     switch(state->camera_mode) {
         case FREE_CAMERA: {
             if (on_down(state->controller.pause)) {
@@ -734,8 +742,7 @@ bool8 update_game(State *state, App *app) {
                 state->camera_mode = FREE_CAMERA;
                 app->input.relative_mouse_mode = true;
             }
-            
-            Game *game = &state->game;
+              
             if (on_down(state->controller.right)) {
                 next_player(game);
             }
@@ -759,14 +766,13 @@ bool8 update_game(State *state, App *app) {
             state->scene.view = get_view(state->camera);
             render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
-            Ray ray = {};
             if (on_down(state->controller.mouse_left)) {
-                set_ray_coords(&ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
+                set_ray_coords(&game->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
                 
                 Model *card_model = find_model(&state->assets, "CARD");
                 for (u32 model_index = 0; model_index < game->models_count; model_index++) {
                     for (u32 i = 0; i < card_model->meshes_count; i++) {
-                        Ray_Intersection p = intersect_triangle_mesh(ray, &card_model->meshes[i], game->models[model_index]);
+                        Ray_Intersection p = intersect_triangle_mesh(game->mouse_ray, &card_model->meshes[i], game->models[model_index]);
                         if (p.number_of_intersections != 0) {
                             print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
                         }
@@ -995,6 +1001,8 @@ bool8 update(App *app) {
         case LOCAL: {
             render_bind_pipeline(&color_pipeline);
             render_bind_descriptor_set(game->scene_set, 0);
+
+            //draw_sphere({ 0, 0, 0 }, 0.0f, { 10, 10, 10 }, { 255, 0, 255, 1 });
 
             draw_game(&game->assets, basic_3D, &game->game, app->time.frame_time_s);
         } break;

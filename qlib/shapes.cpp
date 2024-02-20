@@ -24,6 +24,8 @@ struct Shape {
 
 struct Shapes {
     Mesh rect_mesh;
+    Mesh rect_3D_mesh;
+    Mesh sphere_mesh;
 
     Shader *color_shader;
     Shader *texture_shader;
@@ -50,38 +52,37 @@ get_rect_mesh() {
     
 	mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
     Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
+
+	vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
+    vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
+    vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
+    vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
 /*
-	mesh.vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
-    mesh.vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
-    mesh.vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
-    mesh.vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
-*/
     vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, -1}, {0, 0} };
     vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, -1}, {0, 1} };
     vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, -1}, {1, 0} };
     vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, -1}, {1, 1} };
-
+*/
     mesh.indices_count = 6;
     mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
 
     // vertex locations
     u32 top_left = 0, top_right = 2, bottom_left = 1, bottom_right = 3;
-   
+  /* 
 	mesh.indices[0] = top_left;
     mesh.indices[1] = bottom_left;
     mesh.indices[2] = bottom_right;
     mesh.indices[3] = top_left;
     mesh.indices[4] = bottom_right;
     mesh.indices[5] = top_right;
-    
-/*
+    */
+
     mesh.indices[0] = top_left;
     mesh.indices[1] = bottom_right;
     mesh.indices[2] = bottom_left;
     mesh.indices[3] = top_left;
     mesh.indices[4] = top_right;
     mesh.indices[5] = bottom_right;
-*/
 
     mesh.vertex_info = get_vertex_xnu_info();
     render_init_mesh(&mesh);
@@ -137,11 +138,107 @@ void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Vector4 color) {
 }
 
 //
+// Sphere
+//
+
+Mesh get_sphere_mesh(float32 radius, u32 u_subdivision, u32 v_subdivision) {
+    Mesh mesh = {};
+
+    float32 u_degrees = PI;
+    float32 v_degrees = 2.0f * PI;
+
+    float32 u_step = u_degrees / (float32)u_subdivision;
+    float32 v_step = v_degrees / (float32)v_subdivision;
+
+    mesh.vertices_count = (u_subdivision + 1) * (v_subdivision + 1);
+    mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+
+    u32 vertices_index = 0;
+    for (u32 u = 0; u <= u_subdivision; ++u) {
+        for (u32 v = 0; v <= v_subdivision; ++v) {
+            float32 u_f = (float32)u * u_step;
+            float32 v_f = (float32)v * v_step;
+
+            float32 inverse_radius = 1.0f / radius;
+            Vector3 position = { 
+                radius * sinf(u_f) * cosf(v_f), 
+                radius * sinf(u_f) * sinf(v_f), 
+                radius * cosf(u_f) 
+            };
+            Vector3 normal = position * inverse_radius;
+            Vector2 texture_coords = { 
+                1 - (v_f / v_degrees), 
+                u_f / u_degrees
+            };
+
+            Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
+            vertices[vertices_index++] = { position, normal, texture_coords };
+        }
+    }
+
+    mesh.indices_count = (u_subdivision * v_subdivision * 6) - (u_subdivision * 6);
+    mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+
+    u32 indices_index = 0;
+    for (u32 u = 0; u < u_subdivision; u++) {
+        u32 p1 = u * (v_subdivision + 1);
+        u32 p2 = p1 + v_subdivision + 1;
+
+        for (u32 v = 0; v < v_subdivision; v++, p1++, p2++) {
+            if (u != 0) {
+                mesh.indices[indices_index++] = p1;
+                mesh.indices[indices_index++] = p2;
+                mesh.indices[indices_index++] = p1 + 1;
+            } 
+            if (u != (u_subdivision - 1)) {
+                mesh.indices[indices_index++] = p1 + 1;
+                mesh.indices[indices_index++] = p2;
+                mesh.indices[indices_index++] = p2 + 1;
+            }
+        }
+    }
+
+    mesh.vertex_info = get_vertex_xnu_info();
+    render_init_mesh(&mesh);
+
+    return mesh;
+}
+
+Render_Pipeline basic_pipeline;
+Render_Pipeline color_pipeline;
+
+void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
+/*
+    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
+    
+    Shape shape = {};
+    shape.type = SHAPE_SPHERE;
+    shape.coords = coords;
+    shape.rotation = rotation_quat;
+    shape.dim = dim;
+    shape.draw_type = Shape_Draw_Type::COLOR;
+    shape.color = color;
+    draw_shape(shape);
+*/
+    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
+    render_bind_pipeline(&color_pipeline);
+    Descriptor_Set *object_set = render_get_descriptor_set(color_pipeline.shader, 1);
+    render_bind_descriptor_set(object_set, 1);  
+    render_update_ubo(object_set, 0, (void*)&color, false);
+
+    Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
+    render_push_constants(&color_pipeline.shader->layout_sets[2], (void *)&model);  
+    render_draw_mesh(&shapes.sphere_mesh);    
+}
+
+//
 // Shapes
 //
 
 void init_shapes(Assets *assets) {
 	shapes.rect_mesh = get_rect_mesh_2D();
+    shapes.rect_3D_mesh = get_rect_mesh();
+    shapes.sphere_mesh = get_sphere_mesh(0.025f, 10, 10);
 
     //shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
     //shapes.text_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/text.frag";
@@ -197,7 +294,8 @@ draw_shape(Shape shape) {
     render_push_constants(&shader->layout_sets[2], (void *)&model);  
 
     switch(shape.type) {
-        case SHAPE_RECT: render_draw_mesh(&shapes.rect_mesh); break;
+        case SHAPE_RECT:   render_draw_mesh(&shapes.rect_mesh);   break;
+        case SHAPE_SPHERE: render_draw_mesh(&shapes.sphere_mesh); break;
         default: logprint("draw_shape()", "not a valid shape type\n");
     }
 }

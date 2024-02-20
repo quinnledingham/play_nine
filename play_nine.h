@@ -16,6 +16,21 @@ TODO
 - Online
 */
 
+//
+// Raycasting
+// 
+
+struct Ray {
+    Vector3 origin;
+    Vector3 direction;
+};
+
+struct Ray_Intersection {
+    u32 number_of_intersections;
+    Vector3 point;
+    Vector3 normal;
+};
+
 struct Card {
 	s32 number;
 	const char *name; // i.e. mulligan, birdie
@@ -80,6 +95,8 @@ struct Game {
     Player players[6];
     u32 num_of_players;
     u32 active_player;
+
+    Ray mouse_ray;
 
     Matrix_4x4 models[50]; // (6 * 8) + 2 + 1 = 50, 2: piles, 1: card picked up
     u32 models_count;
@@ -181,9 +198,6 @@ enum Game_Mode {
     ONLINE,
 };
 
-Render_Pipeline basic_pipeline;
-Render_Pipeline color_pipeline;
-
 struct State {
     Game game;
 
@@ -204,19 +218,4 @@ struct State {
     Bitmap test;
 
     Assets assets;
-};
-
-//
-// Raycasting
-// 
-
-struct Ray {
-    Vector3 origin;
-    Vector3 direction;
-};
-
-struct Ray_Intersection {
-    u32 number_of_intersections;
-    Vector3 point;
-    Vector3 normal;
 };

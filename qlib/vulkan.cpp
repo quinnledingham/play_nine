@@ -995,8 +995,8 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipeline_layout_info.setLayoutCount         = 2;        // Optional
 	pipeline_layout_info.pSetLayouts            = layouts;  // Optional
-	pipeline_layout_info.pushConstantRangeCount = push_constant_count;        // Optional
-	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;   // Optional
+	pipeline_layout_info.pushConstantRangeCount = push_constant_count;  // Optional
+	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges; // Optional
 
 	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->pipeline_layout) != VK_SUCCESS) {
 		logprint("vulkan_create_graphics_pipeline()", "failed to create pipeline layout\n");
@@ -1056,7 +1056,7 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
 	rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth               = 1.0f;
-	rasterizer.cullMode                = VK_CULL_MODE_BACK_BIT   ;
+	rasterizer.cullMode                = VK_CULL_MODE_BACK_BIT;
 	rasterizer.frontFace               = VK_FRONT_FACE_CLOCKWISE;
 	rasterizer.depthBiasEnable         = VK_FALSE;
 	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
