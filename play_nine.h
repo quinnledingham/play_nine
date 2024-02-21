@@ -16,25 +16,14 @@ TODO
 - Online
 */
 
-//
-// Raycasting
-// 
-
-struct Ray {
-    Vector3 origin;
-    Vector3 direction;
-};
-
-struct Ray_Intersection {
-    u32 number_of_intersections;
-    Vector3 point;
-    Vector3 normal;
-};
-
 struct Card {
 	s32 number;
-	const char *name; // i.e. mulligan, birdie
-	bool8 flipped;
+	
+    const char *name; // i.e. mulligan, birdie
+    bool8 flipped;
+    Matrix_4x4 model;
+
+    bool8 selected;
 
 	// Drawing
 	//Bitmap front;
@@ -42,15 +31,15 @@ struct Card {
 	//Mesh mesh;
 };
 
+#define HAND_SIZE 8
 #define DECK_SIZE 108
 global Card deck[DECK_SIZE];
-global Bitmap card_bitmaps[14];
-global Vector2 hand_coords[8];
 
 enum Round_Types {
     FLIP_ROUND,
     REGULAR_ROUND,
     FINAL_ROUND,
+    HOLE_OVER
 };
 
 enum Turn_Stages {
@@ -70,21 +59,14 @@ Card indices
 
 struct Player {
     const char *name;
-    u32 cards[8];
+    u32 cards[HAND_SIZE];
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
+    s32 score;
 };
 
-struct Rotation {
-    bool8 rotating;
-    
-    float32 degrees;      // how much to rotate the object
-    float32 dest_degrees;
-
-    float32 speed;
-};
-
+// Stores information about the game of play nine
 struct Game {
 	u32 pile[DECK_SIZE];
 	u32 top_of_pile;
@@ -96,21 +78,8 @@ struct Game {
     u32 num_of_players;
     u32 active_player;
 
-    Ray mouse_ray;
-
-    Matrix_4x4 models[50]; // (6 * 8) + 2 + 1 = 50, 2: piles, 1: card picked up
-    u32 models_count;
-
     enum Round_Types round_type;
-
-    // Game Draw info
-    Rotation pile_rotation;
-    Rotation camera_rotation;
-
-    float32 rotation_speed;
-
-    float32 degrees_between_players;
-    float32 radius;
+    u32 last_turn;
 };
 
 //
@@ -198,11 +167,36 @@ enum Game_Mode {
     ONLINE,
 };
 
+global Bitmap card_bitmaps[14];
+global Vector2 hand_coords[8];
+
+struct Rotation {
+    bool8 rotating;
+    
+    float32 degrees;      // how much to rotate the object
+    float32 dest_degrees;
+
+    float32 speed;
+};
+
+struct Game_Draw {
+    Rotation pile_rotation;
+    Rotation camera_rotation;
+
+    float32 rotation_speed;
+
+    float32 degrees_between_players;
+    float32 radius;
+};
+
 struct State {
     Game game;
+    Game_Draw game_draw;
 
     Controller controller = {};
     enum Camera_Mode camera_mode = PLAYER_CAMERA;
+
+    Ray mouse_ray;
 
     // Menus
     enum Game_Mode mode = MAIN_MENU;

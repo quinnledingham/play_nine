@@ -110,3 +110,36 @@ void render_draw_model(Model *model, Render_Pipeline *color, Render_Pipeline *te
         render_draw_mesh(&model->meshes[i]);
     }
 }
+
+void render_draw_model(Model *model, Render_Pipeline *color, Render_Pipeline *tex,
+                       Bitmap *bitmap, Bitmap *back, Matrix_4x4 model_matrix) {
+    for (u32 i = 0; i < model->meshes_count; i++) {
+        Shader *shader = 0;
+        if (i == 0) {
+            render_bind_pipeline(color);
+            shader = color->shader;
+        } else if (i == 1 || i == 2) {
+            render_bind_pipeline(tex);
+            shader = tex->shader;
+        }
+
+        render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
+    
+        Descriptor_Set *object_set = render_get_descriptor_set(shader, 1);
+        if (i == 0) {
+           Vector4 color = { 150, 150, 150, 1 };
+            render_update_ubo(object_set, 0, (void*)&color, false);
+            render_bind_descriptor_set(object_set, 1);
+            //render_draw_mesh(&model->meshes[i]);
+        } else if (i == 1) {
+            render_set_bitmap(object_set, bitmap, 1);
+            render_bind_descriptor_set(object_set, 1);
+            //render_draw_mesh(&model->meshes[i]);
+        } else if (i == 2) {
+            render_set_bitmap(object_set, back, 1);
+            render_bind_descriptor_set(object_set, 1);
+        }
+
+        render_draw_mesh(&model->meshes[i]);
+    }
+}

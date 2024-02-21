@@ -16,7 +16,14 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "assets.h"
 
 #include "application.h"
+#include "raytrace.h"
 #include "play_nine.h"
+
+#include "raytrace.cpp"
+
+//
+// creating card bitmpas
+//
 
 internal void
 copy_bitmap_into_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
@@ -171,23 +178,9 @@ init_card_bitmaps(Bitmap *bitmaps, Font *font) {
     bitmaps[13] = create_card_bitmap(font, -5);
 }
 
-internal Matrix_4x4
-draw_card(Assets *assets, Shader *shader, Card card, Vector3 position, float32 degrees, Vector3 scale) {
-    u32 bitmap_index = card.number;
-    if (card.number == -5)
-        bitmap_index = 13;
-
-    Quaternion rotation = get_rotation(degrees * DEG2RAD, {0, 1, 0});
-    if (!card.flipped) {
-        Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
-        rotation = flip * rotation;
-    }
-
-    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, position, rotation, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), scale);
-
-    Matrix_4x4 model = create_transform_m4x4(position, rotation, scale);
-    return model;
-}
+//
+// drawing card
+//
 
 internal void
 rotate_coords(Vector3 *coords, float32 rad) {
@@ -232,60 +225,89 @@ process_rotation(Rotation *rot, float32 seconds) {
 }
 
 internal void
-draw_ray(Ray *ray) {
-    //draw_sphere(game->mouse_ray.origin, 0.0f, { 1, 1, 1 }, { 255, 0, 255, 1 });
-    for (float32 i = 0; i < 30; i += 2.0f)
-        draw_sphere(ray->origin + (ray->direction * i), 0.0f, { 1, 1, 1 }, { 0, 255, 0, 1 });
+load_card_model(Card *card, Vector3 position, float32 degrees, Vector3 scale) {
+    Quaternion rotation = get_rotation(degrees * DEG2RAD, {0, 1, 0});
+    if (!card->flipped) {
+        Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
+        rotation = flip * rotation;
+    }
+
+    card->model = create_transform_m4x4(position, rotation, scale);
 }
 
-//      180
-// 270        90
-//       0
 internal void
-draw_game(Assets *assets, Shader *shader, Game *game, float32 seconds) {
-    game->models_count = 0;
-
+load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
     Vector3 selected_card_coords = {0.0f, 1.0f, -3.1f};
     Vector3 pile_coords          = { -1.1f, 0.5, 0 };
     Vector3 discard_pile_coords  = { 1.1f, 0, 0 };
 
     for (u32 i = 0; i < game->num_of_players; i++) {
-        float32 degrees = (game->degrees_between_players * i) - 90.0f;
+        float32 degrees = (draw->degrees_between_players * i) - 90.0f;
         float32 rad = degrees * DEG2RAD; 
-        Vector3 position = get_hand_position(game->radius, game->degrees_between_players, i);
+        Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, i);
         
         // draw player cards    
         for (u32 card_index = 0; card_index < 8; card_index++) {
             Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
             rotate_coords(&card_pos, rad);
             card_pos += position;
-            game->models[game->models_count++] = draw_card(assets, shader, deck[game->players[i].cards[card_index]], card_pos, degrees, card_scale);
+            load_card_model(&deck[game->players[i].cards[card_index]], card_pos, degrees, card_scale);
         }
     }
 
     // draw card selected from pile
-    float32 degrees = (game->degrees_between_players * game->active_player) - 90.0f;
+    float32 degrees = (draw->degrees_between_players * game->active_player) - 90.0f;
     float32 rad = degrees * DEG2RAD; 
     if (game->players[game->active_player].turn_stage == SELECT_CARD) {
         rotate_coords(&selected_card_coords, rad);
-        game->models[game->models_count++] = draw_card(assets, shader, deck[game->players[game->active_player].new_card], selected_card_coords, degrees, card_scale);
+        load_card_model(&deck[game->players[game->active_player].new_card], selected_card_coords, degrees, card_scale);
     }
 
-    float32 pile_degs = degrees - process_rotation(&game->pile_rotation, seconds);
+    float32 pile_degs = degrees - process_rotation(&draw->pile_rotation, seconds);
     float32 pile_rad = pile_degs * DEG2RAD;    
 
     rotate_coords(&pile_coords, pile_rad);
     rotate_coords(&discard_pile_coords, pile_rad);
 
     // pile
-    game->models[game->models_count++] = draw_card(assets, shader, deck[game->pile[game->top_of_pile]], pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
+    load_card_model(&deck[game->pile[game->top_of_pile]], pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
 
     // discard pile
     if (game->top_of_discard_pile != 0)
-        game->models[game->models_count++] = draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], discard_pile_coords, pile_degs, card_scale);
+        load_card_model(&deck[game->discard_pile[game->top_of_discard_pile - 1]], discard_pile_coords, pile_degs, card_scale);
+}
 
-    draw_ray(&game->mouse_ray);
+internal void
+draw_card(Assets *assets, Shader *shader, Card card) {
+    u32 bitmap_index = card.number;
+    if (card.number == -5)
+        bitmap_index = 13;
+
+    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), card.model);
+}
+
+//      180
+// 270        90
+//       0
+internal void
+draw_game(Assets *assets, Shader *shader, Game *game) {
+    for (u32 i = 0; i < game->num_of_players; i++) {
+        for (u32 card_index = 0; card_index < 8; card_index++) {
+            Card card = deck[game->players[i].cards[card_index]];
+            draw_card(assets, shader, card);
+        }
+    }
+
+    if (game->players[game->active_player].turn_stage == SELECT_CARD) {
+        Card card = deck[game->players[game->active_player].new_card];
+        draw_card(assets, shader, card);
+    }
+
+    draw_card(assets, shader, deck[game->pile[game->top_of_pile]]);
+
+    if (game->top_of_discard_pile != 0)
+        draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]]);
 }
 
 internal void
@@ -300,6 +322,21 @@ init_deck() {
 
     for (u32 j = deck_index; j < deck_index + 4; j++) {
         deck[j].number = -5;
+    }
+
+    // init hand coords
+    float32 card_width = 2.0f;
+    float32 card_height = 3.2f;
+    float32 padding = 0.2f;
+
+    u32 card_index = 0;
+    for (s32 y = 1; y >= 0; y--) {
+        for (s32 x = -2; x <= 1; x++) {
+             hand_coords[card_index++] = { 
+                float32(x) * card_width  + (float32(x) * padding) + (card_width / 2.0f)  + (padding / 2.0f), 
+                float32(y) * card_height + (float32(y) * padding) - (card_height / 2.0f) - (padding / 2.0f)
+            };
+        }
     }
 }
 
@@ -332,21 +369,7 @@ deal_cards(Game *game) {
         }
     }
 
-    float32 card_width = 2.0f;
-    float32 card_height = 3.2f;
-    float32 padding = 0.2f;
-
-    u32 card_index = 0;
-    for (s32 y = 1; y >= 0; y--) {
-        for (s32 x = -2; x <= 1; x++) {
-             hand_coords[card_index++] = { 
-                float32(x) * card_width  + (float32(x) * padding) + (card_width / 2.0f)  + (padding / 2.0f), 
-                float32(y) * card_height + (float32(y) * padding) - (card_height / 2.0f) - (padding / 2.0f)
-            };
-        }
-    }
-
-    game->discard_pile[game->top_of_discard_pile++] = game->pile[game->top_of_pile]++;
+    game->discard_pile[game->top_of_discard_pile++] = game->pile[game->top_of_pile++];
     deck[game->discard_pile[game->top_of_discard_pile - 1]].flipped = true;
 }
 
@@ -357,9 +380,6 @@ start_game(Game *game, u32 num_of_players) {
     deal_cards(game);
 
     game->round_type = FLIP_ROUND;
-
-    game->degrees_between_players = 360.0f / float32(game->num_of_players);
-    game->radius = 8.0f;
 }
 
 //
@@ -443,14 +463,21 @@ update_scores(Game *game) {
     for (u32 i = 0; i < game->num_of_players; i++) {
         Player *player = &game->players[i];
         u32 *cards = player->cards;            
-        print("Player %d: %d\n", i, get_score(cards));
+        s32 score = get_score(cards);
+        print("Player %d: %d\n", i, score);
+        player->score += score;
     }
 }
 
+//
+// game logic
+//
+
 internal void
-next_player(Game *game) {
+next_player(Game *game, Game_Draw *draw) {
     // Flip all cards after final turn
     if (game->round_type == FINAL_ROUND) {
+        game->last_turn++;
         for (u32 i = 0; i < 8; i++) {
             deck[game->players[game->active_player].cards[i]].flipped = true;
         }
@@ -458,93 +485,90 @@ next_player(Game *game) {
 
     game->active_player++;
 
+    // END HOLE
+    if (game->last_turn == game->num_of_players) {
+        update_scores(game);
+        game->round_type = HOLE_OVER;
+    }
+
     // end of round: loop back around if required
     if (game->active_player >= game->num_of_players) {
         game->active_player = 0;
 
-        // Actually this isn't when I should do it
-        // I have to do it one round after the first player to flip all their cards
-        switch(game->round_type) {
-            case FLIP_ROUND: game->round_type = REGULAR_ROUND; break;
-            case FINAL_ROUND: {
-                update_scores(game);
-                return;
-            } break;
-        }
+        if (game->round_type == FLIP_ROUND)
+            game->round_type = REGULAR_ROUND;
     }
 
-    game->camera_rotation = {
+    draw->camera_rotation = {
         true,
-        game->degrees_between_players,
+        draw->degrees_between_players,
         0.0f,
-        -game->rotation_speed
+        -draw->rotation_speed
     };
 
-    game->pile_rotation = {
+    draw->pile_rotation = {
         true,
-        game->degrees_between_players,
+        draw->degrees_between_players,
         0.0f,
-        -game->rotation_speed
+        -draw->rotation_speed
     };
 }
 
+internal u32
+get_number_flipped(u32 *cards) {
+    u32 number_flipped = 0;
+    for (u32 i = 0; i < HAND_SIZE; i++) {
+        if (deck[cards[i]].flipped) {
+            number_flipped++;
+        }
+    }
+    return number_flipped;
+}
+
 internal void
-flip_round_update(Game *game, Controller *controller) {
+flip_round_update(Game *game, Game_Draw *draw, Controller *controller) {
     Player *active_player = &game->players[game->active_player];
     for (u32 i = 0; i < 8; i++) {
-        if (on_down(controller->buttons[i])) {
+        if (on_down(controller->buttons[i]) || deck[active_player->cards[i]].selected) {
+            deck[active_player->cards[i]].selected = false;
             deck[active_player->cards[i]].flipped = true;
 
-            u32 card_flipped = 0;
-            for (u32 card_i = 0; card_i < 8; card_i++) {
-                if (deck[active_player->cards[card_i]].flipped) {
-                    card_flipped++;
-                    if (card_flipped == 2) {
-                        next_player(game);
-                        return;
-                    }
-                }
+            // check if player turn over
+            if (get_number_flipped(active_player->cards) == 2) {
+                next_player(game, draw);
             }
         }
     }
 }
 
-internal bool8
-one_card_not_flipped(Player *player) {
-    u32 not_flipped = 0;
-    for (u32 i = 0; i < 8; i++) {
-        if (deck[player->cards[i]].flipped == false) {
-            not_flipped++;
-            if (not_flipped > 1)
-                return false;
-        }
+internal void
+update_card_with_buttons(Game *game, Controller *controller) {
+    if (on_down(controller->nine)) {
+        deck[game->pile[game->top_of_pile]].selected = true;
+    } else if (on_down(controller->zero)) {
+        deck[game->discard_pile[game->top_of_discard_pile - 1]].selected  = true;
     }
-    if (not_flipped == 1)
-        return true;
-    else
-        return false;
-}
 
-internal bool8
-all_cards_flipped(Player *player) {
-    for (u32 i = 0; i < 8; i++) {
-        if (deck[player->cards[i]].flipped == false)
-            return false;
-    }
-    return true;
+    Player *active_player = &game->players[game->active_player];
+    for (u32 i = 0; i < HAND_SIZE; i++) {
+        if (on_down(controller->buttons[i])) {
+            deck[active_player->cards[i]].selected = true;
+        }
+    }    
 }
 
 internal void
-regular_round_update(Game *game, Controller *controller) {
+regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
     Player *active_player = &game->players[game->active_player];
     switch(active_player->turn_stage) {
         case SELECT_PILE: {
-            if (on_down(controller->nine)) {
+            if (deck[game->pile[game->top_of_pile]].selected) {
+                deck[game->top_of_pile].selected = false;
                 active_player->new_card = game->pile[game->top_of_pile++];
                 deck[active_player->new_card].flipped = true;
                 active_player->turn_stage = SELECT_CARD;
                 active_player->pile_card = true;
-            } else if (on_down(controller->zero)) {
+            } else if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected) {
                 active_player->new_card = game->discard_pile[game->top_of_discard_pile - 1];
                 game->top_of_discard_pile--;
                 active_player->turn_stage = SELECT_CARD;
@@ -552,163 +576,92 @@ regular_round_update(Game *game, Controller *controller) {
         } break;
 
         case SELECT_CARD: {
-            for (u32 i = 0; i < 8; i++) {
-                if (on_down(controller->buttons[i])) {
+            for (u32 i = 0; i < HAND_SIZE; i++) {
+                if (deck[active_player->cards[i]].selected) {
                     game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
                     deck[game->discard_pile[game->top_of_discard_pile - 1]].flipped = true;
                     active_player->cards[i] = active_player->new_card;
                     active_player->new_card = 0;
                     active_player->turn_stage = SELECT_PILE;
                     active_player->pile_card = false;
-                    if (all_cards_flipped(active_player))
+                    if (get_number_flipped(active_player->cards) == HAND_SIZE)
                         game->round_type = FINAL_ROUND;
-                    next_player(game);
+                    next_player(game, draw);
                     return;
                 }
             }
 
-            if (on_down(controller->zero) && active_player->pile_card) {
+            // discard pile only emtpy if picked from and you can't put it back after you pick it up
+            // no reason not to pick up from the regular pile
+            if (game->top_of_discard_pile == 0)
+                return;
+
+            if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected && active_player->pile_card) {
                 game->discard_pile[game->top_of_discard_pile++] = active_player->new_card;
                 active_player->new_card = 0;
                 active_player->turn_stage = FLIP_CARD;
-                return;
             }
         } break;
 
         case FLIP_CARD: {
-            for (u32 i = 0; i < 8; i++) {
+            for (u32 i = 0; i < HAND_SIZE; i++) {
                 Card *card = &deck[active_player->cards[i]];
-                if (on_down(controller->buttons[i]) && !card->flipped) {
+                if (deck[active_player->cards[i]].selected && !card->flipped) {
                     card->flipped = true;
                     active_player->turn_stage = SELECT_PILE;
                     active_player->pile_card = false;
-                    if (all_cards_flipped(active_player))
-                        game->round_type = FINAL_ROUND;
-                    next_player(game);
+                    if (get_number_flipped(active_player->cards) == HAND_SIZE) {
+                        game->round_type = FINAL_ROUND; 
+                        game->last_turn = 0;
+                    }
+                    next_player(game, draw);
                     return;
                 }
 
-                if (on_down(controller->zero) && one_card_not_flipped(active_player)) {
+                if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected && get_number_flipped(active_player->cards) == HAND_SIZE - 1) {
                     active_player->turn_stage = SELECT_PILE;
                     active_player->pile_card = false;
-                    next_player(game);
-                    return;
+                    next_player(game, draw);
                 }
             }
         } break;
     }
 }
 
-struct Triangle {
-    Vector3 a, b, c;
-};
-
-// https://antongerdelan.net/opengl/raycasting.html
 internal void
-set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, Vector2_s32 mouse, Vector2_s32 screen_dim) {
-    Vector3 ray_nds = {
-        (2.0f * mouse.x) / screen_dim.width - 1.0f,
-        (2.0f * mouse.y) / screen_dim.height - 1.0f,
-        1.0f
-    };
-
-    Vector4 ray_clip = {
-        ray_nds.x,
-        ray_nds.y,
-        -1.0f,
-        1.0f,
-    };
-
-    Vector4 ray_eye = m4x4_mul_v4(inverse(projection), ray_clip);    
-    Vector4 ray_world_v4 = m4x4_mul_v4(inverse(view), ray_eye);
-    Vector3 ray_world = ray_world_v4.xyz;
-    ray_world = ray_world / ray_world_v4.w;
-
-    ray->origin = ray_world;
-    ray->direction = normalized(ray->origin - camera.position);
-
-    print("%f %f %f\n", ray->origin.x, ray->origin.y, ray->origin.z);
-}
-
-// https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-internal Ray_Intersection
-intersect_triangle(Ray ray, Triangle triangle) {    
-    Vector3 edge1 = triangle.b - triangle.a;
-    Vector3 edge2 = triangle.c - triangle.a;
-    Vector3 ray_cross_e2 = cross_product(ray.direction, edge2);
-    float32 det = dot_product(edge1, ray_cross_e2);
-
-    if (det > -EPSILON && det < EPSILON) {
-        return Ray_Intersection{}; // no intersection. this ray is parallel to this triangle
-    }
-
-    float32 inv_det = 1.0f / det;
-    Vector3 s = ray.origin - triangle.a;
-    float32 u = inv_det * dot_product(s, ray_cross_e2);
-    if (u < 0 || u > 1) {
-        return Ray_Intersection{}; // no intersection
-    }
-
-    Vector3 s_cross_e1 = cross_product(s, edge1);
-    float32 v = inv_det * dot_product(ray.direction, s_cross_e1);
-
-    if (v < 0 || u + v > 1) {
-        return Ray_Intersection{}; // no intersection
-    }
-
-    // At this stage we can compute t to find out where the intersection point is on the line.
-    float32 t = inv_det * dot_product(edge2, s_cross_e1);
-
-    // ray intersection
-    if (t > EPSILON) {
-        Ray_Intersection p;
-        p.point = ray.origin + ray.direction * t;
-        //p.normal = normalized(cross_product(edge1, edge2));
-        //p.material = material;
-        p.number_of_intersections = 1;
-        return p;
-    } else {
-        // This means that there is a line intersection but not a ray intersection.
-        return Ray_Intersection{}; // no intersection
+model_ray_intersection(Ray ray, Model *model, Card *card) {
+    for (u32 i = 0; i < model->meshes_count; i++) {
+        Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card->model);
+        if (p.number_of_intersections != 0) {
+            print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+            card->selected = true;
+        }
     }
 }
 
-internal Ray_Intersection
-intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
-    Ray_Intersection result = {};
-    float32 min = 9999.9f;
-    
-    for (u32 i = 0; i < mesh->indices_count; i += 3) {
-        u32 i1 = mesh->indices[i + 0];
-        u32 i2 = mesh->indices[i + 1];
-        u32 i3 = mesh->indices[i + 2];
-    
-        Vertex_XNU v1 = ((Vertex_XNU *)mesh->vertices)[i1];
-        Vertex_XNU v2 = ((Vertex_XNU *)mesh->vertices)[i2];
-        Vertex_XNU v3 = ((Vertex_XNU *)mesh->vertices)[i3];
-
-        Vector4 a = m4x4_mul_v4(model, { v1.position.x, v1.position.y, v1.position.z, 1.0f });
-        Vector4 b = m4x4_mul_v4(model, { v2.position.x, v2.position.y, v2.position.z, 1.0f });
-        Vector4 c = m4x4_mul_v4(model, { v3.position.x, v3.position.y, v3.position.z, 1.0f });
-    
-        Triangle triangle = { 
-            a.xyz,
-            b.xyz,
-            c.xyz
-        };
-
-        Ray_Intersection intersection = intersect_triangle(ray, triangle);
-        if (intersection.number_of_intersections != 0 && distance(intersection.point, ray.origin) < min) {
-            min = distance(intersection.point, ray.origin);
-            result = intersection;
+internal void
+mouse_ray_model_intersections(Ray mouse_ray, Game *game, Model *card_model) {
+    for (u32 i = 0; i < game->num_of_players; i++) {
+        for (u32 card_index = 0; card_index < 8; card_index++) {
+            model_ray_intersection(mouse_ray, card_model, &deck[game->players[i].cards[card_index]]);
         }
     }
 
-    return result;
+    if (game->players[game->active_player].turn_stage == SELECT_CARD) {
+        model_ray_intersection(mouse_ray, card_model, &deck[game->players[game->active_player].new_card]);
+    }
+
+    model_ray_intersection(mouse_ray, card_model, &deck[game->pile[game->top_of_pile]]);
+
+    if (game->top_of_discard_pile != 0)
+        model_ray_intersection(mouse_ray, card_model, &deck[game->discard_pile[game->top_of_discard_pile - 1]]);
 }
 
 bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
+    Game_Draw *draw = &state->game_draw;
+
+    load_card_models(game, draw, app->time.frame_time_s);
 
     switch(state->camera_mode) {
         case FREE_CAMERA: {
@@ -744,12 +697,12 @@ bool8 update_game(State *state, App *app) {
             }
               
             if (on_down(state->controller.right)) {
-                next_player(game);
+                next_player(game, &state->game_draw);
             }
 
-            float32 cam_dis = 8.0f + game->radius;
-            float32 deg = -game->degrees_between_players * game->active_player;
-            deg += process_rotation(&game->camera_rotation, app->time.frame_time_s);
+            float32 cam_dis = 8.0f + draw->radius;
+            float32 deg = -draw->degrees_between_players * game->active_player;
+            deg += process_rotation(&draw->camera_rotation, app->time.frame_time_s);
             float32 rad = deg * DEG2RAD;
             float32 x = cam_dis * cosf(rad);
             float32 y = cam_dis * sinf(rad);
@@ -767,25 +720,23 @@ bool8 update_game(State *state, App *app) {
             render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
             if (on_down(state->controller.mouse_left)) {
-                set_ray_coords(&game->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
-                
+                set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
+            
                 Model *card_model = find_model(&state->assets, "CARD");
-                for (u32 model_index = 0; model_index < game->models_count; model_index++) {
-                    for (u32 i = 0; i < card_model->meshes_count; i++) {
-                        Ray_Intersection p = intersect_triangle_mesh(game->mouse_ray, &card_model->meshes[i], game->models[model_index]);
-                        if (p.number_of_intersections != 0) {
-                            print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
-                        }
-                    }
-                }
+                mouse_ray_model_intersections(state->mouse_ray, game, card_model);
             }
+
+            update_card_with_buttons(game, &state->controller);
 
             // game logic
             switch(game->round_type) {
-                case FLIP_ROUND:    flip_round_update(   game, &state->controller); break;
+                case FLIP_ROUND:    flip_round_update(game, &state->game_draw, &state->controller); break;
                 case FINAL_ROUND:
-                case REGULAR_ROUND: regular_round_update(game, &state->controller); break;
+                case REGULAR_ROUND: regular_round_update(game, &state->game_draw, &state->controller); break;
             }
+
+            for (u32 i = 0; i < DECK_SIZE; i++)
+                deck[i].selected = false;
         } break;
     }
 
@@ -884,7 +835,7 @@ bool8 init_data(App *app) {
     
     init_shapes(&game->assets);
 
-    game->game.rotation_speed = 100.0f;
+    game->game_draw.rotation_speed = 100.0f;
     game->camera_mode = PLAYER_CAMERA;
 
 	return false;
@@ -922,7 +873,7 @@ menu_update_active(s32 *active, s32 lower, s32 upper, Button increase, Button de
 
 // returns game mode
 internal s32
-draw_main_menu(State *game, Font *font, Controller *controller, Vector2_s32 window_dim)
+draw_main_menu(State *state, Font *font, Controller *controller, Vector2_s32 window_dim)
 {
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
@@ -946,38 +897,40 @@ draw_main_menu(State *game, Font *font, Controller *controller, Vector2_s32 wind
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
     draw_rect(main_menu.rect.coords, 0, main_menu.rect.dim, { 0, 0, 0, 0.2f} );
 
-    if (menu_button(&main_menu, "Local",  index++, game->active, select)) {
-        game->mode = LOCAL;
-        start_game(&game->game, 4);
+    if (menu_button(&main_menu, "Local",  index++, state->active, select)) {
+        state->mode = LOCAL;
+        start_game(&state->game, 4);
+        state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
+        state->game_draw.radius = 8.0f;
     }
-    if (menu_button(&main_menu, "Online", index++, game->active, select))
-        game->mode = ONLINE;    
-    if (menu_button(&main_menu, "Quit",   index++, game->active, select)) 
+    if (menu_button(&main_menu, "Online", index++, state->active, select))
+        state->mode = ONLINE;    
+    if (menu_button(&main_menu, "Quit",   index++, state->active, select)) 
         return true;
 
     return false;
 }
 
 bool8 update(App *app) {
-	State *game = (State *)app->data;
-	Assets *assets = &game->assets;
+	State *state = (State *)app->data;
+	Assets *assets = &state->assets;
 
     if (app->window.resized) {
-        game->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
-        render_update_ubo(game->scene_set, 0, (void*)&game->scene, true);
+        state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
+        render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
-        game->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
-        render_update_ubo(game->scene_ortho_set, 0, (void*)&game->ortho_scene, true);
+        state->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
+        render_update_ubo(state->scene_ortho_set, 0, (void*)&state->ortho_scene, true);
     }
     
     // Update
-    switch(game->mode) {
+    switch(state->mode) {
         case MAIN_MENU: {
-            menu_update_active(&game->active, 0, 2, game->controller.down,  game->controller.up);
+            menu_update_active(&state->active, 0, 2, state->controller.down,  state->controller.up);
         } break;
 
         case LOCAL: {
-            update_game(game, app);
+            update_game(state, app);
         }
     }
 
@@ -990,34 +943,35 @@ bool8 update(App *app) {
     render_set_viewport(app->window.width, app->window.height);
     render_set_scissor(app->window.width, app->window.height);
 
-    switch(game->mode) {
+    switch(state->mode) {
         case MAIN_MENU: {
             render_bind_pipeline(&shapes.color_pipeline);
-            render_bind_descriptor_set(game->scene_ortho_set, 0);
-            if (draw_main_menu(game, find_font(assets, "CASLON"), &game->controller, app->window.dim))
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
+            if (draw_main_menu(state, find_font(assets, "CASLON"), &state->controller, app->window.dim))
                 return 1;
         } break;
 
         case LOCAL: {
             render_bind_pipeline(&color_pipeline);
-            render_bind_descriptor_set(game->scene_set, 0);
+            render_bind_descriptor_set(state->scene_set, 0);
 
             //draw_sphere({ 0, 0, 0 }, 0.0f, { 10, 10, 10 }, { 255, 0, 255, 1 });
 
-            draw_game(&game->assets, basic_3D, &game->game, app->time.frame_time_s);
+            draw_game(&state->assets, basic_3D, &state->game);
+            draw_ray(&state->mouse_ray);
         } break;
     }
 
 
     render_end_frame();
 
-    prepare_controller_for_input(&game->controller);
+    prepare_controller_for_input(&state->controller);
 
 	return 0;
 }
 
 s32 event_handler(App *app, App_System_Event event, u32 arg) {
-    State *game = (State *)app->data;
+    State *state = (State *)app->data;
 
     switch(event) {
         case APP_INIT: {
@@ -1027,19 +981,19 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
         } break;
 
         case APP_KEYDOWN: {
-            controller_process_input(&game->controller, arg, true);
+            controller_process_input(&state->controller, arg, true);
         } break;
 
         case APP_KEYUP: {
-            controller_process_input(&game->controller, arg, false);
+            controller_process_input(&state->controller, arg, false);
         } break;
 
         case APP_MOUSEDOWN: {
-            controller_process_input(&game->controller, arg, true);
+            controller_process_input(&state->controller, arg, true);
         } break;
 
         case APP_MOUSEUP: {
-            controller_process_input(&game->controller, arg, false);
+            controller_process_input(&state->controller, arg, false);
         } break;
     }
 
