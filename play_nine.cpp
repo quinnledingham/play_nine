@@ -484,6 +484,12 @@ next_player(Game *game, Game_Draw *draw) {
     }
 
     game->active_player++;
+    
+    char player_message[9];
+    player_message[8] = 0;
+    memcpy(player_message, "Player ", 7);
+    player_message[7] = game->active_player + 48;
+    add_onscreen_notification(&draw->notifications, player_message);
 
     // END HOLE
     if (game->last_turn == game->num_of_players) {
@@ -800,9 +806,7 @@ bool8 init_data(App *app) {
     game->camera.fov      = 75.0f;
     game->camera.yaw      = 180.0f;
     game->camera.pitch    = -75.0f;
-	
-	game->rect = get_rect_mesh();
-	
+		
 	set(&game->controller.forward, 'w');
 	set(&game->controller.backward, SDLK_s);
 	set(&game->controller.left, SDLK_a);
@@ -837,6 +841,9 @@ bool8 init_data(App *app) {
 
     game->game_draw.rotation_speed = 100.0f;
     game->camera_mode = PLAYER_CAMERA;
+
+    game->game_draw.notifications.font = font;
+    game->game_draw.notifications.text_color = { 255, 255, 255, 1 };
 
 	return false;
 }
@@ -955,10 +962,18 @@ bool8 update(App *app) {
             render_bind_pipeline(&color_pipeline);
             render_bind_descriptor_set(state->scene_set, 0);
 
-            //draw_sphere({ 0, 0, 0 }, 0.0f, { 10, 10, 10 }, { 255, 0, 255, 1 });
-
             draw_game(&state->assets, basic_3D, &state->game);
+
             draw_ray(&state->mouse_ray);
+
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
+
+            //draw_onscreen_notifications(&state->game_draw.notifications, app->window.dim, app->time.frame_time_s);
+
+            
+            if (is_down(state->controller.one))
+                draw_string_tl(find_font(&state->assets, "CASLON"), "test", { 5, 200 }, 50.0f, { 255, 255, 255, 1 });
+            draw_string_tl(find_font(&state->assets, "CASLON"), round_types[0], { 5, 5 }, 50.0f, { 255, 255, 255, 1 });
         } break;
     }
 

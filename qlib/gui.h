@@ -39,3 +39,14 @@ struct Menu {
 
     Rect rect; // coords and dim of menu
 };
+
+struct Onscreen_Notifications {
+    static const u32 number_of_lines = 10;
+    char memory[number_of_lines][90]; // number of lines of memory used
+    u32 lines;
+    float32 times[number_of_lines]; // how long left on displaying the line
+    Vector4 colors[number_of_lines]; // the color for each line
+
+    Font *font;
+    Vector4 text_color;
+};

@@ -52,3 +52,77 @@ menu_button(Menu *menu, const char *text, u32 index, u32 active, u32 press) {
     
     return button_pressed;
 }
+
+//
+// Onscreen Notifications
+//
+
+internal void
+add_onscreen_notification(Onscreen_Notifications *n, const char *not) {
+    if (n->lines == ARRAY_COUNT(n->memory)) {
+        print("add_onscreen_notification(): too many notfications");
+        return;
+    }
+
+    n->times[n->lines] = 1.0f;
+    n->colors[n->lines] = n->text_color;
+
+    u32 not_length = get_length(not);
+    for (u32 ch = 0; ch < not_length; ch++) {
+        n->memory[n->lines][ch] = not[ch];
+    }   
+    n->lines++;
+}
+
+internal void
+update_onscreen_notifications(Onscreen_Notifications *n, float32 frame_time_s) {
+    for (u32 i = 0; i < n->lines; i++) {
+        n->times[i] -= frame_time_s;
+
+        n->colors[i].a = n->times[i];
+
+        if (n->times[i] <= 0.0f) {
+            n->colors[i].a = 0.0f;
+
+            // Last line that was added is dissappearing so you can start adding from the beginning again.
+            if (i == n->lines - 1) {
+                n->lines = 0;
+            }
+        }
+    }
+}
+
+internal float32
+get_pixel_height(Vector2 box) {
+    float32 pixel_height = box.y;
+    if (box.x < box.y) pixel_height = box.x;
+    pixel_height *= 0.8f;
+    return pixel_height;
+}
+
+internal void
+draw_onscreen_notifications(Onscreen_Notifications *n, Vector2_s32 window_dim, float32 frame_time_s) {
+    if (n->font == 0) {
+        logprint("draw_onscreen_notifications()", "Must set font in\n");
+        return;
+    }
+
+    update_onscreen_notifications(n, frame_time_s);
+
+    float32 pixel_height = get_pixel_height(cv2(window_dim) * 0.1f);
+
+    float32 above_text_coord = 0.0f;
+    for (u32 i = 0; i < n->lines; i++) {
+        Vector2 text_dim = get_string_dim(n->font, n->memory[i], pixel_height, n->text_color);
+        Vector2 text_coords = {};
+        text_coords.x = (window_dim.x / 2.0f) - (text_dim.x / 2.0f);
+        text_coords.y = above_text_coord + text_dim.y + 10.0f;
+
+        if (n->times[i] == 0.0f)
+            print("yo\n");
+
+        draw_string(n->font, n->memory[i], text_coords, pixel_height, n->colors[i]);
+
+        above_text_coord = text_coords.y;
+    }
+}

@@ -2,18 +2,19 @@
 TODO
 - Singleplayer (Bot)
 
-- Write inverse/determinant functions
-- Mouse Controls
 - Highlight card choices
 - Flip "animation"
 - Reset game
 - Scoreboard
 - On screen announcements
 
+- Fix card bitmap maker
 - Pause menu
 - Textbox
 
 - Online
+
+- Close vulkan correctly
 */
 
 struct Card {
@@ -42,6 +43,13 @@ enum Round_Types {
     HOLE_OVER
 };
 
+const char *round_types[4] = {
+    "Flip Round",
+    "Regular Round",
+    "Final Round",
+    "Hole Over"
+};
+
 enum Turn_Stages {
     SELECT_PILE, // pick either pile or discard pile
     SELECT_CARD, // pick where to place new card - in hand or discard
@@ -63,6 +71,7 @@ struct Player {
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
+
     s32 score;
 };
 
@@ -187,29 +196,30 @@ struct Game_Draw {
 
     float32 degrees_between_players;
     float32 radius;
+
+    Onscreen_Notifications notifications;
 };
 
 struct State {
     Game game;
     Game_Draw game_draw;
 
+    // Input
     Controller controller = {};
     enum Camera_Mode camera_mode = PLAYER_CAMERA;
-
     Ray mouse_ray;
 
     // Menus
     enum Game_Mode mode = MAIN_MENU;
     s32 active;
 
+    // Drawing
     Scene scene;
     Scene ortho_scene;
     Descriptor_Set *scene_set;
     Descriptor_Set *scene_ortho_set;
+    
     Camera camera;
-    Mesh rect;
-
-    Bitmap test;
 
     Assets assets;
 };
