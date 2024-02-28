@@ -76,6 +76,9 @@ copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
         }   
 
         dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
+
+        if (dest_ptr > dest.memory + (dest.width * dest.channels) + (dest.height * dest.pitch) + (y * dest.pitch))
+            ASSERT(0);
     }
 }
 
@@ -123,7 +126,8 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
         Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
         Font_Char *font_char = fbitmap->font_char;
 
-        Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, (float32)0 };
+        s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
+        Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, ((float32)height / 2.0f) - ((float32)char_height / 2.0f)};
 
         copy_bitmap_into_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords));
 
