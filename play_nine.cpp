@@ -906,7 +906,7 @@ draw_main_menu(State *state, Font *font, Controller *controller, Vector2_s32 win
 
     if (menu_button(&main_menu, "Local",  index++, state->active, select)) {
         state->mode = LOCAL;
-        start_game(&state->game, 4);
+        start_game(&state->game, 3);
         state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
         state->game_draw.radius = 8.0f;
     }
@@ -968,11 +968,8 @@ bool8 update(App *app) {
 
             render_bind_descriptor_set(state->scene_ortho_set, 0);
 
-            //draw_onscreen_notifications(&state->game_draw.notifications, app->window.dim, app->time.frame_time_s);
+            draw_onscreen_notifications(&state->game_draw.notifications, app->window.dim, app->time.frame_time_s);
 
-            
-            if (is_down(state->controller.one))
-                draw_string_tl(find_font(&state->assets, "CASLON"), "test", { 5, 200 }, 50.0f, { 255, 255, 255, 1 });
             draw_string_tl(find_font(&state->assets, "CASLON"), round_types[0], { 5, 5 }, 50.0f, { 255, 255, 255, 1 });
         } break;
     }

@@ -60,7 +60,7 @@ menu_button(Menu *menu, const char *text, u32 index, u32 active, u32 press) {
 internal void
 add_onscreen_notification(Onscreen_Notifications *n, const char *not) {
     if (n->lines == ARRAY_COUNT(n->memory)) {
-        print("add_onscreen_notification(): too many notfications");
+        print("add_onscreen_notification(): too many notfications\n");
         return;
     }
 

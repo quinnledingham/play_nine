@@ -975,15 +975,16 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 	}
 
 	// Setting up layouts
-	VkDescriptorSetLayout layouts[2];
-	for (u32 i = 0; i < 2; i++) {
-		layouts[i] = shader->vulkan_infos[i].descriptor_set_layout;
+	VkDescriptorSetLayout layouts[4];
+	u32 layout_index = 0;
+	for (u32 i = 0; i < 4; i++) {
+		if (shader->layout_sets[i].descriptors_count != 0)
+			layouts[layout_index++] = shader->vulkan_infos[i].descriptor_set_layout;
 	}
 
 	Descriptor_Set *push_set = &shader->layout_sets[2];
-	u32 push_constant_count = push_set->descriptors_count;
 	VkPushConstantRange push_constant_ranges[push_set->max_descriptors] = {};
-	for (u32 i = 0; i < push_constant_count; i++) {
+	for (u32 i = 0; i < push_set->push_constant_count; i++) {
 		VkPushConstantRange range = {};
 		range.stageFlags = vulkan_convert_shader_stage(push_set->descriptors[i].stages[0]);
 		range.offset = push_set->descriptors[i].offsets[0];
@@ -993,10 +994,10 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount         = 2;        // Optional
-	pipeline_layout_info.pSetLayouts            = layouts;  // Optional
-	pipeline_layout_info.pushConstantRangeCount = push_constant_count;  // Optional
-	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges; // Optional
+	pipeline_layout_info.setLayoutCount         = layout_index; // Optional
+	pipeline_layout_info.pSetLayouts            = layouts;      // Optional
+	pipeline_layout_info.pushConstantRangeCount = push_set->push_constant_count; // Optional
+	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;          // Optional
 
 	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->pipeline_layout) != VK_SUCCESS) {
 		logprint("vulkan_create_graphics_pipeline()", "failed to create pipeline layout\n");

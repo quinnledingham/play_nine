@@ -315,6 +315,11 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     render_bind_pipeline(&shapes.text_pipeline);
 
     u32 i = 0;
+
+    Descriptor_Set *color_set = render_get_descriptor_set(shapes.text_shader, 3);
+    render_update_ubo(color_set, 0, (void*)&color, false);
+    render_bind_descriptor_set(color_set, 2);
+
     while (string[i] != 0) {
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
         Font_Char *font_char = bitmap->font_char;
@@ -328,9 +333,8 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             Vector3 dim_v3 = { (float32)bitmap->bitmap.width, (float32)bitmap->bitmap.height, 1 };
             
             Descriptor_Set *object_set = render_get_descriptor_set(shapes.text_shader, 1);
-            render_bind_descriptor_set(object_set, 1);   
             render_set_bitmap(object_set, &bitmap->bitmap, 1);
-            render_update_ubo(object_set, 1, (void*)&color, false);
+            render_bind_descriptor_set(object_set, 1);  
 
             coords_v3.x += dim_v3.x / 2.0f;
             coords_v3.y += dim_v3.y / 2.0f; // coords = top left corner

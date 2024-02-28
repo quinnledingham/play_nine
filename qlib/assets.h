@@ -142,7 +142,7 @@ struct Descriptor {
         scope = in_scope;
     } 
 
-    Descriptor(u32 in_stage, u32 in_size, descriptor_scope in_scope) {
+    void Push_Descriptor(u32 in_stage, u32 in_size, descriptor_scope in_scope) {
         stages[0] = in_stage;
         stages_count = 1;
         size = in_size;
@@ -158,6 +158,7 @@ struct Descriptor_Set {
     static const u32 max_descriptors = 10;
     Descriptor descriptors[max_descriptors];
     u32 descriptors_count;
+    u32 push_constant_count;
 
 #ifdef VULKAN
     VkDescriptorSet *gpu_info[2]; // Vulkan Descriptor Set
@@ -168,7 +169,7 @@ struct Descriptor_Set {
 // Contains vulkan info about each descriptor layout
 #ifdef VULKAN
 struct Vulkan_Shader_Info {
-    static const u32 max_sets = 100;
+    static const u32 max_sets = 200;
     u32 sets_count;
 
     VkDescriptorSetLayout descriptor_set_layout;
@@ -181,9 +182,9 @@ struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
-    static const u32 max_sets = 100;
-    static const u32 layout_count = 3;                // layout sets for the 3 scopes
-    u32 sets_count[layout_count];
+    static const u32 max_sets = 200;
+    static const u32 layout_count = 4;                // layout sets for the 3 scopes
+    
     Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
     Descriptor_Set descriptor_sets[layout_count][max_sets]; //
 
