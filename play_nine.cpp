@@ -884,41 +884,85 @@ menu_update_active(s32 *active, s32 lower, s32 upper, Button increase, Button de
 
 // returns game mode
 internal s32
-draw_main_menu(State *state, Font *font, Controller *controller, Vector2_s32 window_dim)
+draw_main_menu(State *state, Menu *main_menu, Font *font, Controller *controller, Vector2_s32 window_dim)
 {
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
     window_rect.dim    = cv2(window_dim);
+    main_menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
 
-    Menu main_menu = {};
-    main_menu.font = font;
-    main_menu.rect = get_centered_rect(window_rect, 0.5f, 0.5f);
+    if (!main_menu->initialized) {
+        main_menu->initialized = true;
+        main_menu->font = font;
 
-    main_menu.button_style.default_back_color = {  231,213,36, 1 };
-    main_menu.button_style.active_back_color  = {  240, 229, 118, 1 };
-    main_menu.button_style.default_text_color = { 39,77,20, 1 };
-    main_menu.button_style.active_text_color  = { 39,77,20, 1 };;
-    
-    u32 buttons_count = 3;
-    main_menu.button_style.dim = { main_menu.rect.dim.x, main_menu.rect.dim.y / float32(buttons_count) };
+        main_menu->button_style.default_back_color = { 231, 213, 36,  1 };
+        main_menu->button_style.active_back_color  = { 240, 229, 118, 1 };
+        main_menu->button_style.default_text_color = { 39,  77,  20,  1 };
+        main_menu->button_style.active_text_color  = { 39,  77,  20,  1 };;
+        
+        u32 buttons_count = 3;
+        main_menu->button_style.dim = { main_menu->rect.dim.x, main_menu->rect.dim.y / float32(buttons_count) };
+    }
 
     bool8 select = on_down(controller->select);
     u32 index = 0;
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
-    draw_rect(main_menu.rect.coords, 0, main_menu.rect.dim, { 0, 0, 0, 0.2f} );
+    draw_rect(main_menu->rect.coords, 0, main_menu->rect.dim, { 0, 0, 0, 0.2f} );
 
-    if (menu_button(&main_menu, "Local",  index++, state->active, select)) {
-        state->mode = LOCAL;
+    if (menu_button(main_menu, "Local",  index++, main_menu->active, select)) {
+        state->menu_list.mode = LOCAL;
         start_game(&state->game, 3);
         state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
         state->game_draw.radius = 8.0f;
     }
-    if (menu_button(&main_menu, "Online", index++, state->active, select))
-        state->mode = ONLINE;    
-    if (menu_button(&main_menu, "Quit",   index++, state->active, select)) 
+    if (menu_button(main_menu, "Online", index++, main_menu->active, select))
+        state->menu_list.mode = ONLINE;    
+    if (menu_button(main_menu, "Quit",   index++, main_menu->active, select)) 
         return true;
 
+    return false;
+}
+
+internal s32
+draw_local_menu(Menu *menu, Font *font, Controller *controller, Vector2_s32 window_dim) {
+
+    Rect window_rect = {};
+    window_rect.coords = { 0, 0 };
+    window_rect.dim    = cv2(window_dim);
+    menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
+
+    if (!menu->initialized) {
+        menu->initialized = true;
+        menu->font = font;
+
+        menu->button_style.default_back_color = { 231, 213, 36,  1 };
+        menu->button_style.active_back_color  = { 240, 229, 118, 1 };
+        menu->button_style.default_text_color = { 39,  77,  20,  1 };
+        menu->button_style.active_text_color  = { 39,  77,  20,  1 };;
+        
+        u32 buttons_count = 2;
+        menu->button_style.dim = { menu->rect.dim.x, menu->rect.dim.y / float32(buttons_count) };
+    }
+
+    bool8 select = on_down(controller->select);
+    u32 index = 0;
+
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
+    draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
+
+    if (menu_button(menu, "Add Player",  index++, menu->active, select)) {
+
+    }
+    if (menu_button(menu, "Remove Player",  index++, menu->active, select)) {
+        
+    }
+    if (menu_button(menu, "Add Bot",  index++, menu->active, select)) {
+        
+    }
+    if (menu_button(menu, "Remove Bot",  index++, menu->active, select)) {
+        
+    }
     return false;
 }
 
@@ -935,9 +979,9 @@ bool8 update(App *app) {
     }
     
     // Update
-    switch(state->mode) {
+    switch(state->menu_list.mode) {
         case MAIN_MENU: {
-            menu_update_active(&state->active, 0, 2, state->controller.down,  state->controller.up);
+            menu_update_active(&state->menu_list.main.active, 0, 2, state->controller.down,  state->controller.up);
         } break;
 
         case LOCAL: {
@@ -954,12 +998,16 @@ bool8 update(App *app) {
     render_set_viewport(app->window.width, app->window.height);
     render_set_scissor(app->window.width, app->window.height);
 
-    switch(state->mode) {
+    switch(state->menu_list.mode) {
         case MAIN_MENU: {
             render_bind_pipeline(&shapes.color_pipeline);
             render_bind_descriptor_set(state->scene_ortho_set, 0);
-            if (draw_main_menu(state, find_font(assets, "CASLON"), &state->controller, app->window.dim))
+            if (draw_main_menu(state, &state->menu_list.main, find_font(assets, "CASLON"), &state->controller, app->window.dim))
                 return 1;
+        } break;
+
+        case LOCAL_MENU: {
+
         } break;
 
         case LOCAL: {

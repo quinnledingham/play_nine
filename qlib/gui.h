@@ -21,6 +21,24 @@ struct Draw_Button {
     const char *text;
 };
 
+struct Draw_Textbox {
+    Vector4 back_color;
+    Vector4 text_color;
+
+    Vector2 coords;
+    Vector2 dim;
+
+    float32 text_shift; // changes depending on cursor position
+
+    Font *font;
+    const char *text;
+};
+
+struct Textbox {
+    u32 cursor_position;
+    char text[20];
+};
+
 struct Menu_Button_Style {
     Vector2 dim;
     
@@ -32,12 +50,14 @@ struct Menu_Button_Style {
 
 struct Menu {
     Menu_Button_Style button_style;
-    
     Font *font;
-
     Vector2 padding;
 
-    Rect rect; // coords and dim of menu
+    Vector2_s32 sections;
+    Rect rect; // coords and dim of entire menu
+
+    s32 active;
+    bool8 initialized;
 };
 
 struct Onscreen_Notifications {
@@ -50,3 +70,4 @@ struct Onscreen_Notifications {
     Font *font;
     Vector4 text_color;
 };
+

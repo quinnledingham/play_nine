@@ -43,14 +43,90 @@ menu_button(Menu *menu, const char *text, u32 index, u32 active, u32 press) {
     };
 
     bool8 button_pressed = false;
-    if (index == active && press) button_pressed = true;
-    if (index == active) button.active = true;
+    if (index == active && press)
+        button_pressed = true;
+    if (index == active)
+        button.active = true;
 
     draw_button(button);
     
     menu->rect.coords.y += menu->button_style.dim.y + menu->padding.y;
     
     return button_pressed;
+}
+
+internal bool8
+menu_button(Menu *menu, const char *text, u32 index, u32 active, u32 press,
+            Vector2_s32 section_coords, Vector2_s32 section_dim) {
+
+    Vector2 coords = {
+        
+    };
+    
+    Vector2 dim = {
+        (menu->rect.dim.x / menu->sections.x) * section_dim.x,
+        (menu->rect.dim.y / menu->sections.y) * section_dim.y
+    };
+    
+    Draw_Button button = {
+        menu->button_style.default_back_color,
+        menu->button_style.default_text_color,
+
+        menu->button_style.active_back_color,
+        menu->button_style.active_text_color,
+
+        false,
+
+        coords,
+        dim,
+
+        menu->font,
+        text
+    };
+    
+    bool8 button_pressed = false;
+    if (index == active && press)
+        button_pressed = true;
+    if (index == active)
+        button.active = true;
+
+    
+    
+    return button_pressed;
+}
+
+internal void
+draw_textbox(const Draw_Textbox textbox) {
+    float32 pixel_height = textbox.dim.y;
+    if (textbox.dim.x < textbox.dim.y) 
+        pixel_height = textbox.dim.x;
+    pixel_height *= 0.8f;
+
+    Vector2 text_dim = get_string_dim(textbox.font, textbox.text, pixel_height, textbox.text_color);
+    Vector2 text_coords = {};
+    text_coords.x = textbox.coords.x + (textbox.dim.x / 2.0f) - (text_dim.x / 2.0f);
+    text_coords.y = textbox.coords.y + (textbox.dim.y / 2.0f) + (text_dim.y / 2.0f);
+
+    draw_rect(textbox.coords, 0, textbox.dim, textbox.back_color);
+    draw_string(textbox.font, textbox.text, text_coords, pixel_height, textbox.text_color);
+}
+
+internal void
+menu_textbox(Menu *menu) {
+    Draw_Textbox box = {
+        menu->button_style.default_back_color,
+        menu->button_style.default_text_color,
+        
+        menu->rect.coords,
+        menu->button_style.dim,
+
+        0.0f,
+
+        menu->font,
+        0
+    };
+
+    draw_textbox(box);
 }
 
 //

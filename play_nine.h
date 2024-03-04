@@ -172,8 +172,11 @@ enum Camera_Mode {
 
 enum Game_Mode {
     MAIN_MENU,
+    LOCAL_MENU,
     LOCAL,
     ONLINE,
+    IN_GAME,
+    PAUSE_MENU,
 };
 
 global Bitmap card_bitmaps[14];
@@ -200,6 +203,13 @@ struct Game_Draw {
     Onscreen_Notifications notifications;
 };
 
+struct Menu_List {
+    enum Game_Mode mode = MAIN_MENU;
+
+    Menu main;
+    Menu local;
+};
+
 struct State {
     Game game;
     Game_Draw game_draw;
@@ -209,9 +219,7 @@ struct State {
     enum Camera_Mode camera_mode = PLAYER_CAMERA;
     Ray mouse_ray;
 
-    // Menus
-    enum Game_Mode mode = MAIN_MENU;
-    s32 active;
+    Menu_List menu_list;
 
     // Drawing
     Scene scene;
