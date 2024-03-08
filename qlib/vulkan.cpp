@@ -1369,11 +1369,26 @@ vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters) {
     }
 }
 
+u32 test_tex = 0;
+
 internal void
 vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
+	test_tex++;
 	vulkan_create_texture_image(bitmap);
     vulkan_create_texture_image_view((Vulkan_Texture *)bitmap->gpu_info);
     vulkan_create_texture_sampler((Vulkan_Texture *)bitmap->gpu_info, texture_parameters);
+}
+
+internal void
+vulkan_delete_texture(Bitmap *bitmap) {
+	if (bitmap->width == 0)
+		return;
+	test_tex--;
+	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
+	vkDestroySampler(vulkan_info.device, texture->sampler, nullptr);
+	vkDestroyImageView(vulkan_info.device, texture->image_view, nullptr);
+	vkDestroyImage(vulkan_info.device, texture->image, nullptr);
+    vkFreeMemory(vulkan_info.device, texture->image_memory, nullptr);
 }
 
 internal void
@@ -1452,22 +1467,23 @@ vulkan_recreate_swap_chain(Vulkan_Info *info) {
 }
 
 internal void
+vulkan_pipeline_cleanup(Render_Pipeline *pipe) {
+	vkDestroyPipeline(vulkan_info.device, pipe->graphics_pipeline, nullptr);
+	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
+}
+
+internal void
 vulkan_cleanup() {
 	Vulkan_Info *info = &vulkan_info;
+/*
 	vkDeviceWaitIdle(info->device);
 
 	vulkan_cleanup_swap_chain(info);
-	
+*/	
 	// Depth buffer
 	vkDestroyImageView(info->device, info->depth_image_view, nullptr);
     vkDestroyImage(info->device, info->depth_image, nullptr);
     vkFreeMemory(info->device, info->depth_image_memory, nullptr);
-
-	// Texture Image
-	//vkDestroySampler(info->device, info->texture_sampler, nullptr);
-	//vkDestroyImageView(info->device, info->texture_image_view, nullptr);
-	//vkDestroyImage(info->device, info->texture_image, nullptr);
-    //vkFreeMemory(info->device, info->texture_image_memory, nullptr);
 
 	// Uniform buffer
 	for (u32 i = 0; i < info->MAX_FRAMES_IN_FLIGHT; i++) {
@@ -1484,8 +1500,8 @@ vulkan_cleanup() {
 	vkDestroyBuffer(info->device, info->uniform_buffer, nullptr);
 	vkFreeMemory(info->device, info->uniform_buffer_memory, nullptr);
 	
-	//vkDestroyPipeline(info->device, info->graphics_pipeline, nullptr);
-	//vkDestroyPipelineLayout(info->device, info->pipeline_layout, nullptr);
+	vulkan_pipeline_cleanup(&basic_pipeline);
+	vulkan_pipeline_cleanup(&color_pipeline);
 	
 	vkDestroyRenderPass(info->device, info->render_pass, nullptr);
 

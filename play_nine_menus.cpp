@@ -14,8 +14,8 @@ menu_update_active(s32 *active, s32 lower, s32 upper, Button increase, Button de
 
 // returns game mode
 internal s32
-draw_main_menu(State *state, Menu *main_menu, Font *font, Controller *controller, Vector2_s32 window_dim) {
-    menu_update_active(&state->menu_list.main.active, 0, 2, state->controller.backward,  state->controller.forward);
+draw_main_menu(State *state, Menu *main_menu, Font *font, Controller *controller, Vector2_s32 mouse, enum Input_Type active_input_type, Vector2_s32 window_dim) {
+    //menu_update_active(&state->menu_list.main.active, 0, 2, state->controller.backward,  state->controller.forward);
 
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
@@ -29,25 +29,43 @@ draw_main_menu(State *state, Menu *main_menu, Font *font, Controller *controller
         main_menu->button_style.default_back_color = { 231, 213, 36,  1 };
         main_menu->button_style.active_back_color  = { 240, 229, 118, 1 };
         main_menu->button_style.default_text_color = { 39,  77,  20,  1 };
-        main_menu->button_style.active_text_color  = { 39,  77,  20,  1 };;
+        main_menu->button_style.active_text_color  = { 39,  77,  20,  1 };
         
         u32 buttons_count = 3;    
+        main_menu->sections = { 1, 4 };
     }
 
     main_menu->button_style.dim = { main_menu->rect.dim.x, main_menu->rect.dim.y / float32(3) };
 
-    bool8 select = on_down(controller->select);
+    bool8 select = on_down(controller->select) || on_down(controller->mouse_left);
     u32 index = 0;
 
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
-    draw_rect(main_menu->rect.coords, 0, main_menu->rect.dim, { 0, 0, 0, 0.2f} );
+    Menu_Input input = {
+        select,
+        active_input_type,
 
-    if (menu_button(main_menu, "Local",  index++, main_menu->active, select)) {
+        controller->forward,
+        controller->backward,
+        controller->left,
+        controller->right,
+
+        main_menu->active_section,
+        &main_menu->active_section,
+
+        mouse
+    };
+
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
+    //draw_rect(main_menu->rect.coords, 0, main_menu->rect.dim, { 0, 0, 0, 0.2f} );
+
+    menu_text(main_menu, "play_nine", { 231, 213, 36,  1 }, { 0, 0 }, { 1, 1 }); 
+
+    if (menu_button(main_menu, "Local", input, { 0, 1 }, { 1, 1 })) {
         state->menu_list.mode = LOCAL_MENU;
     }
-    if (menu_button(main_menu, "Online", index++, main_menu->active, select))
+    if (menu_button(main_menu, "Online", input, { 0, 2 }, { 1, 1 }))
         state->menu_list.mode = IN_GAME;    
-    if (menu_button(main_menu, "Quit",   index++, main_menu->active, select)) 
+    if (menu_button(main_menu, "Quit", input, { 0, 3 }, { 1, 1 })) 
         return true;
 
     return false;
@@ -68,7 +86,7 @@ draw_local_menu(State *state, Menu *menu, Font *font, Controller *controller, Ve
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
     window_rect.dim    = cv2(window_dim);
-    menu->rect = get_centered_rect(window_rect, 0.9f, 0.7f);
+    menu->rect = get_centered_rect(window_rect, 0.9f, 0.9f);
 
     if (!menu->initialized) {
         menu->initialized = true;
@@ -79,7 +97,7 @@ draw_local_menu(State *state, Menu *menu, Font *font, Controller *controller, Ve
         menu->button_style.default_text_color = { 39,  77,  20,  1 };
         menu->button_style.active_text_color  = { 39,  77,  20,  1 };;
 
-        menu->sections = { 2, 4 };
+        menu->sections = { 2, 9 };
 
         game->num_of_players = 1;
         default_player_name_string(game->players[0].name, 0);
@@ -91,7 +109,7 @@ draw_local_menu(State *state, Menu *menu, Font *font, Controller *controller, Ve
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
     draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
 
-    menu->sections.y = 3 + game->num_of_players;
+    //menu->sections.y = 3 + game->num_of_players;
 
     Menu_Input input = {
         select,
@@ -112,7 +130,7 @@ draw_local_menu(State *state, Menu *menu, Font *font, Controller *controller, Ve
     for (menu_row; menu_row < (s32)game->num_of_players; menu_row++) {
         menu_button(menu, game->players[menu_row].name, input, { 0, menu_row }, { 2, 1 });
     }
-
+    menu_row = 6;
     if (menu_button(menu, "+ Player", input, { 0, menu_row }, { 1, 1 })) {
         if (game->num_of_players != 6) {
             default_player_name_string(game->players[game->num_of_players].name, game->num_of_players);

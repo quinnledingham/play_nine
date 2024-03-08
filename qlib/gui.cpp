@@ -82,6 +82,30 @@ menu_update_active(Menu_Input input, Vector2_s32 section_dim, Vector2_s32 menu_s
     }
 }
 
+internal void
+menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    Vector2 coords = {
+        (menu->rect.dim.x / menu->sections.x) * section_coords.x + menu->rect.coords.x,
+        (menu->rect.dim.y / menu->sections.y) * section_coords.y + menu->rect.coords.y
+    };
+    
+    Vector2 dim = {
+        (menu->rect.dim.x / menu->sections.x) * section_dim.x,
+        (menu->rect.dim.y / menu->sections.y) * section_dim.y
+    };
+
+    float32 pixel_height = dim.y;
+    if (dim.x < dim.y) pixel_height = dim.x;
+    pixel_height *= 0.8f;
+
+    Vector2 text_dim = get_string_dim(menu->font, text, pixel_height, color);
+    Vector2 text_coords = {};
+    text_coords.x = coords.x + (dim.x / 2.0f) - (text_dim.x / 2.0f);
+    text_coords.y = coords.y + (dim.y / 2.0f) + (text_dim.y / 2.0f);
+
+    draw_string(menu->font, text, text_coords, pixel_height, color);
+}
+
 internal bool8
 menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
 

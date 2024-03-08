@@ -256,12 +256,23 @@ int main(int argc, char *argv[]) {
             break;
         
     	sdl_update_time(&app.time);
-        print("%f\n", app.time.frames_per_s);
+        //print("%f\n", app.time.frames_per_s);
 
         if (app.update(&app))
             break;
     }
+
+    Vulkan_Info *info = &vulkan_info;
+    vkDeviceWaitIdle(info->device);
+
+    vulkan_cleanup_swap_chain(info);
     
+    State *state = (State *)app.data;
+    for (u32 i = 0; i < 14; i++) {
+        vulkan_delete_texture(&card_bitmaps[i]);
+    }
+    assets_cleanup(&state->assets);
+    cleanup_shapes();
     render_cleanup();
     SDL_DestroyWindow(sdl_window);
 

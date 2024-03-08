@@ -267,6 +267,11 @@ void init_shapes(Assets *assets) {
     render_create_graphics_pipeline(&shapes.color_pipeline, get_vertex_xu_info());
 }
 
+void cleanup_shapes() {
+    render_pipeline_cleanup(&shapes.text_pipeline);
+    render_pipeline_cleanup(&shapes.color_pipeline);
+}
+
 internal void
 draw_shape(Shape shape) {
     Shader *shader = 0;

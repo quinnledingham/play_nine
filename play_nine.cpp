@@ -387,6 +387,8 @@ start_game(Game *game, u32 num_of_players) {
     game->round_type = FLIP_ROUND;
 }
 
+#include "play_nine_menus.cpp"
+
 //
 // Scoring
 // 
@@ -866,8 +868,6 @@ controller_process_input(Controller *controller, s32 id, bool8 state) {
     }
 }
 
-#include "play_nine_menus.cpp"
-
 bool8 update(App *app) {
 	State *state = (State *)app->data;
 	Assets *assets = &state->assets;
@@ -898,7 +898,7 @@ bool8 update(App *app) {
         case MAIN_MENU: {
             render_bind_pipeline(&shapes.color_pipeline);
             render_bind_descriptor_set(state->scene_ortho_set, 0);
-            if (draw_main_menu(state, &state->menu_list.main, find_font(assets, "CASLON"), &state->controller, app->window.dim))
+            if (draw_main_menu(state, &state->menu_list.main, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim))
                 return 1;
         } break;
 
@@ -931,6 +931,39 @@ bool8 update(App *app) {
     prepare_controller_for_input(&state->controller);
 
 	return 0;
+}
+
+internal void
+assets_cleanup(Assets *assets) {
+    for (u32 i = 0; i < assets->types[ASSET_TYPE_BITMAP].num_of_assets; i++) {
+        Bitmap *bitmap = (Bitmap *)&assets->types[ASSET_TYPE_BITMAP].data[i].memory;
+        vulkan_delete_texture(bitmap);
+    }
+
+    for (u32 i = 0; i < assets->types[ASSET_TYPE_SHADER].num_of_assets; i++) {
+        Shader *shader = (Shader *)&assets->types[ASSET_TYPE_SHADER].data[i].memory;
+
+        for (u32 j = 0; j < shader->layout_count; j++) {
+            vkDestroyDescriptorPool(vulkan_info.device, shader->vulkan_infos[j].descriptor_pool, nullptr);
+            vkDestroyDescriptorSetLayout(vulkan_info.device, shader->vulkan_infos[j].descriptor_set_layout, nullptr);
+        }
+    }
+
+    for (u32 i = 0; i < assets->types[ASSET_TYPE_FONT].num_of_assets; i++) {
+        Font *font = (Font *)&assets->types[ASSET_TYPE_FONT].data[i].memory;
+
+        for (s32 j = 0; j < font->bitmaps_cached; j++) {
+            vulkan_delete_texture(&font->bitmaps[j].bitmap);
+        }
+    }
+
+    for (u32 i = 0; i < assets->types[ASSET_TYPE_MODEL].num_of_assets; i++) {
+        Model *model = (Model *)&assets->types[ASSET_TYPE_MODEL].data[i].memory;
+
+        for (u32 j = 0; j < model->meshes_count; j++) {
+            vulkan_delete_texture(&model->meshes[j].material.diffuse_map);
+        }
+    }
 }
 
 s32 event_handler(App *app, App_System_Event event, u32 arg) {

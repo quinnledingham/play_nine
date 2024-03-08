@@ -78,12 +78,14 @@ RENDER_FUNC(void, start_frame, );
 RENDER_FUNC(void, end_frame, );
 RENDER_FUNC(void, cleanup, );
 RENDER_FUNC(void, create_graphics_pipeline, Render_Pipeline *pipeline, Vertex_Info vertex_info);
+RENDER_FUNC(void, pipeline_cleanup, Render_Pipeline *pipe);
 RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
 
 RENDER_FUNC(void, create_descriptor_pool, Shader *shader, u32 descriptor_set_count, u32 set_index);
 RENDER_FUNC(Descriptor_Set*, get_descriptor_set, Shader *shader, bool8 layout_index);
 
 RENDER_FUNC(void, create_texture, Bitmap *bitmap, u32 texture_parameters);
+RENDER_FUNC(void, delete_texture, Bitmap *bitmap);
 RENDER_FUNC(void, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
 
 //RENDER_FUNC(void, init_model, Model *model);
