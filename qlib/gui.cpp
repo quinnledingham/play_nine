@@ -56,11 +56,38 @@ menu_button(Menu *menu, const char *text, u32 index, u32 active, u32 press) {
 }
 
 internal bool8
-menu_button(Menu *menu, const char *text, u32 index, u32 active, u32 press,
-            Vector2_s32 section_coords, Vector2_s32 section_dim) {
+menu_in_dim(Vector2_s32 coords, Vector2_s32 dim, Vector2_s32 target) {
+    for (s32 i = 0; i < dim.x; i++) {
+        for (s32 j = 0; j < dim.y; j++) {
+            if (coords.x + i == target.x && coords.y + j == target.y)
+                return true;
+        }
+    }
+    return false;
+}
+
+internal void
+menu_update_active(Menu_Input input, Vector2_s32 section_dim, Vector2_s32 menu_sections) {
+    if (on_down(input.up)    && input.active_ptr->y - section_dim.y >= 0) {
+        input.active_ptr->y -= section_dim.y;
+    }
+    if (on_down(input.down)  && input.active_ptr->y + section_dim.y < menu_sections.y) {
+        input.active_ptr->y += section_dim.y;
+    }
+    if (on_down(input.left)  && input.active_ptr->x - section_dim.x >= 0) {
+        input.active_ptr->x -= section_dim.x;
+    }
+    if (on_down(input.right) && input.active_ptr->x + section_dim.x < menu_sections.x) {
+        input.active_ptr->x += section_dim.x;
+    }
+}
+
+internal bool8
+menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
 
     Vector2 coords = {
-        
+        (menu->rect.dim.x / menu->sections.x) * section_coords.x + menu->rect.coords.x,
+        (menu->rect.dim.y / menu->sections.y) * section_coords.y + menu->rect.coords.y
     };
     
     Vector2 dim = {
@@ -85,12 +112,31 @@ menu_button(Menu *menu, const char *text, u32 index, u32 active, u32 press,
     };
     
     bool8 button_pressed = false;
-    if (index == active && press)
-        button_pressed = true;
-    if (index == active)
-        button.active = true;
+    if (input.active_input_type == KEYBOARD_INPUT && menu_in_dim(section_coords, section_dim, input.active)) {
 
-    
+        if (on_down(input.up) && input.active_ptr->y - section_dim.y >= 0) {
+            input.active_ptr->y -= section_dim.y;
+        }
+        if (on_down(input.down) && input.active_ptr->y + section_dim.y < menu->sections.y) {
+            input.active_ptr->y += section_dim.y;
+        }
+        if (on_down(input.left) && input.active_ptr->x - section_dim.x >= 0) {
+            input.active_ptr->x -= section_dim.x;
+        }
+        if (on_down(input.right) && input.active_ptr->x + section_dim.x < menu->sections.x) {
+            input.active_ptr->x += section_dim.x;
+        }
+
+        button.active = true;
+        if (input.select)
+            button_pressed = true;
+    }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
+        button.active = true;
+        if (input.select)
+            button_pressed = true;
+    }
+
+    draw_button(button);
     
     return button_pressed;
 }

@@ -90,6 +90,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 #include "render.h"
 #include "shaders.h"
 #include "application.h"
+#include "input.h"
 #include "gui.h"
 
 #include "print.cpp"
@@ -174,6 +175,8 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
                 input->mouse.y = mouse_motion_event->y;
                 input->mouse_rel.x = mouse_motion_event->xrel;
                 input->mouse_rel.y = mouse_motion_event->yrel;
+
+                input->active = MOUSE_INPUT;
             } break;
 
             case SDL_MOUSEBUTTONDOWN: {

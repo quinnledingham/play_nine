@@ -35,10 +35,18 @@ struct App_Key_Event {
 	bool8 state; // true if pressed, false if released
 };
 
+enum Input_Type {
+	KEYBOARD_INPUT,
+	MOUSE_INPUT,
+	CONTROLLER_INPUT
+};
+
 struct App_Input {
 	Vector2_s32 mouse;
 	Vector2_s32 mouse_rel;
 	bool8 relative_mouse_mode = false;
+
+	enum Input_Type active;
 };
 
 typedef enum {

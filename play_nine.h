@@ -32,6 +32,7 @@ struct Card {
 	//Mesh mesh;
 };
 
+#define MAX_NAME_SIZE 20
 #define HAND_SIZE 8
 #define DECK_SIZE 108
 global Card deck[DECK_SIZE];
@@ -66,7 +67,7 @@ Card indices
 */
 
 struct Player {
-    const char *name;
+    char name[MAX_NAME_SIZE];
     u32 cards[HAND_SIZE];
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
@@ -95,88 +96,9 @@ struct Game {
 // State
 //
 
-struct Button {
-    s32 id;
-    
-    s32 ids[3];
-    u32 num_of_ids;
-    
-    bool8 current_state; 
-    bool8 previous_state;
-};
-
-inline void 
-set(Button *button, s32 id)  {
-    if (button->num_of_ids > 2)
-        logprint("set()", "too many ids trying to be assigned to button\n");
-    
-    button->ids[button->num_of_ids++] = id;
-    button->id = id; 
-}
-
-inline bool8 
-is_down(Button button) { 
-    if (button.current_state) 
-        return true;
-    return false; 
-}
-
-inline bool8 
-on_down(Button button) {
-    if (button.current_state && button.current_state != button.previous_state) 
-        return true;
-    return false;
-}
-
-struct Controller {
-    union {
-        struct {
-            // Game Controls
-
-            Button one;
-            Button two;
-            Button three;
-            Button four;
-            
-            Button five;
-            Button six;
-            Button seven;
-            Button eight;
-
-            Button nine;
-            Button zero;
-
-            // Camera Controls
-
-            Button forward;
-            Button backward;
-            Button left;
-            Button right;
-            Button up;
-            Button down;
-
-            Button pause;
-            Button select;
-
-            // Mouse Controls
-            Button mouse_left;
-        };
-        Button buttons[19];
-    };
-};
-
 enum Camera_Mode {
     FREE_CAMERA,
     PLAYER_CAMERA,
-};
-
-enum Game_Mode {
-    MAIN_MENU,
-    LOCAL_MENU,
-    LOCAL,
-    ONLINE,
-    IN_GAME,
-    PAUSE_MENU,
 };
 
 global Bitmap card_bitmaps[14];
@@ -201,6 +123,13 @@ struct Game_Draw {
     float32 radius;
 
     Onscreen_Notifications notifications;
+};
+
+enum Game_Mode {
+    MAIN_MENU,
+    LOCAL_MENU,
+    IN_GAME,
+    PAUSE_MENU,
 };
 
 struct Menu_List {

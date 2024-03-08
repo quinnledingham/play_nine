@@ -17,6 +17,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 
 #include "application.h"
 #include "raytrace.h"
+#include "play_nine_input.h"
 #include "play_nine.h"
 
 #include "raytrace.cpp"
@@ -289,7 +290,7 @@ draw_card(Assets *assets, Shader *shader, Card card) {
         bitmap_index = 13;
 
     render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), card.model);
-}
+} 
 
 //      180
 // 270        90
@@ -489,12 +490,6 @@ next_player(Game *game, Game_Draw *draw) {
 
     game->active_player++;
     
-    char player_message[9];
-    player_message[8] = 0;
-    memcpy(player_message, "Player ", 7);
-    player_message[7] = game->active_player + 48;
-    add_onscreen_notification(&draw->notifications, player_message);
-
     // END HOLE
     if (game->last_turn == game->num_of_players) {
         update_scores(game);
@@ -508,6 +503,9 @@ next_player(Game *game, Game_Draw *draw) {
         if (game->round_type == FLIP_ROUND)
             game->round_type = REGULAR_ROUND;
     }
+
+    // Update for draw
+    add_onscreen_notification(&draw->notifications, game->players[game->active_player].name);
 
     draw->camera_rotation = {
         true,
@@ -868,103 +866,7 @@ controller_process_input(Controller *controller, s32 id, bool8 state) {
     }
 }
 
-internal void
-menu_update_active(s32 *active, s32 lower, s32 upper, Button increase, Button decrease) {
-    if (on_down(increase)) {
-        (*active)++;
-        if (*active > upper)
-            *active = upper;
-    }
-    if (on_down(decrease)) {
-        (*active)--;
-        if (*active < lower)
-            *active = lower;
-    }
-}
-
-// returns game mode
-internal s32
-draw_main_menu(State *state, Menu *main_menu, Font *font, Controller *controller, Vector2_s32 window_dim)
-{
-    Rect window_rect = {};
-    window_rect.coords = { 0, 0 };
-    window_rect.dim    = cv2(window_dim);
-    main_menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
-
-    if (!main_menu->initialized) {
-        main_menu->initialized = true;
-        main_menu->font = font;
-
-        main_menu->button_style.default_back_color = { 231, 213, 36,  1 };
-        main_menu->button_style.active_back_color  = { 240, 229, 118, 1 };
-        main_menu->button_style.default_text_color = { 39,  77,  20,  1 };
-        main_menu->button_style.active_text_color  = { 39,  77,  20,  1 };;
-        
-        u32 buttons_count = 3;
-        main_menu->button_style.dim = { main_menu->rect.dim.x, main_menu->rect.dim.y / float32(buttons_count) };
-    }
-
-    bool8 select = on_down(controller->select);
-    u32 index = 0;
-
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
-    draw_rect(main_menu->rect.coords, 0, main_menu->rect.dim, { 0, 0, 0, 0.2f} );
-
-    if (menu_button(main_menu, "Local",  index++, main_menu->active, select)) {
-        state->menu_list.mode = LOCAL;
-        start_game(&state->game, 3);
-        state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
-        state->game_draw.radius = 8.0f;
-    }
-    if (menu_button(main_menu, "Online", index++, main_menu->active, select))
-        state->menu_list.mode = ONLINE;    
-    if (menu_button(main_menu, "Quit",   index++, main_menu->active, select)) 
-        return true;
-
-    return false;
-}
-
-internal s32
-draw_local_menu(Menu *menu, Font *font, Controller *controller, Vector2_s32 window_dim) {
-
-    Rect window_rect = {};
-    window_rect.coords = { 0, 0 };
-    window_rect.dim    = cv2(window_dim);
-    menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
-
-    if (!menu->initialized) {
-        menu->initialized = true;
-        menu->font = font;
-
-        menu->button_style.default_back_color = { 231, 213, 36,  1 };
-        menu->button_style.active_back_color  = { 240, 229, 118, 1 };
-        menu->button_style.default_text_color = { 39,  77,  20,  1 };
-        menu->button_style.active_text_color  = { 39,  77,  20,  1 };;
-        
-        u32 buttons_count = 2;
-        menu->button_style.dim = { menu->rect.dim.x, menu->rect.dim.y / float32(buttons_count) };
-    }
-
-    bool8 select = on_down(controller->select);
-    u32 index = 0;
-
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
-    draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
-
-    if (menu_button(menu, "Add Player",  index++, menu->active, select)) {
-
-    }
-    if (menu_button(menu, "Remove Player",  index++, menu->active, select)) {
-        
-    }
-    if (menu_button(menu, "Add Bot",  index++, menu->active, select)) {
-        
-    }
-    if (menu_button(menu, "Remove Bot",  index++, menu->active, select)) {
-        
-    }
-    return false;
-}
+#include "play_nine_menus.cpp"
 
 bool8 update(App *app) {
 	State *state = (State *)app->data;
@@ -979,14 +881,8 @@ bool8 update(App *app) {
     }
     
     // Update
-    switch(state->menu_list.mode) {
-        case MAIN_MENU: {
-            menu_update_active(&state->menu_list.main.active, 0, 2, state->controller.down,  state->controller.up);
-        } break;
-
-        case LOCAL: {
-            update_game(state, app);
-        }
+    if (state->menu_list.mode == IN_GAME) {
+        update_game(state, app);
     }
 
     // Draw
@@ -1007,10 +903,13 @@ bool8 update(App *app) {
         } break;
 
         case LOCAL_MENU: {
-
+            render_bind_pipeline(&shapes.color_pipeline);
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
+            if (draw_local_menu(state, &state->menu_list.local, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim))
+                return 1;
         } break;
 
-        case LOCAL: {
+        case IN_GAME: {
             render_bind_pipeline(&color_pipeline);
             render_bind_descriptor_set(state->scene_set, 0);
 
@@ -1022,7 +921,7 @@ bool8 update(App *app) {
 
             draw_onscreen_notifications(&state->game_draw.notifications, app->window.dim, app->time.frame_time_s);
 
-            draw_string_tl(find_font(&state->assets, "CASLON"), round_types[0], { 5, 5 }, 50.0f, { 255, 255, 255, 1 });
+            draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, 50.0f, { 255, 255, 255, 1 });
         } break;
     }
 
@@ -1045,10 +944,12 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
         } break;
 
         case APP_KEYDOWN: {
+            app->input.active = KEYBOARD_INPUT;
             controller_process_input(&state->controller, arg, true);
         } break;
 
         case APP_KEYUP: {
+            app->input.active = KEYBOARD_INPUT;
             controller_process_input(&state->controller, arg, false);
         } break;
 
@@ -1063,3 +964,4 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
 
     return 0;
 }
+

@@ -39,6 +39,10 @@ struct Textbox {
     char text[20];
 };
 
+//
+// Menu
+//
+
 struct Menu_Button_Style {
     Vector2 dim;
     
@@ -48,17 +52,42 @@ struct Menu_Button_Style {
     Vector4 active_text_color;
 };
 
+struct Menu_Input {
+    // Both
+    bool8 select;
+    enum Input_Type active_input_type;
+
+    // Keyboard
+    Button up;
+    Button down;
+    Button left;
+    Button right;
+
+    // Because I have to remember what is selected unlike with the mouse where you can
+    // always check where the mouse is.
+    Vector2_s32 active;      // what was active after last round
+    Vector2_s32 *active_ptr; // change this to new active if needed
+
+    // Mouse
+    Vector2_s32 mouse;
+};
+
 struct Menu {
     Menu_Button_Style button_style;
     Font *font;
     Vector2 padding;
 
     Vector2_s32 sections;
+    Vector2_s32 active_section;
     Rect rect; // coords and dim of entire menu
 
     s32 active;
     bool8 initialized;
 };
+
+//
+// Misc
+//
 
 struct Onscreen_Notifications {
     static const u32 number_of_lines = 10;
