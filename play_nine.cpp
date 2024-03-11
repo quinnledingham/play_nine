@@ -386,6 +386,8 @@ deal_cards(Game *game) {
 
 internal void
 start_game(Game *game, u32 num_of_players) {
+    game->top_of_pile = 0;
+    game->top_of_discard_pile = 0;
     shuffle_pile(game->pile);
     game->num_of_players = num_of_players;
     deal_cards(game);
@@ -404,6 +406,10 @@ reset_game(Game *game) {
 
 internal float32
 get_draw_radius(u32 num_of_players, float32 hand_width, float32 card_height) {
+    if (num_of_players == 2) {
+        return 2.0f * card_height + 0.2f;
+    }
+
     float32 angle = (360.0f / float32(num_of_players)) / 2.0f;
     float32 radius = (hand_width / 2.0f) / tanf(angle * DEG2RAD);
     return radius + card_height + 0.1f;
@@ -577,7 +583,7 @@ internal void
 update_card_with_buttons(Game *game, Controller *controller) {
     if (on_down(controller->nine)) {
         deck[game->pile[game->top_of_pile]].selected = true;
-    } else if (on_down(controller->zero)) {
+    } else if (on_down(controller->zero) && game->top_of_discard_pile != 0) {
         deck[game->discard_pile[game->top_of_discard_pile - 1]].selected  = true;
     }
 
@@ -597,6 +603,12 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
             if (deck[game->pile[game->top_of_pile]].selected) {
                 deck[game->pile[game->top_of_pile]].selected = false;
                 active_player->new_card = game->pile[game->top_of_pile++];
+    
+                // Probably shouldn't happen in a real game
+                if (game->top_of_pile + game->num_of_players >= DECK_SIZE) {
+                    game->round_type = FINAL_ROUND;
+                }
+
                 deck[active_player->new_card].flipped = true;
                 active_player->turn_stage = SELECT_CARD;
                 active_player->pile_card = true;
@@ -665,7 +677,7 @@ model_ray_intersection(Ray ray, Model *model, Card *card) {
     for (u32 i = 0; i < model->meshes_count; i++) {
         Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card->model);
         if (p.number_of_intersections != 0) {
-            print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
             card->selected = true;
         }
     }

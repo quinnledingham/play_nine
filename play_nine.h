@@ -4,17 +4,13 @@ TODO
 
 - Highlight card choices
 - Flip "animation"
-- Reset game
 - Scoreboard
 - On screen announcements
 
-- Fix card bitmap maker
-- Pause menu
 - Textbox
 
 - Online
 
-- Close vulkan correctly
 */
 
 struct Card {

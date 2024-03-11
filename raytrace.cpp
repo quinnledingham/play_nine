@@ -22,7 +22,7 @@ set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, 
     ray->origin = ray_world;
     ray->direction = normalized(ray->origin - camera.position);
 
-    print("%f %f %f\n", ray->origin.x, ray->origin.y, ray->origin.z);
+    //print("%f %f %f\n", ray->origin.x, ray->origin.y, ray->origin.z);
 }
 
 // https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
