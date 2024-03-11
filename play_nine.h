@@ -103,6 +103,7 @@ enum Camera_Mode {
 
 global Bitmap card_bitmaps[14];
 global Vector2 hand_coords[8];
+global float32 hand_width;
 
 struct Rotation {
     bool8 rotating;
@@ -137,6 +138,7 @@ struct Menu_List {
 
     Menu main;
     Menu local;
+    Menu pause;
 };
 
 struct State {

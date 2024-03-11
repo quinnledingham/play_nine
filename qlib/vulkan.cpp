@@ -1473,13 +1473,52 @@ vulkan_pipeline_cleanup(Render_Pipeline *pipe) {
 }
 
 internal void
+assets_cleanup(Assets *assets) {
+    for (u32 i = 0; i < assets->types[ASSET_TYPE_BITMAP].num_of_assets; i++) {
+        Bitmap *bitmap = (Bitmap *)&assets->types[ASSET_TYPE_BITMAP].data[i].memory;
+        vulkan_delete_texture(bitmap);
+    }
+
+    for (u32 i = 0; i < assets->types[ASSET_TYPE_SHADER].num_of_assets; i++) {
+        Shader *shader = (Shader *)&assets->types[ASSET_TYPE_SHADER].data[i].memory;
+
+        for (u32 j = 0; j < shader->layout_count; j++) {
+            vkDestroyDescriptorPool(vulkan_info.device, shader->vulkan_infos[j].descriptor_pool, nullptr);
+            vkDestroyDescriptorSetLayout(vulkan_info.device, shader->vulkan_infos[j].descriptor_set_layout, nullptr);
+        }
+    }
+
+    for (u32 i = 0; i < assets->types[ASSET_TYPE_FONT].num_of_assets; i++) {
+        Font *font = (Font *)&assets->types[ASSET_TYPE_FONT].data[i].memory;
+
+        for (s32 j = 0; j < font->bitmaps_cached; j++) {
+            vulkan_delete_texture(&font->bitmaps[j].bitmap);
+        }
+    }
+
+    for (u32 i = 0; i < assets->types[ASSET_TYPE_MODEL].num_of_assets; i++) {
+        Model *model = (Model *)&assets->types[ASSET_TYPE_MODEL].data[i].memory;
+
+        for (u32 j = 0; j < model->meshes_count; j++) {
+            vulkan_delete_texture(&model->meshes[j].material.diffuse_map);
+        }
+    }
+}
+
+internal void
+vulkan_wait_frame() {
+	vkDeviceWaitIdle(vulkan_info.device);
+}
+
+internal void
 vulkan_cleanup() {
 	Vulkan_Info *info = &vulkan_info;
 /*
 	vkDeviceWaitIdle(info->device);
-
+*/
 	vulkan_cleanup_swap_chain(info);
-*/	
+
+
 	// Depth buffer
 	vkDestroyImageView(info->device, info->depth_image_view, nullptr);
     vkDestroyImage(info->device, info->depth_image, nullptr);

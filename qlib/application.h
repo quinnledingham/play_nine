@@ -51,6 +51,7 @@ struct App_Input {
 
 typedef enum {
 	APP_INIT,
+	APP_EXIT,
 	APP_KEYDOWN,
 	APP_KEYUP,
 

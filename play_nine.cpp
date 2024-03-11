@@ -235,6 +235,7 @@ load_card_model(Card *card, Vector3 position, float32 degrees, Vector3 scale) {
     if (!card->flipped) {
         Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
         rotation = flip * rotation;
+        position.y += 0.05f;
     }
 
     card->model = create_transform_m4x4(position, rotation, scale);
@@ -244,7 +245,7 @@ internal void
 load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
     Vector3 selected_card_coords = {0.0f, 1.0f, -3.1f};
-    Vector3 pile_coords          = { -1.1f, 0.5, 0 };
+    Vector3 pile_coords          = { -1.1f, 0.35f, 0 };
     Vector3 discard_pile_coords  = { 1.1f, 0, 0 };
 
     for (u32 i = 0; i < game->num_of_players; i++) {
@@ -297,6 +298,9 @@ draw_card(Assets *assets, Shader *shader, Card card) {
 //       0
 internal void
 draw_game(Assets *assets, Shader *shader, Game *game) {
+    render_bind_pipeline(&basic_pipeline);
+    render_draw_model(find_model(assets, "TABLE"), basic_pipeline.shader, { 0, -1.05f, 0 }, get_rotation(0, { 0, 1, 0 }));
+
     for (u32 i = 0; i < game->num_of_players; i++) {
         for (u32 card_index = 0; card_index < 8; card_index++) {
             Card card = deck[game->players[i].cards[card_index]];
@@ -333,6 +337,7 @@ init_deck() {
     float32 card_width = 2.0f;
     float32 card_height = 3.2f;
     float32 padding = 0.2f;
+    hand_width = card_width * 4.0f + padding * 3.0f;
 
     u32 card_index = 0;
     for (s32 y = 1; y >= 0; y--) {
@@ -354,6 +359,7 @@ random(s32 lower, s32 upper) {
 internal void
 shuffle_pile(u32 *pile) {
     for (u32 i = 0; i < DECK_SIZE; i++) {
+        deck[i].flipped = false;
         bool8 not_new_card = true;
         while(not_new_card) {
             pile[i] = random(0, DECK_SIZE);
@@ -383,8 +389,24 @@ start_game(Game *game, u32 num_of_players) {
     shuffle_pile(game->pile);
     game->num_of_players = num_of_players;
     deal_cards(game);
-
+    game->active_player = 0;
     game->round_type = FLIP_ROUND;
+    game->last_turn = 0;
+}
+
+internal void
+reset_game(Game *game) {
+    //game->num_of_players = 1;
+    //for (u32 i = 0; i < 6; i++)
+    //    platform_memory_set(game->players[i].cards, 0, sizeof(u32) * HAND_SIZE);
+    //game->active_player = 0;
+}
+
+internal float32
+get_draw_radius(u32 num_of_players, float32 hand_width, float32 card_height) {
+    float32 angle = (360.0f / float32(num_of_players)) / 2.0f;
+    float32 radius = (hand_width / 2.0f) / tanf(angle * DEG2RAD);
+    return radius + card_height + 0.1f;
 }
 
 #include "play_nine_menus.cpp"
@@ -573,7 +595,7 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
     switch(active_player->turn_stage) {
         case SELECT_PILE: {
             if (deck[game->pile[game->top_of_pile]].selected) {
-                deck[game->top_of_pile].selected = false;
+                deck[game->pile[game->top_of_pile]].selected = false;
                 active_player->new_card = game->pile[game->top_of_pile++];
                 deck[active_player->new_card].flipped = true;
                 active_player->turn_stage = SELECT_CARD;
@@ -702,8 +724,9 @@ bool8 update_game(State *state, App *app) {
 
         case PLAYER_CAMERA: {
             if (on_down(state->controller.pause)) {
-                state->camera_mode = FREE_CAMERA;
-                app->input.relative_mouse_mode = true;
+                //state->camera_mode = FREE_CAMERA;
+                state->menu_list.mode = PAUSE_MENU;
+                //app->input.relative_mouse_mode = true;
             }
               
             if (on_down(state->controller.right)) {
@@ -790,6 +813,7 @@ bool8 init_data(App *app) {
 
 	render_init_model(find_model(&game->assets, "TAILS"));
     render_init_model(find_model(&game->assets, "CARD"));
+    render_init_model(find_model(&game->assets, "TABLE"));
 
 	// Rendering
 	//game->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
@@ -883,6 +907,10 @@ bool8 update(App *app) {
     // Update
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);
+    } else if (state->menu_list.mode == PAUSE_MENU) {
+        if (on_down(state->controller.pause)) {
+            state->menu_list.mode = IN_GAME;
+        }
     }
 
     // Draw
@@ -905,23 +933,27 @@ bool8 update(App *app) {
         case LOCAL_MENU: {
             render_bind_pipeline(&shapes.color_pipeline);
             render_bind_descriptor_set(state->scene_ortho_set, 0);
-            if (draw_local_menu(state, &state->menu_list.local, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim))
-                return 1;
+            draw_local_menu(state, &state->menu_list.local, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim);
         } break;
 
+        case PAUSE_MENU:
         case IN_GAME: {
             render_bind_pipeline(&color_pipeline);
             render_bind_descriptor_set(state->scene_set, 0);
 
             draw_game(&state->assets, basic_3D, &state->game);
 
-            draw_ray(&state->mouse_ray);
+            //draw_ray(&state->mouse_ray);
 
             render_bind_descriptor_set(state->scene_ortho_set, 0);
 
             draw_onscreen_notifications(&state->game_draw.notifications, app->window.dim, app->time.frame_time_s);
 
             draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, 50.0f, { 255, 255, 255, 1 });
+
+            if (state->menu_list.mode == PAUSE_MENU) {
+                draw_pause_menu(state, &state->menu_list.pause, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim);
+            }
         } break;
     }
 
@@ -933,39 +965,6 @@ bool8 update(App *app) {
 	return 0;
 }
 
-internal void
-assets_cleanup(Assets *assets) {
-    for (u32 i = 0; i < assets->types[ASSET_TYPE_BITMAP].num_of_assets; i++) {
-        Bitmap *bitmap = (Bitmap *)&assets->types[ASSET_TYPE_BITMAP].data[i].memory;
-        vulkan_delete_texture(bitmap);
-    }
-
-    for (u32 i = 0; i < assets->types[ASSET_TYPE_SHADER].num_of_assets; i++) {
-        Shader *shader = (Shader *)&assets->types[ASSET_TYPE_SHADER].data[i].memory;
-
-        for (u32 j = 0; j < shader->layout_count; j++) {
-            vkDestroyDescriptorPool(vulkan_info.device, shader->vulkan_infos[j].descriptor_pool, nullptr);
-            vkDestroyDescriptorSetLayout(vulkan_info.device, shader->vulkan_infos[j].descriptor_set_layout, nullptr);
-        }
-    }
-
-    for (u32 i = 0; i < assets->types[ASSET_TYPE_FONT].num_of_assets; i++) {
-        Font *font = (Font *)&assets->types[ASSET_TYPE_FONT].data[i].memory;
-
-        for (s32 j = 0; j < font->bitmaps_cached; j++) {
-            vulkan_delete_texture(&font->bitmaps[j].bitmap);
-        }
-    }
-
-    for (u32 i = 0; i < assets->types[ASSET_TYPE_MODEL].num_of_assets; i++) {
-        Model *model = (Model *)&assets->types[ASSET_TYPE_MODEL].data[i].memory;
-
-        for (u32 j = 0; j < model->meshes_count; j++) {
-            vulkan_delete_texture(&model->meshes[j].material.diffuse_map);
-        }
-    }
-}
-
 s32 event_handler(App *app, App_System_Event event, u32 arg) {
     State *state = (State *)app->data;
 
@@ -974,6 +973,14 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             app->update = &update;
             if (init_data(app))
                 return 1;
+        } break;
+
+        case APP_EXIT: {
+            for (u32 i = 0; i < 14; i++) {
+                vulkan_delete_texture(&card_bitmaps[i]);
+            }
+            cleanup_shapes();
+            assets_cleanup(&state->assets);
         } break;
 
         case APP_KEYDOWN: {

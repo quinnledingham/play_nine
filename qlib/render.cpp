@@ -63,7 +63,7 @@ void render_init_model(Model *model) {
 void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternion rotation) {
     for (u32 i = 0; i < model->meshes_count; i++) {
 
-        Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, {1.0f, 1.0f, 1.0f});
+        Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, {15.0f, 1.0f, 15.0f});
         render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
 
         if (model->meshes[i].material.diffuse_map.memory != 0) {

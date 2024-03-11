@@ -13,7 +13,7 @@ layout(location = 0) out vec4 outColor;
 void main() {
     vec3 col = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w).rgb;
 
-    vec3 light_position = vec3(2.0, 5.0, 0.0);
+    vec3 light_position = vec3(0.0, 5.0, 0.0);
     vec3 light_color = vec3(1.0, 1.0, 1.0);
 
     // ambient

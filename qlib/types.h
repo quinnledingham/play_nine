@@ -76,7 +76,10 @@ struct Matrix_3x3 {
 };
 
 struct Matrix_4x4 {
-    float32 E[4][4];
+	union {
+    	float32 E[4][4];
+		float32 F[16];
+	};
 };
 
 #endif // TYPES_H

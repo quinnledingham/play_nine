@@ -198,7 +198,7 @@ obj_fill_arrays(OBJ *obj, File file, Model *model) {
     OBJ_Token token = {};
     s32 line_num = 1;
     
-    u32 meshes_index        = -1;
+    s32 meshes_index        = -1;
     u32 vertices_index      = 0;
     u32 uvs_index           = 0;
     u32 normals_index       = 0;

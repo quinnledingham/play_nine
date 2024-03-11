@@ -76,7 +76,7 @@ RENDER_FUNC(void, sdl_init, SDL_Window *sdl_window);
 RENDER_FUNC(void, clear_color, Vector4 color);
 RENDER_FUNC(void, start_frame, );
 RENDER_FUNC(void, end_frame, );
-RENDER_FUNC(void, cleanup, );
+RENDER_FUNC(void, cleanup);
 RENDER_FUNC(void, create_graphics_pipeline, Render_Pipeline *pipeline, Vertex_Info vertex_info);
 RENDER_FUNC(void, pipeline_cleanup, Render_Pipeline *pipe);
 RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);

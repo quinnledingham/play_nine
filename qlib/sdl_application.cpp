@@ -249,8 +249,10 @@ int main(int argc, char *argv[]) {
     srand(SDL_GetTicks());
 
     while (1) {
-        if (app.input.relative_mouse_mode) SDL_SetRelativeMouseMode(SDL_TRUE);
-        else                               SDL_SetRelativeMouseMode(SDL_FALSE);
+        if (app.input.relative_mouse_mode) 
+            SDL_SetRelativeMouseMode(SDL_TRUE);
+        else 
+            SDL_SetRelativeMouseMode(SDL_FALSE);
 
     	if (sdl_process_input(&app, &app.window, &app.input)) 
             break;
@@ -262,17 +264,8 @@ int main(int argc, char *argv[]) {
             break;
     }
 
-    Vulkan_Info *info = &vulkan_info;
-    vkDeviceWaitIdle(info->device);
-
-    vulkan_cleanup_swap_chain(info);
-    
-    State *state = (State *)app.data;
-    for (u32 i = 0; i < 14; i++) {
-        vulkan_delete_texture(&card_bitmaps[i]);
-    }
-    assets_cleanup(&state->assets);
-    cleanup_shapes();
+    vulkan_wait_frame();
+    event_handler(&app, APP_EXIT, 0) ;
     render_cleanup();
     SDL_DestroyWindow(sdl_window);
 
