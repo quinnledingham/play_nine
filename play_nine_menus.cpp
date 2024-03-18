@@ -65,20 +65,14 @@ draw_main_menu(State *state, Menu *main_menu, Font *font, Controller *controller
     if (menu_button(main_menu, "Local", input, { 0, 1 }, { 1, 1 })) {
         state->menu_list.mode = LOCAL_MENU;
     }
-    if (menu_button(main_menu, "Online", input, { 0, 2 }, { 1, 1 }))
-        state->menu_list.mode = IN_GAME;    
+    if (menu_button(main_menu, "Test", input, { 0, 2 }, { 1, 1 })) {
+        state->game = get_test_game();
+        state->menu_list.mode = SCOREBOARD_MENU;    
+    }
     if (menu_button(main_menu, "Quit", input, { 0, 3 }, { 1, 1 })) 
         return true;
 
     return false;
-}
-
-internal void
-default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
-    platform_memory_set((void*)buffer, 0, MAX_NAME_SIZE);
-    buffer[8] = 0;
-    memcpy(buffer, "Player ", 7);
-    buffer[7] = number + 48;
 }
 
 internal s32
@@ -189,7 +183,7 @@ draw_pause_menu(State *state, Menu *menu, Font *font, Controller *controller, Ve
         menu->button_style.default_back_color = { 231, 213, 36,  1 };
         menu->button_style.active_back_color  = { 240, 229, 118, 1 };
         menu->button_style.default_text_color = { 39,  77,  20,  1 };
-        menu->button_style.active_text_color  = { 39,  77,  20,  1 };;
+        menu->button_style.active_text_color  = { 39,  77,  20,  1 };
 
         menu->sections = { 1, 3 };
         menu->hot[0] = { 0, 0 };
@@ -224,4 +218,92 @@ draw_pause_menu(State *state, Menu *menu, Font *font, Controller *controller, Ve
     }
 
     return false;
+}
+
+/*
+0 do nothing
+1 next hole
+2 quit game
+*/ 
+internal s32
+draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_dim) {
+    Rect window_rect = {};
+    window_rect.coords = { 0, 0 };
+    window_rect.dim    = cv2(window_dim);
+    menu->rect = get_centered_rect(window_rect, 0.9f, 0.9f);
+
+    s32 scroll_length = 8;
+
+    if (!menu->initialized) {
+        menu->initialized = true;
+        menu->font = default_font;
+
+        menu->button_style.default_back_color = { 231, 213, 36,  1 };
+        menu->button_style.active_back_color  = { 240, 229, 118, 1 };
+        menu->button_style.default_text_color = { 39,  77,  20,  1 };
+        menu->button_style.active_text_color  = { 39,  77,  20,  1 };
+/*
+        menu->sections = { (s32)game->num_of_players + 1, (s32)game->holes_played + 2 };
+        menu->hot[0] = { 0, (s32)game->holes_played + 1 };
+        menu->hot[1] = { (s32)game->num_of_players + 1, (s32)game->holes_played + 1 };
+*/
+        menu->sections = { (s32)game->num_of_players + 1, scroll_length + 2 };
+        menu->hot[0] = { 0, scroll_length + 1 };
+        menu->hot[1] = { (s32)game->num_of_players + 1, scroll_length + 1 };
+
+        menu->active_section = menu->hot[0];
+
+        if ((s32)game->holes_played <= scroll_length)
+            menu->scroll = { 1, (s32)game->holes_played };
+        else
+            menu->scroll = { (s32)game->holes_played - scroll_length + 1, (s32)game->holes_played + 1 };
+    }
+
+    input->active = menu->active_section;
+    input->active_ptr = &menu->active_section;
+
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
+    draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
+
+    // Top
+    Vector4 text_color = { 231, 213, 36,  1 };
+
+    menu_text(menu, "Hole", text_color, { 0, 0 }, { 1, 1 }); 
+    for (u32 i = 0; i < game->num_of_players; i++) {
+        menu_text(menu, game->players[i].name, text_color, { (s32)i + 1, 0 }, { 1, 1 }); 
+    }
+
+    char *subtotal_text = "subtotal";
+    char hole_text[3];
+    char score_text[3]; // can't get over 99 on a hole. 12 * 8 = 96
+    ASSERT(MAX_HOLES < 99);
+
+    s32 index = 0;
+    for (s32 i = 0; i < (s32)game->holes_played; i++) {
+        if (i + 1 < menu->scroll.x || i + 1 > menu->scroll.y) {
+            continue;
+        }
+        
+        platform_memory_set(hole_text, 0, 3);
+        s32_to_char_array(hole_text, 3, i + 1);
+        menu_text(menu, hole_text, text_color, { 0, index + 1 }, { 1, 1 });
+
+        for (s32 player_index = 0; player_index < (s32)game->num_of_players; player_index++) {
+            platform_memory_set(score_text, 0, 3);
+            s32_to_char_array(score_text, 3, game->players[player_index].scores[i]);
+            menu_text(menu, score_text, text_color, { player_index + 1, index + 1 }, { 1, 1 }); 
+        }
+
+        index++;
+    }
+
+    if (menu_button(menu, "Next Hole", *input, { 0, scroll_length + 1 }, { (s32)game->num_of_players, 1 })) {
+        start_hole(game);
+        return 1;
+    }
+    if (menu_button(menu, "Quit Game", *input, { (s32)game->num_of_players, scroll_length + 1 }, { 1, 1 })) {
+        return 2;   
+    }
+
+    return 0;
 }

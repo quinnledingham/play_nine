@@ -34,3 +34,9 @@ struct Controller {
         Button buttons[19];
     };
 };
+
+struct Input {
+    Controller controller;
+    Vector2_s32 mouse;
+    enum Input_Type active;
+};

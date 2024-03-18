@@ -62,14 +62,15 @@ Card indices
 
 */
 
+#define MAX_HOLES 20 // max holes that can be played in one gamed
+
 struct Player {
     char name[MAX_NAME_SIZE];
     u32 cards[HAND_SIZE];
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
-
-    s32 score;
+    s32 scores[MAX_HOLES];
 };
 
 // Stores information about the game of play nine
@@ -83,6 +84,8 @@ struct Game {
     Player players[6];
     u32 num_of_players;
     u32 active_player;
+
+    u32 holes_played;
 
     enum Round_Types round_type;
     u32 last_turn;
@@ -127,6 +130,7 @@ enum Game_Mode {
     LOCAL_MENU,
     IN_GAME,
     PAUSE_MENU,
+    SCOREBOARD_MENU,
 };
 
 struct Menu_List {
@@ -135,6 +139,7 @@ struct Menu_List {
     Menu main;
     Menu local;
     Menu pause;
+    Menu scoreboard;
 };
 
 struct State {
@@ -158,3 +163,5 @@ struct State {
 
     Assets assets;
 };
+
+global Font *default_font;

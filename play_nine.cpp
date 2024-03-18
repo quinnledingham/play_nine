@@ -385,7 +385,19 @@ deal_cards(Game *game) {
 }
 
 internal void
+start_hole(Game *game) {
+    game->top_of_pile = 0;
+    game->top_of_discard_pile = 0;
+    shuffle_pile(game->pile);
+    deal_cards(game);
+    game->active_player = 0;
+    game->round_type = FLIP_ROUND;
+    game->last_turn = 0;
+}
+
+internal void
 start_game(Game *game, u32 num_of_players) {
+/*
     game->top_of_pile = 0;
     game->top_of_discard_pile = 0;
     shuffle_pile(game->pile);
@@ -394,6 +406,10 @@ start_game(Game *game, u32 num_of_players) {
     game->active_player = 0;
     game->round_type = FLIP_ROUND;
     game->last_turn = 0;
+*/
+    game->holes_played = 0;
+    game->num_of_players = num_of_players;
+    start_hole(game);
 }
 
 internal void
@@ -413,6 +429,28 @@ get_draw_radius(u32 num_of_players, float32 hand_width, float32 card_height) {
     float32 angle = (360.0f / float32(num_of_players)) / 2.0f;
     float32 radius = (hand_width / 2.0f) / tanf(angle * DEG2RAD);
     return radius + card_height + 0.1f;
+}
+
+internal void
+default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
+    platform_memory_set((void*)buffer, 0, MAX_NAME_SIZE);
+    buffer[8] = 0;
+    memcpy(buffer, "Player ", 7);
+    buffer[7] = number + 48; // + 48 turns single digit number into ascii value
+}
+
+internal Game
+get_test_game() {
+    Game game = {};
+    game.num_of_players = 2;
+    game.holes_played = 2;
+
+    for (u32 i = 0; i < game.num_of_players; i++) {
+        default_player_name_string(game.players[i].name, i);
+        game.players[i].scores[0] = i;
+    }
+
+    return game;
 }
 
 #include "play_nine_menus.cpp"
@@ -500,7 +538,7 @@ update_scores(Game *game) {
         u32 *cards = player->cards;            
         s32 score = get_score(cards);
         print("Player %d: %d\n", i, score);
-        player->score += score;
+        player->scores[game->holes_played] += score;
     }
 }
 
@@ -523,6 +561,7 @@ next_player(Game *game, Game_Draw *draw) {
     // END HOLE
     if (game->last_turn == game->num_of_players) {
         update_scores(game);
+        game->holes_played++;
         game->round_type = HOLE_OVER;
     }
 
@@ -885,6 +924,8 @@ bool8 init_data(App *app) {
     game->game_draw.notifications.font = font;
     game->game_draw.notifications.text_color = { 255, 255, 255, 1 };
 
+    default_font = find_font(&game->assets, "CASLON");
+
 	return false;
 }
 
@@ -908,6 +949,22 @@ bool8 update(App *app) {
 	State *state = (State *)app->data;
 	Assets *assets = &state->assets;
 
+    bool8 select = on_down(state->controller.select) || on_down(state->controller.mouse_left);
+    Menu_Input menu_input = {
+        select,
+        app->input.active,
+
+        state->controller.forward,
+        state->controller.backward,
+        state->controller.left,
+        state->controller.right,
+
+        { 0, 0 },
+        0,
+
+        app->input.mouse
+    };
+
     if (app->window.resized) {
         state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
         render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
@@ -919,11 +976,18 @@ bool8 update(App *app) {
     // Update
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);
+
+        if (state->game.round_type == HOLE_OVER) {
+            state->menu_list.mode = SCOREBOARD_MENU;
+            state->menu_list.scoreboard.initialized = false;
+        } 
     } else if (state->menu_list.mode == PAUSE_MENU) {
         if (on_down(state->controller.pause)) {
             state->menu_list.mode = IN_GAME;
         }
     }
+
+    
 
     // Draw
     Shader *basic_3D = find_shader(assets, "BASIC3D");
@@ -946,6 +1010,17 @@ bool8 update(App *app) {
         render_bind_pipeline(&shapes.color_pipeline);
         render_bind_descriptor_set(state->scene_ortho_set, 0);
         draw_local_menu(state, &state->menu_list.local, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim);
+    } break;
+
+    case SCOREBOARD_MENU: {
+        render_bind_pipeline(&shapes.color_pipeline);
+        render_bind_descriptor_set(state->scene_ortho_set, 0);
+        s32 sb_result = draw_scoreboard(&state->menu_list.scoreboard, &state->game, &menu_input, app->window.dim);
+        if (sb_result == 1) {
+            state->menu_list.mode = IN_GAME;
+        } else if (sb_result == 2) {
+            state->menu_list.mode = MAIN_MENU;
+        }
     } break;
 
     case PAUSE_MENU:

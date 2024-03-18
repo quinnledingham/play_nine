@@ -79,6 +79,7 @@ struct Menu {
 
     Vector2_s32 sections;
     Vector2_s32 hot[2]; // sections that can be included
+    Vector2_s32 scroll; // sections that are visible in the scroll
     Vector2_s32 active_section;
     Rect rect; // coords and dim of entire menu
 

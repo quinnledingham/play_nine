@@ -59,26 +59,45 @@ internal bool8
 menu_in_dim(Vector2_s32 coords, Vector2_s32 dim, Vector2_s32 target) {
     for (s32 i = 0; i < dim.x; i++) {
         for (s32 j = 0; j < dim.y; j++) {
-            if (coords.x + i == target.x && coords.y + j == target.y)
+            if (coords.x + i == target.x && coords.y + j == target.y) {
                 return true;
+
+            }
         }
     }
     return false;
 }
 
+// works if target is in dim
+internal Vector2_s32
+menu_get_dim(Vector2_s32 coords, Vector2_s32 dim, Vector2_s32 target) {
+    Vector2_s32 result = {};
+
+    Vector2_s32 abs_coords = target - coords;
+    result = dim - abs_coords;
+    
+    return result;    
+}
+
+// e is the coordniates of the menu that can be active
 internal void
-menu_update_active(Menu_Input input, Vector2_s32 section_dim, Vector2_s32 e[2]) {
-    if (on_down(input.up)    && input.active_ptr->y - section_dim.y >= e[0].y) {
-        input.active_ptr->y -= section_dim.y;
+menu_update_active(Menu_Input input, Vector2_s32 coords, Vector2_s32 section_dim, Vector2_s32 e[2]) {
+    Vector2_s32 sub_value = *input.active_ptr - coords;
+    Vector2_s32 add_value = section_dim - sub_value;
+    sub_value.x += 1;
+    sub_value.y += 1;
+
+    if (on_down(input.up)    && input.active_ptr->y - sub_value.y >= e[0].y) {
+        input.active_ptr->y -= sub_value.y;
     }
-    if (on_down(input.down)  && input.active_ptr->y + section_dim.y < e[1].y) {
-        input.active_ptr->y += section_dim.y;
+    if (on_down(input.down)  && input.active_ptr->y + add_value.y < e[1].y) {
+        input.active_ptr->y += add_value.y;
     }
-    if (on_down(input.left)  && input.active_ptr->x - section_dim.x >= e[0].x) {
-        input.active_ptr->x -= section_dim.x;
+    if (on_down(input.left)  && input.active_ptr->x - sub_value.x >= e[0].x) {
+        input.active_ptr->x -= sub_value.x;
     }
-    if (on_down(input.right) && input.active_ptr->x + section_dim.x < e[1].x) {
-        input.active_ptr->x += section_dim.x;
+    if (on_down(input.right) && input.active_ptr->x + add_value.x < e[1].x) {
+        input.active_ptr->x += add_value.x;
     }
 }
 
@@ -138,7 +157,8 @@ menu_button(Menu *menu, const char *text, Menu_Input input,
     
     bool8 button_pressed = false;
     if (input.active_input_type == KEYBOARD_INPUT && menu_in_dim(section_coords, section_dim, input.active)) {
-        menu_update_active(input, section_dim, menu->hot);
+        //*input.active_ptr = section_coords; // if inside section just reset back to default corner
+        menu_update_active(input, section_coords, section_dim, menu->hot);
         button.active = true;
         if (input.select)
             button_pressed = true;
