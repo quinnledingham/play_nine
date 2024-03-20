@@ -409,6 +409,7 @@ start_game(Game *game, u32 num_of_players) {
 */
     game->holes_played = 0;
     game->num_of_players = num_of_players;
+    game->game_over = false;
     start_hole(game);
 }
 
@@ -563,6 +564,11 @@ next_player(Game *game, Game_Draw *draw) {
         update_scores(game);
         game->holes_played++;
         game->round_type = HOLE_OVER;
+
+        // END GAME
+        if (game->holes_played == GAME_LENGTH) {
+            game->game_over = true;
+        }
     }
 
     // end of round: loop back around if required
@@ -574,7 +580,7 @@ next_player(Game *game, Game_Draw *draw) {
     }
 
     // Update for draw
-    add_onscreen_notification(&draw->notifications, game->players[game->active_player].name);
+    //add_onscreen_notification(&draw->notifications, game->players[game->active_player].name);
 
     draw->camera_rotation = {
         true,
@@ -805,7 +811,7 @@ bool8 update_game(State *state, App *app) {
 
         if (on_down(state->controller.mouse_left)) {
             set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
-            
+             
             Model *card_model = find_model(&state->assets, "CARD");
             mouse_ray_model_intersections(state->mouse_ray, game, card_model);
         }
@@ -918,13 +924,34 @@ bool8 init_data(App *app) {
     
     init_shapes(&game->assets);
 
-    game->game_draw.rotation_speed = 100.0f;
+    game->game_draw.rotation_speed = 150.0f;
     game->camera_mode = PLAYER_CAMERA;
 
     game->game_draw.notifications.font = font;
     game->game_draw.notifications.text_color = { 255, 255, 255, 1 };
 
     default_font = find_font(&game->assets, "CASLON");
+
+    // Setting default Menus
+    Menu default_menu = {};
+    default_menu.font = default_font;
+    default_menu.button_style.default_back_color = { 231, 213, 36,  1 };
+    default_menu.button_style.active_back_color  = { 240, 229, 118, 1 };
+    default_menu.button_style.default_text_color = { 39,  77,  20,  1 };
+    default_menu.button_style.active_text_color  = { 39,  77,  20,  1 };
+
+    default_menu.style.default_back = { 231, 213, 36,  1 };
+    default_menu.style.default_text = { 39,  77,  20,  1 };
+    default_menu.style.hot_back     = { 240, 229, 118, 1 };
+    default_menu.style.hot_text     = { 39,  77,  20,  1 };
+    default_menu.style.active_back  = { 231, 213, 36,  1 };
+    default_menu.style.active_text  = { 39,  77,  20,  1 };
+
+    default_menu.active_section = { -1, -1 };
+
+    for (u32 i = 0; i < IN_GAME; i++) {
+        game->menu_list.menus[i] = default_menu;
+    }
 
 	return false;
 }
@@ -962,6 +989,9 @@ bool8 update(App *app) {
         { 0, 0 },
         0,
 
+        { 0, 0 },
+        0,
+
         app->input.mouse
     };
 
@@ -976,18 +1006,11 @@ bool8 update(App *app) {
     // Update
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);
-
-        if (state->game.round_type == HOLE_OVER) {
-            state->menu_list.mode = SCOREBOARD_MENU;
-            state->menu_list.scoreboard.initialized = false;
-        } 
     } else if (state->menu_list.mode == PAUSE_MENU) {
         if (on_down(state->controller.pause)) {
             state->menu_list.mode = IN_GAME;
         }
     }
-
-    
 
     // Draw
     Shader *basic_3D = find_shader(assets, "BASIC3D");
@@ -1002,14 +1025,14 @@ bool8 update(App *app) {
     case MAIN_MENU: {
         render_bind_pipeline(&shapes.color_pipeline);
         render_bind_descriptor_set(state->scene_ortho_set, 0);
-        if (draw_main_menu(state, &state->menu_list.main, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim))
+        if (draw_main_menu(state, &state->menu_list.main, &menu_input, app->window.dim))
             return 1;
     } break;
 
     case LOCAL_MENU: {
         render_bind_pipeline(&shapes.color_pipeline);
         render_bind_descriptor_set(state->scene_ortho_set, 0);
-        draw_local_menu(state, &state->menu_list.local, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim);
+        draw_local_menu(state, &state->menu_list.local, &menu_input, app->window.dim);
     } break;
 
     case SCOREBOARD_MENU: {
@@ -1034,16 +1057,19 @@ bool8 update(App *app) {
 
         render_bind_descriptor_set(state->scene_ortho_set, 0);
 
-        draw_onscreen_notifications(&state->game_draw.notifications, app->window.dim, app->time.frame_time_s);
+        //draw_onscreen_notifications(&state->game_draw.notifications, app->window.dim, app->time.frame_time_s);
+        Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, 50.0f, { 255, 255, 255, 1 });
+        draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - 5, 5 }, 50.0f, { 255, 255, 255, 1 });
 
         draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, 50.0f, { 255, 255, 255, 1 });
 
         if (state->menu_list.mode == PAUSE_MENU) {
-            draw_pause_menu(state, &state->menu_list.pause, find_font(assets, "CASLON"), &state->controller, app->input.mouse, app->input.active, app->window.dim);
-        }
+            draw_pause_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
+        } else if (state->game.round_type == HOLE_OVER) {
+            draw_hole_over_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
+        } 
     } break;
     }
-
 
     render_end_frame();
 

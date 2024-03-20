@@ -5,6 +5,17 @@
 // between calls (coords).
 //
 
+struct Draw_Style {
+    Vector4 default_back;
+    Vector4 default_text;
+
+    Vector4 hot_back;
+    Vector4 hot_text;
+
+    Vector4 active_back;
+    Vector4 active_text;
+};
+
 struct Draw_Button {
     Vector4 default_back_color;
     Vector4 default_text_color;
@@ -12,7 +23,7 @@ struct Draw_Button {
     Vector4 active_back_color;
     Vector4 active_text_color;
 
-    bool8 active;
+    bool8 hot;
 
     Vector2 coords;
     Vector2 dim;
@@ -22,16 +33,20 @@ struct Draw_Button {
 };
 
 struct Draw_Textbox {
-    Vector4 back_color;
-    Vector4 text_color;
+    Draw_Style style;
 
     Vector2 coords;
     Vector2 dim;
+
+    bool8 hot;
+    bool8 active;
 
     float32 text_shift; // changes depending on cursor position
 
     Font *font;
     const char *text;
+
+    
 };
 
 struct Textbox {
@@ -65,8 +80,11 @@ struct Menu_Input {
 
     // Because I have to remember what is selected unlike with the mouse where you can
     // always check where the mouse is.
-    Vector2_s32 active;      // what was active after last round
-    Vector2_s32 *active_ptr; // change this to new active if needed
+    Vector2_s32 hot;      // what was hot after last round
+    Vector2_s32 *hot_ptr; // change this to new hot if needed
+
+    Vector2_s32 active;
+    Vector2_s32 *active_ptr;
 
     // Mouse
     Vector2_s32 mouse;
@@ -74,16 +92,21 @@ struct Menu_Input {
 
 struct Menu {
     Menu_Button_Style button_style;
+    Draw_Style style;
+
     Font *font;
     Vector2 padding;
 
     Vector2_s32 sections;
-    Vector2_s32 hot[2]; // sections that can be included
-    Vector2_s32 scroll; // sections that are visible in the scroll
+    Vector2_s32 interact_region[2]; // sections that can be included
+
+    Vector2_s32 hot_section; // section that is hot
     Vector2_s32 active_section;
+
+    Vector2_s32 scroll; // sections that are visible in the scroll
+
     Rect rect; // coords and dim of entire menu
 
-    s32 active;
     bool8 initialized;
 };
 

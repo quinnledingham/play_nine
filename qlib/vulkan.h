@@ -54,6 +54,7 @@ struct Vulkan_Info {
 
 	VkInstance instance;
 	VkPhysicalDevice physical_device;
+	VkSampleCountFlagBits msaa_samples;
 	VkPhysicalDeviceProperties physical_device_properties;
 	VkDevice device;
 	VkSurfaceKHR surface;
@@ -99,6 +100,11 @@ struct Vulkan_Info {
 	VkImage depth_image;
 	VkDeviceMemory depth_image_memory;
 	VkImageView depth_image_view;
+
+	// MSAA
+	VkImage color_image;
+	VkDeviceMemory color_image_memory;
+	VkImageView color_image_view;
 
 	// Presentation
 	VkCommandBufferBeginInfo begin_info;

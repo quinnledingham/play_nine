@@ -4,8 +4,6 @@ TODO
 
 - Highlight card choices
 - Flip "animation"
-- Scoreboard
-- On screen announcements
 
 - Textbox
 
@@ -63,6 +61,7 @@ Card indices
 */
 
 #define MAX_HOLES 20 // max holes that can be played in one gamed
+#define GAME_LENGTH 2 // play NINE
 
 struct Player {
     char name[MAX_NAME_SIZE];
@@ -70,6 +69,7 @@ struct Player {
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
+
     s32 scores[MAX_HOLES];
 };
 
@@ -86,6 +86,7 @@ struct Game {
     u32 active_player;
 
     u32 holes_played;
+    bool8 game_over;
 
     enum Round_Types round_type;
     u32 last_turn;
@@ -128,18 +129,21 @@ struct Game_Draw {
 enum Game_Mode {
     MAIN_MENU,
     LOCAL_MENU,
-    IN_GAME,
     PAUSE_MENU,
     SCOREBOARD_MENU,
+
+    IN_GAME
 };
 
 struct Menu_List {
     enum Game_Mode mode = MAIN_MENU;
 
-    Menu main;
-    Menu local;
-    Menu pause;
-    Menu scoreboard;
+    union {
+        struct {
+            Menu main, local, pause, scoreboard;
+        };
+        Menu menus[4];
+    };
 };
 
 struct State {
