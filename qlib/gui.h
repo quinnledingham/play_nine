@@ -35,23 +35,26 @@ struct Draw_Button {
 struct Draw_Textbox {
     Draw_Style style;
 
+    Vector4 cursor_color;
+    u32 cursor_position;
+    float32 cursor_width;
+    float32 text_shift; // changes depending on cursor position
+
     Vector2 coords;
     Vector2 dim;
 
     bool8 hot;
     bool8 active;
 
-    float32 text_shift; // changes depending on cursor position
-
     Font *font;
     const char *text;
-
-    
 };
+
+#define TEXTBOX_SIZE 20
 
 struct Textbox {
     u32 cursor_position;
-    char text[20];
+    char text[TEXTBOX_SIZE];
 };
 
 //
@@ -88,11 +91,18 @@ struct Menu_Input {
 
     // Mouse
     Vector2_s32 mouse;
+
+    // textbox typing inptu
+    bool8 *buffer_input;
+    s32 *buffer;
+    s32 buffer_index;
 };
 
 struct Menu {
     Menu_Button_Style button_style;
     Draw_Style style;
+
+    Textbox edit;
 
     Font *font;
     Vector2 padding;

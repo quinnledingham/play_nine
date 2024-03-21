@@ -5,8 +5,6 @@ TODO
 - Highlight card choices
 - Flip "animation"
 
-- Textbox
-
 - Online
 
 */

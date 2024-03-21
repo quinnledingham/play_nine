@@ -992,7 +992,11 @@ bool8 update(App *app) {
         { 0, 0 },
         0,
 
-        app->input.mouse
+        app->input.mouse,
+
+        &app->input.buffer_input,
+        app->input.buffer,
+        app->input.buffer_index
     };
 
     if (app->window.resized) {

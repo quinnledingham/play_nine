@@ -72,12 +72,16 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
     draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
 
+    *input->buffer_input = false;
+
     s32 menu_row = 0;
     for (menu_row; menu_row < (s32)game->num_of_players - 1; menu_row++) {
-        menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 1 });
+        if (menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 1 }))
+            *input->buffer_input = true;
     }
 
-    menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 7 - (s32)game->num_of_players }, { 2, 1 });
+    if (menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 7 - (s32)game->num_of_players }, { 2, 1 }))
+        *input->buffer_input = true;
     menu_row = 6;
 
     if (menu_button(menu, "+ Player", *input, { 0, menu_row }, { 1, 1 })) {
@@ -195,14 +199,10 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
 
     if (!menu->initialized) {
         menu->initialized = true;
-/*
-        menu->sections = { (s32)game->num_of_players + 1, (s32)game->holes_played + 2 };
-        menu->hot[0] = { 0, (s32)game->holes_played + 1 };
-        menu->hot[1] = { (s32)game->num_of_players + 1, (s32)game->holes_played + 1 };
-*/
-        menu->sections = { (s32)game->num_of_players + 1, scroll_length + 2 };
-        menu->interact_region[0] = { 0, scroll_length + 1 };
-        menu->interact_region[1] = { (s32)game->num_of_players + 1, scroll_length + 1 };
+
+        menu->sections = { (s32)game->num_of_players + 1, scroll_length + 3 };
+        menu->interact_region[0] = { 0, scroll_length + 2 };
+        menu->interact_region[1] = { (s32)game->num_of_players + 2, scroll_length + 2 };
 
         menu->hot_section = menu->interact_region[0];
 
@@ -235,7 +235,7 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
         if (i + 1 < menu->scroll.x || i + 1 > menu->scroll.y) {
             continue;
         }
-        
+
         platform_memory_set(hole_text, 0, 3);
         s32_to_char_array(hole_text, 3, i + 1);
         menu_text(menu, hole_text, text_color, { 0, index + 1 }, { 1, 1 });
@@ -249,23 +249,34 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
         index++;
     }
 
+    char total_text[4]; // max score = 12 * 8 * 9 = 864
+    menu_text(menu, "Total", text_color, { 0, scroll_length + 1 }, { 1, 1 });
+    for (s32 player_index = 0; player_index < (s32)game->num_of_players; player_index++) {
+        u32 player_total = 0;
+        for (u32 i = 0; i < game->holes_played; i++)
+            player_total += game->players[player_index].scores[i];
+        platform_memory_set(total_text, 0, 4);
+        s32_to_char_array(total_text, 4, player_total);
+        menu_text(menu, total_text, text_color, { player_index + 1, scroll_length + 1 }, { 1, 1 }); 
+    }
+
     const char *play_button_text;
     if (!game->game_over)
         play_button_text = "Next Hole";
     else
         play_button_text = "Play Again";
 
-    if (menu_button(menu, play_button_text, *input, { 0, scroll_length + 1 }, { (s32)game->num_of_players - 1, 1 })) {
+    if (menu_button(menu, play_button_text, *input, { 0, scroll_length + 2 }, { (s32)game->num_of_players - 1, 1 })) {
         if (!game->game_over)
             start_hole(game);
         else
             start_game(game, game->num_of_players);
         return 1;
     }
-    if (menu_button(menu, "View Cards", *input, { (s32)game->num_of_players - 1, scroll_length + 1 }, { 1, 1 })) {
+    if (menu_button(menu, "View Cards", *input, { (s32)game->num_of_players - 1, scroll_length + 2 }, { 1, 1 })) {
         return 1;
     }
-    if (menu_button(menu, "Quit Game", *input, { (s32)game->num_of_players, scroll_length + 1 }, { 1, 1 })) {
+    if (menu_button(menu, "Quit Game", *input, { (s32)game->num_of_players, scroll_length + 2 }, { 1, 1 })) {
         return 2;   
     }
 

@@ -140,6 +140,7 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
 
     //input->mouse = {};
     input->mouse_rel = {};
+    input->buffer_index = 0;
     
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
@@ -192,8 +193,17 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
 
             case SDL_KEYDOWN: {
                 SDL_KeyboardEvent *keyboard_event = &event.key;
+                bool32 shift = keyboard_event->keysym.mod & KMOD_LSHIFT;
                 u32 key_id = keyboard_event->keysym.sym;
-                event_handler(app, APP_KEYDOWN, key_id);
+                if (!input->buffer_input)
+                    event_handler(app, APP_KEYDOWN, key_id);
+                else {
+                    if (shift) {
+                        key_id -= 32;
+                    }
+                    if (is_ascii(key_id))
+                        input->buffer[input->buffer_index++] = key_id;
+                }
             } break;
 
             case SDL_KEYUP: {

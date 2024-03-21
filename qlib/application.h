@@ -38,7 +38,7 @@ struct App_Key_Event {
 enum Input_Type {
 	KEYBOARD_INPUT,
 	MOUSE_INPUT,
-	CONTROLLER_INPUT
+	CONTROLLER_INPUT,
 };
 
 struct App_Input {
@@ -46,7 +46,11 @@ struct App_Input {
 	Vector2_s32 mouse_rel;
 	bool8 relative_mouse_mode = false;
 
-	enum Input_Type active;
+	bool8 buffer_input;
+    s32 buffer[10];
+    s32 buffer_index;
+
+	enum Input_Type active; // what was the last type of input used
 };
 
 typedef enum {

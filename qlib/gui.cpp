@@ -47,9 +47,14 @@ draw_textbox(const Draw_Textbox textbox) {
     text_coords.x = textbox.coords.x + (textbox.dim.x / 2.0f) - (text_dim.x / 2.0f);
     text_coords.y = textbox.coords.y + (textbox.dim.y / 2.0f) + (text_dim.y / 2.0f);
 
+    Vector2 text_dim_cursor = get_string_dim(textbox.font, textbox.text, textbox.cursor_position, pixel_height, text_color);
+    Vector2 cursor_coords = text_coords;
+    cursor_coords.x += text_dim_cursor.x;
+    cursor_coords.y = textbox.coords.y;
+
     draw_rect(textbox.coords, 0, textbox.dim, back_color);
-    //if (textbox.active) // clicked on
-      //  draw_rect(cursor_coords, 0.0f, { draw.cursor_width, draw.dim.y }, draw.cursor_color); // cursor
+    if (textbox.active) // clicked on
+        draw_rect(cursor_coords, 0.0f, { textbox.cursor_width, textbox.dim.y }, textbox.cursor_color); // cursor
     draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
 }
 
@@ -183,7 +188,55 @@ menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_
     return menu_button(menu, text, input, section_coords, section_dim, section_dim);
 }
 
-internal void
+// default textbox updates
+// input is a ascii value
+internal bool32
+update_textbox(char *buffer, u32 max_length, u32 *cursor_position, s32 input) {
+    u32 current_length = get_length(buffer);
+
+    switch(input) {
+        
+        case 8: { // Backspace: delete char
+            if (*cursor_position == 0) return false;
+
+            for(u32 i = *cursor_position; i < current_length; i++) {
+                buffer[i - 1] = buffer[i];
+            }
+            buffer[current_length - 1] = 0;
+            (*cursor_position)--;
+        } break;
+
+        case 13: { // Enter/Return: return true to tell calling code to do something
+            return true;
+        } break;
+
+        case 37: { // Left
+            if (*cursor_position != 0)
+                (*cursor_position)--; // Left
+        } break;
+
+        case 39: { // Right
+            if (*cursor_position != current_length)
+                (*cursor_position)++; // Right
+        } break;
+        
+        default: { // Add char to char_array in textbox
+            if (current_length >= max_length) 
+                return false;
+
+            for(s32 i = current_length - 1; i >= (s32)(*cursor_position); i--) {
+                buffer[i + 1] = buffer[i];
+            }
+            buffer[*cursor_position] = input;
+            buffer[current_length + 1] = 0;
+            (*cursor_position)++;
+        } break;
+    }
+
+    return false;
+}
+
+internal bool8
 menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
     Vector2 coords = {
         (menu->rect.dim.x / menu->sections.x) * section_coords.x + menu->rect.coords.x,
@@ -198,13 +251,16 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
     Draw_Textbox box = {
         menu->style,
 
+        { 255, 255, 255, 1 },
+        menu->edit.cursor_position,
+        5.0f,
+        0.0f,
+
         coords,
         dim,
 
         false,
         false,
-
-        0.0f,
 
         menu->font,
         dest
@@ -215,6 +271,9 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
         box.hot = true;
         if (input.select) {
             menu->active_section = menu->hot_section;
+            menu->edit.cursor_position = get_length(dest);
+            platform_memory_set(menu->edit.text, 0, TEXTBOX_SIZE);
+            platform_memory_copy(menu->edit.text, (void*)dest, menu->edit.cursor_position);
         }
     }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
         box.hot = true;
@@ -225,12 +284,36 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
 
     if (menu_in_dim(section_coords, section_dim, input.active)) {
         box.active = true;
+        box.text = menu->edit.text;
+
+        s32 ch = 0;
+        s32 i = 0;
+        while(i < input.buffer_index) {
+            ch = input.buffer[i++];
+            switch(ch) {
+            case 27: // Esc: Close textbox
+                box.active = false;
+                menu->active_section = { -1, -1 };
+            break;
+        
+            default: {
+                if (update_textbox(menu->edit.text, TEXTBOX_SIZE - 1, &menu->edit.cursor_position, ch)) {
+                    platform_memory_set((void*)dest, 0, TEXTBOX_SIZE);
+                    platform_memory_copy((void*)dest, menu->edit.text, menu->edit.cursor_position);
+                    box.active = false;
+                    menu->active_section = { -1, -1 };
+                }
+            } break;
+            }
+        }
     } 
 
     draw_textbox(box);
+
+    return box.active;
 }
 
-internal void
+internal bool8
 menu_textbox(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
     return menu_textbox(menu, text, input, section_coords, section_dim, section_dim);
 }
