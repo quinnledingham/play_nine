@@ -130,6 +130,9 @@ enum Game_Mode {
     PAUSE_MENU,
     SCOREBOARD_MENU,
 
+    HOST_MENU,
+    JOIN_MENU,
+
     IN_GAME
 };
 
@@ -138,9 +141,9 @@ struct Menu_List {
 
     union {
         struct {
-            Menu main, local, pause, scoreboard;
+            Menu main, local, pause, scoreboard, host, join;
         };
-        Menu menus[4];
+        Menu menus[6];
     };
 };
 
@@ -154,6 +157,13 @@ struct State {
     Ray mouse_ray;
 
     Menu_List menu_list;
+
+    // Server
+    char name[TEXTBOX_SIZE];
+    char ip[TEXTBOX_SIZE];
+    char port[TEXTBOX_SIZE];
+    HANDLE server_handle;
+
 
     // Drawing
     Scene scene;

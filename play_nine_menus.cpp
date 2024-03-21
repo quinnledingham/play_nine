@@ -20,9 +20,9 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
         menu->initialized = true;
     
         u32 buttons_count = 3;    
-        menu->sections = { 1, 4 };
+        menu->sections = { 1, 6 };
         menu->interact_region[0] = { 0, 1 };
-        menu->interact_region[1] = { 1, 4 };
+        menu->interact_region[1] = menu->sections;
         menu->hot_section = menu->interact_region[0];
     }
 
@@ -41,7 +41,13 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
         state->game = get_test_game();
         state->menu_list.mode = SCOREBOARD_MENU;    
     }
-    if (menu_button(menu, "Quit", *input, { 0, 3 }, { 1, 1 })) 
+    if (menu_button(menu, "Host Online", *input, { 0, 3 }, { 1, 1 })) {
+        state->menu_list.mode = HOST_MENU;
+    }
+    if (menu_button(menu, "Join Online", *input, { 0, 4 }, { 1, 1 })) {
+        state->menu_list.mode = JOIN_MENU;
+    }
+    if (menu_button(menu, "Quit", *input, { 0, 5 }, { 1, 1 })) 
         return true;
 
     return false;
@@ -115,6 +121,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         state->menu_list.mode = MAIN_MENU;
         game->num_of_players = 1;
         menu->hot_section = { 0, 0 };
+        TerminateThread(state->server_handle, NULL);
     }
 
     return false;
@@ -281,4 +288,87 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
     }
 
     return 0;
+}
+
+internal void
+draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_dim) {
+    Rect window_rect = {};
+    window_rect.coords = { 0, 0 };
+    window_rect.dim    = cv2(window_dim);
+    menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
+
+    if (!menu->initialized) {
+        menu->initialized = true;
+    
+        menu->sections = { 2, 3 };
+        menu->interact_region[0] = { 0, 1 };
+        menu->interact_region[1] = { 2, 3 };
+        menu->hot_section = menu->interact_region[0];
+    }
+
+    menu_set_input(menu, input);
+
+    menu->button_style.dim = { menu->rect.dim.x, menu->rect.dim.y / float32(3) };
+
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
+
+    menu_text(menu, "Enter Port:", { 231, 213, 36,  1 }, { 0, 0 }, { 2, 1 }); 
+    
+    *input->buffer_input = false;
+    if (menu_textbox(menu, state->port, *input, { 0, 1 }, { 2, 1 })) {
+        *input->buffer_input = true;
+    }
+    if (menu_button(menu, "Start", *input, { 0, 2 }, { 1, 1 })) {
+        DWORD thread_id;
+        state->server_handle = CreateThread(0, 0, play_nine_server, (void*)state, 0, &thread_id);
+    }
+    if (menu_button(menu, "Back", *input, { 1, 2 }, { 1, 1 })) {
+        state->menu_list.mode = MAIN_MENU;
+    }
+}
+
+internal void
+draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_dim) {
+    Rect window_rect = {};
+    window_rect.coords = { 0, 0 };
+    window_rect.dim    = cv2(window_dim);
+    menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
+
+    if (!menu->initialized) {
+        menu->initialized = true;
+    
+        menu->sections = { 2, 5 };
+        menu->interact_region[0] = { 1, 0 };
+        menu->interact_region[1] = { 2, 5 };
+        menu->hot_section = menu->interact_region[0];
+    }
+
+    menu_set_input(menu, input);
+
+    menu->button_style.dim = { menu->rect.dim.x, menu->rect.dim.y / float32(3) };
+
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
+
+    Vector4 text_color = { 231, 213, 36,  1 };
+
+    menu_text(menu, "Name:", text_color, { 0, 0 }, { 1, 1 }); 
+    menu_text(menu, "Ip:",   text_color, { 0, 1 }, { 1, 1 }); 
+    menu_text(menu, "Port:", text_color, { 0, 2 }, { 1, 1 }); 
+    
+    *input->buffer_input = false;
+    if (menu_textbox(menu, state->name, *input, { 1, 0 }, { 1, 1 }))
+        *input->buffer_input = true;
+    if (menu_textbox(menu, state->ip, *input, { 1, 1 }, { 1, 1 }))
+        *input->buffer_input = true;
+    if (menu_textbox(menu, state->port, *input, { 1, 2 }, { 1, 1 }))
+        *input->buffer_input = true;
+
+    if (menu_button(menu, "Start", *input, { 1, 3 }, { 1, 1 })) {
+        QSock_Socket sock = {};
+        if (qsock_client(&sock, state->ip, state->port, TCP))
+            state->menu_list.mode = LOCAL_MENU;
+    }
+    if (menu_button(menu, "Back", *input, { 1, 4 }, { 1, 1 })) {
+        state->menu_list.mode = MAIN_MENU;
+    }
 }

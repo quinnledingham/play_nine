@@ -3,9 +3,17 @@
 #ifdef WINDOWS
 
 #pragma message("WINDOWS")
-#define WIN32_EXTRA_LEAN
-#define WIN32_EXTRA_LEAN
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iphlpapi.h>
+
+#pragma comment(lib, "Ws2_32.lib")
 
 //
 // We prefer the discrete GPU in laptops where available
@@ -92,6 +100,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(d
 #include "application.h"
 #include "input.h"
 #include "gui.h"
+#include "qsock.h"
 
 #include "print.cpp"
 #include "assets.cpp"
@@ -231,6 +240,8 @@ int main(int argc, char *argv[]) {
     	print(SDL_GetError());
     	return 1;
     }
+
+    win32_init_winsock();
 
     u32 sdl_window_flags = SDL_WINDOW_RESIZABLE;
 #ifdef OPENGL

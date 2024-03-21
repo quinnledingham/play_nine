@@ -21,6 +21,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "play_nine.h"
 
 #include "raytrace.cpp"
+#include "play_nine_online.cpp"
 
 //
 // creating card bitmpas
@@ -1024,7 +1025,7 @@ bool8 update(App *app) {
 
     render_set_viewport(app->window.width, app->window.height);
     render_set_scissor(app->window.width, app->window.height);
-    
+
     switch(state->menu_list.mode) {
     case MAIN_MENU: {
         render_bind_pipeline(&shapes.color_pipeline);
@@ -1048,6 +1049,18 @@ bool8 update(App *app) {
         } else if (sb_result == 2) {
             state->menu_list.mode = MAIN_MENU;
         }
+    } break;
+
+    case HOST_MENU: {
+        render_bind_pipeline(&shapes.color_pipeline);
+        render_bind_descriptor_set(state->scene_ortho_set, 0);
+        draw_host_menu(&state->menu_list.host, state, &menu_input, app->window.dim);
+    } break;
+
+    case JOIN_MENU: {
+        render_bind_pipeline(&shapes.color_pipeline);
+        render_bind_descriptor_set(state->scene_ortho_set, 0);
+        draw_join_menu(&state->menu_list.join, state, &menu_input, app->window.dim);
     } break;
 
     case PAUSE_MENU:
