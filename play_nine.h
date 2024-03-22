@@ -162,8 +162,6 @@ struct State {
     char name[TEXTBOX_SIZE];
     char ip[TEXTBOX_SIZE];
     char port[TEXTBOX_SIZE];
-    HANDLE server_handle;
-
 
     // Drawing
     Scene scene;

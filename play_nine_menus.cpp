@@ -121,7 +121,9 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         state->menu_list.mode = MAIN_MENU;
         game->num_of_players = 1;
         menu->hot_section = { 0, 0 };
-        TerminateThread(state->server_handle, NULL);
+
+        TerminateThread(online.server_handle, NULL);
+        closesocket(online.sock.handle);
     }
 
     return false;
@@ -320,7 +322,7 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     }
     if (menu_button(menu, "Start", *input, { 0, 2 }, { 1, 1 })) {
         DWORD thread_id;
-        state->server_handle = CreateThread(0, 0, play_nine_server, (void*)state, 0, &thread_id);
+        online.server_handle = CreateThread(0, 0, play_nine_server, (void*)state, 0, &thread_id);
     }
     if (menu_button(menu, "Back", *input, { 1, 2 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;

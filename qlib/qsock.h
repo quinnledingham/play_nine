@@ -166,6 +166,40 @@ qsock_accept(struct QSock_Socket *socket, struct QSock_Socket *client) {
     memcpy((void*)client->info.address, (void*)&address, address_length);
 }
 
+internal void
+win32_free_socket(struct QSock_Socket socket) {
+    closesocket(socket.handle);
+}
+
+internal int
+win32_recv(struct QSock_Socket socket, const char *buffer, int buffer_size, int flags) {
+    int bytes = recv(socket.handle, (char *)buffer, buffer_size, flags);
+    if (bytes == -1) perror("qsock_recv() error");
+    return bytes;
+}
+
+internal int
+win32_recv_from(struct QSock_Socket socket, const char *buffer, int buffer_size, int flags, struct QSock_Address_Info *info) {
+    int bytes = recvfrom(socket.handle, (char *)buffer, buffer_size, flags, (struct sockaddr*)info->address, (int *)&info->address_length);
+    if (bytes == -1) perror("qsock_recv_from() error");
+    return bytes;
+}
+
+internal int
+win32_send(struct QSock_Socket socket, const char *buffer, int buffer_size, int flags) {
+    int bytes = send(socket.handle, (char *)buffer, buffer_size, flags);
+    if (bytes == -1) perror("qsock_send() error");
+    return bytes;
+}
+
+internal int
+win32_send_to(struct QSock_Socket socket, const char *buffer, int buffer_size, int flags, struct QSock_Address_Info info) {
+    int bytes = sendto(socket.handle, (char *)buffer, buffer_size, flags, (struct sockaddr*)info.address, info.address_length);
+    if (bytes == -1) perror("qsock_send_to() error");
+    return bytes;
+}
+
+
 internal bool8
 qsock_client(QSock_Socket *sock, const char *ip, const char *port, int protocol) {
     sock->protocol = protocol;
@@ -197,3 +231,52 @@ qsock_server(QSock_Socket *sock, const char *port, s32 protocol) {
         return false;
     }
 }
+
+/*
+internal int
+qsock_general_recv(struct QSock_Socket *socket, const char *buffer, int buffer_size) {
+    int bytes = 0;
+
+    if(socket->recv_info.address != 0) 
+        free((void*)socket->recv_info.address);
+    socket->recv_info.address_length = sizeof(struct sockaddr);
+    socket->recv_info.address = (const char *)malloc(socket->recv_info.address_length);
+    socket->recv_info.family = socket->info.family;
+
+    // client
+    if (!socket->passive) {
+        bytes = qsock_recv_from(*socket, buffer, buffer_size, 0, &socket->recv_info);
+        return bytes;
+    }
+
+    // server
+    switch(socket->type)
+    {
+        case TCP: bytes = qsock_recv_from(*socket->other, buffer, buffer_size, 0, &socket->recv_info); break;
+        case UDP: bytes = qsock_recv_from(*socket,        buffer, buffer_size, 0, &socket->recv_info); break;
+    }
+
+    return bytes;
+}
+
+internal int
+qsock_general_send(struct QSock_Socket socket, const char *buffer, int buffer_size) {
+    int bytes = 0;
+
+    // client
+    if (!socket.passive) {
+        bytes = qsock_send(socket, buffer, buffer_size, 0);
+        //bytes = qsock_send_to(socket, buffer, buffer_size, 0, socket.info);
+        return bytes;
+    }
+
+    // server
+    switch(socket.type)
+    {
+        case TCP: bytes = qsock_send(*socket.other, buffer, buffer_size, 0); break;
+        case UDP: bytes = qsock_send_to(socket, buffer, buffer_size, 0, socket.recv_info); break;
+    }
+
+    return bytes;
+}
+*/
