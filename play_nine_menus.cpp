@@ -80,19 +80,19 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
     draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
 
-    *input->buffer_input = false;
-
     s32 menu_row = 0;
     for (menu_row; menu_row < (s32)game->num_of_players - 1; menu_row++) {
-        if (menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 1 }))
-            *input->buffer_input = true;
+        if (menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 1 }) && menu_row == state->client_game_index) {
+            client_set_name(state->client, game->players[menu_row].name);
+        }
     }
 
-    if (menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 7 - (s32)game->num_of_players }, { 2, 1 }))
-        *input->buffer_input = true;
-    menu_row = 6;
-
     if (!state->is_client) {
+        if (menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 7 - (s32)game->num_of_players }, { 2, 1 }) && menu_row == state->client_game_index) {
+            client_set_name(state->client, game->players[menu_row].name);
+        }
+        menu_row = 6;
+
         if (menu_button(menu, "+ Player", *input, { 0, menu_row }, { 1, 1 })) {
             if (game->num_of_players != 6) {
                 default_player_name_string(game->players[game->num_of_players].name, game->num_of_players);
@@ -112,23 +112,34 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
             
         }
 
-        if (menu_button(menu, "Start", *input, { 0, menu_row + 2 }, { 1, 1 })) {
+        if (menu_button(menu, "Start", *input, { 1, menu_row + 2 }, { 1, 1 })) {
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 start_game(&state->game, game->num_of_players);
             }
         }
+    } else {
+        if (menu_textbox(menu, game->players[menu_row].name, *input, { 0, menu_row }, { 2, 9 - (s32)game->num_of_players }, { 2, 1 }) && menu_row == state->client_game_index) {
+            client_set_name(state->client, game->players[menu_row].name);
+        }
+        menu_row = 6;
     }
-    if (menu_button(menu, "Back", *input, { 1, menu_row + 2 }, { 1, 1 })) {
+
+    s32 back_width = 1;
+    if (state->is_client)
+        back_width = 2;
+
+    if (menu_button(menu, "Back", *input, { 0, menu_row + 2 }, { back_width, 1 })) {
         state->menu_list.mode = MAIN_MENU;
         game->num_of_players = 1;
         menu->hot_section = { 0, 0 };
 
-        if (!state->is_client) {
-            TerminateThread(online.server_handle, NULL);
-            closesocket(online.sock.handle);
-        } else {
-            closesocket(state->client.handle);
+        if (state->is_server) {
+            state->is_server = false;
+            close_server();
+        } else if (state->is_client) {
+            state->is_client = false;
+            client_close_connection(state->client);
         }
     }
 
@@ -162,6 +173,10 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         game->num_of_players = 1;
         menu->hot_section = { 0, 0 };
         reset_game(game);
+        if (state->is_server) {
+            win32_release_mutex(state->mutex);
+            close_server();
+        }
     }
 
     return false;
@@ -322,12 +337,13 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     menu_text(menu, "Enter Port:", { 231, 213, 36,  1 }, { 0, 0 }, { 2, 1 }); 
     
-    *input->buffer_input = false;
     if (menu_textbox(menu, state->port, *input, { 0, 1 }, { 2, 1 })) {
-        *input->buffer_input = true;
+
     }
+
     if (menu_button(menu, "Start", *input, { 0, 2 }, { 1, 1 })) {
         DWORD thread_id;
+        state->client_game_index = 0;
         online.server_handle = CreateThread(0, 0, play_nine_server, (void*)state, 0, &thread_id);
     }
     if (menu_button(menu, "Back", *input, { 1, 2 }, { 1, 1 })) {
@@ -363,23 +379,16 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     menu_text(menu, "Ip:",   text_color, { 0, 1 }, { 1, 1 }); 
     menu_text(menu, "Port:", text_color, { 0, 2 }, { 1, 1 }); 
     
-    *input->buffer_input = false;
-    if (menu_textbox(menu, state->name, *input, { 1, 0 }, { 1, 1 }))
-        *input->buffer_input = true;
-    if (menu_textbox(menu, state->ip, *input, { 1, 1 }, { 1, 1 }))
-        *input->buffer_input = true;
-    if (menu_textbox(menu, state->port, *input, { 1, 2 }, { 1, 1 }))
-        *input->buffer_input = true;
+    menu_textbox(menu, state->name, *input, { 1, 0 }, { 1, 1 });
+    menu_textbox(menu, state->ip,   *input, { 1, 1 }, { 1, 1 });
+    menu_textbox(menu, state->port, *input, { 1, 2 }, { 1, 1 });
 
-    if (menu_button(menu, "Start", *input, { 1, 3 }, { 1, 1 })) {
+    if (menu_button(menu, "Join", *input, { 1, 3 }, { 1, 1 })) {
         if (qsock_client(&state->client, state->ip, state->port, TCP)) {
             state->menu_list.mode = LOCAL_MENU;
             state->is_client = true;
 
-            Play_Nine_Packet packet = {};
-            packet.type = SET_NAME;
-            platform_memory_copy(packet.buffer, state->name, get_length(state->name));
-            win32_send(state->client, (const char *)&packet, sizeof(packet), 0);
+            client_set_name(state->client, state->name);
         }
     }
     if (menu_button(menu, "Back", *input, { 1, 4 }, { 1, 1 })) {

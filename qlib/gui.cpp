@@ -282,7 +282,10 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
         }
     }
 
+    bool8 new_text = false;
+
     if (menu_in_dim(section_coords, section_dim, input.active)) {
+        app_input_buffer = true;
         box.active = true;
         box.text = menu->edit.text;
 
@@ -291,26 +294,27 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
         while(i < input.buffer_index) {
             ch = input.buffer[i++];
             switch(ch) {
-            case 27: // Esc: Close textbox
-                box.active = false;
-                menu->active_section = { -1, -1 };
-            break;
-        
-            default: {
-                if (update_textbox(menu->edit.text, TEXTBOX_SIZE - 1, &menu->edit.cursor_position, ch)) {
-                    platform_memory_set((void*)dest, 0, TEXTBOX_SIZE);
-                    platform_memory_copy((void*)dest, menu->edit.text, menu->edit.cursor_position);
+                case 27: // Esc: Close textbox
                     box.active = false;
                     menu->active_section = { -1, -1 };
-                }
-            } break;
+                break;
+            
+                default: {
+                    if (update_textbox(menu->edit.text, TEXTBOX_SIZE - 1, &menu->edit.cursor_position, ch)) {
+                        platform_memory_set((void*)dest, 0, TEXTBOX_SIZE);
+                        platform_memory_copy((void*)dest, menu->edit.text, menu->edit.cursor_position);
+                        box.active = false;
+                        menu->active_section = { -1, -1 };
+                        new_text = true;
+                    }
+                } break;
             }
         }
     } 
 
     draw_textbox(box);
 
-    return box.active;
+    return new_text;
 }
 
 internal bool8
@@ -329,7 +333,7 @@ add_onscreen_notification(Onscreen_Notifications *n, const char *not) {
         return;
     }
 
-    n->times[n->lines] = 1.0f;
+    n->times[n->lines] = 2.0f;
     n->colors[n->lines] = n->text_color;
 
     u32 not_length = get_length(not);
@@ -360,7 +364,8 @@ update_onscreen_notifications(Onscreen_Notifications *n, float32 frame_time_s) {
 internal float32
 get_pixel_height(Vector2 box) {
     float32 pixel_height = box.y;
-    if (box.x < box.y) pixel_height = box.x;
+    if (box.x < box.y) 
+        pixel_height = box.x;
     pixel_height *= 0.8f;
     return pixel_height;
 }

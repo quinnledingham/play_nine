@@ -41,12 +41,13 @@ enum Input_Type {
 	CONTROLLER_INPUT,
 };
 
+bool8 app_input_buffer;
+
 struct App_Input {
 	Vector2_s32 mouse;
 	Vector2_s32 mouse_rel;
 	bool8 relative_mouse_mode = false;
 
-	bool8 buffer_input;
     s32 buffer[10];
     s32 buffer_index;
 

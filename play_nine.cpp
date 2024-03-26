@@ -29,6 +29,26 @@ default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
     memcpy(buffer, "Player ", 7);
     buffer[7] = number + 48; // + 48 turns single digit number into ascii value
 }
+/*
+n_o_p = 5
+index = 2
+
+0 1 2 3 4
+
+0 1 3 4
+
+0 1 2 3
+*/
+
+internal void
+remove_player(Game *game, u32 index) {
+    u32 dest_index = index;
+    u32 src_index = index + 1;
+    for (src_index; src_index < game->num_of_players; src_index++) {
+        game->players[dest_index++] = game->players[src_index];
+    }
+    game->num_of_players--;
+}
 
 #include "play_nine_online.cpp"
 
@@ -610,12 +630,10 @@ get_number_flipped(bool8 *flipped) {
 }
 
 internal void
-flip_round_update(Game *game, Game_Draw *draw, Controller *controller) {
+flip_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
     Player *active_player = &game->players[game->active_player];
-    for (u32 i = 0; i < 8; i++) {
-        if (on_down(controller->buttons[i]) || deck[active_player->cards[i]].selected) {
-            deck[active_player->cards[i]].selected = false;
-            //deck[active_player->cards[i]].flipped = true;
+    for (u32 i = 0; i < HAND_SIZE; i++) {
+        if (selected[i]) {
             active_player->flipped[i] = true;
 
             // check if player turn over
@@ -627,28 +645,11 @@ flip_round_update(Game *game, Game_Draw *draw, Controller *controller) {
 }
 
 internal void
-update_card_with_buttons(Game *game, Controller *controller) {
-    if (on_down(controller->nine)) {
-        deck[game->pile[game->top_of_pile]].selected = true;
-    } else if (on_down(controller->zero) && game->top_of_discard_pile != 0) {
-        deck[game->discard_pile[game->top_of_discard_pile - 1]].selected  = true;
-    }
-
-    Player *active_player = &game->players[game->active_player];
-    for (u32 i = 0; i < HAND_SIZE; i++) {
-        if (on_down(controller->buttons[i])) {
-            deck[active_player->cards[i]].selected = true;
-        }
-    }    
-}
-
-internal void
-regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
+regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
     Player *active_player = &game->players[game->active_player];
     switch(active_player->turn_stage) {
         case SELECT_PILE: {
-            if (deck[game->pile[game->top_of_pile]].selected) {
-                deck[game->pile[game->top_of_pile]].selected = false;
+            if (selected[PICKUP_PILE]) {
                 active_player->new_card = game->pile[game->top_of_pile++];
     
                 // Probably shouldn't happen in a real game
@@ -659,7 +660,7 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
                 //deck[active_player->new_card].flipped = true;
                 active_player->turn_stage = SELECT_CARD;
                 active_player->pile_card = true;
-            } else if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected) {
+            } else if (selected[DISCARD_PILE]) {
                 active_player->new_card = game->discard_pile[game->top_of_discard_pile - 1];
                 game->top_of_discard_pile--;
                 active_player->turn_stage = SELECT_CARD;
@@ -668,7 +669,7 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
 
         case SELECT_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
-                if (deck[active_player->cards[i]].selected) {
+                if (selected[i]) {
                     game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
 
                     active_player->flipped[i] = true;
@@ -688,7 +689,7 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
             if (game->top_of_discard_pile == 0)
                 return;
 
-            if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected && active_player->pile_card) {
+            if (selected[DISCARD_PILE] && active_player->pile_card) {
                 game->discard_pile[game->top_of_discard_pile++] = active_player->new_card;
                 active_player->new_card = 0;
                 active_player->turn_stage = FLIP_CARD;
@@ -698,7 +699,7 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
         case FLIP_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 Card *card = &deck[active_player->cards[i]];
-                if (deck[active_player->cards[i]].selected && !active_player->flipped[i]) {
+                if (selected[i] && !active_player->flipped[i]) {
                     //card->flipped = true;
                     active_player->flipped[i] = true;
                     active_player->turn_stage = SELECT_PILE;
@@ -711,7 +712,7 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
                     return;
                 }
 
-                if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
+                if (selected[DISCARD_PILE] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
                     active_player->turn_stage = SELECT_PILE;
                     active_player->pile_card = false;
                     next_player(game, draw);
@@ -721,33 +722,46 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
     }
 }
 
-internal void
-model_ray_intersection(Ray ray, Model *model, Card *card) {
+internal bool8
+ray_model_intersection(Ray ray, Model *model, Card *card) {
     for (u32 i = 0; i < model->meshes_count; i++) {
         Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card->model);
         if (p.number_of_intersections != 0) {
             //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
-            card->selected = true;
+            return true;
         }
     }
+
+    return false;
 }
 
 internal void
-mouse_ray_model_intersections(Ray mouse_ray, Game *game, Model *card_model) {
-    for (u32 i = 0; i < game->num_of_players; i++) {
-        for (u32 card_index = 0; card_index < 8; card_index++) {
-            model_ray_intersection(mouse_ray, card_model, &deck[game->players[i].cards[card_index]]);
-        }
+mouse_ray_model_intersections(bool8 *selected, Ray mouse_ray, Game *game, Model *card_model) {
+    Player *active_player = &game->players[game->active_player];
+
+    for (u32 card_index = 0; card_index < 8; card_index++) {
+        selected[card_index] = ray_model_intersection(mouse_ray, card_model, &deck[active_player->cards[card_index]]);
     }
 
-    if (game->players[game->active_player].turn_stage == SELECT_CARD) {
-        model_ray_intersection(mouse_ray, card_model, &deck[game->players[game->active_player].new_card]);
-    }
-
-    model_ray_intersection(mouse_ray, card_model, &deck[game->pile[game->top_of_pile]]);
+    selected[PICKUP_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->pile[game->top_of_pile]]);
 
     if (game->top_of_discard_pile != 0)
-        model_ray_intersection(mouse_ray, card_model, &deck[game->discard_pile[game->top_of_discard_pile - 1]]);
+        selected[DISCARD_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->discard_pile[game->top_of_discard_pile - 1]]);
+}
+
+internal void
+update_card_with_buttons(bool8 selected[SELECTED_SIZE], Game *game, Controller *controller) {
+    if (on_down(controller->nine)) {
+        selected[PICKUP_PILE] = true;
+    } else if (on_down(controller->zero) && game->top_of_discard_pile != 0) {
+        selected[DISCARD_PILE] = true;
+    }
+
+    for (u32 i = 0; i < HAND_SIZE; i++) {
+        if (on_down(controller->buttons[i])) {
+            selected[i] = true;
+        }
+    }    
 }
 
 bool8 update_game(State *state, App *app) {
@@ -757,81 +771,78 @@ bool8 update_game(State *state, App *app) {
     load_card_models(game, draw, app->time.frame_time_s);
 
     switch(state->camera_mode) {
-    case FREE_CAMERA: {
-        if (on_down(state->controller.pause)) {
-            state->camera_mode = PLAYER_CAMERA;
-            app->input.relative_mouse_mode = false;
-        }
+        case FREE_CAMERA: {
+            if (on_down(state->controller.pause)) {
+                state->camera_mode = PLAYER_CAMERA;
+                app->input.relative_mouse_mode = false;
+            }
 
-        if (app->input.relative_mouse_mode) {
-            float32 mouse_m_per_s = 100.0f;
-            float32 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
-            update_camera_with_mouse(&state->camera, app->input.mouse_rel, { mouse_move_speed, mouse_move_speed });
+            if (app->input.relative_mouse_mode) {
+                float32 mouse_m_per_s = 100.0f;
+                float32 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
+                update_camera_with_mouse(&state->camera, app->input.mouse_rel, { mouse_move_speed, mouse_move_speed });
+                update_camera_target(&state->camera);    
+                state->scene.view = get_view(state->camera);
+                render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
+
+                float32 m_per_s = 6.0f; 
+                float32 m_moved = m_per_s * app->time.frame_time_s;
+                Vector3 move_vector = {m_moved, m_moved, m_moved};
+                update_camera_with_keys(&state->camera, state->camera.target, state->camera.up, move_vector,
+                                        is_down(state->controller.forward),  is_down(state->controller.backward),
+                                        is_down(state->controller.left),  is_down(state->controller.right),
+                                        is_down(state->controller.up),  is_down(state->controller.down));                             
+
+                //print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
+            }
+        } break;
+
+        case PLAYER_CAMERA: {
+            if (on_down(state->controller.pause)) {
+                //state->camera_mode = FREE_CAMERA;
+                state->menu_list.mode = PAUSE_MENU;
+                //app->input.relative_mouse_mode = true;
+            }
+                  
+            if (on_down(state->controller.right)) {
+                next_player(game, &state->game_draw);
+            }
+
+            float32 cam_dis = 8.0f + draw->radius;
+            float32 deg = -draw->degrees_between_players * game->active_player;
+            deg += process_rotation(&draw->camera_rotation, app->time.frame_time_s);
+            float32 rad = deg * DEG2RAD;
+            float32 x = cam_dis * cosf(rad);
+            float32 y = cam_dis * sinf(rad);
+
+            state->camera.position =  Vector3{ x, 14.0f, y };
+            state->camera.yaw      = deg + 180.0f;
+            state->camera.pitch    = -50.0f;
+
             update_camera_target(&state->camera);    
             state->scene.view = get_view(state->camera);
             render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
-            float32 m_per_s = 6.0f; 
-            float32 m_moved = m_per_s * app->time.frame_time_s;
-            Vector3 move_vector = {m_moved, m_moved, m_moved};
-            update_camera_with_keys(&state->camera, state->camera.target, state->camera.up, move_vector,
-                                    is_down(state->controller.forward),  is_down(state->controller.backward),
-                                    is_down(state->controller.left),  is_down(state->controller.right),
-                                    is_down(state->controller.up),  is_down(state->controller.down));                             
+            bool8 selected[SELECTED_SIZE] = {};
+            if (state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) {
+                if (on_down(state->controller.mouse_left)) {
+                    set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
+                     
+                    Model *card_model = find_model(&state->assets, "CARD");
+                    mouse_ray_model_intersections(selected, state->mouse_ray, game, card_model);
+                }
 
-            //print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
-        }
-    } break;
+                update_card_with_buttons(selected, game, &state->controller);
+            }
 
-    case PLAYER_CAMERA: {
-        if (on_down(state->controller.pause)) {
-            //state->camera_mode = FREE_CAMERA;
-            state->menu_list.mode = PAUSE_MENU;
-            //app->input.relative_mouse_mode = true;
-        }
-              
-        if (on_down(state->controller.right)) {
-            next_player(game, &state->game_draw);
-        }
+            // game logic
+            switch(game->round_type) {
+                case FLIP_ROUND:    flip_round_update(game, &state->game_draw, selected); break;
+                case FINAL_ROUND:
+                case REGULAR_ROUND: regular_round_update(game, &state->game_draw, selected); break;
+            }
 
-        float32 cam_dis = 8.0f + draw->radius;
-        float32 deg = -draw->degrees_between_players * game->active_player;
-        deg += process_rotation(&draw->camera_rotation, app->time.frame_time_s);
-        float32 rad = deg * DEG2RAD;
-        float32 x = cam_dis * cosf(rad);
-        float32 y = cam_dis * sinf(rad);
-
-        state->camera.position =  Vector3{ x, 14.0f, y };
-        state->camera.yaw      = deg + 180.0f;
-        state->camera.pitch    = -50.0f;
-        /*
-          state->camera.position = Vector3{0, 0, 0};
-          state->camera.yaw = 0.0f;
-          state->camera.pitch = 0.0f;
-        */
-        update_camera_target(&state->camera);    
-        state->scene.view = get_view(state->camera);
-        render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
-
-        if (on_down(state->controller.mouse_left)) {
-            set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
-             
-            Model *card_model = find_model(&state->assets, "CARD");
-            mouse_ray_model_intersections(state->mouse_ray, game, card_model);
-        }
-
-        update_card_with_buttons(game, &state->controller);
-
-        // game logic
-        switch(game->round_type) {
-        case FLIP_ROUND:    flip_round_update(game, &state->game_draw, &state->controller); break;
-        case FINAL_ROUND:
-        case REGULAR_ROUND: regular_round_update(game, &state->game_draw, &state->controller); break;
-        }
-
-        for (u32 i = 0; i < DECK_SIZE; i++)
-            deck[i].selected = false;
-    } break;
+        } break;
     }
 
     return 0;
@@ -931,8 +942,8 @@ bool8 init_data(App *app) {
     game->game_draw.rotation_speed = 150.0f;
     game->camera_mode = PLAYER_CAMERA;
 
-    game->game_draw.notifications.font = font;
-    game->game_draw.notifications.text_color = { 255, 255, 255, 1 };
+    game->notifications.font = font;
+    game->notifications.text_color = { 255, 255, 255, 1 };
 
     default_font = find_font(&game->assets, "CASLON");
 
@@ -958,10 +969,12 @@ bool8 init_data(App *app) {
     }
 
     // Online
-    game->mutex = (s64)CreateMutex(NULL, FALSE, NULL);
-    if (game->mutex == NULL) {
-        print("CreateMutex error: %d\n", GetLastError());
-    }
+    game->mutex = win32_create_mutex();
+    online.mutex = win32_create_mutex();
+
+    platform_memory_copy(game->name, "Jeff", 5);
+    platform_memory_copy(game->ip, "127.0.0.1", 10);
+    platform_memory_copy(game->port, "4444", 5);
 
 	return false;
 }
@@ -1004,7 +1017,6 @@ bool8 update(App *app) {
 
         app->input.mouse,
 
-        &app->input.buffer_input,
         app->input.buffer,
         app->input.buffer_index
     };
@@ -1032,7 +1044,7 @@ bool8 update(App *app) {
         }
     }
 
-    if (!state->is_client)
+    if (state->is_server)
         win32_wait_mutex(state->mutex);
 
     // Draw
@@ -1092,11 +1104,11 @@ bool8 update(App *app) {
 
         render_bind_descriptor_set(state->scene_ortho_set, 0);
 
-        //draw_onscreen_notifications(&state->game_draw.notifications, app->window.dim, app->time.frame_time_s);
-        Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, 50.0f, { 255, 255, 255, 1 });
-        draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - 5, 5 }, 50.0f, { 255, 255, 255, 1 });
+        float32 pixel_height = app->window.dim.x / 20.0f;
+        Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
+        draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - 5, 5 }, pixel_height, { 255, 255, 255, 1 });
 
-        draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, 50.0f, { 255, 255, 255, 1 });
+        draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, pixel_height, { 255, 255, 255, 1 });
 
         if (state->menu_list.mode == PAUSE_MENU) {
             draw_pause_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
@@ -1106,9 +1118,11 @@ bool8 update(App *app) {
     } break;
     }
 
+    draw_onscreen_notifications(&state->notifications, app->window.dim, app->time.frame_time_s);
+
     render_end_frame();
 
-    if (!state->is_client)
+    if (state->is_server)
         win32_release_mutex(state->mutex);
 
     prepare_controller_for_input(&state->controller);
@@ -1127,6 +1141,11 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
         } break;
 
         case APP_EXIT: {
+            if (state->is_client)
+                client_close_connection(state->client);
+            if (state->is_server)
+                close_server();
+
             for (u32 i = 0; i < 14; i++) {
                 vulkan_delete_texture(&card_bitmaps[i]);
             }

@@ -7,17 +7,17 @@ TODO
 
 - Online
 
+- Fix using textbox with cursor
+
 */
+
+#define PICKUP_PILE 8
+#define DISCARD_PILE 9
+#define SELECTED_SIZE 10
 
 struct Card {
 	s32 number;
     Matrix_4x4 model;
-    bool8 selected;
-
-	// Drawing
-	//Bitmap front;
-	//Bitmap back;
-	//Mesh mesh;
 };
 
 #define MAX_NAME_SIZE 20
@@ -59,13 +59,13 @@ Card indices
 
 struct Player {
     char name[MAX_NAME_SIZE];
+    s32 scores[MAX_HOLES];
+
     u32 cards[HAND_SIZE];     // indices to global deck array
     bool8 flipped[HAND_SIZE];
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
-
-    s32 scores[MAX_HOLES];
 };
 
 enum Game_Modes {
@@ -123,8 +123,6 @@ struct Game_Draw {
 
     float32 degrees_between_players;
     float32 radius;
-
-    Onscreen_Notifications notifications;
 };
 
 enum Menu_Mode {
@@ -155,6 +153,7 @@ struct State {
 
     Game game;
     Game_Draw game_draw;
+    Onscreen_Notifications notifications;
 
     // Input
     Controller controller = {};
@@ -168,8 +167,11 @@ struct State {
     char ip[TEXTBOX_SIZE];
     char port[TEXTBOX_SIZE];
 
+    bool8 is_server;
+
     bool8 is_client;
     QSock_Socket client;
+    u32 client_game_index;
 
     // Drawing
     Scene scene;
@@ -183,5 +185,5 @@ struct State {
 };
 
 global Font *default_font;
-global const Vector4 play_nine_green = { 39, 77, 20, 1 };
-global const Vector4 play_nine_yellow = { 231, 213, 36, 1 };
+global const Vector4 play_nine_green  = {  39,  77,  20, 1 };
+global const Vector4 play_nine_yellow = { 231, 213,  36, 1 };

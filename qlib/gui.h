@@ -93,7 +93,6 @@ struct Menu_Input {
     Vector2_s32 mouse;
 
     // textbox typing inptu
-    bool8 *buffer_input;
     s32 *buffer;
     s32 buffer_index;
 };

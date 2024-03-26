@@ -154,7 +154,9 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
 		switch(event.type) {
-			case SDL_QUIT: return true;
+			case SDL_QUIT: {
+                return true;
+            } break;
 
 			case SDL_WINDOWEVENT: {
                 SDL_WindowEvent *window_event = &event.window;
@@ -204,7 +206,7 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
                 SDL_KeyboardEvent *keyboard_event = &event.key;
                 bool32 shift = keyboard_event->keysym.mod & KMOD_LSHIFT;
                 u32 key_id = keyboard_event->keysym.sym;
-                if (!input->buffer_input)
+                if (!app_input_buffer)
                     event_handler(app, APP_KEYDOWN, key_id);
                 else {
                     if (shift) {
@@ -223,6 +225,7 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
 		}
 	}
 
+    app_input_buffer = false;
 	return false;
 }
 
