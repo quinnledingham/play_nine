@@ -21,6 +21,15 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "play_nine.h"
 
 #include "raytrace.cpp"
+
+internal void
+default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
+    platform_memory_set((void*)buffer, 0, MAX_NAME_SIZE);
+    buffer[8] = 0;
+    memcpy(buffer, "Player ", 7);
+    buffer[7] = number + 48; // + 48 turns single digit number into ascii value
+}
+
 #include "play_nine_online.cpp"
 
 //
@@ -231,9 +240,9 @@ process_rotation(Rotation *rot, float32 seconds) {
 }
 
 internal void
-load_card_model(Card *card, Vector3 position, float32 degrees, Vector3 scale) {
+load_card_model(Card *card, bool8 flipped, Vector3 position, float32 degrees, Vector3 scale) {
     Quaternion rotation = get_rotation(degrees * DEG2RAD, {0, 1, 0});
-    if (!card->flipped) {
+    if (!flipped) {
         Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
         rotation = flip * rotation;
         position.y += 0.05f;
@@ -259,7 +268,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
             Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
             rotate_coords(&card_pos, rad);
             card_pos += position;
-            load_card_model(&deck[game->players[i].cards[card_index]], card_pos, degrees, card_scale);
+            load_card_model(&deck[game->players[i].cards[card_index]], game->players[i].flipped[card_index], card_pos, degrees, card_scale);
         }
     }
 
@@ -268,7 +277,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     float32 rad = degrees * DEG2RAD; 
     if (game->players[game->active_player].turn_stage == SELECT_CARD) {
         rotate_coords(&selected_card_coords, rad);
-        load_card_model(&deck[game->players[game->active_player].new_card], selected_card_coords, degrees, card_scale);
+        load_card_model(&deck[game->players[game->active_player].new_card], true, selected_card_coords, degrees, card_scale);
     }
 
     float32 pile_degs = degrees - process_rotation(&draw->pile_rotation, seconds);
@@ -278,11 +287,11 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     rotate_coords(&discard_pile_coords, pile_rad);
 
     // pile
-    load_card_model(&deck[game->pile[game->top_of_pile]], pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
+    load_card_model(&deck[game->pile[game->top_of_pile]], false, pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
 
     // discard pile
     if (game->top_of_discard_pile != 0)
-        load_card_model(&deck[game->discard_pile[game->top_of_discard_pile - 1]], discard_pile_coords, pile_degs, card_scale);
+        load_card_model(&deck[game->discard_pile[game->top_of_discard_pile - 1]], true, discard_pile_coords, pile_degs, card_scale);
 }
 
 internal void
@@ -360,7 +369,6 @@ random(s32 lower, s32 upper) {
 internal void
 shuffle_pile(u32 *pile) {
     for (u32 i = 0; i < DECK_SIZE; i++) {
-        deck[i].flipped = false;
         bool8 not_new_card = true;
         while(not_new_card) {
             pile[i] = random(0, DECK_SIZE);
@@ -376,13 +384,13 @@ shuffle_pile(u32 *pile) {
 internal void
 deal_cards(Game *game) {
      for (u32 i = 0; i < game->num_of_players; i++) {
-         for (u32 card_index = 0; card_index < 8; card_index++) {
-             game->players[i].cards[card_index] = game->pile[game->top_of_pile++];
+         for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
+            game->players[i].cards[card_index] = game->pile[game->top_of_pile++];
+            game->players[i].flipped[card_index] = false;
          }
      }
 
     game->discard_pile[game->top_of_discard_pile++] = game->pile[game->top_of_pile++];
-    deck[game->discard_pile[game->top_of_discard_pile - 1]].flipped = true;
 }
 
 internal void
@@ -431,14 +439,6 @@ get_draw_radius(u32 num_of_players, float32 hand_width, float32 card_height) {
     float32 angle = (360.0f / float32(num_of_players)) / 2.0f;
     float32 radius = (hand_width / 2.0f) / tanf(angle * DEG2RAD);
     return radius + card_height + 0.1f;
-}
-
-internal void
-default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
-    platform_memory_set((void*)buffer, 0, MAX_NAME_SIZE);
-    buffer[8] = 0;
-    memcpy(buffer, "Player ", 7);
-    buffer[7] = number + 48; // + 48 turns single digit number into ascii value
 }
 
 internal Game
@@ -554,7 +554,7 @@ next_player(Game *game, Game_Draw *draw) {
     if (game->round_type == FINAL_ROUND) {
         game->last_turn++;
         for (u32 i = 0; i < 8; i++) {
-            deck[game->players[game->active_player].cards[i]].flipped = true;
+            game->players[game->active_player].flipped[i] = true;
         }
     }
 
@@ -599,10 +599,10 @@ next_player(Game *game, Game_Draw *draw) {
 }
 
 internal u32
-get_number_flipped(u32 *cards) {
+get_number_flipped(bool8 *flipped) {
     u32 number_flipped = 0;
     for (u32 i = 0; i < HAND_SIZE; i++) {
-        if (deck[cards[i]].flipped) {
+        if (flipped[i]) {
             number_flipped++;
         }
     }
@@ -615,10 +615,11 @@ flip_round_update(Game *game, Game_Draw *draw, Controller *controller) {
     for (u32 i = 0; i < 8; i++) {
         if (on_down(controller->buttons[i]) || deck[active_player->cards[i]].selected) {
             deck[active_player->cards[i]].selected = false;
-            deck[active_player->cards[i]].flipped = true;
+            //deck[active_player->cards[i]].flipped = true;
+            active_player->flipped[i] = true;
 
             // check if player turn over
-            if (get_number_flipped(active_player->cards) == 2) {
+            if (get_number_flipped(active_player->flipped) == 2) {
                 next_player(game, draw);
             }
         }
@@ -655,7 +656,7 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
                     game->round_type = FINAL_ROUND;
                 }
 
-                deck[active_player->new_card].flipped = true;
+                //deck[active_player->new_card].flipped = true;
                 active_player->turn_stage = SELECT_CARD;
                 active_player->pile_card = true;
             } else if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected) {
@@ -669,12 +670,13 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (deck[active_player->cards[i]].selected) {
                     game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
-                    deck[game->discard_pile[game->top_of_discard_pile - 1]].flipped = true;
+
+                    active_player->flipped[i] = true;
                     active_player->cards[i] = active_player->new_card;
                     active_player->new_card = 0;
                     active_player->turn_stage = SELECT_PILE;
                     active_player->pile_card = false;
-                    if (get_number_flipped(active_player->cards) == HAND_SIZE)
+                    if (get_number_flipped(active_player->flipped) == HAND_SIZE)
                         game->round_type = FINAL_ROUND;
                     next_player(game, draw);
                     return;
@@ -696,11 +698,12 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
         case FLIP_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 Card *card = &deck[active_player->cards[i]];
-                if (deck[active_player->cards[i]].selected && !card->flipped) {
-                    card->flipped = true;
+                if (deck[active_player->cards[i]].selected && !active_player->flipped[i]) {
+                    //card->flipped = true;
+                    active_player->flipped[i] = true;
                     active_player->turn_stage = SELECT_PILE;
                     active_player->pile_card = false;
-                    if (get_number_flipped(active_player->cards) == HAND_SIZE) {
+                    if (get_number_flipped(active_player->flipped) == HAND_SIZE) {
                         game->round_type = FINAL_ROUND; 
                         game->last_turn = 0;
                     }
@@ -708,7 +711,7 @@ regular_round_update(Game *game, Game_Draw *draw, Controller *controller) {
                     return;
                 }
 
-                if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected && get_number_flipped(active_player->cards) == HAND_SIZE - 1) {
+                if (deck[game->discard_pile[game->top_of_discard_pile - 1]].selected && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
                     active_player->turn_stage = SELECT_PILE;
                     active_player->pile_card = false;
                     next_player(game, draw);
@@ -954,6 +957,12 @@ bool8 init_data(App *app) {
         game->menu_list.menus[i] = default_menu;
     }
 
+    // Online
+    game->mutex = (s64)CreateMutex(NULL, FALSE, NULL);
+    if (game->mutex == NULL) {
+        print("CreateMutex error: %d\n", GetLastError());
+    }
+
 	return false;
 }
 
@@ -1009,13 +1018,22 @@ bool8 update(App *app) {
     }
     
     // Update
+    if (state->is_client)
+        client_get_game(state->client, state);
+
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);
+
+        if (state->is_client)
+            client_set_game(state->client, &state->game);
     } else if (state->menu_list.mode == PAUSE_MENU) {
         if (on_down(state->controller.pause)) {
             state->menu_list.mode = IN_GAME;
         }
     }
+
+    if (!state->is_client)
+        win32_wait_mutex(state->mutex);
 
     // Draw
     Shader *basic_3D = find_shader(assets, "BASIC3D");
@@ -1089,6 +1107,9 @@ bool8 update(App *app) {
     }
 
     render_end_frame();
+
+    if (!state->is_client)
+        win32_release_mutex(state->mutex);
 
     prepare_controller_for_input(&state->controller);
 

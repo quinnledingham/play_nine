@@ -26,8 +26,13 @@ struct File {
 
 struct Bitmap {
 	u8 *memory;
-    s32 width;
-    s32 height;
+    union {
+        struct {
+            s32 width;
+            s32 height;
+        };
+        Vector2_s32 dim;
+    };
     s32 pitch;
     s32 channels;
     

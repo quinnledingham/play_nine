@@ -11,11 +11,7 @@ TODO
 
 struct Card {
 	s32 number;
-	
-    const char *name; // i.e. mulligan, birdie
-    bool8 flipped;
     Matrix_4x4 model;
-
     bool8 selected;
 
 	// Drawing
@@ -63,12 +59,19 @@ Card indices
 
 struct Player {
     char name[MAX_NAME_SIZE];
-    u32 cards[HAND_SIZE];
+    u32 cards[HAND_SIZE];     // indices to global deck array
+    bool8 flipped[HAND_SIZE];
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
 
     s32 scores[MAX_HOLES];
+};
+
+enum Game_Modes {
+    LOBBY,
+    SCOREBOARD,
+    GAME,
 };
 
 // Stores information about the game of play nine
@@ -124,7 +127,7 @@ struct Game_Draw {
     Onscreen_Notifications notifications;
 };
 
-enum Game_Mode {
+enum Menu_Mode {
     MAIN_MENU,
     LOCAL_MENU,
     PAUSE_MENU,
@@ -137,7 +140,7 @@ enum Game_Mode {
 };
 
 struct Menu_List {
-    enum Game_Mode mode = MAIN_MENU;
+    enum Menu_Mode mode = MAIN_MENU;
 
     union {
         struct {
@@ -148,6 +151,8 @@ struct Menu_List {
 };
 
 struct State {
+    s64 mutex;
+
     Game game;
     Game_Draw game_draw;
 
@@ -163,6 +168,9 @@ struct State {
     char ip[TEXTBOX_SIZE];
     char port[TEXTBOX_SIZE];
 
+    bool8 is_client;
+    QSock_Socket client;
+
     // Drawing
     Scene scene;
     Scene ortho_scene;
@@ -175,3 +183,5 @@ struct State {
 };
 
 global Font *default_font;
+global const Vector4 play_nine_green = { 39, 77, 20, 1 };
+global const Vector4 play_nine_yellow = { 231, 213, 36, 1 };

@@ -30,12 +30,14 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
 
     menu->button_style.dim = { menu->rect.dim.x, menu->rect.dim.y / float32(3) };
 
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     menu_text(menu, "play_nine", { 231, 213, 36,  1 }, { 0, 0 }, { 1, 1 }); 
 
     if (menu_button(menu, "Local", *input, { 0, 1 }, { 1, 1 })) {
         state->menu_list.mode = LOCAL_MENU;
+        state->game.num_of_players = 1;
+        default_player_name_string(state->game.players[0].name, 0);
     }
     if (menu_button(menu, "Test", *input, { 0, 2 }, { 1, 1 })) {
         state->game = get_test_game();
@@ -68,12 +70,12 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         menu->sections = { 2, 9 };
         menu->interact_region[0] = { 0, 0 };
         menu->interact_region[1] = { 2, 9 };
-
-        game->num_of_players = 1;
-        default_player_name_string(game->players[0].name, 0);
     }
 
     menu_set_input(menu, input);
+
+    state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
+    state->game_draw.radius = get_draw_radius(game->num_of_players, hand_width, 3.2f);
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
     draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
@@ -90,31 +92,31 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         *input->buffer_input = true;
     menu_row = 6;
 
-    if (menu_button(menu, "+ Player", *input, { 0, menu_row }, { 1, 1 })) {
-        if (game->num_of_players != 6) {
-            default_player_name_string(game->players[game->num_of_players].name, game->num_of_players);
-            game->num_of_players++;
+    if (!state->is_client) {
+        if (menu_button(menu, "+ Player", *input, { 0, menu_row }, { 1, 1 })) {
+            if (game->num_of_players != 6) {
+                default_player_name_string(game->players[game->num_of_players].name, game->num_of_players);
+                game->num_of_players++;
+            }
         }
-    }
-    if (menu_button(menu, "- Player", *input, { 1, menu_row }, { 1, 1 })) {
-        if (game->num_of_players != 1) {
-            game->num_of_players--;
+        if (menu_button(menu, "- Player", *input, { 1, menu_row }, { 1, 1 })) {
+            if (game->num_of_players != 1) {
+                game->num_of_players--;
+            }
         }
-    }
 
-    if (menu_button(menu, "+ Bot", *input, { 0, menu_row + 1 }, { 1, 1 })) {
-        
-    }
-    if (menu_button(menu, "- Bot", *input, { 1, menu_row + 1 }, { 1, 1 })) {
-        
-    }
+        if (menu_button(menu, "+ Bot", *input, { 0, menu_row + 1 }, { 1, 1 })) {
+            
+        }
+        if (menu_button(menu, "- Bot", *input, { 1, menu_row + 1 }, { 1, 1 })) {
+            
+        }
 
-    if (menu_button(menu, "Start", *input, { 0, menu_row + 2 }, { 1, 1 })) {
-        if (game->num_of_players != 1) {
-            state->menu_list.mode = IN_GAME;
-            start_game(&state->game, game->num_of_players);
-            state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
-            state->game_draw.radius = get_draw_radius(game->num_of_players, hand_width, 3.2f);
+        if (menu_button(menu, "Start", *input, { 0, menu_row + 2 }, { 1, 1 })) {
+            if (game->num_of_players != 1) {
+                state->menu_list.mode = IN_GAME;
+                start_game(&state->game, game->num_of_players);
+            }
         }
     }
     if (menu_button(menu, "Back", *input, { 1, menu_row + 2 }, { 1, 1 })) {
@@ -122,8 +124,12 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         game->num_of_players = 1;
         menu->hot_section = { 0, 0 };
 
-        TerminateThread(online.server_handle, NULL);
-        closesocket(online.sock.handle);
+        if (!state->is_client) {
+            TerminateThread(online.server_handle, NULL);
+            closesocket(online.sock.handle);
+        } else {
+            closesocket(state->client.handle);
+        }
     }
 
     return false;
@@ -366,9 +372,15 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
         *input->buffer_input = true;
 
     if (menu_button(menu, "Start", *input, { 1, 3 }, { 1, 1 })) {
-        QSock_Socket sock = {};
-        if (qsock_client(&sock, state->ip, state->port, TCP))
+        if (qsock_client(&state->client, state->ip, state->port, TCP)) {
             state->menu_list.mode = LOCAL_MENU;
+            state->is_client = true;
+
+            Play_Nine_Packet packet = {};
+            packet.type = SET_NAME;
+            platform_memory_copy(packet.buffer, state->name, get_length(state->name));
+            win32_send(state->client, (const char *)&packet, sizeof(packet), 0);
+        }
     }
     if (menu_button(menu, "Back", *input, { 1, 4 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;

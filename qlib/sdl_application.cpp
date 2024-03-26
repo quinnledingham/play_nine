@@ -263,11 +263,15 @@ int main(int argc, char *argv[]) {
 
     render_sdl_init(sdl_window);
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
-
     if (event_handler(&app, APP_INIT, 0) == 1)
         return 1;
 
     srand(SDL_GetTicks());
+
+    State *state = (State *)app.data;
+    Bitmap *icon = find_bitmap(&state->assets, "ICON");
+    SDL_Surface *icon_surface = SDL_CreateRGBSurfaceFrom(icon->memory, icon->dim.width, icon->dim.height, 32, icon->pitch, 0x00000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+    SDL_SetWindowIcon(sdl_window, icon_surface);
 
     while (1) {
         if (app.input.relative_mouse_mode) 

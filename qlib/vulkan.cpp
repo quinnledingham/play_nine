@@ -1435,10 +1435,12 @@ vulkan_delete_texture(Bitmap *bitmap) {
 		return;
 	test_tex--;
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
-	vkDestroySampler(vulkan_info.device, texture->sampler, nullptr);
-	vkDestroyImageView(vulkan_info.device, texture->image_view, nullptr);
-	vkDestroyImage(vulkan_info.device, texture->image, nullptr);
-    vkFreeMemory(vulkan_info.device, texture->image_memory, nullptr);
+	if (texture != 0) {
+		vkDestroySampler(vulkan_info.device, texture->sampler, nullptr);
+		vkDestroyImageView(vulkan_info.device, texture->image_view, nullptr);
+		vkDestroyImage(vulkan_info.device, texture->image, nullptr);
+    	vkFreeMemory(vulkan_info.device, texture->image_memory, nullptr);
+	}
 }
 
 internal void
