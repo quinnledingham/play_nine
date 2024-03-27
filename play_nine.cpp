@@ -977,10 +977,12 @@ bool8 init_data(App *app) {
     default_menu.style.default_text = play_nine_green;
     default_menu.style.hover_back   = play_nine_light_yellow;
     default_menu.style.hover_text   = play_nine_green;
+    //default_menu.style.hover_text = { 255, 255, 255, 1 };
     default_menu.style.pressed_back = play_nine_dark_yellow;
     default_menu.style.pressed_text = play_nine_green;
     default_menu.style.active_back  = play_nine_yellow;
     default_menu.style.active_text  = play_nine_green;
+    //default_menu.style.active_text = { 255, 255, 255, 1 };
 
     default_menu.active_section = { -1, -1 };
 
@@ -1074,7 +1076,7 @@ bool8 update(App *app) {
     render_start_frame();
 
     render_set_viewport(app->window.width, app->window.height);
-    render_set_scissor(app->window.width, app->window.height);
+    render_set_scissor(0, 0, app->window.width, app->window.height);
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {

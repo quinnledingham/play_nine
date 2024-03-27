@@ -1752,9 +1752,9 @@ void vulkan_set_viewport(u32 window_width, u32 window_height) {
 	vkCmdSetViewport(vulkan_active_cmd_buffer(&vulkan_info), 0, 1, &viewport);
 }
 
-void vulkan_set_scissor(u32 width, u32 height) {
+void vulkan_set_scissor(s32 x, s32 y, u32 width, u32 height) {
 	VkRect2D scissor;
-	scissor.offset = {0, 0};
+	scissor.offset = { x, y };
 	scissor.extent = { width, height };
 
 	vkCmdSetScissor(vulkan_active_cmd_buffer(&vulkan_info), 0, 1, &scissor);

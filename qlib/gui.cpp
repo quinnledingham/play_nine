@@ -17,7 +17,7 @@ draw_button(const Draw_Button button) {
     if (button.text) draw_string(button.font, button.text, text_coords, pixel_height, text_color); // text
 }
 
-internal void
+internal float32
 draw_textbox(const Draw_Textbox textbox) {
     float32 pixel_height = textbox.dim.y;
     if (textbox.dim.x < textbox.dim.y) 
@@ -37,10 +37,31 @@ draw_textbox(const Draw_Textbox textbox) {
     cursor_coords.x += text_dim_cursor.x;
     cursor_coords.y = textbox.coords.y;
 
+    float32 shift = textbox.text_shift;
+    if (textbox.state == GUI_ACTIVE) {
+        if (cursor_coords.x - shift + textbox.cursor_width >= textbox.coords.x + textbox.dim.x) {
+            shift = (cursor_coords.x + textbox.cursor_width) - (textbox.coords.x + textbox.dim.x);
+        } else if (cursor_coords.x - shift <= textbox.coords.x) {
+            shift = cursor_coords.x - textbox.coords.x;
+        }
+
+        text_coords.x -= shift;
+        cursor_coords.x -= shift;
+    }
+
+    if (text_dim.x < textbox.dim.x)
+        shift = 0.0f;
+
     draw_rect(textbox.coords, 0, textbox.dim, back_color);
+
+    render_set_scissor((s32)floor(textbox.coords.x), (s32)floor(textbox.coords.y), (u32)ceil(textbox.dim.x), (u32)ceil(textbox.dim.y) );
+    draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
+    render_set_scissor(0, 0, window_dim.x, window_dim.y);
+
     if (textbox.state == GUI_ACTIVE) // clicked on
         draw_rect(cursor_coords, 0.0f, { textbox.cursor_width, textbox.dim.y }, textbox.cursor_color); // cursor
-    draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
+
+    return shift;
 }
 
 internal bool8
@@ -270,7 +291,7 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
         { 255, 255, 255, 1 },
         menu->edit.cursor_position,
         5.0f,
-        0.0f,
+        menu->edit.shift,
 
         coords,
         dim,
@@ -285,6 +306,7 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
 
     if (box.state == GUI_ACTIVE) {
         if (input.select) {
+            box.text_shift = 0.0f;
             menu->edit.cursor_position = get_length(dest);
             platform_memory_set(menu->edit.text, 0, TEXTBOX_SIZE);
             platform_memory_copy(menu->edit.text, (void*)dest, menu->edit.cursor_position);
@@ -307,7 +329,7 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
                 default: {
                     if (update_textbox(menu->edit.text, TEXTBOX_SIZE - 1, &menu->edit.cursor_position, ch)) {
                         platform_memory_set((void*)dest, 0, TEXTBOX_SIZE);
-                        platform_memory_copy((void*)dest, menu->edit.text, menu->edit.cursor_position);
+                        platform_memory_copy((void*)dest, menu->edit.text, get_length(menu->edit.text));
                         box.state = GUI_DEFAULT;
                         menu->active_section = { -1, -1 };
                         menu->pressed_section = { -1, -1 };
@@ -316,9 +338,11 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
                 } break;
             }
         }
+
+        
     }
     
-    draw_textbox(box);
+    menu->edit.shift = draw_textbox(box);
 
     return new_text;
 }

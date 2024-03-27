@@ -212,8 +212,16 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
                     if (shift) {
                         key_id -= 32;
                     }
+                    s32 ch = 0;
                     if (is_ascii(key_id))
-                        input->buffer[input->buffer_index++] = key_id;
+                        ch = key_id;
+                    else if (key_id == SDLK_LEFT)  ch = 37;
+                    else if (key_id == SDLK_UP)    ch = 38;
+                    else if (key_id == SDLK_RIGHT) ch = 39;
+                    else if (key_id == SDLK_DOWN)  ch = 40;
+                    
+                    if (ch != 0)
+                        input->buffer[input->buffer_index++] = ch;
                 }
             } break;
 
@@ -287,6 +295,8 @@ int main(int argc, char *argv[]) {
         
     	sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
+
+        window_dim = app.window.dim;
 
         if (app.update(&app))
             break;

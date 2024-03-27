@@ -100,6 +100,6 @@ RENDER_FUNC(void, bind_descriptor_set, Descriptor_Set *set, u32 first_set);
 RENDER_FUNC(void, init_mesh, Mesh *mesh);
 RENDER_FUNC(void, draw_mesh, Mesh *mesh);
 RENDER_FUNC(void, set_viewport, u32 window_width, u32 window_height);
-RENDER_FUNC(void, set_scissor, u32 window_width, u32 window_height);
+RENDER_FUNC(void, set_scissor, s32 x, s32 y, u32 window_width, u32 window_height);
 
 RENDER_FUNC(void, compile_shader, Shader *shader);

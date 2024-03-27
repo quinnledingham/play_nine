@@ -66,6 +66,7 @@ struct Draw_Textbox {
 
 struct Textbox {
     u32 cursor_position;
+    float32 shift;
     char text[TEXTBOX_SIZE];
 };
 

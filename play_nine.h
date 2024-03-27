@@ -7,9 +7,6 @@ TODO
 
 - Online
 
-- Fix using textbox with cursor
-- Click with cursor on up
-
 */
 
 #define PICKUP_PILE 8

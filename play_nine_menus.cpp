@@ -339,7 +339,7 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     }
 
-    if (menu_button(menu, "Start", *input, { 0, 2 }, { 1, 1 })) {
+    if (menu_button(menu, "Host", *input, { 0, 2 }, { 1, 1 })) {
         DWORD thread_id;
         state->client_game_index = 0;
         online.server_handle = CreateThread(0, 0, play_nine_server, (void*)state, 0, &thread_id);
