@@ -25,15 +25,16 @@ void opengl_sdl_init(SDL_Window *sdl_window) {
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
-    //glClearColor(0.0f, 0.0f, 0.`0f, 0.0f);
     glPatchParameteri(GL_PATCH_VERTICES, 4); 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_FRAMEBUFFER_SRGB); 
     glPointSize(4.0f);
 
-    glEnable(GL_CULL_FACE);  
-    glCullFace(GL_BACK);
-    glFrontFace(GL_CW);  
+    //glEnable(GL_CULL_FACE);  
+    //glCullFace(GL_FRONT);
+    glFrontFace(GL_CCW);  
+
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
 }
 
 void opengl_clear_color(Vector4 color) {
@@ -58,6 +59,7 @@ void opengl_cleanup() {
 }
 
 void opengl_init_mesh(Mesh *mesh) {
+
     OpenGL_Mesh *gl_mesh = (OpenGL_Mesh*)platform_malloc(sizeof(OpenGL_Mesh));
 
     // allocating buffer
@@ -70,15 +72,22 @@ void opengl_init_mesh(Mesh *mesh) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_mesh->ebo);
 
     // defining a vertex
-    glEnableVertexAttribArray(0); // vertex positions
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)offsetof(Vertex_XNU, position));
-    glEnableVertexAttribArray(1); // vertex color
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)offsetof(Vertex_XNU, normal));
-    glEnableVertexAttribArray(2); // vertex texture coords
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)offsetof(Vertex_XNU, uv));
-    
-    glBufferData(GL_ARRAY_BUFFER, mesh->vertices_count * sizeof(Vertex_XNU), &mesh->vertices[0], GL_STATIC_DRAW);  
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->indices_count * sizeof(u32), &mesh->indices[0], GL_STATIC_DRAW);
+    if (mesh->vertex_info.size == sizeof(Vertex_XNU)) {
+        glEnableVertexAttribArray(0); // vertex positions
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)offsetof(Vertex_XNU, position));
+        glEnableVertexAttribArray(1); // vertex color
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)offsetof(Vertex_XNU, normal));
+        glEnableVertexAttribArray(2); // vertex texture coords
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex_XNU), (void*)offsetof(Vertex_XNU, uv));
+    } else if (mesh->vertex_info.size == sizeof(Vertex_XU)) {
+        glEnableVertexAttribArray(0); // vertex positions
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex_XU), (void*)offsetof(Vertex_XU, position));
+        glEnableVertexAttribArray(1); // vertex color
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex_XU), (void*)offsetof(Vertex_XU, uv));
+    }
+
+    glBufferData(GL_ARRAY_BUFFER, mesh->vertices_count * sizeof(Vertex_XNU), mesh->vertices, GL_STATIC_DRAW);  
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->indices_count * sizeof(u32), mesh->indices, GL_STATIC_DRAW);
     
     glBindVertexArray(0);
 
@@ -87,7 +96,7 @@ void opengl_init_mesh(Mesh *mesh) {
 
 void opengl_draw_mesh(Mesh *mesh)
 {
-    OpenGL_Mesh *gl_mesh = (OpenGL_Mesh*)mesh->gpu_info;
+    OpenGL_Mesh *gl_mesh = (OpenGL_Mesh *)mesh->gpu_info;
     glBindVertexArray(gl_mesh->vao);
     glDrawElements(GL_TRIANGLES, mesh->indices_count, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
@@ -97,7 +106,7 @@ void opengl_set_viewport(u32 window_width, u32 window_height) {
     glViewport(0, 0, window_width, window_height);    
 }
 
-void opengl_set_scissor(u32 window_width, u32 window_height) {
+void opengl_set_scissor(s32 x, s32 y, u32 window_width, u32 window_height) {
     //v2s bottom_left, dim;
     //glScissor(bottom_left.x, bottom_left.y, dim.x, dim.y);
     glScissor(0, 0, window_width, window_height);
@@ -107,9 +116,6 @@ global u32 global_shader_handle;
 
 void opengl_bind_pipeline(Render_Pipeline *pipeline) {
     Shader *shader = pipeline->shader;
-    for (u32 i = 0; i < shader->layout_count; i++) {
-        shader->sets_count[i] = 0;
-    }
 
     glUseProgram(shader->handle);
     //return shader->handle;
@@ -149,7 +155,7 @@ void opengl_create_descriptor_pool(Shader *shader, u32 descriptor_set_count, u32
     }
 }
 
-void opengl_create_graphics_pipeline(Render_Pipeline *pipeline) {
+void opengl_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
 /*
     for (u32 i = 0; i < shader->layout_count; i++) {
         for (u32 j = 0; j < shader->descriptor_sets[i].descriptors_count; j++) {
@@ -161,7 +167,12 @@ void opengl_create_graphics_pipeline(Render_Pipeline *pipeline) {
 */
 }
 
+void opengl_pipeline_cleanup(Render_Pipeline *pipe) {
+
+}
+
 Descriptor_Set* opengl_get_descriptor_set(Shader *shader, bool8 layout_index) {
+
     u32 next_set = shader->sets_count[layout_index]++;
 
     if (next_set > shader->max_sets) {
@@ -171,6 +182,7 @@ Descriptor_Set* opengl_get_descriptor_set(Shader *shader, bool8 layout_index) {
     }
 
     return &shader->descriptor_sets[layout_index][next_set];
+
 }
 
 // returns the new offset
@@ -232,6 +244,24 @@ void opengl_bind_descriptor_set(Descriptor_Set *set, u32 first_set) {
 void opengl_push_constants(Descriptor_Set *push_constants, void *data) {
     GLint location = glGetUniformLocation(global_shader_handle, "object.model");
     glUniformMatrix4fv(location, (GLsizei)1, false, (GLfloat *)data);
+}
+
+void opengl_reset_descriptor_sets(Assets *assets) {
+    Asset_Array *array = &assets->types[ASSET_TYPE_SHADER];
+    for (u32 i = 0; i < array->num_of_assets; i++) {
+        Shader *shader = (Shader *)&array->data[i].memory;
+        for (u32 layout_i = 0; layout_i < shader->layout_count; layout_i++) {
+            shader->sets_count[layout_i] = 0;
+        }
+    }
+}
+
+void opengl_assets_cleanup(Assets *assets) {
+
+}
+
+void opengl_wait_frame() {
+
 }
 
 //
@@ -372,6 +402,6 @@ void opengl_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
 }
 
 internal void
-free_bitmap_gpu_handle(Bitmap *bitmap) {
+opengl_delete_texture(Bitmap *bitmap) {
     glDeleteTextures(1, (u32*)bitmap->gpu_info);
 }

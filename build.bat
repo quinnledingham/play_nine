@@ -20,8 +20,8 @@ set LF_OPENGL= opengl32.lib
 set LF_VULKAN= ..\VulkanSDK\1.3.268.0\Lib\vulkan-1.lib
 set LF_DX12= D3d12.lib D3DCompiler.lib dxgi.lib
 
-cl %CF_DEFAULT% %CF_SDL% %CF_VULKAN% -DWINDOWS -DSDL -DVULKAN -DDEBUG ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_VULKAN% %LF_SHADERS% /out:play_nine.exe
-REM cl %CF_DEFAULT% %CF_SDL% %CF_OPENGL% %CF_VULKAN% -DWINDOWS -DSDL -DOPENGL -DDEBUG ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_OPENGL% %LF_SHADERS% /out:play_nine.exe
+REM cl %CF_DEFAULT% %CF_SDL% %CF_VULKAN% -DWINDOWS -DSDL -DVULKAN -DDEBUG ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_VULKAN% %LF_SHADERS% /out:play_nine.exe
+cl %CF_DEFAULT% %CF_SDL% %CF_OPENGL% %CF_VULKAN% -DWINDOWS -DSDL -DOPENGL -DDEBUG ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_OPENGL% %LF_SHADERS% /out:play_nine.exe
 
 
 IF NOT EXIST SDL2.dll copy ..\sdl-vc\lib\x64\SDL2.dll

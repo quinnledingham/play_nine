@@ -7,6 +7,8 @@ TODO
 
 - Online
 
+- Add opengl support
+
 */
 
 #define PICKUP_PILE 8

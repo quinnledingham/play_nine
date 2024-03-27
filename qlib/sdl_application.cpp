@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
             break;
     }
 
-    vulkan_wait_frame();
+    render_wait_frame();
     event_handler(&app, APP_EXIT, 0) ;
     render_cleanup();
     SDL_DestroyWindow(sdl_window);

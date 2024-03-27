@@ -13,6 +13,5 @@ void main() {
     vec3 norm_text_color = vec3(text.color.x/255, text.color.y/255, text.color.z/255);
     float alpha = texture(texSampler, fragTexCoord).r * text.color.a;
     vec4 tex = vec4(1.0, 1.0, 1.0, alpha);
-    //outColor = texture(texSampler, fragTexCoord);
     outColor = vec4(norm_text_color, 1.0) * tex;
 }

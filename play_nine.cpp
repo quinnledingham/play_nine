@@ -1072,7 +1072,7 @@ bool8 update(App *app) {
     // Draw
     Shader *basic_3D = find_shader(assets, "BASIC3D");
 
-    vulkan_reset_descriptor_sets(assets);
+    render_reset_descriptor_sets(assets);
     render_start_frame();
 
     render_set_viewport(app->window.width, app->window.height);
@@ -1169,10 +1169,10 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
                 close_server();
 
             for (u32 i = 0; i < 14; i++) {
-                vulkan_delete_texture(&card_bitmaps[i]);
+                render_delete_texture(&card_bitmaps[i]);
             }
             cleanup_shapes();
-            assets_cleanup(&state->assets);
+            render_assets_cleanup(&state->assets);
         } break;
 
         case APP_KEYDOWN: {

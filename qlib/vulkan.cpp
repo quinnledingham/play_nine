@@ -1347,8 +1347,13 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
 	*texture = {};
 
-	if (bitmap->channels == 1)
+	if (bitmap->channels == 1) {
 		texture->image_format = VK_FORMAT_R8_SRGB;
+		for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
+			//if (bitmap->memory[i] > 0)
+			//	bitmap->memory[i] = 0xFF;
+		}
+	}
 
     VkDeviceSize image_size = bitmap->width * bitmap->height * bitmap->channels;
 
@@ -1387,8 +1392,8 @@ vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters) {
 
 	switch(texture_parameters) {
 		case TEXTURE_PARAMETERS_DEFAULT:
-		sampler_info.minFilter    = VK_FILTER_LINEAR;
-		sampler_info.magFilter    = VK_FILTER_LINEAR;
+		sampler_info.minFilter    = VK_FILTER_NEAREST;
+		sampler_info.magFilter    = VK_FILTER_NEAREST;
 		sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -1396,7 +1401,7 @@ vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters) {
 
 		case TEXTURE_PARAMETERS_CHAR:
 		sampler_info.minFilter    = VK_FILTER_LINEAR;
-		sampler_info.magFilter    = VK_FILTER_NEAREST;
+		sampler_info.magFilter    = VK_FILTER_LINEAR;
 		sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;

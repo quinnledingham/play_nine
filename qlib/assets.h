@@ -193,6 +193,8 @@ struct Shader {
     Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
     Descriptor_Set descriptor_sets[layout_count][max_sets]; //
 
+    u32 sets_count[layout_count];
+
 #ifdef VULKAN
     Vulkan_Shader_Info vulkan_infos[layout_count];
 #endif

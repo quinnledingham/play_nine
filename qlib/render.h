@@ -103,3 +103,7 @@ RENDER_FUNC(void, set_viewport, u32 window_width, u32 window_height);
 RENDER_FUNC(void, set_scissor, s32 x, s32 y, u32 window_width, u32 window_height);
 
 RENDER_FUNC(void, compile_shader, Shader *shader);
+
+RENDER_FUNC(void, reset_descriptor_sets, Assets *assets);
+RENDER_FUNC(void, assets_cleanup, Assets *assets);
+RENDER_FUNC(void, wait_frame, );
