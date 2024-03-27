@@ -26,13 +26,13 @@ void opengl_sdl_init(SDL_Window *sdl_window) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
     glPatchParameteri(GL_PATCH_VERTICES, 4); 
-    glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_DEPTH_TEST);
     glEnable(GL_FRAMEBUFFER_SRGB); 
     glPointSize(4.0f);
 
     //glEnable(GL_CULL_FACE);  
     //glCullFace(GL_FRONT);
-    glFrontFace(GL_CCW);  
+    glFrontFace(GL_CW);  
 
     //glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
 }
