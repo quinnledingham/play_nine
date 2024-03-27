@@ -968,17 +968,19 @@ bool8 init_data(App *app) {
     // Setting default Menus
     Menu default_menu = {};
     default_menu.font = default_font;
-    default_menu.button_style.default_back_color = { 231, 213, 36,  1 };
-    default_menu.button_style.active_back_color  = { 240, 229, 118, 1 };
-    default_menu.button_style.default_text_color = { 39,  77,  20,  1 };
-    default_menu.button_style.active_text_color  = { 39,  77,  20,  1 };
+    default_menu.button_style.default_back_color = play_nine_yellow;
+    default_menu.button_style.active_back_color  = play_nine_light_yellow;
+    default_menu.button_style.default_text_color = play_nine_green;
+    default_menu.button_style.active_text_color  = play_nine_green;
 
-    default_menu.style.default_back = { 231, 213, 36,  1 };
-    default_menu.style.default_text = { 39,  77,  20,  1 };
-    default_menu.style.hot_back     = { 240, 229, 118, 1 };
-    default_menu.style.hot_text     = { 39,  77,  20,  1 };
-    default_menu.style.active_back  = { 231, 213, 36,  1 };
-    default_menu.style.active_text  = { 39,  77,  20,  1 };
+    default_menu.style.default_back = play_nine_yellow;
+    default_menu.style.default_text = play_nine_green;
+    default_menu.style.hover_back   = play_nine_light_yellow;
+    default_menu.style.hover_text   = play_nine_green;
+    default_menu.style.pressed_back = play_nine_dark_yellow;
+    default_menu.style.pressed_text = play_nine_green;
+    default_menu.style.active_back  = play_nine_yellow;
+    default_menu.style.active_text  = play_nine_green;
 
     default_menu.active_section = { -1, -1 };
 
@@ -1019,17 +1021,16 @@ bool8 update(App *app) {
 	Assets *assets = &state->assets;
 
     bool8 select = on_up(state->controller.select) || on_up(state->controller.mouse_left);
+    bool8 pressed = on_down(state->controller.select) || on_down(state->controller.mouse_left);
     Menu_Input menu_input = {
         select,
+        pressed,
         app->input.active,
 
         state->controller.forward,
         state->controller.backward,
         state->controller.left,
         state->controller.right,
-
-        { 0, 0 },
-        0,
 
         { 0, 0 },
         0,
@@ -1076,65 +1077,65 @@ bool8 update(App *app) {
     render_set_scissor(app->window.width, app->window.height);
 
     switch(state->menu_list.mode) {
-    case MAIN_MENU: {
-        render_bind_pipeline(&shapes.color_pipeline);
-        render_bind_descriptor_set(state->scene_ortho_set, 0);
-        if (draw_main_menu(state, &state->menu_list.main, &menu_input, app->window.dim))
-            return 1;
-    } break;
+        case MAIN_MENU: {
+            render_bind_pipeline(&shapes.color_pipeline);
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
+            if (draw_main_menu(state, &state->menu_list.main, &menu_input, app->window.dim))
+                return 1;
+        } break;
 
-    case LOCAL_MENU: {
-        render_bind_pipeline(&shapes.color_pipeline);
-        render_bind_descriptor_set(state->scene_ortho_set, 0);
-        draw_local_menu(state, &state->menu_list.local, &menu_input, app->window.dim);
-    } break;
+        case LOCAL_MENU: {
+            render_bind_pipeline(&shapes.color_pipeline);
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
+            draw_local_menu(state, &state->menu_list.local, &menu_input, app->window.dim);
+        } break;
 
-    case SCOREBOARD_MENU: {
-        render_bind_pipeline(&shapes.color_pipeline);
-        render_bind_descriptor_set(state->scene_ortho_set, 0);
-        s32 sb_result = draw_scoreboard(&state->menu_list.scoreboard, &state->game, &menu_input, app->window.dim);
-        if (sb_result == 1) {
-            state->menu_list.mode = IN_GAME;
-        } else if (sb_result == 2) {
-            state->menu_list.mode = MAIN_MENU;
-        }
-    } break;
+        case SCOREBOARD_MENU: {
+            render_bind_pipeline(&shapes.color_pipeline);
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
+            s32 sb_result = draw_scoreboard(&state->menu_list.scoreboard, &state->game, &menu_input, app->window.dim);
+            if (sb_result == 1) {
+                state->menu_list.mode = IN_GAME;
+            } else if (sb_result == 2) {
+                state->menu_list.mode = MAIN_MENU;
+            }
+        } break;
 
-    case HOST_MENU: {
-        render_bind_pipeline(&shapes.color_pipeline);
-        render_bind_descriptor_set(state->scene_ortho_set, 0);
-        draw_host_menu(&state->menu_list.host, state, &menu_input, app->window.dim);
-    } break;
+        case HOST_MENU: {
+            render_bind_pipeline(&shapes.color_pipeline);
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
+            draw_host_menu(&state->menu_list.host, state, &menu_input, app->window.dim);
+        } break;
 
-    case JOIN_MENU: {
-        render_bind_pipeline(&shapes.color_pipeline);
-        render_bind_descriptor_set(state->scene_ortho_set, 0);
-        draw_join_menu(&state->menu_list.join, state, &menu_input, app->window.dim);
-    } break;
+        case JOIN_MENU: {
+            render_bind_pipeline(&shapes.color_pipeline);
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
+            draw_join_menu(&state->menu_list.join, state, &menu_input, app->window.dim);
+        } break;
 
-    case PAUSE_MENU:
-    case IN_GAME: {
-        render_bind_pipeline(&color_pipeline);
-        render_bind_descriptor_set(state->scene_set, 0);
+        case PAUSE_MENU:
+        case IN_GAME: {
+            render_bind_pipeline(&color_pipeline);
+            render_bind_descriptor_set(state->scene_set, 0);
 
-        draw_game(&state->assets, basic_3D, &state->game);
+            draw_game(&state->assets, basic_3D, &state->game);
 
-        //draw_ray(&state->mouse_ray);
+            //draw_ray(&state->mouse_ray);
 
-        render_bind_descriptor_set(state->scene_ortho_set, 0);
+            render_bind_descriptor_set(state->scene_ortho_set, 0);
 
-        float32 pixel_height = app->window.dim.x / 20.0f;
-        Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
-        draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - 5, 5 }, pixel_height, { 255, 255, 255, 1 });
+            float32 pixel_height = app->window.dim.x / 20.0f;
+            Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
+            draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - 5, 5 }, pixel_height, { 255, 255, 255, 1 });
 
-        draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, pixel_height, { 255, 255, 255, 1 });
+            draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, pixel_height, { 255, 255, 255, 1 });
 
-        if (state->menu_list.mode == PAUSE_MENU) {
-            draw_pause_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
-        } else if (state->game.round_type == HOLE_OVER) {
-            draw_hole_over_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
-        } 
-    } break;
+            if (state->menu_list.mode == PAUSE_MENU) {
+                draw_pause_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
+            } else if (state->game.round_type == HOLE_OVER) {
+                draw_hole_over_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
+            } 
+        } break;
     }
 
     draw_onscreen_notifications(&state->notifications, app->window.dim, app->time.frame_time_s);

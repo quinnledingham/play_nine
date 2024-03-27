@@ -191,3 +191,5 @@ struct State {
 global Font *default_font;
 global const Vector4 play_nine_green  = {  39,  77,  20, 1 };
 global const Vector4 play_nine_yellow = { 231, 213,  36, 1 };
+global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
+global const Vector4 play_nine_dark_yellow = { 197, 180, 22, 1 };

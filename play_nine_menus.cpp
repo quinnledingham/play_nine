@@ -2,8 +2,6 @@ internal void
 menu_set_input(Menu *menu, Menu_Input *input) {
     input->hot = menu->hot_section;
     input->hot_ptr = &menu->hot_section;
-    input->active = menu->active_section;
-    input->active_ptr = &menu->active_section;
 }
 
 // returns game mode

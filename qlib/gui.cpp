@@ -1,12 +1,7 @@
 internal void
 draw_button(const Draw_Button button) {
-    Vector4 back_color = button.default_back_color;
-    Vector4 text_color = button.default_text_color;
-    
-    if (button.hot) {
-        back_color = button.active_back_color;
-        text_color = button.active_text_color;
-    }
+    Vector4 back_color = button.style.E[button.state][0];
+    Vector4 text_color = button.style.E[button.state][1];
 
     float32 pixel_height = button.dim.y;
     if (button.dim.x < button.dim.y) 
@@ -29,18 +24,8 @@ draw_textbox(const Draw_Textbox textbox) {
         pixel_height = textbox.dim.x;
     pixel_height *= 0.8f;
 
-    Vector4 back_color = textbox.style.default_back;
-    Vector4 text_color = textbox.style.default_text;
-
-    if (textbox.hot) {
-        back_color = textbox.style.hot_back;
-        text_color = textbox.style.hot_text;
-    } 
-
-    if (textbox.active) {
-        back_color = textbox.style.active_back;
-        text_color = textbox.style.active_text;
-    }
+    Vector4 back_color = textbox.style.E[textbox.state][0];
+    Vector4 text_color = textbox.style.E[textbox.state][1];
 
     Vector2 text_dim = get_string_dim(textbox.font, textbox.text, pixel_height, text_color);
     Vector2 text_coords = {};
@@ -53,7 +38,7 @@ draw_textbox(const Draw_Textbox textbox) {
     cursor_coords.y = textbox.coords.y;
 
     draw_rect(textbox.coords, 0, textbox.dim, back_color);
-    if (textbox.active) // clicked on
+    if (textbox.state == GUI_ACTIVE) // clicked on
         draw_rect(cursor_coords, 0.0f, { textbox.cursor_width, textbox.dim.y }, textbox.cursor_color); // cursor
     draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
 }
@@ -129,6 +114,52 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
     draw_string(menu->font, text, text_coords, pixel_height, color);
 }
 
+internal u32
+menu_get_state(Menu *menu, Menu_Input input, 
+               Vector2 coords, Vector2 dim,
+               Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    u32 state = GUI_DEFAULT;
+
+    if (input.active_input_type == KEYBOARD_INPUT && menu_in_dim(section_coords, section_dim, input.hot)) {
+        menu_update_hot(input, section_coords, section_dim, menu->interact_region);
+        state = GUI_HOVER;
+        if (input.pressed)
+            menu->pressed_section = menu->hot_section;
+    }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
+        state = GUI_HOVER;
+        menu->hot_section = section_coords;
+        if (input.pressed)
+            menu->pressed_section = menu->hot_section;
+    }
+
+    if (menu_in_dim(section_coords, section_dim, menu->pressed_section)) {
+        state = GUI_PRESSED;
+
+        if (input.active_input_type == MOUSE_INPUT && !coords_in_rect(input.mouse, coords, dim)) {
+            menu->pressed_section = { -1, -1 };
+            //menu->active_section = { -1, -1 };
+        }
+
+        if (menu->pressed_section != menu->hot_section)
+            menu->pressed_section = { -1, -1 };
+
+        if (input.select) {
+            menu->active_section = menu->pressed_section;
+            //menu->pressed_section = { -1, -1 };
+        }
+    }
+
+    if (menu_in_dim(section_coords, section_dim, menu->active_section)) {
+        state = GUI_ACTIVE;
+            
+        if (input.active_input_type == MOUSE_INPUT && input.select && menu->active_section != menu->pressed_section) {
+            menu->active_section = { -1, -1 };
+        }
+    } 
+
+    return state;
+}
+
 internal bool8
 menu_button(Menu *menu, const char *text, Menu_Input input, 
             Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
@@ -144,13 +175,8 @@ menu_button(Menu *menu, const char *text, Menu_Input input,
     };
     
     Draw_Button button = {
-        menu->style.default_back,
-        menu->style.default_text,
-
-        menu->style.hot_back,
-        menu->style.hot_text,
-
-        false,
+        menu->style,
+        GUI_DEFAULT,
 
         coords,
         dim,
@@ -158,28 +184,17 @@ menu_button(Menu *menu, const char *text, Menu_Input input,
         menu->font,
         text
     };
-    
-    
-    if (input.active_input_type == KEYBOARD_INPUT && menu_in_dim(section_coords, section_dim, input.hot)) {
-        menu_update_hot(input, section_coords, section_dim, menu->interact_region);
-        button.hot = true;
-        if (input.select)
-            menu->active_section = menu->hot_section;
-    }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
-        button.hot = true;
-        if (input.select)
-            menu->active_section = section_coords;
-    }
 
-    bool8 button_pressed = false;
-    if (menu_in_dim(section_coords, section_dim, input.active)) {
-        //button.active = true;
-        button_pressed = true;
-        menu->active_section = { -1, -1 };
-    } 
-
+    button.state = menu_get_state(menu, input, coords, dim, section_coords, section_dim);
     draw_button(button);
     
+    bool8 button_pressed = false;
+    if (button.state == GUI_ACTIVE) {
+        menu->active_section = { -1, -1 };
+        menu->pressed_section = { -1, -1 };
+        button_pressed = true;
+    }
+
     return button_pressed;
 }
 
@@ -250,6 +265,7 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
 
     Draw_Textbox box = {
         menu->style,
+        GUI_DEFAULT,
 
         { 255, 255, 255, 1 },
         menu->edit.cursor_position,
@@ -259,34 +275,22 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
         coords,
         dim,
 
-        false,
-        false,
-
         menu->font,
         dest
     };
 
-    if (input.active_input_type == KEYBOARD_INPUT && menu_in_dim(section_coords, section_dim, input.hot)) {
-        menu_update_hot(input, section_coords, section_dim, menu->interact_region);
-        box.hot = true;
+    box.state = menu_get_state(menu, input, coords, dim, section_coords, section_dim);
+
+    bool8 new_text = false;
+
+    if (box.state == GUI_ACTIVE) {
         if (input.select) {
-            menu->active_section = menu->hot_section;
             menu->edit.cursor_position = get_length(dest);
             platform_memory_set(menu->edit.text, 0, TEXTBOX_SIZE);
             platform_memory_copy(menu->edit.text, (void*)dest, menu->edit.cursor_position);
         }
-    }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
-        box.hot = true;
-        if (input.select) {
-            menu->active_section = section_coords;
-        }
-    }
 
-    bool8 new_text = false;
-
-    if (menu_in_dim(section_coords, section_dim, input.active)) {
         app_input_buffer = true;
-        box.active = true;
         box.text = menu->edit.text;
 
         s32 ch = 0;
@@ -295,23 +299,25 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
             ch = input.buffer[i++];
             switch(ch) {
                 case 27: // Esc: Close textbox
-                    box.active = false;
+                    box.state = GUI_DEFAULT;
                     menu->active_section = { -1, -1 };
+                    menu->pressed_section = { -1, -1 };
                 break;
             
                 default: {
                     if (update_textbox(menu->edit.text, TEXTBOX_SIZE - 1, &menu->edit.cursor_position, ch)) {
                         platform_memory_set((void*)dest, 0, TEXTBOX_SIZE);
                         platform_memory_copy((void*)dest, menu->edit.text, menu->edit.cursor_position);
-                        box.active = false;
+                        box.state = GUI_DEFAULT;
                         menu->active_section = { -1, -1 };
+                        menu->pressed_section = { -1, -1 };
                         new_text = true;
                     }
                 } break;
             }
         }
-    } 
-
+    }
+    
     draw_textbox(box);
 
     return new_text;

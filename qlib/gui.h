@@ -5,25 +5,39 @@
 // between calls (coords).
 //
 
-struct Draw_Style {
-    Vector4 default_back;
-    Vector4 default_text;
-
-    Vector4 hot_back; // hover
-    Vector4 hot_text;
-
-    Vector4 active_back; // pressed
-    Vector4 active_text;
+enum GUI_States {
+    GUI_DEFAULT,
+    GUI_HOVER,
+    GUI_PRESSED,
+    GUI_ACTIVE
 };
 
+struct Draw_Style {
+    union {
+        struct {
+            Vector4 default_back;
+            Vector4 default_text;
+    
+            Vector4 hover_back;
+            Vector4 hover_text;
+
+            Vector4 pressed_back;
+            Vector4 pressed_text;
+
+            Vector4 active_back; 
+            Vector4 active_text;
+        };
+        Vector4 E[4][2];
+    };
+};
+
+// hover
+// pressed
+// active
+
 struct Draw_Button {
-    Vector4 default_back_color;
-    Vector4 default_text_color;
-
-    Vector4 active_back_color;
-    Vector4 active_text_color;
-
-    bool8 hot;
+    Draw_Style style;
+    u32 state;
 
     Vector2 coords;
     Vector2 dim;
@@ -34,6 +48,7 @@ struct Draw_Button {
 
 struct Draw_Textbox {
     Draw_Style style;
+    u32 state;
 
     Vector4 cursor_color;
     u32 cursor_position;
@@ -42,9 +57,6 @@ struct Draw_Textbox {
 
     Vector2 coords;
     Vector2 dim;
-
-    bool8 hot;
-    bool8 active;
 
     Font *font;
     const char *text;
@@ -86,9 +98,6 @@ struct Menu_Input {
     // always check where the mouse is.
     Vector2_s32 hot;      // what was hot after last round
     Vector2_s32 *hot_ptr; // change this to new hot if needed
-
-    Vector2_s32 active;
-    Vector2_s32 *active_ptr;
 
     // Mouse
     Vector2_s32 mouse;
