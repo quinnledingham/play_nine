@@ -86,10 +86,11 @@ play_nine_server_com(void *parameters) {
                 win32_send(player->sock, (const char *)&return_packet, sizeof(return_packet), 0);
             } break;
 
-            case SET_GAME: {
-                win32_wait_mutex(state->mutex);
-                state->game = *(Game *)packet->buffer;
-                win32_release_mutex(state->mutex);
+            case SET_SELECTED: {
+                win32_wait_mutex(state->selected_mutex);
+                if (state->game.active_player == packet->game_index)
+                    platform_memory_copy(state->selected, packet->selected, sizeof(packet->selected[0]) * SELECTED_SIZE);
+                win32_release_mutex(state->selected_mutex);
             } break;
 
             case CLOSE_CONNECTION: {
@@ -199,10 +200,11 @@ client_get_game(QSock_Socket sock, State *state) {
 }
 
 internal void
-client_set_game(QSock_Socket sock, Game *game) {
+client_set_selected(QSock_Socket sock, bool8 selected[SELECTED_SIZE], u32 index) {
     Play_Nine_Packet packet = {};
-    packet.type = SET_GAME;
-    platform_memory_copy(packet.buffer, game, sizeof(Game));
+    packet.type = SET_SELECTED;
+    packet.game_index = index;
+    platform_memory_copy(packet.selected, selected, sizeof(selected[0]) * SELECTED_SIZE);
     win32_send(sock, (const char *)&packet, sizeof(packet), 0);
 }
 

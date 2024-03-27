@@ -9,10 +9,10 @@ struct Draw_Style {
     Vector4 default_back;
     Vector4 default_text;
 
-    Vector4 hot_back;
+    Vector4 hot_back; // hover
     Vector4 hot_text;
 
-    Vector4 active_back;
+    Vector4 active_back; // pressed
     Vector4 active_text;
 };
 
@@ -73,6 +73,7 @@ struct Menu_Button_Style {
 struct Menu_Input {
     // Both
     bool8 select;
+    bool8 pressed;
     enum Input_Type active_input_type;
 
     // Keyboard
@@ -110,6 +111,7 @@ struct Menu {
     Vector2_s32 interact_region[2]; // sections that can be included
 
     Vector2_s32 hot_section; // section that is hot
+    Vector2_s32 pressed_section;
     Vector2_s32 active_section;
 
     Vector2_s32 scroll; // sections that are visible in the scroll

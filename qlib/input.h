@@ -30,3 +30,11 @@ on_down(Button button) {
         return true;
     return false;
 }
+
+inline bool8
+on_up(Button button) {
+    if (!button.current_state && button.previous_state) 
+        return true;
+    else
+        return false;
+}

@@ -8,6 +8,7 @@ TODO
 - Online
 
 - Fix using textbox with cursor
+- Click with cursor on up
 
 */
 
@@ -172,6 +173,9 @@ struct State {
     bool8 is_client;
     QSock_Socket client;
     u32 client_game_index;
+
+    bool8 selected[SELECTED_SIZE];
+    s64 selected_mutex;
 
     // Drawing
     Scene scene;

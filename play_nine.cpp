@@ -639,6 +639,7 @@ flip_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
             // check if player turn over
             if (get_number_flipped(active_player->flipped) == 2) {
                 next_player(game, draw);
+                return;
             }
         }
     }
@@ -744,24 +745,31 @@ mouse_ray_model_intersections(bool8 *selected, Ray mouse_ray, Game *game, Model 
     }
 
     selected[PICKUP_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->pile[game->top_of_pile]]);
-
-    if (game->top_of_discard_pile != 0)
-        selected[DISCARD_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->discard_pile[game->top_of_discard_pile - 1]]);
+    selected[DISCARD_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->discard_pile[game->top_of_discard_pile - 1]]);
 }
 
 internal void
 update_card_with_buttons(bool8 selected[SELECTED_SIZE], Game *game, Controller *controller) {
-    if (on_down(controller->nine)) {
-        selected[PICKUP_PILE] = true;
-    } else if (on_down(controller->zero) && game->top_of_discard_pile != 0) {
-        selected[DISCARD_PILE] = true;
-    }
-
     for (u32 i = 0; i < HAND_SIZE; i++) {
-        if (on_down(controller->buttons[i])) {
+        if (on_up(controller->buttons[i])) {
             selected[i] = true;
         }
     }    
+
+    if (on_up(controller->nine)) {
+        selected[PICKUP_PILE] = true;
+    } else if (on_up(controller->zero)) {
+        selected[DISCARD_PILE] = true;
+    }
+}
+
+internal bool8
+all_false(bool8 selected[SELECTED_SIZE]) {
+    for (u32 i = 0; i < SELECTED_SIZE; i++) {
+        if (selected[i])
+            return false;
+    }
+    return true;
 }
 
 bool8 update_game(State *state, App *app) {
@@ -825,7 +833,7 @@ bool8 update_game(State *state, App *app) {
 
             bool8 selected[SELECTED_SIZE] = {};
             if (state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) {
-                if (on_down(state->controller.mouse_left)) {
+                if (on_up(state->controller.mouse_left)) {
                     set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
                      
                     Model *card_model = find_model(&state->assets, "CARD");
@@ -833,6 +841,17 @@ bool8 update_game(State *state, App *app) {
                 }
 
                 update_card_with_buttons(selected, game, &state->controller);
+
+                if (state->is_client && !all_false(selected)) {
+                    client_set_selected(state->client, selected, state->client_game_index);
+                }
+            } else if (state->is_server) {
+                win32_wait_mutex(state->selected_mutex);
+                if (!all_false(state->selected)) {
+                    platform_memory_copy(selected, state->selected, sizeof(selected[0]) * SELECTED_SIZE);
+                    platform_memory_set(state->selected, 0, sizeof(selected[0]) * SELECTED_SIZE);
+                }
+                win32_release_mutex(state->selected_mutex);
             }
 
             // game logic
@@ -841,7 +860,6 @@ bool8 update_game(State *state, App *app) {
                 case FINAL_ROUND:
                 case REGULAR_ROUND: regular_round_update(game, &state->game_draw, selected); break;
             }
-
         } break;
     }
 
@@ -877,13 +895,13 @@ bool8 init_data(App *app) {
 	Bitmap *yogi = find_bitmap(&game->assets, "YOGI");
     render_create_texture(yogi, TEXTURE_PARAMETERS_DEFAULT);
 
-	Bitmap *david = find_bitmap(&game->assets, "DAVID");
-    render_create_texture(david, TEXTURE_PARAMETERS_DEFAULT);
+	//Bitmap *david = find_bitmap(&game->assets, "DAVID");
+    //render_create_texture(david, TEXTURE_PARAMETERS_DEFAULT);
 	
 	Font *font = find_font(&game->assets, "CASLON");
     init_font(font);
 
-	render_init_model(find_model(&game->assets, "TAILS"));
+	//render_init_model(find_model(&game->assets, "TAILS"));
     render_init_model(find_model(&game->assets, "CARD"));
     render_init_model(find_model(&game->assets, "TABLE"));
 
@@ -971,6 +989,7 @@ bool8 init_data(App *app) {
     // Online
     game->mutex = win32_create_mutex();
     online.mutex = win32_create_mutex();
+    game->selected_mutex = win32_create_mutex();
 
     platform_memory_copy(game->name, "Jeff", 5);
     platform_memory_copy(game->ip, "127.0.0.1", 10);
@@ -999,7 +1018,7 @@ bool8 update(App *app) {
 	State *state = (State *)app->data;
 	Assets *assets = &state->assets;
 
-    bool8 select = on_down(state->controller.select) || on_down(state->controller.mouse_left);
+    bool8 select = on_up(state->controller.select) || on_up(state->controller.mouse_left);
     Menu_Input menu_input = {
         select,
         app->input.active,
@@ -1036,8 +1055,8 @@ bool8 update(App *app) {
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);
 
-        if (state->is_client)
-            client_set_game(state->client, &state->game);
+        //if (state->is_client)
+            //client_set_game(state->client, &state->game);
     } else if (state->menu_list.mode == PAUSE_MENU) {
         if (on_down(state->controller.pause)) {
             state->menu_list.mode = IN_GAME;

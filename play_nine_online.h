@@ -28,6 +28,7 @@ enum Packet_Types {
     SET_NAME,
     GET_GAME,
     SET_GAME,
+    SET_SELECTED,
 
     CLOSE_CONNECTION
 };
