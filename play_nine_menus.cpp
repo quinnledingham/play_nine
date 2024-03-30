@@ -12,14 +12,14 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
     window_rect.dim    = cv2(window_dim);
-    menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
+    menu->rect = get_centered_rect(window_rect, 0.6f, 0.6f);
 
     if (!menu->initialized) {
         menu->initialized = true;
     
         u32 buttons_count = 3;    
-        menu->sections = { 1, 6 };
-        menu->interact_region[0] = { 0, 1 };
+        menu->sections = { 1, 7 };
+        menu->interact_region[0] = { 0, 2 };
         menu->interact_region[1] = menu->sections;
         menu->hot_section = menu->interact_region[0];
     }
@@ -30,24 +30,24 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
-    menu_text(menu, "play_nine", { 231, 213, 36,  1 }, { 0, 0 }, { 1, 1 }); 
+    menu_text(menu, "play_nine", { 231, 213, 36,  1 }, { 0, 0 }, { 1, 2 }); 
 
-    if (menu_button(menu, "Local3", *input, { 0, 1 }, { 1, 1 })) {
+    if (menu_button(menu, "Local", *input, { 0, 2 }, { 1, 1 })) {
         state->menu_list.mode = LOCAL_MENU;
         state->game.num_of_players = 1;
         default_player_name_string(state->game.players[0].name, 0);
     }
-    if (menu_button(menu, "Test", *input, { 0, 2 }, { 1, 1 })) {
+    if (menu_button(menu, "Test", *input, { 0, 3 }, { 1, 1 })) {
         state->game = get_test_game();
         state->menu_list.mode = SCOREBOARD_MENU;    
     }
-    if (menu_button(menu, "Host Online", *input, { 0, 3 }, { 1, 1 })) {
+    if (menu_button(menu, "Host Online", *input, { 0, 4 }, { 1, 1 })) {
         state->menu_list.mode = HOST_MENU;
     }
-    if (menu_button(menu, "Join Online", *input, { 0, 4 }, { 1, 1 })) {
+    if (menu_button(menu, "Join Online", *input, { 0, 5 }, { 1, 1 })) {
         state->menu_list.mode = JOIN_MENU;
     }
-    if (menu_button(menu, "Quit", *input, { 0, 5 }, { 1, 1 })) 
+    if (menu_button(menu, "Quit", *input, { 0, 6 }, { 1, 1 })) 
         return true;
 
     return false;
@@ -114,6 +114,8 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 start_game(&state->game, game->num_of_players);
+            } else {
+                add_onscreen_notification(&state->notifications, "Not enough players");
             }
         }
     } else {

@@ -26,6 +26,7 @@ struct Shapes {
     Mesh rect_mesh;
     Mesh rect_3D_mesh;
     Mesh sphere_mesh;
+    Mesh cube_mesh;
 
     Shader *color_shader;
     Shader *texture_shader;
@@ -44,6 +45,19 @@ void draw_shape(Shape shape);
 //
 // Rect
 //
+
+
+internal void
+init_rect_indices(u32 *indices, 
+                  u32 top_left, u32 top_right,
+                  u32 bottom_left, u32 bottom_right) {
+    indices[0] = top_left;
+    indices[1] = bottom_right;
+    indices[2] = bottom_left;
+    indices[3] = top_left;
+    indices[4] = top_right;
+    indices[5] = bottom_right;
+}
 
 internal Mesh
 get_rect_mesh() {
@@ -232,6 +246,94 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 }
 
 //
+// Cube
+//
+
+Mesh get_cube_mesh(bool32 out) {
+    Mesh mesh = {};
+    
+    mesh.vertices_count = 8;
+    mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+    Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
+    
+    // back
+    vertices[0] = { {-0.5, -0.5, -0.5}, {0, 0, 1}, {0, 0} }; // bottom left
+    vertices[1] = { {-0.5,  0.5, -0.5}, {0, 0, 1}, {0, 1} }; // top left
+    vertices[2] = { { 0.5, -0.5, -0.5}, {0, 0, 1}, {1, 0} }; // bottom right
+    vertices[3] = { { 0.5,  0.5, -0.5}, {0, 0, 1}, {1, 1} }; // top right
+    
+    // forward
+    vertices[4] = { {-0.5, -0.5, 0.5}, {0, 0, 1}, {0, 0} }; // bottom left
+    vertices[5] = { {-0.5,  0.5, 0.5}, {0, 0, 1}, {0, 1} }; // top left
+    vertices[6] = { { 0.5, -0.5, 0.5}, {0, 0, 1}, {1, 0} }; // bottom right
+    vertices[7] = { { 0.5,  0.5, 0.5}, {0, 0, 1}, {1, 1} }; // top right
+    /*
+    // back
+    mesh.vertices[0] = { {-1.0, -1.0, -1.0}, {0, 0, 1}, {0, 0} }; // bottom left
+    mesh.vertices[1] = { {-1.0,  1.0, -1.0}, {0, 0, 1}, {0, 1} }; // top left
+    mesh.vertices[2] = { { 1.0, -1.0, -1.0}, {0, 0, 1}, {1, 0} }; // bottom right
+    mesh.vertices[3] = { { 1.0,  1.0, -1.0}, {0, 0, 1}, {1, 1} }; // top right
+    
+    // forward
+    mesh.vertices[4] = { {-1.0, -1.0, 1.0}, {0, 0, 1}, {0, 0} }; // bottom left
+    mesh.vertices[5] = { {-1.0,  1.0, 1.0}, {0, 0, 1}, {0, 1} }; // top left
+    mesh.vertices[6] = { { 1.0, -1.0, 1.0}, {0, 0, 1}, {1, 0} }; // bottom right
+    mesh.vertices[7] = { { 1.0,  1.0, 1.0}, {0, 0, 1}, {1, 1} }; // top right
+    */
+    mesh.indices_count = 6 * 6; // 6 indices per side (rects), 6 sides
+    mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+    
+    if (out)
+    {
+        init_rect_indices(mesh.indices + 0,  3, 1, 2, 0); // back
+        init_rect_indices(mesh.indices + 6,  5, 7, 4, 6); // front
+        init_rect_indices(mesh.indices + 12, 1, 3, 5, 7); // top
+        init_rect_indices(mesh.indices + 18, 4, 6, 0, 2); // bottom
+        init_rect_indices(mesh.indices + 24, 1, 5, 0, 4); // left
+        init_rect_indices(mesh.indices + 30, 7, 3, 6, 2); // right
+    }
+    else
+    {
+        init_rect_indices(mesh.indices + 0,  1, 3, 0, 2); // back
+        init_rect_indices(mesh.indices + 6,  7, 5, 6, 4); // front
+        init_rect_indices(mesh.indices + 12, 5, 7, 1, 3); // top
+        init_rect_indices(mesh.indices + 18, 0, 2, 4, 6); // bottom
+        init_rect_indices(mesh.indices + 24, 5, 1, 4, 0); // left
+        init_rect_indices(mesh.indices + 30, 3, 7, 2, 6); // right
+    }
+
+    render_init_mesh(&mesh);
+    
+    return mesh;
+}
+Mesh get_cube_mesh() { return get_cube_mesh(true); }
+
+void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
+/*
+    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
+    
+    Shape shape = {};
+    shape.type = SHAPE_SPHERE;
+    shape.coords = coords;
+    shape.rotation = rotation_quat;
+    shape.dim = dim;
+    shape.draw_type = Shape_Draw_Type::COLOR;
+    shape.color = color;
+    draw_shape(shape);
+*/
+    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
+    render_bind_pipeline(&color_pipeline);
+    Descriptor_Set *object_set = render_get_descriptor_set(color_pipeline.shader, 1);
+    render_bind_descriptor_set(object_set, 1);  
+    render_update_ubo(object_set, 0, (void*)&color, false);
+
+    Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
+    render_push_constants(&color_pipeline.shader->layout_sets[2], (void *)&model);  
+    render_draw_mesh(&shapes.cube_mesh);    
+}
+
+
+//
 // Shapes
 //
 
@@ -239,6 +341,7 @@ void init_shapes(Assets *assets) {
 	shapes.rect_mesh = get_rect_mesh_2D();
     shapes.rect_3D_mesh = get_rect_mesh();
     shapes.sphere_mesh = get_sphere_mesh(0.025f, 10, 10);
+    shapes.cube_mesh = get_cube_mesh(false);
 
     //shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
     //shapes.text_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/text.frag";

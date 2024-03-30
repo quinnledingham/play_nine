@@ -302,14 +302,17 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
 
     box.state = menu_get_state(menu, input, coords, dim, section_coords, section_dim);
 
+    local_persist u32 last_state = GUI_DEFAULT;
+
     bool8 new_text = false;
 
     if (box.state == GUI_ACTIVE) {
-        if (input.select) {
+        if (input.select && menu->edit.section != menu->active_section) {
             box.text_shift = 0.0f;
             menu->edit.cursor_position = get_length(dest);
             platform_memory_set(menu->edit.text, 0, TEXTBOX_SIZE);
             platform_memory_copy(menu->edit.text, (void*)dest, menu->edit.cursor_position);
+            menu->edit.section = menu->active_section;
         }
 
         app_input_buffer = true;
@@ -333,16 +336,17 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
                         box.state = GUI_DEFAULT;
                         menu->active_section = { -1, -1 };
                         menu->pressed_section = { -1, -1 };
+                        menu->edit.section = { -1, -1 };
                         new_text = true;
                     }
                 } break;
             }
-        }
-
-        
+        } 
     }
     
     menu->edit.shift = draw_textbox(box);
+
+    last_state = box.state;
 
     return new_text;
 }

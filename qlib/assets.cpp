@@ -373,7 +373,7 @@ internal void
 clear_font_bitmap_cache(Font *font) {
     stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
     for (s32 i = 0; i < font->bitmaps_cached; i++) {
-        //stbtt_FreeBitmap(font->bitmaps[i].bitmap.memory, info->userdata);
+        stbtt_FreeBitmap(font->bitmaps[i].bitmap.memory, info->userdata);
         font->bitmaps[i].bitmap.memory = 0;
         render_delete_texture(&font->bitmaps[i].bitmap);
     }

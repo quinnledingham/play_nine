@@ -329,7 +329,7 @@ draw_card(Assets *assets, Shader *shader, Card card) {
 internal void
 draw_game(Assets *assets, Shader *shader, Game *game) {
     render_bind_pipeline(&basic_pipeline);
-    render_draw_model(find_model(assets, "TABLE"), basic_pipeline.shader, { 0, -1.05f, 0 }, get_rotation(0, { 0, 1, 0 }));
+    render_draw_model(find_model(assets, "TABLE"), basic_pipeline.shader, { 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }));
 
     for (u32 i = 0; i < game->num_of_players; i++) {
         for (u32 card_index = 0; card_index < 8; card_index++) {
@@ -560,7 +560,7 @@ update_scores(Game *game) {
         u32 *cards = player->cards;            
         s32 score = get_score(cards);
         print("Player %d: %d\n", i, score);
-        player->scores[game->holes_played] += score;
+        player->scores[game->holes_played] = score;
     }
 }
 
@@ -834,7 +834,7 @@ bool8 update_game(State *state, App *app) {
 
             state->camera.position =  Vector3{ x, 14.0f, y };
             state->camera.yaw      = deg + 180.0f;
-            state->camera.pitch    = -50.0f;
+            state->camera.pitch    = -52.0f;
 
             update_camera_target(&state->camera);    
             state->scene.view = get_view(state->camera);
@@ -998,6 +998,7 @@ bool8 init_data(App *app) {
     //default_menu.style.active_text = { 255, 255, 255, 1 };
 
     default_menu.active_section = { -1, -1 };
+    default_menu.edit.section = { -1, -1 };
 
     for (u32 i = 0; i < IN_GAME; i++) {
         game->menu_list.menus[i] = default_menu;
