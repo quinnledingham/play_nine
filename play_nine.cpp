@@ -745,7 +745,8 @@ mouse_ray_model_intersections(bool8 *selected, Ray mouse_ray, Game *game, Model 
     }
 
     selected[PICKUP_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->pile[game->top_of_pile]]);
-    selected[DISCARD_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->discard_pile[game->top_of_discard_pile - 1]]);
+    if (game->top_of_discard_pile != 0)
+        selected[DISCARD_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->discard_pile[game->top_of_discard_pile - 1]]);
 }
 
 internal void
@@ -775,8 +776,6 @@ all_false(bool8 selected[SELECTED_SIZE]) {
 bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
-
-    load_card_models(game, draw, (float32)app->time.frame_time_s);
 
     switch(state->camera_mode) {
         case FREE_CAMERA: {
@@ -872,6 +871,8 @@ bool8 update_game(State *state, App *app) {
             }
         } break;
     }
+
+    load_card_models(game, draw, (float32)app->time.frame_time_s);
 
     return 0;
 }

@@ -32,7 +32,7 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
 
     menu_text(menu, "play_nine", { 231, 213, 36,  1 }, { 0, 0 }, { 1, 1 }); 
 
-    if (menu_button(menu, "Local", *input, { 0, 1 }, { 1, 1 })) {
+    if (menu_button(menu, "Local3", *input, { 0, 1 }, { 1, 1 })) {
         state->menu_list.mode = LOCAL_MENU;
         state->game.num_of_players = 1;
         default_player_name_string(state->game.players[0].name, 0);
