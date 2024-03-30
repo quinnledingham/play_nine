@@ -1535,7 +1535,7 @@ vulkan_pipeline_cleanup(Render_Pipeline *pipe) {
 }
 
 internal void
-assets_cleanup(Assets *assets) {
+vulkan_assets_cleanup(Assets *assets) {
     for (u32 i = 0; i < assets->types[ASSET_TYPE_BITMAP].num_of_assets; i++) {
         Bitmap *bitmap = (Bitmap *)&assets->types[ASSET_TYPE_BITMAP].data[i].memory;
         vulkan_delete_texture(bitmap);

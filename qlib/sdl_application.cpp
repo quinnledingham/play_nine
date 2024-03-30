@@ -134,14 +134,14 @@ sdl_update_time(App_Time *time) {
     s64 ticks = SDL_GetPerformanceCounter();
 
     // s
-    time->frame_time_s = (float32)get_seconds_elapsed(time, time->last_frame_ticks, ticks);
+    time->frame_time_s = get_seconds_elapsed(time, time->last_frame_ticks, ticks);
     time->last_frame_ticks = ticks; // set last ticks for next frame
 
     // time->start has to be initialized before
-    time->run_time_s = (float32)get_seconds_elapsed(time, time->start_ticks, ticks);
+    time->run_time_s = get_seconds_elapsed(time, time->start_ticks, ticks);
 
     // fps
-    time->frames_per_s = (float32)(1.0 / time->frame_time_s);
+    time->frames_per_s = 1.0 / time->frame_time_s;
 }
 internal bool8
 sdl_process_input(App *app, App_Window *window, App_Input *input) {
@@ -185,8 +185,8 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
                 SDL_MouseMotionEvent *mouse_motion_event = &event.motion;
                 input->mouse.x = mouse_motion_event->x;
                 input->mouse.y = mouse_motion_event->y;
-                input->mouse_rel.x = mouse_motion_event->xrel;
-                input->mouse_rel.y = mouse_motion_event->yrel;
+                input->mouse_rel.x += mouse_motion_event->xrel;
+                input->mouse_rel.y += mouse_motion_event->yrel;
 
                 input->active = MOUSE_INPUT;
             } break;
@@ -295,6 +295,7 @@ int main(int argc, char *argv[]) {
         
     	sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
+        //print("%f\n", app.time.run_time_s);
 
         window_dim = app.window.dim;
 

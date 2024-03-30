@@ -1,4 +1,4 @@
-#ifndef TYPES_MATH_H
+ #ifndef TYPES_MATH_H
 #define TYPES_MATH_H
 
 //
@@ -30,7 +30,6 @@ inline Vector2 v2_add(const Vector2 l, const Vector2 r) {
     Vector2 result = { l.x + r.x, l.y + r.y };
     return result;
 }
-
 inline 
 Vector2 pow(const Vector2 &v, u32 exponent)
 {

@@ -776,25 +776,32 @@ bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
 
-    load_card_models(game, draw, app->time.frame_time_s);
+    load_card_models(game, draw, (float32)app->time.frame_time_s);
 
     switch(state->camera_mode) {
         case FREE_CAMERA: {
             if (on_down(state->controller.pause)) {
+                state->menu_list.mode = PAUSE_MENU;
+                app->input.relative_mouse_mode = false;
+            }
+    
+            if (on_down(state->controller.camera_toggle)) {
                 state->camera_mode = PLAYER_CAMERA;
                 app->input.relative_mouse_mode = false;
             }
 
             if (app->input.relative_mouse_mode) {
-                float32 mouse_m_per_s = 100.0f;
-                float32 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
-                update_camera_with_mouse(&state->camera, app->input.mouse_rel, { mouse_move_speed, mouse_move_speed });
+                float64 mouse_m_per_s = 50.0;
+                //float64 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
+                float64 mouse_move_speed = 0.1f;
+                //print("%d %d == %d %d\n", mouse.x, mouse.y, app->input.mouse_rel.x, app->input.mouse_rel.y);
+                update_camera_with_mouse(&state->camera, app->input.mouse_rel, mouse_move_speed, mouse_move_speed);
                 update_camera_target(&state->camera);    
                 state->scene.view = get_view(state->camera);
                 render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
                 float32 m_per_s = 6.0f; 
-                float32 m_moved = m_per_s * app->time.frame_time_s;
+                float32 m_moved = m_per_s * (float32)app->time.frame_time_s;
                 Vector3 move_vector = {m_moved, m_moved, m_moved};
                 update_camera_with_keys(&state->camera, state->camera.target, state->camera.up, move_vector,
                                         is_down(state->controller.forward),  is_down(state->controller.backward),
@@ -807,18 +814,21 @@ bool8 update_game(State *state, App *app) {
 
         case PLAYER_CAMERA: {
             if (on_down(state->controller.pause)) {
-                //state->camera_mode = FREE_CAMERA;
                 state->menu_list.mode = PAUSE_MENU;
-                //app->input.relative_mouse_mode = true;
             }
-                  
+            
+            if (on_down(state->controller.camera_toggle)) {
+                state->camera_mode = FREE_CAMERA;
+                app->input.relative_mouse_mode = true;
+            }
+                      
             if (on_down(state->controller.right)) {
                 next_player(game, &state->game_draw);
             }
 
             float32 cam_dis = 8.0f + draw->radius;
             float32 deg = -draw->degrees_between_players * game->active_player;
-            deg += process_rotation(&draw->camera_rotation, app->time.frame_time_s);
+            deg += process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
             float32 rad = deg * DEG2RAD;
             float32 x = cam_dis * cosf(rad);
             float32 y = cam_dis * sinf(rad);
@@ -934,6 +944,8 @@ bool8 init_data(App *app) {
 
     set(&game->controller.select, SDLK_RETURN);
 	set(&game->controller.pause,  SDLK_ESCAPE);
+
+    set(&game->controller.camera_toggle, SDLK_c);
 
     set(&game->controller.one,   SDLK_y);
     set(&game->controller.two,   SDLK_u);
@@ -1140,7 +1152,7 @@ bool8 update(App *app) {
         } break;
     }
 
-    draw_onscreen_notifications(&state->notifications, app->window.dim, app->time.frame_time_s);
+    draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
 
     render_end_frame();
 

@@ -25,6 +25,7 @@ typedef double float64;
 #define global        static
 
 #define DEG2RAD 0.0174533f
+#define DEG2RADD 0.0174533
 #define PI      3.14159265359f
 #define EPSILON 0.00001f
 

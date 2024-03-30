@@ -1,3 +1,11 @@
+internal void
+opengl_msaa(u32 samples, u32 width, u32 height) {
+    u32 msaa;
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msaa);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGB, width, height, GL_TRUE);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);  
+}
+
 void opengl_sdl_init(SDL_Window *sdl_window) {
 
     SDL_GL_LoadLibrary(NULL);
@@ -25,13 +33,13 @@ void opengl_sdl_init(SDL_Window *sdl_window) {
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
-    glPatchParameteri(GL_PATCH_VERTICES, 4); 
     //glEnable(GL_DEPTH_TEST);
     glEnable(GL_FRAMEBUFFER_SRGB); 
     glPointSize(4.0f);
+    glEnable(GL_MULTISAMPLE);  
 
-    //glEnable(GL_CULL_FACE);  
-    //glCullFace(GL_FRONT);
+    glEnable(GL_CULL_FACE);  
+    glCullFace(GL_BACK);
     glFrontFace(GL_CW);  
 
     //glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
@@ -120,6 +128,11 @@ void opengl_bind_pipeline(Render_Pipeline *pipeline) {
     glUseProgram(shader->handle);
     //return shader->handle;
     global_shader_handle = shader->handle;
+
+    if (pipeline->depth_test)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
 }
 
 void opengl_create_descriptor_sets(Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index) {

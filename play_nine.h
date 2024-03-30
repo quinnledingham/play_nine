@@ -7,7 +7,9 @@ TODO
 
 - Online
 
-- Add opengl support
+- Fix opengl support
+
+- Pack assets
 
 */
 

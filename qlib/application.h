@@ -20,10 +20,10 @@ struct App_Time {
 	s64 last_frame_ticks;
 	s64 performance_frequency;
 
-	float32 run_time_s;
-	float32 frame_time_s;
+	float64 run_time_s;
+	float64 frame_time_s;
 
-	float32 frames_per_s;
+	float64 frames_per_s;
 };
 
 inline float64

@@ -7,12 +7,21 @@ set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, 
         1.0f
     };
 
+#ifdef VULKAN
     Vector4 ray_clip = {
         ray_nds.x,
         ray_nds.y,
         -1.0f,
         1.0f,
     };
+#elif OPENGL
+    Vector4 ray_clip = {
+        ray_nds.x,
+        -ray_nds.y,
+        -1.0f,
+        1.0f,
+    };
+#endif
 
     Vector4 ray_eye = m4x4_mul_v4(inverse(projection), ray_clip);    
     Vector4 ray_world_v4 = m4x4_mul_v4(inverse(view), ray_eye);

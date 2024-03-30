@@ -5,9 +5,9 @@
 internal void
 update_camera_target(Camera *camera) {
     Vector3 camera_direction = {
-        cosf(DEG2RAD * camera->yaw) * cosf(DEG2RAD * camera->pitch),
-        sinf(DEG2RAD * camera->pitch),
-        sinf(DEG2RAD * camera->yaw) * cosf(DEG2RAD * camera->pitch)
+        cosf(DEG2RAD * (float32)camera->yaw) * cosf(DEG2RAD * (float32)camera->pitch),
+        sinf(DEG2RAD * (float32)camera->pitch),
+        sinf(DEG2RAD * (float32)camera->yaw) * cosf(DEG2RAD * (float32)camera->pitch)
     };
     camera->target = normalized(camera_direction);
 }
@@ -15,17 +15,19 @@ update_camera_target(Camera *camera) {
 // delta_mouse is a relative mouse movement amount
 // as opposed to the screen coords of the mouse
 internal void
-update_camera_with_mouse(Camera *camera, Vector2_s32 delta_mouse, Vector2 move_speed) {    
-    camera->yaw   -= (float32)delta_mouse.x * move_speed.x;
-    camera->pitch -= (float32)delta_mouse.y * move_speed.y;
+update_camera_with_mouse(Camera *camera, Vector2_s32 delta_mouse, float64 x_speed, float64 y_speed) {   
+    camera->yaw   -= (float64)delta_mouse.x * x_speed;
+    camera->pitch -= (float64)delta_mouse.y * y_speed;
     
+    //print("%f\n", camera->yaw);
+
     // doesnt break withou this - just so it does not keep getting higher and higher
-    float32 max_yaw = 360.0f;
+    float64 max_yaw = 360.0f;
     if (camera->yaw > max_yaw) camera->yaw = 0;
     if (camera->yaw < 0)       camera->yaw = max_yaw;
 
     // breaks with out this check
-    float32 max_pitch = 89.0f;
+    float64 max_pitch = 89.0f;
     if (camera->pitch >  max_pitch) camera->pitch =  max_pitch;
     if (camera->pitch < -max_pitch) camera->pitch = -max_pitch;
 }
