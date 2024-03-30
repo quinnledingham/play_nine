@@ -27,6 +27,35 @@ struct Render {
 };
 
 global Render render_info = {};
+Descriptor_Set *light_set;
+Descriptor_Set *light_set_2;
+
+struct Light {
+    Vector4 position;
+    Vector4 ambient;
+    Vector4 diffuse;
+    Vector4 specular;
+    Vector4 color;
+    bool enabled;
+};
+
+Light global_light = {
+    { 0.0f, 5.0f, 0.0f, 1.0f },
+    { 0.4f, 0.4f, 0.4f, 1.0f },
+    { 0.9f, 0.9f, 0.9f, 1.0f },
+    { 0.5f, 0.5f, 0.5f, 1.0f },
+    { 1.0f, 1.0f, 1.0f, 1.0f },
+    true,
+};
+
+Light global_light_2 = {
+    { 0.0f, 5.0f, 0.0f, 1.0f },
+    { 1.0f, 1.0f, 1.0f, 1.0f },
+    { 0.9f, 0.9f, 0.9f, 1.0f },
+    { 0.5f, 0.5f, 0.5f, 1.0f },
+    { 1.0f, 1.0f, 1.0f, 1.0f },
+    false
+};
 
 union Camera {
     struct {
@@ -107,3 +136,5 @@ RENDER_FUNC(void, compile_shader, Shader *shader);
 RENDER_FUNC(void, reset_descriptor_sets, Assets *assets);
 RENDER_FUNC(void, assets_cleanup, Assets *assets);
 RENDER_FUNC(void, wait_frame, );
+
+RENDER_FUNC(void, depth_test, bool32 enable);

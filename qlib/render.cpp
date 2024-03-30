@@ -69,44 +69,9 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
         render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
 
         if (model->meshes[i].material.diffuse_map.memory != 0) {
-            Descriptor_Set *object_set = render_get_descriptor_set(shader, 1);
-            render_set_bitmap(object_set, &model->meshes[i].material.diffuse_map, 1);
-            render_bind_descriptor_set(object_set, 1);
-        }
-
-        render_draw_mesh(&model->meshes[i]);
-    }
-}
-
-void render_draw_model(Model *model, Render_Pipeline *color, Render_Pipeline *tex,
-                       Vector3 position, Quaternion rotation,
-                       Bitmap *bitmap, Bitmap *back, Vector3 scale) {
-    for (u32 i = 0; i < model->meshes_count; i++) {
-        Shader *shader = 0;
-        if (i == 0) {
-            render_bind_pipeline(color);
-            shader = color->shader;
-        } else if (i == 1 || i == 2) {
-            render_bind_pipeline(tex);
-            shader = tex->shader;
-        }
-
-        Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, scale);
-        render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
-    
-        Descriptor_Set *object_set = render_get_descriptor_set(shader, 1);
-        if (i == 0) {
-           Vector4 color = { 150, 150, 150, 1 };
-            render_update_ubo(object_set, 0, (void*)&color, false);
-            render_bind_descriptor_set(object_set, 1);
-            //render_draw_mesh(&model->meshes[i]);
-        } else if (i == 1) {
-            render_set_bitmap(object_set, bitmap, 1);
-            render_bind_descriptor_set(object_set, 1);
-            //render_draw_mesh(&model->meshes[i]);
-        } else if (i == 2) {
-            render_set_bitmap(object_set, back, 1);
-            render_bind_descriptor_set(object_set, 1);
+            Descriptor_Set *object_set = render_get_descriptor_set(shader, 3);
+            render_set_bitmap(object_set, &model->meshes[i].material.diffuse_map, 2);
+            render_bind_descriptor_set(object_set, 2);
         }
 
         render_draw_mesh(&model->meshes[i]);
@@ -127,20 +92,39 @@ void render_draw_model(Model *model, Render_Pipeline *color, Render_Pipeline *te
 
         render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
     
-        Descriptor_Set *object_set = render_get_descriptor_set(shader, 1);
+        Descriptor_Set *object_set = render_get_descriptor_set(shader, 3);
         if (i == 0) {
-           Vector4 color = { 150, 150, 150, 1 };
+            Vector4 color = { 150, 150, 150, 1 };
             render_update_ubo(object_set, 0, (void*)&color, false);
-            render_bind_descriptor_set(object_set, 1);
+            render_bind_descriptor_set(object_set, 2);
+            render_bind_descriptor_set(light_set, 1);
             //render_draw_mesh(&model->meshes[i]);
         } else if (i == 1) {
-            render_set_bitmap(object_set, bitmap, 1);
-            render_bind_descriptor_set(object_set, 1);
+            render_set_bitmap(object_set, bitmap, 2);
+            render_bind_descriptor_set(object_set, 2);
             //render_draw_mesh(&model->meshes[i]);
         } else if (i == 2) {
-            render_set_bitmap(object_set, back, 1);
-            render_bind_descriptor_set(object_set, 1);
+            render_set_bitmap(object_set, back, 2);
+            render_bind_descriptor_set(object_set, 2);
         }
+
+        render_draw_mesh(&model->meshes[i]);
+    }
+}
+
+void render_draw_model(Model *model, Render_Pipeline *color_pipeline, Vector4 color, Matrix_4x4 model_matrix) {
+    for (u32 i = 0; i < model->meshes_count; i++) {
+        Shader *shader = 0;
+
+        render_bind_pipeline(color_pipeline);
+        shader = color_pipeline->shader;
+        render_bind_descriptor_set(light_set_2, 1);
+        
+        render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
+    
+        Descriptor_Set *object_set = render_get_descriptor_set(shader, 3);
+        render_update_ubo(object_set, 0, (void*)&color, false);
+        render_bind_descriptor_set(object_set, 2);
 
         render_draw_mesh(&model->meshes[i]);
     }

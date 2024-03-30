@@ -2,13 +2,15 @@
 TODO
 - Singleplayer (Bot)
 
-- Highlight card choices
 - Flip "animation"
+- Define light not in shader
 
-- Online
+- Fix online drawing (rotation)
 
 - Pack assets
 
+- Change who starts each hole
+- Add pass button
 */
 
 #define PICKUP_PILE 8
@@ -43,6 +45,12 @@ enum Turn_Stages {
     SELECT_PILE, // pick either pile or discard pile
     SELECT_CARD, // pick where to place new card - in hand or discard
     FLIP_CARD,   // flip card if discard new card
+};
+
+bool8 card_highlights[3][SELECTED_SIZE] = {
+    { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1 },
+    { 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 },
+    { 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 },
 };
 
 /*

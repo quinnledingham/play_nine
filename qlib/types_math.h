@@ -461,6 +461,17 @@ create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale) {
     };
 }
 
+inline Matrix_4x4
+m4x4_scale(Matrix_4x4 m, Vector3 scale) {
+    for (u32 i = 0; i < 3; i++) {
+        m.E[i][0] *= scale.E[i];
+        m.E[i][1] *= scale.E[i];
+        m.E[i][2] *= scale.E[i];
+    }
+
+    return m;
+}
+
 Vector4 m4x4_get_row(Matrix_4x4 m, u32 i) {
     Vector4 row;
     row.E[0] = m.E[0][i];

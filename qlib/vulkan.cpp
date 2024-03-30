@@ -92,7 +92,7 @@ vulkan_create_instance(Vulkan_Info *vulkan_info, const char **instance_extension
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "No Engine";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_API_VERSION_1_0;
+    app_info.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo create_info = {};
 	create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -756,7 +756,6 @@ vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
 
 Descriptor_Set*
 vulkan_get_descriptor_set(Shader *shader, bool8 layout_index) {
-
 	u32 next_set = shader->vulkan_infos[layout_index].sets_count++;
 
 	if (next_set > shader->vulkan_infos[layout_index].max_sets) {
@@ -1039,7 +1038,8 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 
 	VkDynamicState dynamic_states[] = { 
 		VK_DYNAMIC_STATE_VIEWPORT, 
-		VK_DYNAMIC_STATE_SCISSOR 
+		VK_DYNAMIC_STATE_SCISSOR,
+		VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE
 	};
 	VkPipelineDynamicStateCreateInfo dynamic_state = {};
 	dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -1681,12 +1681,18 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 	if (SDL_Vulkan_GetInstanceExtensions(sdl_window, &instance_extensions_count, NULL) == SDL_FALSE) {
 		logprint("main", "nullptr SDL_Vulkan_GetInstanceExtensions failed\n");
 	}
-	const char **instance_extensions = ARRAY_MALLOC(const char *, instance_extensions_count + 1);
+
+	const char *extra_instance_extensions[] {
+		VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+	};
+
+	const char **instance_extensions = ARRAY_MALLOC(const char *, instance_extensions_count + ARRAY_COUNT(extra_instance_extensions));
 	if (SDL_Vulkan_GetInstanceExtensions(sdl_window, &instance_extensions_count, instance_extensions) == SDL_FALSE) {
 		logprint("main", "failed to get instance extensions\n");
 	}
-	instance_extensions[instance_extensions_count] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-	vulkan_create_instance(info, instance_extensions, instance_extensions_count + 1);
+	instance_extensions[instance_extensions_count] = extra_instance_extensions[0];
+	//instance_extensions[instance_extensions_count + 1] = extra_instance_extensions[1];
+	vulkan_create_instance(info, instance_extensions, instance_extensions_count + ARRAY_COUNT(extra_instance_extensions));
 	platform_free(instance_extensions);
 
 	vulkan_setup_debug_messenger(info);
@@ -1764,6 +1770,8 @@ void vulkan_set_scissor(s32 x, s32 y, u32 width, u32 height) {
 void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
 	vkCmdBindPipeline(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
+
+    //vkCmdSetDepthTestEnable(vulkan_active_cmd_buffer(&vulkan_info), vulkan_bool(pipeline->depth_test));
 }
 
 void vulkan_reset_descriptor_sets(Assets *assets) {
@@ -1875,5 +1883,7 @@ void vulkan_push_constants(Descriptor_Set *push_constants, void *data) {
 	vkCmdPushConstants(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.pipeline_layout, vulkan_convert_shader_stage(push_constant->stages[0]), 0, push_constant->size, data);
 }
 
-
+void vulkan_depth_test(bool32 enable) {
+	vkCmdSetDepthTestEnable(vulkan_active_cmd_buffer(&vulkan_info), vulkan_bool(enable));
+}
 

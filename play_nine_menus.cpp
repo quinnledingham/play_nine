@@ -205,9 +205,11 @@ draw_hole_over_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 win
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
 
-    if (menu_button(menu, "Proceed", *input, { 0, 0 }, { 1, 1 })) {
-        state->menu_list.mode = SCOREBOARD_MENU;
-        state->menu_list.scoreboard.initialized = false;
+    if (!state->is_client) {
+        if (menu_button(menu, "Proceed", *input, { 0, 0 }, { 1, 1 })) {
+            state->menu_list.mode = SCOREBOARD_MENU;
+            state->menu_list.scoreboard.initialized = false;
+        }
     }
 
     return false;

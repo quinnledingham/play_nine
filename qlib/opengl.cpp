@@ -127,11 +127,12 @@ void opengl_bind_pipeline(Render_Pipeline *pipeline) {
     glUseProgram(shader->handle);
     //return shader->handle;
     global_shader_handle = shader->handle;
-
+/*
     if (pipeline->depth_test)
         glEnable(GL_DEPTH_TEST);
     else
         glDisable(GL_DEPTH_TEST);
+*/
 }
 
 void opengl_create_descriptor_sets(Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index) {
@@ -416,4 +417,11 @@ void opengl_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
 internal void
 opengl_delete_texture(Bitmap *bitmap) {
     glDeleteTextures(1, (u32*)bitmap->gpu_info);
+}
+
+void opengl_depth_test(bool32 enable) {
+    if (enable)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
 }

@@ -1,6 +1,15 @@
 #version 450
 
-layout(set = 1, binding = 1) uniform Color {
+layout(set = 1, binding = 1) uniform Light_Source {
+    vec4 position;
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec4 color;
+    bool enabled;
+} light;
+
+layout(set = 2, binding = 2) uniform Color {
     vec4 c;
 } color;
 
@@ -13,11 +22,11 @@ layout(location = 0) out vec4 outColor;
 void main() {
     vec3 col = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w).rgb;
 
-    vec3 light_position = vec3(0.0, 5.0, 0.0);
-    vec3 light_color = vec3(1.0, 1.0, 1.0);
+    vec3 light_position = light.position.rgb;
+    vec3 light_color = light.color.rgb;
 
     // ambient
-    float ambient_strength = 0.4;
+    float ambient_strength = light.ambient.r;
     vec3 ambient = ambient_strength * light_color;
 
     // diffuse 
@@ -36,7 +45,8 @@ void main() {
 */      
     vec3 result = (ambient + diffuse) * col;
 
-    outColor = vec4(result, color.c.w);
-    //outColor = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w);
-    //outColor = vec4(1, 1, 1, 1);
+    if (light.enabled)
+        outColor = vec4(result, color.c.w);
+    else
+        outColor = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w);
 }

@@ -1,6 +1,15 @@
 #version 450
 
-layout(set = 1, binding = 1) uniform sampler2D texSampler;
+layout(set = 1, binding = 1) uniform Light_Source {
+    vec4 position;
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec4 color;
+    bool enabled;
+} light;
+
+layout(set = 2, binding = 2) uniform sampler2D texSampler;
 
 layout(location = 0) in vec3 fragNormal;
 layout(location = 1) in vec2 fragTexCoord;
@@ -11,8 +20,8 @@ layout(location = 0) out vec4 outColor;
 void main() {
     vec3 tex = texture(texSampler, fragTexCoord).rgb;
 
-    vec3 light_position = vec3(2.0, 5.0, 0.0);
-    vec3 light_color = vec3(1.0, 1.0, 1.0);
+    vec3 light_position = light.position.rgb;
+    vec3 light_color = light.color.rgb;
 
     // ambient
     float ambient_strength = 0.1;

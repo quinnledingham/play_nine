@@ -315,10 +315,30 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
 }
 
 internal void
-draw_card(Assets *assets, Shader *shader, Card card) {
+draw_card(State *state, Assets *assets, Shader *shader, Card card, bool8 highlight) {
     u32 bitmap_index = card.number;
     if (card.number == -5)
         bitmap_index = 13;
+
+    if (highlight) {
+        Descriptor_Set *scene_set = render_get_descriptor_set(shader, 0);
+        state->camera.position += state->camera.target * 2.0f;
+        state->scene.view = get_view(state->camera);
+
+        render_update_ubo(scene_set, 0, (void*)&state->scene, false);
+        //render_bind_descriptor_set(scene_set, 0);
+        
+        Matrix_4x4 model = m4x4_scale(card.model, { 1.05f, 1.05f, 1.05f });
+
+        //render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), model);
+        render_draw_model(find_model(assets, "CARD"), &color_pipeline, play_nine_yellow, model);
+
+        state->camera.position -= state->camera.target * 2.0f;
+        state->scene.view = get_view(state->camera);
+
+        render_update_ubo(state->scene_set, 0, (void*)&state->scene, false);
+        render_bind_descriptor_set(state->scene_set, 0);
+    }
 
     render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), card.model);
 } 
@@ -327,26 +347,41 @@ draw_card(Assets *assets, Shader *shader, Card card) {
 // 270        90
 //       0
 internal void
-draw_game(Assets *assets, Shader *shader, Game *game) {
+draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highlight) {
     render_bind_pipeline(&basic_pipeline);
-    render_draw_model(find_model(assets, "TABLE"), basic_pipeline.shader, { 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }));
+    render_bind_descriptor_set(state->scene_set, 0);
+    render_bind_descriptor_set(light_set, 1);
+    //Descriptor_Set *light_set = render_get_descriptor_set(shader, 3);
+    //render_update_ubo(light_set, 0, (void*)&global_light, false);
+    //render_bind_descriptor_set(light_set, 2);
+
+    if (!highlight)
+        render_draw_model(find_model(assets, "TABLE"), basic_pipeline.shader, { 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }));
 
     for (u32 i = 0; i < game->num_of_players; i++) {
-        for (u32 card_index = 0; card_index < 8; card_index++) {
+        for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
             Card card = deck[game->players[i].cards[card_index]];
-            draw_card(assets, shader, card);
+            bool8 h = highlight && i == game->active_player && card_highlights[game->players[game->active_player].turn_stage][i];
+            draw_card(state, assets, shader, card, h);
         }
+    }
+
+    {
+        bool8 h = highlight && card_highlights[game->players[game->active_player].turn_stage][PICKUP_PILE];
+        draw_card(state, assets, shader, deck[game->pile[game->top_of_pile]], h);
+    }
+
+    if (game->top_of_discard_pile != 0) {
+        bool8 h = highlight && card_highlights[game->players[game->active_player].turn_stage][DISCARD_PILE];
+        if (game->players[game->active_player].turn_stage == SELECT_CARD && !game->players[game->active_player].pile_card)
+            h = false;
+        draw_card(state, assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], h);
     }
 
     if (game->players[game->active_player].turn_stage == SELECT_CARD) {
         Card card = deck[game->players[game->active_player].new_card];
-        draw_card(assets, shader, card);
+        draw_card(state, assets, shader, card, false);
     }
-
-    draw_card(assets, shader, deck[game->pile[game->top_of_pile]]);
-
-    if (game->top_of_discard_pile != 0)
-        draw_card(assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]]);
 }
 
 internal void
@@ -408,6 +443,8 @@ deal_cards(Game *game) {
             game->players[i].cards[card_index] = game->pile[game->top_of_pile++];
             game->players[i].flipped[card_index] = false;
          }
+
+        game->players[i].turn_stage = FLIP_CARD;
      }
 
     game->discard_pile[game->top_of_discard_pile++] = game->pile[game->top_of_pile++];
@@ -426,16 +463,6 @@ start_hole(Game *game) {
 
 internal void
 start_game(Game *game, u32 num_of_players) {
-/*
-    game->top_of_pile = 0;
-    game->top_of_discard_pile = 0;
-    shuffle_pile(game->pile);
-    game->num_of_players = num_of_players;
-    deal_cards(game);
-    game->active_player = 0;
-    game->round_type = FLIP_ROUND;
-    game->last_turn = 0;
-*/
     game->holes_played = 0;
     game->num_of_players = num_of_players;
     game->game_over = false;
@@ -559,7 +586,7 @@ update_scores(Game *game) {
         Player *player = &game->players[i];
         u32 *cards = player->cards;            
         s32 score = get_score(cards);
-        print("Player %d: %d\n", i, score);
+        //print("Player %d: %d\n", i, score);
         player->scores[game->holes_played] = score;
     }
 }
@@ -573,15 +600,18 @@ next_player(Game *game, Game_Draw *draw) {
     // Flip all cards after final turn
     if (game->round_type == FINAL_ROUND) {
         game->last_turn++;
-        for (u32 i = 0; i < 8; i++) {
+        for (u32 i = 0; i < HAND_SIZE; i++) {
             game->players[game->active_player].flipped[i] = true;
         }
     }
 
+    game->players[game->active_player].turn_stage = SELECT_PILE;
+    game->players[game->active_player].pile_card = false;
+
     game->active_player++;
-    
+
     // END HOLE
-    if (game->last_turn == game->num_of_players) {
+    if (game->last_turn == game->num_of_players && game->round_type != HOLE_OVER) {
         update_scores(game);
         game->holes_played++;
         game->round_type = HOLE_OVER;
@@ -658,7 +688,6 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
                     game->round_type = FINAL_ROUND;
                 }
 
-                //deck[active_player->new_card].flipped = true;
                 active_player->turn_stage = SELECT_CARD;
                 active_player->pile_card = true;
             } else if (selected[DISCARD_PILE]) {
@@ -676,8 +705,7 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
                     active_player->flipped[i] = true;
                     active_player->cards[i] = active_player->new_card;
                     active_player->new_card = 0;
-                    active_player->turn_stage = SELECT_PILE;
-                    active_player->pile_card = false;
+
                     if (get_number_flipped(active_player->flipped) == HAND_SIZE)
                         game->round_type = FINAL_ROUND;
                     next_player(game, draw);
@@ -685,12 +713,7 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
                 }
             }
 
-            // discard pile only emtpy if picked from and you can't put it back after you pick it up
-            // no reason not to pick up from the regular pile
-            if (game->top_of_discard_pile == 0)
-                return;
-
-            if (selected[DISCARD_PILE] && active_player->pile_card) {
+            if (active_player->pile_card && selected[DISCARD_PILE]) {
                 game->discard_pile[game->top_of_discard_pile++] = active_player->new_card;
                 active_player->new_card = 0;
                 active_player->turn_stage = FLIP_CARD;
@@ -699,12 +722,8 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
 
         case FLIP_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
-                Card *card = &deck[active_player->cards[i]];
                 if (selected[i] && !active_player->flipped[i]) {
-                    //card->flipped = true;
                     active_player->flipped[i] = true;
-                    active_player->turn_stage = SELECT_PILE;
-                    active_player->pile_card = false;
                     if (get_number_flipped(active_player->flipped) == HAND_SIZE) {
                         game->round_type = FINAL_ROUND; 
                         game->last_turn = 0;
@@ -714,9 +733,8 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
                 }
 
                 if (selected[DISCARD_PILE] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
-                    active_player->turn_stage = SELECT_PILE;
-                    active_player->pile_card = false;
                     next_player(game, draw);
+                    return;
                 }
             }
         } break;
@@ -834,7 +852,7 @@ bool8 update_game(State *state, App *app) {
 
             state->camera.position =  Vector3{ x, 14.0f, y };
             state->camera.yaw      = deg + 180.0f;
-            state->camera.pitch    = -52.0f;
+            state->camera.pitch    = -51.0f;
 
             update_camera_target(&state->camera);    
             state->scene.view = get_view(state->camera);
@@ -917,18 +935,6 @@ bool8 init_data(App *app) {
     render_init_model(find_model(&game->assets, "TABLE"));
 
 	// Rendering
-	//game->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
-    game->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
-
-    // Init ubo
-    game->scene_set = render_get_descriptor_set(basic_3D, 0);
-    render_update_ubo(game->scene_set, 0, (void*)&game->scene, true);
-
-    game->scene_ortho_set = render_get_descriptor_set(basic_3D, 0);
-    game->ortho_scene.view = identity_m4x4();
-    game->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
-    render_update_ubo(game->scene_ortho_set, 0, (void*)&game->ortho_scene, true);
-
     game->camera.position = { 0, 2, -5 };
     game->camera.target   = { 0, 0, 0 };
     game->camera.up       = { 0, -1, 0 };
@@ -937,9 +943,14 @@ bool8 init_data(App *app) {
     game->camera.pitch    = -75.0f;
 		
 	set(&game->controller.forward, 'w');
+    set(&game->controller.forward, SDLK_UP);
 	set(&game->controller.backward, SDLK_s);
+    set(&game->controller.backward, SDLK_DOWN);
 	set(&game->controller.left, SDLK_a);
+    set(&game->controller.left, SDLK_LEFT);
 	set(&game->controller.right, SDLK_d);
+    set(&game->controller.right, SDLK_RIGHT);
+
 	set(&game->controller.up, SDLK_SPACE);
 	set(&game->controller.down, SDLK_LSHIFT);
 
@@ -1085,12 +1096,31 @@ bool8 update(App *app) {
 
     // Draw
     Shader *basic_3D = find_shader(assets, "BASIC3D");
+    Shader *color_3D = find_shader(assets, "COLOR3D");
 
     render_reset_descriptor_sets(assets);
     render_start_frame();
 
     render_set_viewport(app->window.width, app->window.height);
     render_set_scissor(0, 0, app->window.width, app->window.height);
+
+    state->scene_set = render_get_descriptor_set(basic_3D, 0);
+    //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
+    state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
+    render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
+
+    state->scene_ortho_set = render_get_descriptor_set(basic_3D, 0);
+    state->ortho_scene.view = identity_m4x4();
+    state->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
+    render_update_ubo(state->scene_ortho_set, 0, (void*)&state->ortho_scene, true);
+    
+    render_depth_test(false);
+
+    light_set = render_get_descriptor_set(color_3D, 1);
+    render_update_ubo(light_set, 0, (void*)&global_light, false);
+
+    light_set_2 = render_get_descriptor_set(color_3D, 1);
+    render_update_ubo(light_set_2, 0, (void*)&global_light_2, false);
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {
@@ -1114,6 +1144,10 @@ bool8 update(App *app) {
                 state->menu_list.mode = IN_GAME;
             } else if (sb_result == 2) {
                 state->menu_list.mode = MAIN_MENU;
+                if (state->is_server) {
+                    state->is_server = false;
+                    close_server();
+                }
             }
         } break;
 
@@ -1131,10 +1165,12 @@ bool8 update(App *app) {
 
         case PAUSE_MENU:
         case IN_GAME: {
-            render_bind_pipeline(&color_pipeline);
-            render_bind_descriptor_set(state->scene_set, 0);
+            render_depth_test(true);
+            draw_game(state, &state->assets, basic_3D, &state->game, false);
+            render_depth_test(false);
 
-            draw_game(&state->assets, basic_3D, &state->game);
+            if (state->game.round_type != HOLE_OVER)
+                draw_game(state, &state->assets, basic_3D, &state->game, true);
 
             //draw_ray(&state->mouse_ray);
 
