@@ -128,11 +128,18 @@ load_bitmap(const char *filename, bool8 flip_on_load) {
     else              stbi_set_flip_vertically_on_load(false);
     Bitmap bitmap = {};
     bitmap.channels = 4;
+    
     // 4 arg always get filled in with the original amount of channels the image had.
     // Currently forcing it to have 4 channels.
-    bitmap.memory = stbi_load(filename, &bitmap.width, &bitmap.height, 0, bitmap.channels);
-    
-    if (bitmap.memory == 0) logprint("load_bitmap()", "could not load bitmap %s\n", filename);
+    unsigned char *data = stbi_load(filename, &bitmap.width, &bitmap.height, 0, bitmap.channels);
+    u32 data_size = bitmap.width * bitmap.height * bitmap.channels;
+    bitmap.memory = (u8 *)platform_malloc(data_size);
+    platform_memory_copy(bitmap.memory, data, data_size);
+    stbi_image_free(data);
+
+    if (bitmap.memory == 0) 
+        logprint("load_bitmap()", "could not load bitmap %s\n", filename);
+
     bitmap.pitch = bitmap.width * bitmap.channels;
     return bitmap;
 }
@@ -144,7 +151,7 @@ load_bitmap(const char *filename) {
 
 internal void
 free_bitmap(Bitmap bitmap) {
-    stbi_image_free(bitmap.memory);
+    platform_free(bitmap.memory);
 }
 
 
@@ -161,42 +168,55 @@ const u32 shaderc_glsl_file_types[5] = {
     shaderc_glsl_fragment_shader,
 };
 
+/*
+shaderc_compile_options_set_target_env(options, shaderc_target_env_opengl, shaderc_env_version_opengl_4_5);
+*/
 internal File
-compile_glsl_to_spv(shaderc_compiler_t compiler, File *file, shaderc_shader_kind shader_kind) {
-    const shaderc_compilation_result_t result = shaderc_compile_into_spv(compiler, (char*)file->memory, file->size, shader_kind, get_filename(file->filepath), "main", nullptr);
+compile_glsl_to_spirv(File *file, shaderc_compiler_t compiler, u32 shader_kind, shaderc_compile_options_t options) {
+    const shaderc_compilation_result_t result = shaderc_compile_into_spv(compiler, (char*)file->memory, file->size, (shaderc_shader_kind)shader_kind, get_filename(file->filepath), "main", options);
 
     u32 num_of_warnings = (u32)shaderc_result_get_num_warnings(result);
     u32 num_of_errors = (u32)shaderc_result_get_num_errors(result);
 
     if (num_of_warnings != 0 || num_of_errors != 0) {
         const char *error_message = shaderc_result_get_error_message(result);
-        logprint("compile_glsl_to_spv()", "%s", error_message);
+        logprint("compile_glsl_to_spv()", "%s\n", error_message);
     }
 
     u32 length = (u32)shaderc_result_get_length(result);
     const char *bytes = shaderc_result_get_bytes(result);
 
     File result_file = {};
-    result_file.memory = (void*)bytes;
+    result_file.memory = platform_malloc(length);
+    platform_memory_set(result_file.memory, 0, length);
+    platform_memory_copy(result_file.memory, (void *)bytes, length);
+    //result_file.memory = (void*)bytes;
     result_file.size = length;
+
+    shaderc_result_release(result);
+
     return result_file;
 }
 
 
 internal void
-vulkan_compile_shader(Shader *shader) {
+spirv_compile_shader(Shader *shader) {
     shaderc_compiler_t compiler = shaderc_compiler_initialize();
+    shaderc_compile_options_t options = shaderc_compile_options_initialize();
 
     for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
-        if (shader->files[i].memory == 0) continue; // file was not loaded
+        if (shader->files[i].memory == 0) 
+            continue; // file was not loaded
     
-        shader->spirv_files[i] = compile_glsl_to_spv(compiler, &shader->files[i], (shaderc_shader_kind)shaderc_glsl_file_types[i]);
+        shader->spirv_files[i] = compile_glsl_to_spirv(&shader->files[i], compiler, shaderc_glsl_file_types[i], options);
         if (shader->spirv_files[i].size == 0) {
             print("compile_shader() could not compile %s\n", shader->files[i].filepath); 
             return;
         }
     }
 
+    shaderc_compile_options_release(options);
+    shaderc_compiler_release(compiler);
 }
 
 void spirv_cross_error_callback(void *userdata, const char *error) {
@@ -204,7 +224,7 @@ void spirv_cross_error_callback(void *userdata, const char *error) {
 }
 
 internal File
-compile_spv_to_glsl(File *file) {
+compile_spirv_to_glsl(File *file) {
     spvc_context context = NULL;
     spvc_parsed_ir ir = NULL;
     spvc_compiler compiler_glsl = NULL;
@@ -241,10 +261,13 @@ compile_spv_to_glsl(File *file) {
     //print("Cross-compiled source: %s\n", result);
 
     File result_file = {};
-    result_file.memory = platform_malloc(1000);
-    platform_memory_set(result_file.memory, 0, 1000);
-    platform_memory_copy(result_file.memory, (void*)result, get_length(result));
-    result_file.size = 0;
+    result_file.size = 1500;
+    result_file.memory = platform_malloc(result_file.size);
+    platform_memory_set(result_file.memory, 0, result_file.size);
+    u32 result_length = get_length(result);
+    if (result_length >= result_file.size)
+        logprint("compile_spv_to_glsl()", "glsl bigger than file (%d)\n", result_length);
+    platform_memory_copy(result_file.memory, (void*)result, result_length);
 
     spvc_context_destroy(context);
 
@@ -272,6 +295,18 @@ void load_shader(Shader *shader)
         }
     }
     print("\n");
+}
+
+internal void
+clean_shader(Shader *shader) {
+    for(u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
+        if (shader->files[i].memory == 0) 
+            continue;
+
+        platform_free(shader->files[i].memory);
+        shader->files[i].memory = 0;
+        platform_free(shader->spirv_files[i].memory);
+    }
 }
 
 //
@@ -362,9 +397,10 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 
     stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, 0, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
 
-    if (char_bitmap->bitmap.width != 0)
+    if (char_bitmap->bitmap.width != 0) {
         render_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
-    //render_init_bitmap(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
+        //stbtt_FreeBitmap(char_bitmap->bitmap.memory, info->userdata);
+    }
 
     return char_bitmap;
 }
@@ -427,4 +463,31 @@ Vector2 get_string_dim(Font *font, const char *string, s32 length, float32 pixel
 
 Vector2 get_string_dim(Font *font, const char *string, float32 pixel_height, Vector4 color) {
     return get_string_dim(font, string, -1, pixel_height, color);
+}
+
+//
+// Model
+//
+
+void init_model(Model *model) {
+    for (u32 mesh_index = 0; mesh_index < model->meshes_count; mesh_index++) {
+        Mesh *mesh = &model->meshes[mesh_index];
+        render_init_mesh(mesh);
+        //platform_free(mesh->vertices);
+        //platform_free(mesh->indices);
+        if (mesh->material.diffuse_map.memory != 0)
+            render_create_texture(&mesh->material.diffuse_map, TEXTURE_PARAMETERS_DEFAULT);
+            //free_bitmap(mesh->material.diffuse_map);
+    }
+}
+
+internal void
+clean_model(Model *model) {
+    for (u32 mesh_index = 0; mesh_index < model->meshes_count; mesh_index++) {
+        Mesh *mesh = &model->meshes[mesh_index];
+        platform_free(mesh->vertices);
+        platform_free(mesh->indices);
+        if (mesh->material.diffuse_map.memory != 0)
+            free_bitmap(mesh->material.diffuse_map);
+    }
 }

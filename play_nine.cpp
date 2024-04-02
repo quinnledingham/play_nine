@@ -901,11 +901,31 @@ bool8 init_data(App *app) {
 	platform_memory_set(app->data, 0, sizeof(State));
     State *game = (State *)app->data;
 	game->assets = {};
-	if (load_assets(&game->assets, "../assets.ethan"))
-        return true;
+
+    if (1) {
+        if (load_assets(&game->assets, "../assets.ethan"))
+            return true;
+
+        FILE *file = fopen("assets.save", "wb");
+        save_assets(&game->assets, file);
+        fclose(file);
+    } else {
+        const char *filepath = "assets.save";
+        u32 offset = 0;
+
+        // have to compile then run the asset builder application to put the assets in the exe
+        // const char *filepath = "river.exe";
+        // u32 offset = exe_offset;
+
+        if (load_saved_assets(&game->assets, filepath, offset))
+            return 1;
+    }
+
+    init_assets(&game->assets);
+
+    //u32 test = get_assets_size(&game->assets);
 
 	Shader *basic_3D = find_shader(&game->assets, "BASIC3D");
-    render_compile_shader(basic_3D);
     init_basic_vert_layout(basic_3D);
     init_basic_frag_layout(basic_3D);
     basic_pipeline.shader = basic_3D;
@@ -913,26 +933,11 @@ bool8 init_data(App *app) {
 	render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
 	
     Shader *color_3D = find_shader(&game->assets, "COLOR3D");
-    render_compile_shader(color_3D);
     init_basic_vert_layout(color_3D);
     init_color3D_frag_layout(color_3D);
     color_pipeline.shader = color_3D;
     color_pipeline.depth_test = true;
     render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
-
-	// Init assets
-	Bitmap *yogi = find_bitmap(&game->assets, "YOGI");
-    render_create_texture(yogi, TEXTURE_PARAMETERS_DEFAULT);
-
-	//Bitmap *david = find_bitmap(&game->assets, "DAVID");
-    //render_create_texture(david, TEXTURE_PARAMETERS_DEFAULT);
-	
-	Font *font = find_font(&game->assets, "CASLON");
-    init_font(font);
-
-	//render_init_model(find_model(&game->assets, "TAILS"));
-    render_init_model(find_model(&game->assets, "CARD"));
-    render_init_model(find_model(&game->assets, "TABLE"));
 
 	// Rendering
     game->camera.position = { 0, 2, -5 };
@@ -974,12 +979,16 @@ bool8 init_data(App *app) {
 
     set(&game->controller.mouse_left, SDL_BUTTON_LEFT);
 
+    Font *font = find_font(&game->assets, "CASLON");
+
     init_deck();
     init_card_bitmaps(card_bitmaps, font);
 
     clear_font_bitmap_cache(font);
     
     init_shapes(&game->assets);
+
+    clean_assets(&game->assets);
 
     game->game_draw.rotation_speed = 150.0f;
     game->camera_mode = PLAYER_CAMERA;

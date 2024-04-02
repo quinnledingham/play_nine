@@ -20,6 +20,5 @@ FONTS:
 CASLON, LibreCaslonCondensed-Regular.ttf
 
 MODELS:
-TAILS, /tails/tails.obj
 CARD, /card/card.obj
 TABLE, /table/table.obj

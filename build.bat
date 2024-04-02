@@ -8,7 +8,7 @@ cd build
 REM CF = Compiler Flags
 REM LF = Linker Flags
 
-set CF_DEFAULT= -MD -nologo -Gm- -GR- -EHa- -Od -Oi -FC -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\stb /I..\
+set CF_DEFAULT= -MD -nologo -Gm- -GR- -EHa- -Od -Oi -FC -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\stb /I..\ -DSHADERS
 set CF_SDL= /I..\sdl-vc\include
 set CF_OPENGL= /I..\glad 
 set CF_VULKAN= /I..\VulkanSDK\1.3.268.0\Include 
@@ -21,7 +21,7 @@ set LF_VULKAN= ..\VulkanSDK\1.3.268.0\Lib\vulkan-1.lib
 set LF_DX12= D3d12.lib D3DCompiler.lib dxgi.lib
 
 cl %CF_DEFAULT% %CF_SDL% %CF_VULKAN% -DWINDOWS -DSDL -DVULKAN -DDEBUG ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_VULKAN% %LF_SHADERS% /out:play_nine.exe
-REM cl %CF_DEFAULT% %CF_SDL% %CF_OPENGL% %CF_VULKAN% -DWINDOWS -DSDL -DOPENGL -DDEBUG ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_OPENGL% %LF_SHADERS% /out:play_nine.exe
+REM cl %CF_DEFAULT% %CF_SDL% %CF_OPENGL% %CF_VULKAN% -DWINDOWS -DSDL -DOPENGL -DDEBUG ../glad/gl.c ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_OPENGL% %LF_SHADERS% /out:play_nine.exe
 
 
 IF NOT EXIST SDL2.dll copy ..\sdl-vc\lib\x64\SDL2.dll

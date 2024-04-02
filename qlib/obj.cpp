@@ -326,6 +326,7 @@ model_create_meshes(Model *model, OBJ obj, MTL mtl) {
     s32 lower_range = 0;
     for (u32 mesh_index = 0; mesh_index < model->meshes_count; mesh_index++) {
         Mesh *mesh = &model->meshes[mesh_index];        
+        mesh->vertex_info = get_vertex_xnu_info();
         s32 mesh_face_vertices_count = obj.meshes_face_count[mesh_index] * 3;
         
         mesh->indices_count = mesh_face_vertices_count;

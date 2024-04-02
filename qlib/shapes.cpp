@@ -343,11 +343,7 @@ void init_shapes(Assets *assets) {
     shapes.sphere_mesh = get_sphere_mesh(0.025f, 10, 10);
     shapes.cube_mesh = get_cube_mesh(false);
 
-    //shapes.text_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
-    //shapes.text_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/text.frag";
     shapes.text_shader = find_shader(assets, "TEXT");
-    //load_shader(shapes.text_shader);
-	render_compile_shader(shapes.text_shader);
 
     init_basic_vert_layout(shapes.text_shader);
     init_text_frag_layout(shapes.text_shader);
@@ -356,11 +352,7 @@ void init_shapes(Assets *assets) {
     shapes.text_pipeline.depth_test = false;
     render_create_graphics_pipeline(&shapes.text_pipeline, get_vertex_xu_info());
 
-    //shapes.color_shader.files[SHADER_STAGE_VERTEX].filepath = "../assets/shaders/2D.vert";
-    //shapes.color_shader.files[SHADER_STAGE_FRAGMENT].filepath = "../assets/shaders/color.frag";
     shapes.color_shader = find_shader(assets, "COLOR");
-    //load_shader(shapes.color_shader);
-    render_compile_shader(shapes.color_shader);
 
     init_basic_vert_layout(shapes.color_shader);
     init_color_frag_layout(shapes.color_shader);

@@ -1887,3 +1887,6 @@ void vulkan_depth_test(bool32 enable) {
 	vkCmdSetDepthTestEnable(vulkan_active_cmd_buffer(&vulkan_info), vulkan_bool(enable));
 }
 
+void vulkan_compile_shader(Shader *shader) {
+
+}

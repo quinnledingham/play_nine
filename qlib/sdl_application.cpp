@@ -37,8 +37,8 @@ extern "C" {
 #ifdef OPENGL
 
 #pragma message("OPENGL")
+
 #include <gl.h>
-#include <gl.c>
 
 #elif VULKAN
 

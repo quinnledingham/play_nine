@@ -4,6 +4,7 @@ TODO
 
 - Flip "animation"
 - Define light not in shader
+- Fix text going off screen (Jeff player name)
 
 - Fix online drawing (rotation)
 

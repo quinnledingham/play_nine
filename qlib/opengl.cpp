@@ -281,11 +281,16 @@ void opengl_wait_frame() {
 // Shaders
 //
 
-bool compile_shader(u32 handle, const char *file, int type)
-{
+/* Can't use glUniform I guess
+https://www.geeks3d.com/20200211/how-to-load-spir-v-shaders-in-opengl/
+
+Can't really use push constants then
+*/
+
+bool opengl_attach_spirv_shader(u32 handle, const char *file, u32 file_length, int type) {
     u32 shader =  glCreateShader((GLenum)type);
-    glShaderSource(shader, 1, &file, NULL);
-    glCompileShader(shader);
+    glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V, file, file_length);
+    glSpecializeShader(shader, "main", 0, 0, 0);
     
     GLint compiled_shader = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled_shader);  
@@ -300,9 +305,33 @@ bool compile_shader(u32 handle, const char *file, int type)
     return compiled_shader;
 }
 
+internal bool8
+opengl_compile_glsl(const char *file, s32 type) {
+    u32 shader =  glCreateShader((GLenum)type);
+    glShaderSource(shader, 1, &file, NULL);
+    glCompileShader(shader);
+    
+    return shader;
+}
+
+bool opengl_attach_glsl_shader(u32 handle, u32 new_part) {
+
+    GLint compiled_shader = 0;
+    glGetShaderiv(new_part, GL_COMPILE_STATUS, &compiled_shader);  
+
+    if (!compiled_shader) {
+        opengl_debug(GL_SHADER, new_part);
+    } else {
+        glAttachShader(handle, new_part);
+    }
+    
+    glDeleteShader(new_part);
+    
+    return compiled_shader;
+}
+
 // compiles the files
-void opengl_compile_shader(Shader *shader)
-{
+void opengl_compile_shader(Shader *shader) {
     shader->compiled = false;
     if (shader->handle != 0) glDeleteProgram(shader->handle);
     shader->handle = glCreateProgram();
@@ -313,13 +342,14 @@ void opengl_compile_shader(Shader *shader)
     }
 
     for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
-        if (shader->files[i].memory == 0) continue; // file was not loaded
+        if (shader->spirv_files[i].memory == 0) continue; // file was not loaded
 
-        shaderc_compiler_t compiler = shaderc_compiler_initialize();
-        File spv_file = compile_glsl_to_spv(compiler, &shader->files[i], (shaderc_shader_kind)shaderc_glsl_file_types[i]);
-        File glsl_file = compile_spv_to_glsl(&spv_file);
+        File glsl_file = compile_spirv_to_glsl(&shader->spirv_files[i]);
+        glsl_file.filepath = shader->files[i].filepath;
 
-        if (!compile_shader(shader->handle, (char*)glsl_file.memory, opengl_shader_file_types[i])) {
+        u32 new_part = opengl_compile_glsl((char*)glsl_file.memory, opengl_shader_file_types[i]);
+
+        if (!opengl_attach_glsl_shader(shader->handle, new_part)) {
             print("compile_shader() could not compile %s\n", shader->files[i].filepath); 
             return;
         }
@@ -337,12 +367,6 @@ void opengl_compile_shader(Shader *shader)
     }
 
     shader->compiled = true;
-}
-
-u32 use_shader(Shader *shader)
-{
-    glUseProgram(shader->handle);
-    return shader->handle;
 }
 
 //

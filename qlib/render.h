@@ -117,6 +117,7 @@ RENDER_FUNC(void, create_texture, Bitmap *bitmap, u32 texture_parameters);
 RENDER_FUNC(void, delete_texture, Bitmap *bitmap);
 RENDER_FUNC(void, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
 
+void render_init_model(Model *model);
 //RENDER_FUNC(void, init_model, Model *model);
 //RENDER_FUNC(void, draw_model, Model *model, Shader *shader, Vector3 position, Quaternion rotation);
 
