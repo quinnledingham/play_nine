@@ -5,10 +5,11 @@ TODO
 - Flip "animation"
 - Define light not in shader
 - Fix text going off screen (Jeff player name)
+- Highlight only unflipped cards on flip
 
 - Fix online drawing (rotation)
 
-- Pack assets
+- Make assets packing better
 
 - Change who starts each hole
 - Add pass button

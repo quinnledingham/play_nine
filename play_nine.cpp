@@ -328,7 +328,7 @@ draw_card(State *state, Assets *assets, Shader *shader, Card card, bool8 highlig
         render_update_ubo(scene_set, 0, (void*)&state->scene, false);
         //render_bind_descriptor_set(scene_set, 0);
         
-        Matrix_4x4 model = m4x4_scale(card.model, { 1.05f, 1.05f, 1.05f });
+        Matrix_4x4 model = m4x4_scale(card.model, { 1.06f, 1.06f, 1.06f });
 
         //render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), model);
         render_draw_model(find_model(assets, "CARD"), &color_pipeline, play_nine_yellow, model);

@@ -453,6 +453,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
 
 void draw_string_tl(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color) {
     Vector2 text_dim = get_string_dim(font, string, pixel_height, color);
+    //draw_rect(coords, 0.0f, text_dim, { 255, 255, 0, 1 });
     coords.y += text_dim.y;
     draw_string(font, string, coords, pixel_height, color);
 }

@@ -439,6 +439,9 @@ Vector2 get_string_dim(Font *font, const char *string, s32 length, float32 pixel
     float32 scale = stbtt_ScaleForPixelHeight(info, pixel_height);
     u32 index = 0;
 
+    float32 top = 0.0f;
+    float32 bottom = 0.0f;
+
     while (string[index] != 0) {
         if (length != -1) {
             // if a length is set then only include in the dim the chars up to that point
@@ -446,15 +449,26 @@ Vector2 get_string_dim(Font *font, const char *string, s32 length, float32 pixel
         }
 
         Font_Char *font_char = load_font_char(font, string[index]);
-        
-        if (dim.y < (float32)font_char->bb_1.y) 
-            dim.y = (float32)font_char->bb_1.y;
+        float32 height = (float32)font_char->bb_1.y;
+
+        if (top < (float32)font_char->bb_1.y)
+            top = (float32)font_char->bb_1.y;
+
+        if (bottom > (float32)font_char->bb_0.y)
+            bottom = (float32)font_char->bb_0.y;
+
+        if (dim.y < height) 
+            dim.y = height;
         
         int kern = stbtt_GetCodepointKernAdvance(info, string[index], string[index + 1]);
-        dim.x += (kern + font_char->ax);
-        
+        if (string[index + 1])
+            dim.x += (kern + font_char->ax);
+        else
+            dim.x += (float32)font_char->bb_1.x;
         index++;
     }
+
+    //dim.y = top - bottom;
 
     dim *= scale;
     
