@@ -19,8 +19,20 @@ layout(location = 2) in vec3 fragPos;
 
 layout(location = 0) out vec4 outColor;
 
+// Converts a color from sRGB gamma to linear light gamma
+// https://gamedev.stackexchange.com/questions/92015/optimized-linear-to-srgb-glsl
+vec4 to_linear(vec4 sRGB) {
+    bvec3 cutoff = lessThan(sRGB.rgb, vec3(0.04045));
+    vec3 higher = pow((sRGB.rgb + vec3(0.055))/vec3(1.055), vec3(2.4));
+    vec3 lower = sRGB.rgb/vec3(12.92);
+
+    return vec4(mix(higher, lower, cutoff), sRGB.a);
+}
+
 void main() {
-    vec3 col = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w).rgb;
+    float power = 2.2;
+    vec4 col = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w);
+    col = to_linear(col);
 
     vec3 light_position = light.position.rgb;
     vec3 light_color = light.color.rgb;
@@ -43,10 +55,10 @@ void main() {
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
     vec3 specular = light.specular * (spec * material.specular);  
 */      
-    vec3 result = (ambient + diffuse) * col;
+    vec3 result = (ambient + diffuse) * col.rgb;
 
     if (light.enabled)
         outColor = vec4(result, color.c.w);
     else
-        outColor = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w);
+        outColor = col;
 }

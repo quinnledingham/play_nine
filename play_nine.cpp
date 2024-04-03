@@ -895,6 +895,9 @@ bool8 update_game(State *state, App *app) {
     return 0;
 }
 
+/*
+<a href="https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f">Image by kjpargeter</a> on Freepik
+*/
 
 bool8 init_data(App *app) {
 	app->data = platform_malloc(sizeof(State));
@@ -1209,6 +1212,10 @@ bool8 update(App *app) {
     prepare_controller_for_input(&state->controller);
 
 	return 0;
+}
+
+bool8 test(App *app) {
+    return 0;
 }
 
 s32 event_handler(App *app, App_System_Event event, u32 arg) {
