@@ -18,16 +18,22 @@ TODO
 #define PICKUP_PILE 8
 #define DISCARD_PILE 9
 #define SELECTED_SIZE 10
-
-struct Card {
-	s32 number;
-    Matrix_4x4 model;
-};
-
 #define MAX_NAME_SIZE 20
 #define HAND_SIZE 8
 #define DECK_SIZE 108
-global Card deck[DECK_SIZE];
+#define MAX_HOLES 20 // max holes that can be played in one gamed
+#define GAME_LENGTH 2 // play NINE
+
+global s8 deck[DECK_SIZE];
+global Bitmap card_bitmaps[14];
+global Vector2 hand_coords[8];
+global float32 hand_width;
+
+global Font *default_font;
+global const Vector4 play_nine_green  = {  39,  77,  20, 1 };
+global const Vector4 play_nine_yellow = { 231, 213,  36, 1 };
+global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
+global const Vector4 play_nine_dark_yellow = { 197, 180, 22, 1 };
 
 enum Round_Types {
     FLIP_ROUND,
@@ -49,12 +55,6 @@ enum Turn_Stages {
     FLIP_CARD,   // flip card if discard new card
 };
 
-bool8 card_highlights[3][SELECTED_SIZE] = {
-    { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1 },
-    { 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 },
-    { 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 },
-};
-
 /*
 
 Card indices
@@ -64,8 +64,11 @@ Card indices
 
 */
 
-#define MAX_HOLES 20 // max holes that can be played in one gamed
-#define GAME_LENGTH 2 // play NINE
+struct Player_Card {
+    u32 card_index;
+    u32 flipped;
+    Matrix_4x4 model;
+};
 
 struct Player {
     char name[MAX_NAME_SIZE];
@@ -73,7 +76,11 @@ struct Player {
 
     u32 cards[HAND_SIZE];     // indices to global deck array
     bool8 flipped[HAND_SIZE];
+    Matrix_4x4 models[HAND_SIZE];
+
     u32 new_card; // the card that was just picked up
+    Matrix_4x4 new_card_model;
+
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
 };
@@ -88,9 +95,11 @@ enum Game_Modes {
 struct Game {
 	u32 pile[DECK_SIZE];
 	u32 top_of_pile;
+    Matrix_4x4 top_of_pile_model;
 
     u32 discard_pile[DECK_SIZE];
     u32 top_of_discard_pile;
+    Matrix_4x4 top_of_discard_pile_model;
 
     Player players[6];
     u32 num_of_players;
@@ -111,10 +120,6 @@ enum Camera_Mode {
     FREE_CAMERA,
     PLAYER_CAMERA,
 };
-
-global Bitmap card_bitmaps[14];
-global Vector2 hand_coords[8];
-global float32 hand_width;
 
 struct Rotation {
     bool8 rotating;
@@ -173,9 +178,9 @@ struct State {
     Menu_List menu_list;
 
     // Server
-    char name[TEXTBOX_SIZE];
-    char ip[TEXTBOX_SIZE];
-    char port[TEXTBOX_SIZE];
+    char name[TEXTBOX_SIZE] = "Jeff";
+    char ip[TEXTBOX_SIZE] = "127.0.0.1";
+    char port[TEXTBOX_SIZE] = "4444";
 
     bool8 is_server;
 
@@ -197,8 +202,3 @@ struct State {
     Assets assets;
 };
 
-global Font *default_font;
-global const Vector4 play_nine_green  = {  39,  77,  20, 1 };
-global const Vector4 play_nine_yellow = { 231, 213,  36, 1 };
-global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
-global const Vector4 play_nine_dark_yellow = { 197, 180, 22, 1 };

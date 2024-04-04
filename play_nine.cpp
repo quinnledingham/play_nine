@@ -245,12 +245,18 @@ process_rotation(Rotation *rot, float32 seconds) {
     if (rot->speed > 0.0f) {
         if (rot->degrees < rot->dest_degrees) {
             rot->degrees += seconds * rot->speed;
+
+            if (rot->degrees > rot->dest_degrees)
+                rot->degrees = rot->dest_degrees;
         } else {
             rot->rotating = false;
         }
     } else if (rot->speed < 0.0f) { 
         if (rot->degrees > rot->dest_degrees) {
             rot->degrees += seconds * rot->speed;
+
+            if (rot->degrees < rot->dest_degrees)
+                rot->degrees = rot->dest_degrees;
         } else {
             rot->rotating = false;
         }
@@ -259,8 +265,8 @@ process_rotation(Rotation *rot, float32 seconds) {
     return rot->degrees;
 }
 
-internal void
-load_card_model(Card *card, bool8 flipped, Vector3 position, float32 degrees, Vector3 scale) {
+internal Matrix_4x4
+load_card_model(bool8 flipped, Vector3 position, float32 degrees, Vector3 scale) {
     Quaternion rotation = get_rotation(degrees * DEG2RAD, {0, 1, 0});
     if (!flipped) {
         Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
@@ -268,7 +274,7 @@ load_card_model(Card *card, bool8 flipped, Vector3 position, float32 degrees, Ve
         position.y += 0.05f;
     }
 
-    card->model = create_transform_m4x4(position, rotation, scale);
+    return create_transform_m4x4(position, rotation, scale);
 }
 
 internal void
@@ -288,7 +294,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
             Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
             rotate_coords(&card_pos, rad);
             card_pos += position;
-            load_card_model(&deck[game->players[i].cards[card_index]], game->players[i].flipped[card_index], card_pos, degrees, card_scale);
+            game->players[i].models[card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, degrees, card_scale);
         }
     }
 
@@ -297,7 +303,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     float32 rad = degrees * DEG2RAD; 
     if (game->players[game->active_player].turn_stage == SELECT_CARD) {
         rotate_coords(&selected_card_coords, rad);
-        load_card_model(&deck[game->players[game->active_player].new_card], true, selected_card_coords, degrees, card_scale);
+        game->players[game->active_player].new_card_model = load_card_model(true, selected_card_coords, degrees, card_scale);
     }
 
     float32 pile_degs = degrees - process_rotation(&draw->pile_rotation, seconds);
@@ -307,17 +313,17 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     rotate_coords(&discard_pile_coords, pile_rad);
 
     // pile
-    load_card_model(&deck[game->pile[game->top_of_pile]], false, pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
+    game->top_of_pile_model = load_card_model(false, pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
 
     // discard pile
     if (game->top_of_discard_pile != 0)
-        load_card_model(&deck[game->discard_pile[game->top_of_discard_pile - 1]], true, discard_pile_coords, pile_degs, card_scale);
+        game->top_of_discard_pile_model = load_card_model(true, discard_pile_coords, pile_degs, card_scale);
 }
 
 internal void
-draw_card(State *state, Assets *assets, Shader *shader, Card card, bool8 highlight) {
-    u32 bitmap_index = card.number;
-    if (card.number == -5)
+draw_card(State *state, Assets *assets, Shader *shader, u32 number, Matrix_4x4 model, bool8 highlight) {
+    u32 bitmap_index = number;
+    if (number == -5)
         bitmap_index = 13;
 
     if (highlight) {
@@ -328,10 +334,10 @@ draw_card(State *state, Assets *assets, Shader *shader, Card card, bool8 highlig
         render_update_ubo(scene_set, 0, (void*)&state->scene, false);
         //render_bind_descriptor_set(scene_set, 0);
         
-        Matrix_4x4 model = m4x4_scale(card.model, { 1.06f, 1.06f, 1.06f });
+        Matrix_4x4 model_scale = m4x4_scale(model, { 1.06f, 1.06f, 1.06f });
 
         //render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), model);
-        render_draw_model(find_model(assets, "CARD"), &color_pipeline, play_nine_yellow, model);
+        render_draw_model(find_model(assets, "CARD"), &color_pipeline, play_nine_yellow, model_scale);
 
         state->camera.position -= state->camera.target * 2.0f;
         state->scene.view = get_view(state->camera);
@@ -340,7 +346,7 @@ draw_card(State *state, Assets *assets, Shader *shader, Card card, bool8 highlig
         render_bind_descriptor_set(state->scene_set, 0);
     }
 
-    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), card.model);
+    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), model);
 } 
 
 //      180
@@ -358,29 +364,36 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
     if (!highlight)
         render_draw_model(find_model(assets, "TABLE"), basic_pipeline.shader, { 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }));
 
+    Player *active_player = &game->players[game->active_player];
+    enum Turn_Stages stage = active_player->turn_stage;
+
     for (u32 i = 0; i < game->num_of_players; i++) {
         for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
-            Card card = deck[game->players[i].cards[card_index]];
-            bool8 h = highlight && i == game->active_player && card_highlights[game->players[game->active_player].turn_stage][i];
-            draw_card(state, assets, shader, card, h);
+            s32 card = deck[game->players[i].cards[card_index]];
+            bool8 h = highlight && i == game->active_player;
+            switch (stage) {
+                case SELECT_PILE: h = false; break;
+                case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;
+            }
+            draw_card(state, assets, shader, card, game->players[i].models[card_index], h);
         }
     }
 
     {
-        bool8 h = highlight && card_highlights[game->players[game->active_player].turn_stage][PICKUP_PILE];
-        draw_card(state, assets, shader, deck[game->pile[game->top_of_pile]], h);
+        bool8 h = highlight && stage == SELECT_PILE;
+        draw_card(state, assets, shader, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h);
     }
 
     if (game->top_of_discard_pile != 0) {
-        bool8 h = highlight && card_highlights[game->players[game->active_player].turn_stage][DISCARD_PILE];
-        if (game->players[game->active_player].turn_stage == SELECT_CARD && !game->players[game->active_player].pile_card)
+        bool8 h = highlight && (stage == SELECT_PILE || stage == SELECT_CARD);
+        if (stage == SELECT_CARD && !game->players[game->active_player].pile_card)
             h = false;
-        draw_card(state, assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], h);
+        draw_card(state, assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h);
     }
 
-    if (game->players[game->active_player].turn_stage == SELECT_CARD) {
-        Card card = deck[game->players[game->active_player].new_card];
-        draw_card(state, assets, shader, card, false);
+    if (stage == SELECT_CARD) {
+        s32 card = deck[game->players[game->active_player].new_card];
+        draw_card(state, assets, shader, card, game->players[game->active_player].new_card_model, false);
     }
 }
 
@@ -389,13 +402,13 @@ init_deck() {
     u32 deck_index = 0;
     for (s32 i = 0; i <= 12; i++) {
         for (u32 j = deck_index; j < deck_index + 8; j++) {
-            deck[j].number = i;
+            deck[j] = i;
         }
         deck_index += 8;
     }
 
     for (u32 j = deck_index; j < deck_index + 4; j++) {
-        deck[j].number = -5;
+        deck[j] = -5;
     }
 
     // init hand coords
@@ -517,16 +530,16 @@ struct Card_Pair {
 inline Card_Pair
 create_pair(u32 top, u32 bottom) {
     Card_Pair result = {};
-    Card top_card = deck[top];
-    Card bottom_card = deck[bottom];
+    s32 top_card = deck[top];
+    s32 bottom_card = deck[bottom];
 
-    if (top_card.number == bottom_card.number) {
+    if (top_card == bottom_card) {
         result.matching = true;
-        result.number = top_card.number; // matching so top and bottom same number
+        result.number = top_card; // matching so top and bottom same number
     }
 
-    if (!result.matching || (top_card.number == -5))
-        result.score += top_card.number + bottom_card.number;
+    if (!result.matching || (top_card == -5))
+        result.score += top_card + bottom_card;
 
     return result;
 } 
@@ -742,9 +755,9 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
 }
 
 internal bool8
-ray_model_intersection(Ray ray, Model *model, Card *card) {
+ray_model_intersection(Ray ray, Model *model, Matrix_4x4 card) {
     for (u32 i = 0; i < model->meshes_count; i++) {
-        Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card->model);
+        Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card);
         if (p.number_of_intersections != 0) {
             //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
             return true;
@@ -759,12 +772,12 @@ mouse_ray_model_intersections(bool8 *selected, Ray mouse_ray, Game *game, Model 
     Player *active_player = &game->players[game->active_player];
 
     for (u32 card_index = 0; card_index < 8; card_index++) {
-        selected[card_index] = ray_model_intersection(mouse_ray, card_model, &deck[active_player->cards[card_index]]);
+        selected[card_index] = ray_model_intersection(mouse_ray, card_model, active_player->models[card_index]);
     }
 
-    selected[PICKUP_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->pile[game->top_of_pile]]);
+    selected[PICKUP_PILE] = ray_model_intersection(mouse_ray, card_model, game->top_of_pile_model);
     if (game->top_of_discard_pile != 0)
-        selected[DISCARD_PILE] = ray_model_intersection(mouse_ray, card_model, &deck[game->discard_pile[game->top_of_discard_pile - 1]]);
+        selected[DISCARD_PILE] = ray_model_intersection(mouse_ray, card_model, game->top_of_discard_pile_model);
 }
 
 internal void
@@ -896,13 +909,13 @@ bool8 update_game(State *state, App *app) {
 }
 
 /*
-<a href="https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f">Image by kjpargeter</a> on Freepik
+https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f
 */
 
 bool8 init_data(App *app) {
 	app->data = platform_malloc(sizeof(State));
-	platform_memory_set(app->data, 0, sizeof(State));
     State *game = (State *)app->data;
+    *game = {};
 	game->assets = {};
 
     if (1) {
@@ -1031,10 +1044,6 @@ bool8 init_data(App *app) {
     game->mutex = win32_create_mutex();
     online.mutex = win32_create_mutex();
     game->selected_mutex = win32_create_mutex();
-
-    platform_memory_copy(game->name, "Jeff", 5);
-    platform_memory_copy(game->ip, "127.0.0.1", 10);
-    platform_memory_copy(game->port, "4444", 5);
 
 	return false;
 }
