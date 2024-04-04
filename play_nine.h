@@ -85,12 +85,6 @@ struct Player {
     enum Turn_Stages turn_stage;
 };
 
-enum Game_Modes {
-    LOBBY,
-    SCOREBOARD,
-    GAME,
-};
-
 // Stores information about the game of play nine
 struct Game {
 	u32 pile[DECK_SIZE];

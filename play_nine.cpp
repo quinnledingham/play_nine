@@ -280,7 +280,7 @@ load_card_model(bool8 flipped, Vector3 position, float32 degrees, Vector3 scale)
 internal void
 load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
-    Vector3 selected_card_coords = {0.0f, 1.0f, -3.1f};
+    Vector3 selected_card_coords = {0.0f, 1.0f, -2.7f};
     Vector3 pile_coords          = { -1.1f, 0.35f, 0 };
     Vector3 discard_pile_coords  = { 1.1f, 0, 0 };
 
