@@ -60,7 +60,7 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
             render_set_bitmap(object_set, &model->meshes[i].material.diffuse_map, 2);
             render_bind_descriptor_set(object_set, 2);
         } else {
-            Vector4 color = { 84, 59, 23, 1 };
+            Vector4 color = { 148, 99, 46, 1 };
             Descriptor_Set *object_set = render_get_descriptor_set(shader, 3);
             render_update_ubo(object_set, 0, (void*)&color, false);
             render_bind_descriptor_set(object_set, 2);

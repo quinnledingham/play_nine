@@ -79,6 +79,13 @@ copy_bitmap_into_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
 }
 
 internal Vector4
+get_color(u8 *ptr, u32 channels) {
+    if (channels == 1)
+        return { 0x00, 0x00, 0x00, float32(*ptr) };
+    return { float32(ptr[0]), float32(ptr[1]), float32(ptr[2]), float32(ptr[3]) };
+}
+
+internal Vector4
 get_color(Vector4 c1, Vector4 c2) {
     float32 alpha = 255 - ((255 - c1.E[3]) * (255 - c2.E[3]) / 255);
     float32 red   = (c1.E[0] * (255 - c2.E[3]) + c2.E[0] * c2.E[3]) / 255;
@@ -93,8 +100,8 @@ copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
     u8 *src_ptr = src.memory;
     for (s32 y = 0; y < src.height; y++) {
         for (s32 x = 0; x < src.width; x++) {   
-            Vector4 src_color = { 0x00, 0x00, 0x00, float32(*src_ptr) };
-            Vector4 dest_color = { float32(dest_ptr[0]), float32(dest_ptr[1]), float32(dest_ptr[2]), float32(dest_ptr[3]) };
+            Vector4 src_color = get_color(src_ptr, src.channels);
+            Vector4 dest_color = get_color(dest_ptr, dest.channels);
             Vector4 blend_color = get_color(dest_color, src_color);
 
             dest_ptr[0] = (u8)blend_color.r;
@@ -106,7 +113,8 @@ copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
             src_ptr += src.channels;
         }   
 
-        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
+        dest_ptr = dest.memory + (position.x * dest.channels) + ((position.y) * dest.pitch) + (y * dest.pitch);
+        src_ptr = src.memory + (y * src.pitch);
 
         if (dest_ptr > dest.memory + (dest.width * dest.channels) + (dest.height * dest.pitch) + (y * dest.pitch))
             ASSERT(0);
@@ -172,6 +180,42 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
 }
 
 internal Bitmap
+create_circle_bitmap(Vector2_s32 dim, Vector4 color) {
+    Bitmap bitmap   = {};
+    bitmap.width    = dim.x;
+    bitmap.height   = dim.y;
+    bitmap.channels = 4;
+    bitmap.pitch    = bitmap.width * bitmap.channels;
+    bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
+    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
+
+    u8 *dest_ptr = bitmap.memory;
+
+    s32 x1 = dim.x / 2;
+    s32 y1 = dim.y / 2;
+    s32 r = dim.x / 2;
+
+    for (s32 y2 = 0; y2 < dim.y; y2++) {
+        for (s32 x2 = 0; x2 < dim.x; x2++) {
+            s32 dx = x2 - x1;
+            s32 dy = y2 - y1;
+            if ((dx * dx + dy * dy) <= (r * r)) {
+                dest_ptr[0] = (u8)color.r;
+                dest_ptr[1] = (u8)color.g;
+                dest_ptr[2] = (u8)color.b;
+                dest_ptr[3] = (u8)color.a;
+            }
+
+            dest_ptr += bitmap.channels;
+        }
+
+        dest_ptr = bitmap.memory + (y2 * bitmap.pitch);
+    }
+
+    return bitmap;
+}
+
+internal Bitmap
 create_card_bitmap(Font *font, s32 number) {
     Bitmap bitmap   = {};
     bitmap.width    = 1024;
@@ -190,11 +234,24 @@ create_card_bitmap(Font *font, s32 number) {
         default: str[0] = number + 48; break;
     }
 
-    Bitmap str_bitmap = create_string_into_bitmap(font, 500.0f, str);
+    Bitmap str_bitmap = create_string_into_bitmap(font, 350.0f, str);
+    s32 ball_index = number;
+    if (ball_index == -5)
+        ball_index = 13;
+    Bitmap circle_bitmap = create_circle_bitmap({ 200, 200 }, ball_colors[ball_index]);
 
-    u32 x_center = (bitmap.width  / 2) - (str_bitmap.width  / 2);
-    u32 y_center = (bitmap.height / 2) - (str_bitmap.height / 2);
-    copy_blend_bitmap(bitmap, str_bitmap, { s32(x_center), s32(y_center) });
+    u32 x_center = (bitmap.width  / 2) - (circle_bitmap.width  / 2);
+    u32 y_center = (bitmap.height / 2) - (circle_bitmap.height / 2);
+    copy_blend_bitmap(bitmap, circle_bitmap, { s32(x_center), s32(y_center) });
+
+    s32 padding = 50;
+
+    Vector2_s32 bottom_right = {
+        bitmap.width - str_bitmap.width - padding,
+        bitmap.height - str_bitmap.height - padding
+    };
+    copy_blend_bitmap(bitmap, str_bitmap, { padding, padding });
+    copy_blend_bitmap(bitmap, str_bitmap, bottom_right);
 
     render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
 
@@ -361,9 +418,12 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
     //render_update_ubo(light_set, 0, (void*)&global_light, false);
     //render_bind_descriptor_set(light_set, 2);
 
-    if (!highlight)
+    if (!highlight) {
+        draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
+        render_bind_pipeline(&basic_pipeline);
         render_draw_model(find_model(assets, "TABLE"), basic_pipeline.shader, { 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }));
-
+    }
+    
     Player *active_player = &game->players[game->active_player];
     enum Turn_Stages stage = active_player->turn_stage;
 

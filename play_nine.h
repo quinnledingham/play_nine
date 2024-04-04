@@ -3,16 +3,17 @@ TODO
 - Singleplayer (Bot)
 
 - Flip "animation"
-- Define light not in shader
-- Fix text going off screen (Jeff player name)
-- Highlight only unflipped cards on flip
+- Make piles change size with amount of cards in them
 
-- Fix online drawing (rotation)
-
-- Make assets packing better
+- Fix online drawing (rotation) (Just leave the cam infront of the client cards)
 
 - Change who starts each hole
 - Add pass button
+
+Slight Problems
+- Make assets packing better
+- Fix text even more
+- Clean up light sources in shaders
 */
 
 #define PICKUP_PILE 8
@@ -53,6 +54,25 @@ enum Turn_Stages {
     SELECT_PILE, // pick either pile or discard pile
     SELECT_CARD, // pick where to place new card - in hand or discard
     FLIP_CARD,   // flip card if discard new card
+};
+
+// 0 1 2 3 4 5 6 7 8 9 10 11 12 -5
+Vector4 ball_colors[14] = {
+    {  39,  77,  20, 255 },
+    { 231, 213,  36, 255 },
+    { 240, 229, 118, 255 },
+    { 197, 180,  22, 255 },
+    { 200,   0, 200, 255 },
+    {   0, 255,   0, 255 },
+    {   0,   0, 255, 255 },
+
+    {  39,  77,  20, 255 },
+    { 231, 213,  36, 255 },
+    { 240, 229, 118, 255 },
+    { 255, 255,   0, 255 },
+    { 255, 100,   0, 255 },
+    {   0, 255, 100, 255 },
+    { 255,   0,   0, 255 }
 };
 
 /*

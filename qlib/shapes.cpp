@@ -152,6 +152,78 @@ void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Vector4 color) {
 }
 
 //
+// Circle
+//
+
+internal void
+init_circle_mesh(Mesh *mesh) {
+    u32 circle_vertices = 64;
+    float32 deg_between_vertices = 360.0f / circle_vertices;
+    float32 radius = 0.5f;
+    
+    // allocating memory
+    mesh->vertices_count = 1 + circle_vertices; // +1 for center
+    mesh->vertices = ARRAY_MALLOC(Vertex_XU, mesh->vertices_count);
+    Vertex_XU *vertices = (Vertex_XU *)mesh->vertices;
+
+    mesh->indices_count = circle_vertices * 3 + 6;
+    mesh->indices = ARRAY_MALLOC(u32, mesh->indices_count);
+    
+    // center vertex
+    vertices[0] = Vertex_XU{ { 0, 0 }, { 0.5, 0.5 } };
+    
+    u32 indices_index = 0;
+    for (u32 i = 0; i < circle_vertices; i++)
+    {
+        Vector2 coords = {};
+        Vector2 texture_coords = {};
+        float32 rad = DEG2RAD * (i * deg_between_vertices);
+        
+        coords.x = radius * cosf(rad);
+        coords.y = radius * sinf(rad);
+        
+        // NOT CORRECT
+        texture_coords.x = coords.x;
+        texture_coords.y = coords.y;
+        
+        vertices[i + 1] = Vertex_XU{ coords, texture_coords };
+        
+        if (i == 0) continue;
+        
+        // Make triangles
+        mesh->indices[indices_index++] = 0;
+        mesh->indices[indices_index++] = i - 1;
+        mesh->indices[indices_index++] = i;
+    }
+    
+    mesh->indices[indices_index++] = 0;
+    mesh->indices[indices_index++] = circle_vertices - 1;
+    mesh->indices[indices_index++] = circle_vertices;
+    
+    mesh->indices[indices_index++] = 0;
+    mesh->indices[indices_index++] = 1;
+    mesh->indices[indices_index++] = circle_vertices;
+    
+    render_init_mesh(mesh);
+}
+
+/*
+void draw_circle(v2 coords, r32 rotation, r32 radius, v4 color) {
+    v3 coords_v3 = { coords.x, coords.y, 0 };
+    quat rotation_quat = get_rotation(rotation, { 0, 0, 1 });
+    v3 dim_v3 = { radius, radius, 1 };
+    
+    Shape shape = {};
+    shape.type = SHAPE_CIRCLE;
+    shape.coords = coords_v3;
+    shape.rotation = rotation_quat;
+    shape.dim = dim_v3;
+    shape.draw_type = SHAPE_COLOR;
+    shape.color = color;
+    draw_shape(shape);
+}
+*/
+//
 // Sphere
 //
 
@@ -257,16 +329,16 @@ Mesh get_cube_mesh(bool32 out) {
     Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
     
     // back
-    vertices[0] = { {-0.5, -0.5, -0.5}, {0, 0, 1}, {0, 0} }; // bottom left
-    vertices[1] = { {-0.5,  0.5, -0.5}, {0, 0, 1}, {0, 1} }; // top left
-    vertices[2] = { { 0.5, -0.5, -0.5}, {0, 0, 1}, {1, 0} }; // bottom right
-    vertices[3] = { { 0.5,  0.5, -0.5}, {0, 0, 1}, {1, 1} }; // top right
+    vertices[0] = { {-0.5, -0.5, -0.5}, {1, 0, 1}, {0, 0} }; // bottom left
+    vertices[1] = { {-0.5,  0.5, -0.5}, {1, 0, 1}, {0, 1} }; // top left
+    vertices[2] = { { 0.5, -0.5, -0.5}, {1, 0, 1}, {1, 0} }; // bottom right
+    vertices[3] = { { 0.5,  0.5, -0.5}, {1, 0, 1}, {1, 1} }; // top right
     
     // forward
-    vertices[4] = { {-0.5, -0.5, 0.5}, {0, 0, 1}, {0, 0} }; // bottom left
-    vertices[5] = { {-0.5,  0.5, 0.5}, {0, 0, 1}, {0, 1} }; // top left
-    vertices[6] = { { 0.5, -0.5, 0.5}, {0, 0, 1}, {1, 0} }; // bottom right
-    vertices[7] = { { 0.5,  0.5, 0.5}, {0, 0, 1}, {1, 1} }; // top right
+    vertices[4] = { {-0.5, -0.5, 0.5}, {0, 0, -1}, {0, 0} }; // bottom left
+    vertices[5] = { {-0.5,  0.5, 0.5}, {0, 0, -1}, {0, 1} }; // top left
+    vertices[6] = { { 0.5, -0.5, 0.5}, {0, 0, -1}, {1, 0} }; // bottom right
+    vertices[7] = { { 0.5,  0.5, 0.5}, {0, 0, -1}, {1, 1} }; // top right
     /*
     // back
     mesh.vertices[0] = { {-1.0, -1.0, -1.0}, {0, 0, 1}, {0, 0} }; // bottom left
@@ -302,6 +374,7 @@ Mesh get_cube_mesh(bool32 out) {
         init_rect_indices(mesh.indices + 30, 3, 7, 2, 6); // right
     }
 
+    mesh.vertex_info = get_vertex_xnu_info();
     render_init_mesh(&mesh);
     
     return mesh;
@@ -321,14 +394,18 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     shape.color = color;
     draw_shape(shape);
 */
-    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
-    render_bind_pipeline(&color_pipeline);
-    Descriptor_Set *object_set = render_get_descriptor_set(color_pipeline.shader, 1);
-    render_bind_descriptor_set(object_set, 1);  
-    render_update_ubo(object_set, 0, (void*)&color, false);
 
+    render_bind_pipeline(&color_pipeline);
+    render_bind_descriptor_set(light_set, 1);
+
+    Descriptor_Set *object_set = render_get_descriptor_set(color_pipeline.shader, 3);
+    render_update_ubo(object_set, 0, (void*)&color, false);
+    render_bind_descriptor_set(object_set, 2);  
+
+    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
     render_push_constants(&color_pipeline.shader->layout_sets[2], (void *)&model);  
+
     render_draw_mesh(&shapes.cube_mesh);    
 }
 
@@ -341,7 +418,7 @@ void init_shapes(Assets *assets) {
 	shapes.rect_mesh = get_rect_mesh_2D();
     shapes.rect_3D_mesh = get_rect_mesh();
     shapes.sphere_mesh = get_sphere_mesh(0.025f, 10, 10);
-    shapes.cube_mesh = get_cube_mesh(false);
+    shapes.cube_mesh = get_cube_mesh(true);
 
     shapes.text_shader = find_shader(assets, "TEXT");
 

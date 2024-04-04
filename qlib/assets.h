@@ -174,7 +174,7 @@ struct Descriptor_Set {
 // Contains vulkan info about each descriptor layout
 #ifdef VULKAN
 struct Vulkan_Shader_Info {
-    static const u32 max_sets = 200;
+    static const u32 max_sets = 400;
     u32 sets_count;
 
     VkDescriptorSetLayout descriptor_set_layout;
@@ -187,7 +187,7 @@ struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
-    static const u32 max_sets = 200;
+    static const u32 max_sets = 400;
     static const u32 layout_count = 4;                // layout sets for the 3 scopes
     
     Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
