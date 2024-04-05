@@ -65,8 +65,6 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
             render_bind_descriptor_set(bitmap_set, 2);
         } else {
             
-            //Descriptor_Set *object_set = render_get_descriptor_set(shader, 3);
-            //render_update_ubo(object_set, 0, (void*)&color, false);
             render_bind_descriptor_set(color_set, 2);
         }
 
@@ -74,7 +72,9 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
     }
 }
 
-void render_draw_model(Model *model, Descriptor_Set *color_set, Descriptor_Set *front_set, Descriptor_Set *back_set, Matrix_4x4 model_matrix) {
+Descriptor_Set *texture_set = {};
+
+void render_draw_model(Model *model, Descriptor_Set *color_set, s32 front_index, s32 back_index, Matrix_4x4 model_matrix) {
     //Descriptor_Set *bitmap_set = render_get_descriptor_set(basic_pipeline.shader, 3);
     //render_set_bitmap(bitmap_set, bitmap, 2);
 
@@ -88,16 +88,23 @@ void render_draw_model(Model *model, Descriptor_Set *color_set, Descriptor_Set *
             shader = basic_pipeline.shader;
         }
 
-        render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
-    
+        Object object = {};
+        object.model = model_matrix;
+
         if (i == 0) {
             render_bind_descriptor_set(color_set, 2);
-            render_bind_descriptor_set(light_set, 1);
+            //render_bind_descriptor_set(light_set, 1);
         } else if (i == 1) {
-            render_bind_descriptor_set(front_set, 2);
+            //render_bind_descriptor_set(front_set, 2);
+            render_bind_descriptor_set(texture_set, 2);
+            object.index = front_index;
         } else if (i == 2) {
-            render_bind_descriptor_set(back_set, 2);
+            //render_bind_descriptor_set(back_set, 2);
+            render_bind_descriptor_set(texture_set, 2);
+            object.index = back_index;
         }
+
+        render_push_constants(&shader->layout_sets[2], (void *)&object);
 
         render_draw_mesh(&model->meshes[i]);
     }

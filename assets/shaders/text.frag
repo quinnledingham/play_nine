@@ -1,11 +1,12 @@
 #version 450
 
-layout(set = 1, binding = 1) uniform sampler2D texSampler;
-layout(set = 2, binding = 2) uniform Text {
+layout(set = 1, binding = 1) uniform Text {
     vec4 color;
 } text;
+layout(set = 2, binding = 2) uniform sampler2D texSampler[64];
 
 layout(location = 0) in vec2 fragTexCoord;
+layout(location = 1) flat in int fragIndex;
 
 layout(location = 0) out vec4 outColor;
 
@@ -23,7 +24,7 @@ void main() {
     vec4 norm_text_color = vec4(text.color.x/255, text.color.y/255, text.color.z/255, text.color.w);
     norm_text_color = to_linear(norm_text_color);
 
-    float alpha = texture(texSampler, fragTexCoord).r * text.color.a;
+    float alpha = texture(texSampler[fragIndex], fragTexCoord).r * text.color.a;
     vec4 tex = vec4(1.0, 1.0, 1.0, alpha);
     outColor = norm_text_color * tex;
 }

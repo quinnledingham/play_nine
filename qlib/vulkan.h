@@ -118,6 +118,10 @@ struct Vulkan_Info {
 	// Shaders
 	u32 shader_handles[10];
 	u32 shader_count;
+	Shader *active_shader;
+
+	// Descriptor_Sets
+	VkDescriptorPool descriptor_pool;
 };
 
 inline VkCommandBuffer
@@ -137,6 +141,8 @@ struct Vulkan_Texture {
 	VkImage image;	 		// similar to VkBuffer
 	VkImageView image_view; // provides more info about the image
 	VkSampler sampler;      // allows the shader to sample the image
+
+	u32 index;
 };
 
 struct Vulkan_Mesh {

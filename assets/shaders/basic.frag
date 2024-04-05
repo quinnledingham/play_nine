@@ -9,16 +9,17 @@ layout(set = 1, binding = 1) uniform Light_Source {
     bool enabled;
 } light;
 
-layout(set = 2, binding = 2) uniform sampler2D texSampler;
+layout(set = 2, binding = 2) uniform sampler2D texSampler[64];
 
 layout(location = 0) in vec3 fragNormal;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec3 fragPos;
+layout(location = 3) flat in int fragIndex;
 
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec3 tex = texture(texSampler, fragTexCoord).rgb;
+    vec3 tex = texture(texSampler[fragIndex], fragTexCoord).rgb;
 
     vec3 light_position = light.position.rgb;
     vec3 light_color = light.color.rgb;

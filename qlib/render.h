@@ -5,6 +5,7 @@ struct Scene {
 
 struct Object {
     Matrix_4x4 model;
+    s32 index;
 };
 
 
@@ -31,6 +32,7 @@ global Render render_info = {};
 Descriptor_Set *light_set;
 Descriptor_Set *light_set_2;
 
+#define TEXTURE_ARRAY_SIZE 64
 struct Light {
     Vector4 position;
     Vector4 ambient;
@@ -116,7 +118,7 @@ RENDER_FUNC(Descriptor_Set*, get_descriptor_set, Shader *shader, bool8 layout_in
 
 RENDER_FUNC(void, create_texture, Bitmap *bitmap, u32 texture_parameters);
 RENDER_FUNC(void, delete_texture, Bitmap *bitmap);
-RENDER_FUNC(void, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
+RENDER_FUNC(u32, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
 
 void render_init_model(Model *model);
 //RENDER_FUNC(void, init_model, Model *model);
@@ -124,6 +126,7 @@ void render_init_model(Model *model);
 
 RENDER_FUNC(void, update_ubo, Descriptor_Set *set, u32 descriptor_index, void *data, bool8 static_update);
 RENDER_FUNC(void, push_constants, Descriptor_Set *push_constants, void *data);
+RENDER_FUNC(void, push_constants2, Descriptor_Set *push_constants, void *data, u32 index);
 
 // this is when you tell the shader where the memory is
 RENDER_FUNC(void, bind_descriptor_set, Descriptor_Set *set, u32 first_set);
@@ -140,3 +143,11 @@ RENDER_FUNC(void, assets_cleanup, Assets *assets);
 RENDER_FUNC(void, wait_frame, );
 
 RENDER_FUNC(void, depth_test, bool32 enable);
+
+internal void vulkan_create_set_layout(Layout *layout);
+internal void vulkan_allocate_descriptor_set(Layout *layout);
+VkDescriptorSet vulkan_get_descriptor_set2(Layout *layout);
+void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set);
+internal u32 vulkan_set_bitmap(VkDescriptorSet set, Bitmap *bitmap, u32 binding);
+internal void vulkan_init_layout_offsets(Layout *layout);
+void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set, void *data, u32 size);

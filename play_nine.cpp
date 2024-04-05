@@ -422,7 +422,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
 }
 
 internal void
-draw_card(Model *card_model, Descriptor_Set *color_set, Descriptor_Set *front_sets[13], Descriptor_Set *back_set, u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color) {
+draw_card(Model *card_model, Descriptor_Set *color_set, s32 indices[16], u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color) {
     u32 bitmap_index = number;
     if (number == -5)
         bitmap_index = 13;
@@ -432,7 +432,7 @@ draw_card(Model *card_model, Descriptor_Set *color_set, Descriptor_Set *front_se
         render_draw_model(card_model, &color_pipeline, highlight_color, model_scale);
     }
 
-    render_draw_model(card_model, color_set, front_sets[bitmap_index], back_set, model);
+    render_draw_model(card_model, color_set, indices[bitmap_index], indices[14], model);
 } 
 
 internal Vector4
@@ -449,20 +449,9 @@ get_highlight_color(Game_Draw *draw, u32 index) {
 // 270        90
 //       0
 internal void
-draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highlight) {
-    render_bind_pipeline(&basic_pipeline);
-    render_bind_descriptor_set(state->scene_set, 0);
-    render_bind_descriptor_set(light_set, 1);
-
-    Descriptor_Set *front_sets[14];
-    for (u32 i = 0; i < 14; i++) {
-        front_sets[i] = render_get_descriptor_set(basic_pipeline.shader, 3);
-        render_set_bitmap(front_sets[i], &card_bitmaps[i], 2);
-    }    
-    Descriptor_Set *back_set = render_get_descriptor_set(basic_pipeline.shader, 3);
+draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highlight, s32 indices[16]) {
     Descriptor_Set *color_set = render_get_descriptor_set(color_pipeline.shader, 3);
 
-    render_set_bitmap(back_set, find_bitmap(assets, "YOGI"), 2);
     Vector4 color = { 150, 150, 150, 1 };
     render_update_ubo(color_set, 0, (void*)&color, false);
 
@@ -471,9 +460,19 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
     if (!highlight) {
         draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
         render_bind_pipeline(&basic_pipeline);
-        render_draw_model(find_model(assets, "TABLE"), basic_pipeline.shader, { 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }));
+        render_bind_descriptor_set(texture_set, 2);
+
+        Object object = {};
+        object.model = create_transform_m4x4({ 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }), {15.0f, 1.0f, 15.0f});
+        object.index = indices[15];
+        render_push_constants(&shader->layout_sets[2], (void *)&object);
+
+        Model *model = find_model(assets, "TABLE");
+        for (u32 i = 0; i < model->meshes_count; i++) { 
+            render_draw_mesh(&model->meshes[i]);
+        }
     }
-    
+
     Player *active_player = &game->players[game->active_player];
     enum Turn_Stages stage = active_player->turn_stage;
 
@@ -486,25 +485,25 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
                 case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;
             }
 
-            draw_card(card_model, color_set, front_sets, back_set, card, game->players[i].models[card_index], h, get_highlight_color(&state->game_draw, card_index));
+            draw_card(card_model, color_set, indices, card, game->players[i].models[card_index], h, get_highlight_color(&state->game_draw, card_index));
         }
     }
-
+    
     {
         bool8 h = highlight && stage == SELECT_PILE;
-        draw_card(card_model, color_set, front_sets, back_set, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(&state->game_draw, PICKUP_PILE));
+        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(&state->game_draw, PICKUP_PILE));
     }
 
     if (game->top_of_discard_pile != 0) {
         bool8 h = highlight && (stage == SELECT_PILE || stage == SELECT_CARD);
         if (stage == SELECT_CARD && !game->players[game->active_player].pile_card)
             h = false;
-        draw_card(card_model, color_set, front_sets, back_set, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(&state->game_draw, DISCARD_PILE));
+        draw_card(card_model, color_set, indices, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(&state->game_draw, DISCARD_PILE));
     }
 
     if (stage == SELECT_CARD) {
         s32 card = deck[game->players[game->active_player].new_card];
-        draw_card(card_model, color_set, front_sets, back_set, card, game->players[game->active_player].new_card_model, false, play_nine_yellow);
+        draw_card(card_model, color_set, indices, card, game->players[game->active_player].new_card_model, false, play_nine_yellow);
     }
 }
 
@@ -1021,7 +1020,7 @@ bool8 update_game(State *state, App *app) {
 
             bool8 selected[SELECTED_SIZE] = {};
             if (state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) {
-                do_mouse_selected_update(state, app, selected);
+                //do_mouse_selected_update(state, app, selected);
                 do_controller_selected_update(selected, game, &state->controller);
 
                 if (state->pass_selected) {
@@ -1065,7 +1064,7 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&game->assets, "../assets.ethan"))
@@ -1110,6 +1109,8 @@ bool8 init_data(App *app) {
 
     clear_font_bitmap_cache(default_font);
     
+    u32 test = sizeof(Descriptor_Set);
+
     if (load_and_save_assets) {
         
     }
@@ -1127,6 +1128,10 @@ bool8 init_data(App *app) {
     color_pipeline.shader = color_3D;
     color_pipeline.depth_test = true;
     render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
+
+    init_layouts(layouts);
+
+    texture_set = render_get_descriptor_set(basic_pipeline.shader, 3);
 
 	// Rendering
     game->camera.position = { 0, 2, -5 };
@@ -1210,6 +1215,15 @@ bool8 init_data(App *app) {
     online.mutex = win32_create_mutex();
     game->selected_mutex = win32_create_mutex();
 
+    vulkan_info.active_shader = basic_pipeline.shader;
+    texture_set = &vulkan_info.active_shader->descriptor_sets[3][0];
+    for (u32 i = 0; i < 14; i++) {
+        game->indices[i] = vulkan_set_bitmap2(texture_set, &card_bitmaps[i], 2);
+    }
+    game->indices[14] = vulkan_set_bitmap2(texture_set, find_bitmap(&game->assets, "YOGI"), 2);
+    Model *model = find_model(&game->assets, "TABLE");
+    game->indices[15] = vulkan_set_bitmap2(texture_set, &model->meshes[0].material.diffuse_map, 2);
+
 	return false;
 }
 
@@ -1285,6 +1299,9 @@ bool8 update(App *app) {
     Shader *color_3D = find_shader(assets, "COLOR3D");
 
     render_reset_descriptor_sets(assets);
+    for (u32 i = 0; i < 10; i++) {
+        layouts[i].reset();
+    }
     render_start_frame();
 
     render_set_viewport(app->window.width, app->window.height);
@@ -1307,6 +1324,8 @@ bool8 update(App *app) {
 
     light_set_2 = render_get_descriptor_set(color_3D, 1);
     render_update_ubo(light_set_2, 0, (void*)&global_light_2, false);
+
+    //vulkan_init_bitmap_set(shapes.texture_set, find_bitmap(assets, "DAVID"), 2);
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {
@@ -1352,13 +1371,18 @@ bool8 update(App *app) {
         case PAUSE_MENU:
         case IN_GAME: {
             render_depth_test(true);
-            draw_game(state, &state->assets, basic_3D, &state->game, false);
+            
+            render_bind_pipeline(&basic_pipeline);
+            render_bind_descriptor_set(state->scene_set, 0);
+            render_bind_descriptor_set(light_set, 1);
+            render_bind_descriptor_set(texture_set, 2);
+            draw_game(state, &state->assets, basic_3D, &state->game, false, state->indices);
             render_bind_pipeline(&color_pipeline);
             //draw_sphere({ 0, 0, 0 }, 0.0f, { 1, 1, 1 }, { 0, 255, 0, 1 });
             render_depth_test(false);
 
             if (state->game.round_type != HOLE_OVER)
-                draw_game(state, &state->assets, basic_3D, &state->game, true);
+                draw_game(state, &state->assets, basic_3D, &state->game, true, state->indices);
 
             //draw_ray(&state->mouse_ray);
 

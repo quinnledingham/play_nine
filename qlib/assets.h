@@ -103,6 +103,7 @@ enum shader_stages {
 
 enum descriptor_types {
     DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
     DESCRIPTOR_TYPE_SAMPLER,
 
     DESCRIPTOR_TYPES_AMOUNT
@@ -127,9 +128,59 @@ enum struct descriptor_scope {
     AMOUNT
 };
 
+struct Layout_Binding {
+    u32 binding;
+    u32 descriptor_type;
+    u32 descriptor_count;
+
+    u32 stages[SHADER_STAGES_AMOUNT];
+    u32 stages_count;
+    
+    // ubo specific
+    u32 size;
+    u32 offsets[2];
+
+    Layout_Binding() {}
+
+    Layout_Binding(u32 in_binding, u32 in_type, u32 in_stage, u32 in_descriptor_count) {
+        binding = in_binding;
+        descriptor_type = in_type;
+        descriptor_count = in_descriptor_count;
+        stages[0] = in_stage;
+        stages_count = 1;
+    }
+
+    Layout_Binding(u32 in_binding, u32 in_type, u32 in_stage, u32 in_descriptor_count, u32 in_size) {
+        binding = in_binding;
+        descriptor_type = in_type;
+        descriptor_count = in_descriptor_count;
+        stages[0] = in_stage;
+        stages_count = 1;
+        size = in_size;
+    }
+};
+
+struct Layout {
+    static const u32 max_bindings = 10;
+    static const u32 max_sets = 64;
+
+    Layout_Binding bindings[max_bindings];
+    u32 binding_count;
+
+    VkDescriptorSetLayout descriptor_set_layout;
+    VkDescriptorSet descriptor_sets[max_sets];
+
+    u32 sets_in_use;
+
+    void reset() {
+        sets_in_use = 0;
+    }
+};
+
 struct Descriptor {
     u32 binding;
     u32 type;
+    u32 count;
     u32 stages[SHADER_STAGES_AMOUNT];
     u32 stages_count;
     descriptor_scope scope;
@@ -149,6 +200,17 @@ struct Descriptor {
         stages_count = 1;
         size = in_size;
         scope = in_scope;
+        count = 1;
+    } 
+
+    Descriptor(u32 in_binding, u32 in_type, u32 in_stage, u32 in_size, u32 in_count, descriptor_scope in_scope) {
+        binding = in_binding;
+        type = in_type;
+        stages[0] = in_stage;
+        stages_count = 1;
+        size = in_size;
+        scope = in_scope;
+        count = in_count;
     } 
 
     void Push_Descriptor(u32 in_stage, u32 in_size, descriptor_scope in_scope) {
@@ -168,6 +230,7 @@ struct Descriptor_Set {
     Descriptor descriptors[max_descriptors];
     u32 descriptors_count;
     u32 push_constant_count;
+    u32 texture_index;
 
 #ifdef VULKAN
     VkDescriptorSet *gpu_info[2]; // Vulkan Descriptor Set
@@ -178,7 +241,7 @@ struct Descriptor_Set {
 // Contains vulkan info about each descriptor layout
 #ifdef VULKAN
 struct Vulkan_Shader_Info {
-    static const u32 max_sets = 100;
+    static const u32 max_sets = 32;
     u32 sets_count;
 
     VkDescriptorSetLayout descriptor_set_layout;
@@ -191,13 +254,16 @@ struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
-    static const u32 max_sets = 100;
+    static const u32 max_sets = 32;
     static const u32 layout_count = 4;                // layout sets for the 3 scopes
     
     Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
     Descriptor_Set descriptor_sets[layout_count][max_sets]; //
 
     u32 sets_count[layout_count];
+    u32 texture_index;
+
+    Descriptor_Set *texture_set;
 
 #ifdef VULKAN
     Vulkan_Shader_Info vulkan_infos[layout_count];
