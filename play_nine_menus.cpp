@@ -25,9 +25,6 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
     }
 
     menu_set_input(menu, input);
-
-    menu->button_style.dim = { menu->rect.dim.x, menu->rect.dim.y / float32(3) };
-
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     menu_text(menu, "play_nine", { 231, 213, 36,  1 }, { 0, 0 }, { 1, 2 }); 
@@ -184,39 +181,6 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     return false;
 }
 
-internal s32
-draw_hole_over_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_dim) {
-    Game *game = &state->game;
-
-    Rect window_rect   = {};
-    window_rect.coords = { 0, 0 };
-    window_rect.dim    = cv2(window_dim);
-    //menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
-    menu->rect.dim = cv2(window_dim) * 0.3f;
-    menu->rect.coords = cv2(window_dim) - menu->rect.dim;
-
-    if (!menu->initialized) {
-        menu->initialized = true;
-
-        menu->sections = { 1, 3 };
-        menu->interact_region[0] = { 0, 0 };
-        menu->interact_region[1] = { 0, 0 };
-    }
-
-    menu_set_input(menu, input);
-
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
-
-    if (!state->is_client) {
-        if (menu_button(menu, "Proceed", *input, { 0, 0 }, { 1, 1 })) {
-            state->menu_list.mode = SCOREBOARD_MENU;
-            state->menu_list.scoreboard.initialized = false;
-        }
-    }
-
-    return false;
-}
-
 /*
 0 do nothing
 1 next hole
@@ -335,8 +299,6 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     menu_set_input(menu, input);
 
-    menu->button_style.dim = { menu->rect.dim.x, menu->rect.dim.y / float32(3) };
-
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
 
     menu_text(menu, "Enter Port:", { 231, 213, 36,  1 }, { 0, 0 }, { 2, 1 }); 
@@ -372,8 +334,6 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     }
 
     menu_set_input(menu, input);
-
-    menu->button_style.dim = { menu->rect.dim.x, menu->rect.dim.y / float32(3) };
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
 

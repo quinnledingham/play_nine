@@ -261,7 +261,7 @@ compile_spirv_to_glsl(File *file) {
     //print("Cross-compiled source: %s\n", result);
 
     File result_file = {};
-    result_file.size = 1500;
+    result_file.size = 2000;
     result_file.memory = platform_malloc(result_file.size);
     platform_memory_set(result_file.memory, 0, result_file.size);
     u32 result_length = get_length(result);

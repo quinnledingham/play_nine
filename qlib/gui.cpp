@@ -182,6 +182,75 @@ menu_get_state(Menu *menu, Menu_Input input,
 }
 
 internal bool8
+gui_button(GUI *gui, Draw_Style style, const char *text, Font *font, Vector2 coords, Vector2 dim, Button_Input input) {
+    Draw_Button button = {
+        style,
+        GUI_DEFAULT,
+
+        coords,
+        dim,
+
+        font,
+        text
+    };
+
+    u32 state = GUI_DEFAULT;
+
+    Button gui_select = {};
+    if (input.active_input_type == KEYBOARD_INPUT) {
+        gui_select = input.select;
+
+        if (gui->hover == 0)
+            gui->hover = 1;
+    } else if (input.active_input_type == MOUSE_INPUT) {
+        gui_select = input.mouse_left;
+
+        if (coords_in_rect(input.mouse, coords, dim)) {
+            gui->hover = gui->index;
+        } else if (gui->hover == gui->index) {
+            gui->hover = 0;
+        }
+    }
+
+    if (gui->hover == gui->index) {
+        state = GUI_HOVER;
+
+        if (on_down(gui_select)) {
+            gui->pressed = gui->hover;
+        }
+    }
+        
+    if (gui->pressed == gui->index) {
+        state = GUI_PRESSED;
+
+        if (on_up(gui_select)) {
+            if (gui->hover == gui->index) {
+                gui->active = gui->pressed;
+                state = GUI_ACTIVE;
+            } else {
+                gui->pressed = 0;
+                gui->active = 0;
+            }
+        }
+    }
+
+    button.state = state;
+
+    draw_button(button);
+
+    bool8 button_pressed = false;
+    if (gui->index == gui->active) {
+        button_pressed = true;
+        gui->pressed = 0;
+        gui->active = 0;
+    }
+
+    gui->index++;
+
+    return button_pressed;
+} 
+
+internal bool8
 menu_button(Menu *menu, const char *text, Menu_Input input, 
             Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
 

@@ -3,22 +3,30 @@ TODO
 - Singleplayer (Bot)
 
 - Flip "animation"
-- Make piles change size with amount of cards in them
+- Show keyboard controls
+- Put raytrace on gpu? because it is really slow
 
 - Fix online drawing (rotation) (Just leave the cam infront of the client cards)
 
 - Change who starts each hole
-- Add pass button
+- Change how ingame menus work?
 
 Slight Problems
 - Make assets packing better
 - Fix text even more
+- Clean up game hud
+
+Render.cpp
 - Clean up light sources in shaders
+- clean up descriptor setup
+- Add wireframe and vsync toggle
 */
 
 #define PICKUP_PILE 8
 #define DISCARD_PILE 9
-#define SELECTED_SIZE 10
+#define PASS_BUTTON 10
+#define SELECTED_SIZE 11
+
 #define MAX_NAME_SIZE 20
 #define HAND_SIZE 8
 #define DECK_SIZE 108
@@ -31,10 +39,14 @@ global Vector2 hand_coords[8];
 global float32 hand_width;
 
 global Font *default_font;
+Draw_Style default_style = {};
+
 global const Vector4 play_nine_green  = {  39,  77,  20, 1 };
 global const Vector4 play_nine_yellow = { 231, 213,  36, 1 };
 global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
 global const Vector4 play_nine_dark_yellow = { 197, 180, 22, 1 };
+
+const Vector4 highlight_colors[3] = { play_nine_yellow, play_nine_light_yellow, play_nine_dark_yellow };
 
 enum Round_Types {
     FLIP_ROUND,
@@ -133,6 +145,9 @@ struct Game_Draw {
 
     float32 degrees_between_players;
     float32 radius;
+
+    bool8 highlight_hover[SELECTED_SIZE];
+    bool8 highlight_pressed[SELECTED_SIZE];
 };
 
 enum Menu_Mode {
@@ -186,6 +201,8 @@ struct State {
     bool8 selected[SELECTED_SIZE];
     s64 selected_mutex;
 
+    bool8 pass_selected;
+
     // Drawing
     Scene scene;
     Scene ortho_scene;
@@ -214,11 +231,6 @@ Vector3 ball_colors[14] = {
     { 255, 100,   0 },
     {   0, 255, 100 },
     { 255,   0,   0 }
-};
-
-struct Ball_Design {
-    Vector2_s32 dim;
-    
 };
 
 s32 rows[14][3] = {

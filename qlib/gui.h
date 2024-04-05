@@ -110,7 +110,6 @@ struct Menu_Input {
 };
 
 struct Menu {
-    Menu_Button_Style button_style;
     Draw_Style style;
 
     Textbox edit;
@@ -131,6 +130,27 @@ struct Menu {
 
     bool8 initialized;
 };
+
+//
+// GUI
+//
+
+struct Button_Input {
+    enum Input_Type active_input_type;
+    Button select;
+    Vector2_s32 mouse;
+    Button mouse_left;
+};
+
+struct GUI {
+    u32 index = 1; // starts at 1
+
+    u32 hover;
+    u32 pressed;
+    u32 active;
+};
+
+GUI gui = {};
 
 //
 // Misc

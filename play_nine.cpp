@@ -422,7 +422,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
 }
 
 internal void
-draw_card(State *state, Assets *assets, Shader *shader, u32 number, Matrix_4x4 model, bool8 highlight) {
+draw_card(State *state, Assets *assets, Shader *shader, u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color) {
     u32 bitmap_index = number;
     if (number == -5)
         bitmap_index = 13;
@@ -438,7 +438,7 @@ draw_card(State *state, Assets *assets, Shader *shader, u32 number, Matrix_4x4 m
         Matrix_4x4 model_scale = m4x4_scale(model, { 1.06f, 1.06f, 1.06f });
 
         //render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), model);
-        render_draw_model(find_model(assets, "CARD"), &color_pipeline, play_nine_yellow, model_scale);
+        render_draw_model(find_model(assets, "CARD"), &color_pipeline, highlight_color, model_scale);
 
         state->camera.position -= state->camera.target * 2.0f;
         state->scene.view = get_view(state->camera);
@@ -449,6 +449,16 @@ draw_card(State *state, Assets *assets, Shader *shader, u32 number, Matrix_4x4 m
 
     render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), model);
 } 
+
+internal Vector4
+get_highlight_color(Game_Draw *draw, u32 index) {
+    Vector4 highlight_color = highlight_colors[0];
+    if (draw->highlight_hover[index])
+        highlight_color = highlight_colors[1];
+    if (draw->highlight_pressed[index])
+        highlight_color = highlight_colors[2];
+    return highlight_color;
+}
 
 //      180
 // 270        90
@@ -479,25 +489,26 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
                 case SELECT_PILE: h = false; break;
                 case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;
             }
-            draw_card(state, assets, shader, card, game->players[i].models[card_index], h);
+
+            draw_card(state, assets, shader, card, game->players[i].models[card_index], h, get_highlight_color(&state->game_draw, card_index));
         }
     }
 
     {
         bool8 h = highlight && stage == SELECT_PILE;
-        draw_card(state, assets, shader, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h);
+        draw_card(state, assets, shader, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(&state->game_draw, PICKUP_PILE));
     }
 
     if (game->top_of_discard_pile != 0) {
         bool8 h = highlight && (stage == SELECT_PILE || stage == SELECT_CARD);
         if (stage == SELECT_CARD && !game->players[game->active_player].pile_card)
             h = false;
-        draw_card(state, assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h);
+        draw_card(state, assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(&state->game_draw, DISCARD_PILE));
     }
 
     if (stage == SELECT_CARD) {
         s32 card = deck[game->players[game->active_player].new_card];
-        draw_card(state, assets, shader, card, game->players[game->active_player].new_card_model, false);
+        draw_card(state, assets, shader, card, game->players[game->active_player].new_card_model, false, play_nine_yellow);
     }
 }
 
@@ -848,11 +859,17 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
                     next_player(game, draw);
                     return;
                 }
-
+/*
                 if (selected[DISCARD_PILE] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
                     next_player(game, draw);
                     return;
                 }
+*/
+                if (selected[PASS_BUTTON] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
+                    next_player(game, draw);
+                    return;
+                }
+
             }
         } break;
     }
@@ -877,6 +894,7 @@ mouse_ray_model_intersections(bool8 *selected, Ray mouse_ray, Game *game, Model 
 
     for (u32 card_index = 0; card_index < 8; card_index++) {
         selected[card_index] = ray_model_intersection(mouse_ray, card_model, active_player->models[card_index]);
+        if (selected[card_index]) return;
     }
 
     selected[PICKUP_PILE] = ray_model_intersection(mouse_ray, card_model, game->top_of_pile_model);
@@ -885,7 +903,32 @@ mouse_ray_model_intersections(bool8 *selected, Ray mouse_ray, Game *game, Model 
 }
 
 internal void
-update_card_with_buttons(bool8 selected[SELECTED_SIZE], Game *game, Controller *controller) {
+do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) {
+    Game *game = &state->game;
+    Game_Draw *draw = &state->game_draw;
+    Model *card_model = find_model(&state->assets, "CARD");
+
+    set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
+    mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, game, card_model);
+
+    if (on_down(state->controller.mouse_left)) {
+        platform_memory_copy(draw->highlight_pressed, draw->highlight_hover, sizeof(bool8) * SELECTED_SIZE);
+    }
+
+    if (on_up(state->controller.mouse_left)) {
+        platform_memory_copy(selected, draw->highlight_hover, sizeof(bool8) * SELECTED_SIZE);
+
+        for (u32 i = 0; i < SELECTED_SIZE; i++) {
+            if (selected[i] && !draw->highlight_pressed[i])
+                selected[i] = false;
+        }
+
+        platform_memory_set(draw->highlight_pressed, 0, sizeof(bool8) * SELECTED_SIZE);
+    }
+}
+
+internal void
+do_controller_selected_update(bool8 selected[SELECTED_SIZE], Game *game, Controller *controller) {
     for (u32 i = 0; i < HAND_SIZE; i++) {
         if (on_up(controller->buttons[i])) {
             selected[i] = true;
@@ -982,14 +1025,13 @@ bool8 update_game(State *state, App *app) {
 
             bool8 selected[SELECTED_SIZE] = {};
             if (state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) {
-                if (on_up(state->controller.mouse_left)) {
-                    set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
-                     
-                    Model *card_model = find_model(&state->assets, "CARD");
-                    mouse_ray_model_intersections(selected, state->mouse_ray, game, card_model);
-                }
+                do_mouse_selected_update(state, app, selected);
+                do_controller_selected_update(selected, game, &state->controller);
 
-                update_card_with_buttons(selected, game, &state->controller);
+                if (state->pass_selected) {
+                    selected[PASS_BUTTON] = true;
+                    state->pass_selected = false;
+                }
 
                 if (state->is_client && !all_false(selected)) {
                     client_set_selected(state->client, selected, state->client_game_index);
@@ -1027,7 +1069,7 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    if (0) {
+    if (1) {
         if (load_assets(&game->assets, "../assets.ethan"))
             return true;
 
@@ -1086,6 +1128,7 @@ bool8 init_data(App *app) {
 
     set(&game->controller.select, SDLK_RETURN);
 	set(&game->controller.pause,  SDLK_ESCAPE);
+    set(&game->controller.pass,   SDLK_p); 
 
     set(&game->controller.camera_toggle, SDLK_c);
 
@@ -1126,10 +1169,6 @@ bool8 init_data(App *app) {
     // Setting default Menus
     Menu default_menu = {};
     default_menu.font = default_font;
-    default_menu.button_style.default_back_color = play_nine_yellow;
-    default_menu.button_style.active_back_color  = play_nine_light_yellow;
-    default_menu.button_style.default_text_color = play_nine_green;
-    default_menu.button_style.active_text_color  = play_nine_green;
 
     default_menu.style.default_back = play_nine_yellow;
     default_menu.style.default_text = play_nine_green;
@@ -1144,6 +1183,8 @@ bool8 init_data(App *app) {
 
     default_menu.active_section = { -1, -1 };
     default_menu.edit.section = { -1, -1 };
+
+    default_style = default_menu.style;
 
     for (u32 i = 0; i < IN_GAME; i++) {
         game->menu_list.menus[i] = default_menu;
@@ -1298,7 +1339,7 @@ bool8 update(App *app) {
             render_depth_test(true);
             draw_game(state, &state->assets, basic_3D, &state->game, false);
             render_bind_pipeline(&color_pipeline);
-            draw_sphere({ 0, 0, 0 }, 0.0f, { 1, 1, 1 }, { 0, 255, 0, 1 });
+            //draw_sphere({ 0, 0, 0 }, 0.0f, { 1, 1, 1 }, { 0, 255, 0, 1 });
             render_depth_test(false);
 
             if (state->game.round_type != HOLE_OVER)
@@ -1314,11 +1355,39 @@ bool8 update(App *app) {
 
             draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, pixel_height, { 255, 255, 255, 1 });
 
+            Player *active_player = &state->game.players[state->game.active_player];
             if (state->menu_list.mode == PAUSE_MENU) {
                 draw_pause_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
             } else if (state->game.round_type == HOLE_OVER) {
-                draw_hole_over_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
-            } 
+
+                if (!state->is_client) {                
+                    Button_Input button_input = {
+                        app->input.active,
+                        state->controller.select,
+                        app->input.mouse,
+                        state->controller.mouse_left
+                    };
+                    float32 pass_width = app->window.dim.x / 7.0f;
+                    if (gui_button(&gui, default_style, "Proceed", default_font, { app->window.dim.x - pass_width, 5 + text_dim.y + 50 }, { pass_width, pixel_height }, button_input)) {
+                        state->menu_list.mode = SCOREBOARD_MENU;
+                        state->menu_list.scoreboard.initialized = false;
+                    }
+                }
+
+            } else if (active_player->turn_stage == FLIP_CARD && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
+
+                Button_Input button_input = {
+                    app->input.active,
+                    state->controller.select,
+                    app->input.mouse,
+                    state->controller.mouse_left
+                };
+                float32 pass_width = app->window.dim.x / 7.0f;
+                if (gui_button(&gui, default_style, "Pass", default_font, { app->window.dim.x - pass_width, 5 + text_dim.y + 50 }, { pass_width, pixel_height }, button_input)) {
+                    state->pass_selected = true; // in update_game feed this into selected
+                }
+            }
+
         } break;
     }
 
@@ -1330,7 +1399,11 @@ bool8 update(App *app) {
         win32_release_mutex(state->mutex);
 
     prepare_controller_for_input(&state->controller);
+    gui.index = 1;
+    //gui.hover = 0;
 
+    print("%f\n", state->scene.test);
+    
 	return 0;
 }
 

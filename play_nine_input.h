@@ -28,11 +28,12 @@ struct Controller {
 
             Button pause;
             Button select;
+            Button pass;
 
             // Mouse Controls
             Button mouse_left;
         };
-        Button buttons[20];
+        Button buttons[21];
     };
 };
 
