@@ -316,10 +316,7 @@ clean_shader(Shader *shader) {
 internal Font
 load_font(const char *filepath) {
 	Font font = {};
-	platform_memory_set(font.font_chars, 0, sizeof(Font_Char)        * ARRAY_COUNT(font.font_chars));
-    platform_memory_set(font.bitmaps,    0, sizeof(Font_Char_Bitmap) * ARRAY_COUNT(font.bitmaps));
     font.file = load_file(filepath);
-    
     return font;
 }
 
@@ -329,6 +326,9 @@ init_font(Font *font) {
     stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
     *info = {};
     
+    font->cache = (Font_Cache *)platform_malloc(sizeof(Font_Cache));
+    platform_memory_set(font->cache, 0, sizeof(Font_Cache));
+
     stbtt_InitFont(info, (u8*)font->file.memory, stbtt_GetFontOffsetForIndex((u8*)font->file.memory, 0));
     stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
 }
@@ -338,16 +338,16 @@ load_font_char(Font *font, u32 codepoint) {
 	stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
 
     // search cache for font char
-    for (s32 i = 0; i < font->font_chars_cached; i++) {
-        Font_Char *font_char = &font->font_chars[i];
+    for (s32 i = 0; i < font->cache->font_chars_cached; i++) {
+        Font_Char *font_char = &font->cache->font_chars[i];
         if (font_char->codepoint == codepoint)
             return font_char;
     }
     
     // where to cache new font char
-    Font_Char *font_char = &font->font_chars[font->font_chars_cached++];
-    if (font->font_chars_cached >= ARRAY_COUNT(font->font_chars)) 
-        font->font_chars_cached = 0;
+    Font_Char *font_char = &font->cache->font_chars[font->cache->font_chars_cached++];
+    if (font->cache->font_chars_cached >= ARRAY_COUNT(font->cache->font_chars)) 
+        font->cache->font_chars_cached = 0;
 
     platform_memory_set(font_char, 0, sizeof(Font_Char));
     font_char->codepoint = codepoint;
@@ -370,16 +370,16 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
 
     // search cache for font char
-    for (s32 i = 0; i < font->bitmaps_cached; i++) {
-        Font_Char_Bitmap *bitmap = &font->bitmaps[i];
+    for (s32 i = 0; i < font->cache->bitmaps_cached; i++) {
+        Font_Char_Bitmap *bitmap = &font->cache->bitmaps[i];
         if (bitmap->font_char->codepoint == codepoint && bitmap->scale == scale)
             return bitmap;
     }
 
     // where to cache new font char
-    Font_Char_Bitmap *char_bitmap = &font->bitmaps[font->bitmaps_cached++];
-    if (font->bitmaps_cached >= ARRAY_COUNT(font->bitmaps)) 
-        font->bitmaps_cached = 0;
+    Font_Char_Bitmap *char_bitmap = &font->cache->bitmaps[font->cache->bitmaps_cached++];
+    if (font->cache->bitmaps_cached >= ARRAY_COUNT(font->cache->bitmaps)) 
+        font->cache->bitmaps_cached = 0;
 
     // free bitmap if one is being overwritten
     if (char_bitmap->scale != 0) { 
@@ -409,13 +409,13 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 internal void
 clear_font_bitmap_cache(Font *font) {
     stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
-    for (s32 i = 0; i < font->bitmaps_cached; i++) {
-        stbtt_FreeBitmap(font->bitmaps[i].bitmap.memory, info->userdata);
-        font->bitmaps[i].bitmap.memory = 0;
-        render_delete_texture(&font->bitmaps[i].bitmap);
+    for (s32 i = 0; i < font->cache->bitmaps_cached; i++) {
+        stbtt_FreeBitmap(font->cache->bitmaps[i].bitmap.memory, info->userdata);
+        font->cache->bitmaps[i].bitmap.memory = 0;
+        render_delete_texture(&font->cache->bitmaps[i].bitmap);
     }
 
-    font->bitmaps_cached = 0;
+    font->cache->bitmaps_cached = 0;
 }
 
 float32 get_scale_for_pixel_height(void *info, float32 pixel_height) {

@@ -5,11 +5,17 @@ TODO
 - Flip "animation"
 - Show keyboard controls
 - Put raytrace on gpu? because it is really slow
+- Move Pick up deck closer to active player with more players
+- Add column shading to scoreboard
+- View cards with mouse
+- Problem showing -10 in the non-total part of the scoreboard, just showed -1
 
 - Fix online drawing (rotation) (Just leave the cam infront of the client cards)
 
 - Change who starts each hole
 - Change how ingame menus work?
+
+- Pack card bitmap assets
 
 Slight Problems
 - Make assets packing better
@@ -18,8 +24,9 @@ Slight Problems
 
 Render.cpp
 - Clean up light sources in shaders
-- clean up descriptor setup
+- clean up descriptor setup (make shader asset smaller)
 - Add wireframe and vsync toggle
+- Fix "skybox" shading
 */
 
 #define PICKUP_PILE 8

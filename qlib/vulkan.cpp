@@ -740,8 +740,6 @@ vulkan_create_descriptor_set(Shader *shader, u32 descriptor_set_count, u32 pool_
 	}
 }
 
-#define VULKAN_STATIC_BUFFER_SIZE 20000000
-
 internal u32
 vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
 	u32 return_offset = *offset;
@@ -1549,8 +1547,8 @@ vulkan_assets_cleanup(Assets *assets) {
     for (u32 i = 0; i < assets->types[ASSET_TYPE_FONT].num_of_assets; i++) {
         Font *font = (Font *)&assets->types[ASSET_TYPE_FONT].data[i].memory;
 
-        for (s32 j = 0; j < font->bitmaps_cached; j++) {
-            vulkan_delete_texture(&font->bitmaps[j].bitmap);
+        for (s32 j = 0; j < font->cache->bitmaps_cached; j++) {
+            vulkan_delete_texture(&font->cache->bitmaps[j].bitmap);
         }
     }
 

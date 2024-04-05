@@ -125,6 +125,8 @@ vulkan_active_cmd_buffer(Vulkan_Info *info) {
 	return info->command_buffers[info->current_frame];
 }
 
+#define VULKAN_STATIC_BUFFER_SIZE 20000000
+
 global Vulkan_Info vulkan_info;
 
 struct Vulkan_Texture {
@@ -144,3 +146,4 @@ struct Vulkan_Mesh {
     u32 uniform_offsets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
     u32 uniform_size; // size of the individual uniforms
 };
+

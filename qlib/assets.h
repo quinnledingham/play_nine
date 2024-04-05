@@ -65,6 +65,14 @@ struct Font_Char_Bitmap {
     // WARNING: inverted from Font_Char bounding box (because of stb_truetype). bb_0 is top left and bb_1 is bottom right in this case.
 };
 
+struct Font_Cache {
+    s32 font_chars_cached;
+    s32 bitmaps_cached;
+    
+    Font_Char font_chars[255];
+    Font_Char_Bitmap bitmaps[300];
+};
+
 struct Font {
     File file;
     void *info; // stbtt_fontinfo
@@ -72,11 +80,7 @@ struct Font {
     Vector2_s32 bb_0; // font bounding box coord 0
     Vector2_s32 bb_1; // font bounding box coord 1
 
-    s32 font_chars_cached;
-    s32 bitmaps_cached;
-    
-    Font_Char font_chars[255];
-    Font_Char_Bitmap bitmaps[300];
+    Font_Cache *cache;
 };
 
 struct Audio {
@@ -174,7 +178,7 @@ struct Descriptor_Set {
 // Contains vulkan info about each descriptor layout
 #ifdef VULKAN
 struct Vulkan_Shader_Info {
-    static const u32 max_sets = 400;
+    static const u32 max_sets = 100;
     u32 sets_count;
 
     VkDescriptorSetLayout descriptor_set_layout;
@@ -187,7 +191,7 @@ struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
-    static const u32 max_sets = 400;
+    static const u32 max_sets = 100;
     static const u32 layout_count = 4;                // layout sets for the 3 scopes
     
     Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
@@ -336,6 +340,8 @@ struct Asset {
         Model model;
         void *memory;
     };  
+
+    Asset() {}
 };
 
 struct Asset_Array {

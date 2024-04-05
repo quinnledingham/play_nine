@@ -422,32 +422,17 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
 }
 
 internal void
-draw_card(State *state, Assets *assets, Shader *shader, u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color) {
+draw_card(Model *card_model, Descriptor_Set *color_set, Descriptor_Set *front_sets[13], Descriptor_Set *back_set, u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color) {
     u32 bitmap_index = number;
     if (number == -5)
         bitmap_index = 13;
 
     if (highlight) {
-        Descriptor_Set *scene_set = render_get_descriptor_set(shader, 0);
-        state->camera.position += state->camera.target * 2.0f;
-        state->scene.view = get_view(state->camera);
-
-        render_update_ubo(scene_set, 0, (void*)&state->scene, false);
-        //render_bind_descriptor_set(scene_set, 0);
-        
         Matrix_4x4 model_scale = m4x4_scale(model, { 1.06f, 1.06f, 1.06f });
-
-        //render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), model);
-        render_draw_model(find_model(assets, "CARD"), &color_pipeline, highlight_color, model_scale);
-
-        state->camera.position -= state->camera.target * 2.0f;
-        state->scene.view = get_view(state->camera);
-
-        render_update_ubo(state->scene_set, 0, (void*)&state->scene, false);
-        render_bind_descriptor_set(state->scene_set, 0);
+        render_draw_model(card_model, &color_pipeline, highlight_color, model_scale);
     }
 
-    render_draw_model(find_model(assets, "CARD"), &color_pipeline, &basic_pipeline, &card_bitmaps[bitmap_index], find_bitmap(assets, "YOGI"), model);
+    render_draw_model(card_model, color_set, front_sets[bitmap_index], back_set, model);
 } 
 
 internal Vector4
@@ -468,9 +453,20 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
     render_bind_pipeline(&basic_pipeline);
     render_bind_descriptor_set(state->scene_set, 0);
     render_bind_descriptor_set(light_set, 1);
-    //Descriptor_Set *light_set = render_get_descriptor_set(shader, 3);
-    //render_update_ubo(light_set, 0, (void*)&global_light, false);
-    //render_bind_descriptor_set(light_set, 2);
+
+    Descriptor_Set *front_sets[14];
+    for (u32 i = 0; i < 14; i++) {
+        front_sets[i] = render_get_descriptor_set(basic_pipeline.shader, 3);
+        render_set_bitmap(front_sets[i], &card_bitmaps[i], 2);
+    }    
+    Descriptor_Set *back_set = render_get_descriptor_set(basic_pipeline.shader, 3);
+    Descriptor_Set *color_set = render_get_descriptor_set(color_pipeline.shader, 3);
+
+    render_set_bitmap(back_set, find_bitmap(assets, "YOGI"), 2);
+    Vector4 color = { 150, 150, 150, 1 };
+    render_update_ubo(color_set, 0, (void*)&color, false);
+
+    Model *card_model = find_model(assets, "CARD");
 
     if (!highlight) {
         draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
@@ -490,25 +486,25 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
                 case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;
             }
 
-            draw_card(state, assets, shader, card, game->players[i].models[card_index], h, get_highlight_color(&state->game_draw, card_index));
+            draw_card(card_model, color_set, front_sets, back_set, card, game->players[i].models[card_index], h, get_highlight_color(&state->game_draw, card_index));
         }
     }
 
     {
         bool8 h = highlight && stage == SELECT_PILE;
-        draw_card(state, assets, shader, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(&state->game_draw, PICKUP_PILE));
+        draw_card(card_model, color_set, front_sets, back_set, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(&state->game_draw, PICKUP_PILE));
     }
 
     if (game->top_of_discard_pile != 0) {
         bool8 h = highlight && (stage == SELECT_PILE || stage == SELECT_CARD);
         if (stage == SELECT_CARD && !game->players[game->active_player].pile_card)
             h = false;
-        draw_card(state, assets, shader, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(&state->game_draw, DISCARD_PILE));
+        draw_card(card_model, color_set, front_sets, back_set, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(&state->game_draw, DISCARD_PILE));
     }
 
     if (stage == SELECT_CARD) {
         s32 card = deck[game->players[game->active_player].new_card];
-        draw_card(state, assets, shader, card, game->players[game->active_player].new_card_model, false, play_nine_yellow);
+        draw_card(card_model, color_set, front_sets, back_set, card, game->players[game->active_player].new_card_model, false, play_nine_yellow);
     }
 }
 
@@ -1069,7 +1065,9 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    if (1) {
+    bool8 load_and_save_assets = false;
+
+    if (load_and_save_assets) {
         if (load_assets(&game->assets, "../assets.ethan"))
             return true;
 
@@ -1090,7 +1088,31 @@ bool8 init_data(App *app) {
 
     init_assets(&game->assets);
 
-    //u32 test = get_assets_size(&game->assets);
+    default_font = find_font(&game->assets, "CASLON");
+
+    print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
+
+    init_card_bitmaps(card_bitmaps, default_font); 
+    if (0) {
+        Asset *card_assets = ARRAY_MALLOC(Asset, 14);
+        for (u32 i = 0; i < 14; i++) {
+            Asset *asset = &card_assets[i];
+            asset->bitmap = card_bitmaps[i];
+            asset->tag = (const char *)platform_malloc(5);
+            platform_memory_set((void*)asset->tag, 0, 5);
+            const char *tag = "card";
+            platform_memory_copy((void*)asset->tag, (void*)tag, 4);
+        };
+        add_assets(&game->assets, card_assets, 14);
+    }
+
+    default_font = find_font(&game->assets, "CASLON");
+
+    clear_font_bitmap_cache(default_font);
+    
+    if (load_and_save_assets) {
+        
+    }
 
 	Shader *basic_3D = find_shader(&game->assets, "BASIC3D");
     init_basic_vert_layout(basic_3D);
@@ -1147,12 +1169,7 @@ bool8 init_data(App *app) {
 
     set(&game->controller.mouse_left, SDL_BUTTON_LEFT);
 
-    Font *font = find_font(&game->assets, "CASLON");
-
     init_deck();
-    init_card_bitmaps(card_bitmaps, font);
-
-    clear_font_bitmap_cache(font);
     
     init_shapes(&game->assets);
 
@@ -1161,10 +1178,8 @@ bool8 init_data(App *app) {
     game->game_draw.rotation_speed = 150.0f;
     game->camera_mode = PLAYER_CAMERA;
 
-    game->notifications.font = font;
+    game->notifications.font = default_font;
     game->notifications.text_color = { 255, 255, 255, 1 };
-
-    default_font = find_font(&game->assets, "CASLON");
 
     // Setting default Menus
     Menu default_menu = {};
@@ -1400,9 +1415,6 @@ bool8 update(App *app) {
 
     prepare_controller_for_input(&state->controller);
     gui.index = 1;
-    //gui.hover = 0;
-
-    print("%f\n", state->scene.test);
     
 	return 0;
 }
