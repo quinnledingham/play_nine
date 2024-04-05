@@ -12,7 +12,8 @@ struct Render_Pipeline {
     Shader *shader;
     bool8 blend;
     bool8 depth_test = TRUE;
-    
+    bool8 wireframe;
+
 #ifdef VULKAN
     //VkRenderPass render_pass;
     VkPipelineLayout pipeline_layout;
@@ -23,7 +24,7 @@ struct Render_Pipeline {
 };
 
 struct Render {
-
+    bool8 vsync;
 };
 
 global Render render_info = {};

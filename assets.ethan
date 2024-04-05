@@ -11,6 +11,9 @@ TEXT|FRAGMENT,    text.frag
 COLOR|VERTEX,     2D.vert
 COLOR|FRAGMENT,   color.frag
 
+TEXTURE|VERTEX,   2D.vert
+TEXTURE|FRAGMENT, texture.frag
+
 BITMAPS:
 YOGI,  yogi.png
 DAVID, david.jpg

@@ -56,33 +56,15 @@ remove_player(Game *game, u32 index) {
 // creating card bitmpas
 //
 
-internal void
-copy_bitmap_into_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
-    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
-    u8 *src_ptr = src.memory;
-    for (s32 y = 0; y < src.height; y++) {
-        for (s32 x = 0; x < src.width; x++) {   
-            u8 color = 0xFF ^ (*src_ptr);
-
-            for (s32 i = 0; i < dest.channels; i++) {
-                for (s32 j = 0; j < src.channels; j++) {
-                    dest_ptr[i] = src_ptr[j];
-                }
-            }
-
-            dest_ptr += dest.channels;
-            src_ptr += src.channels;
-        }   
-
-        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
-    }
-}
-
 internal Vector4
-get_color(u8 *ptr, u32 channels) {
-    if (channels == 1)
-        return { 0x00, 0x00, 0x00, float32(*ptr) };
-    return { float32(ptr[0]), float32(ptr[1]), float32(ptr[2]), float32(ptr[3]) };
+get_color(u8 *ptr, u32 channels, Vector3 color) {
+    switch(channels) {
+        case 1: return { color.r, color.g, color.b, float32(*ptr) }; break;
+        case 3: return { float32(ptr[0]), float32(ptr[1]), float32(ptr[2]), 0xFF }; break;
+        case 4: return { float32(ptr[0]), float32(ptr[1]), float32(ptr[2]), float32(ptr[3]) }; break;
+    }
+
+    return { 0, 0, 0, 0 };
 }
 
 internal Vector4
@@ -94,26 +76,30 @@ get_color(Vector4 c1, Vector4 c2) {
     return {red, green, blue, alpha};
 }
 
+// color contains what to fill conversion from 1 channel to 4 channels with
 internal void
-copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
+copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position, Vector3 color) {
     u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
     u8 *src_ptr = src.memory;
     for (s32 y = 0; y < src.height; y++) {
-        for (s32 x = 0; x < src.width; x++) {   
-            Vector4 src_color = get_color(src_ptr, src.channels);
-            Vector4 dest_color = get_color(dest_ptr, dest.channels);
-            Vector4 blend_color = get_color(dest_color, src_color);
+        for (s32 x = 0; x < src.width; x++) { 
+            if (dest.channels == 1) {
+                *dest_ptr = *src_ptr;
+            } else if (dest.channels == 4) { 
+                Vector4 src_color = get_color(src_ptr, src.channels, color);
+                Vector4 dest_color = get_color(dest_ptr, dest.channels, color);
+                Vector4 blend_color = get_color(dest_color, src_color);
 
-            dest_ptr[0] = (u8)blend_color.r;
-            dest_ptr[1] = (u8)blend_color.g;
-            dest_ptr[2] = (u8)blend_color.b;
-            dest_ptr[3] = (u8)blend_color.a;
-
+                dest_ptr[0] = (u8)blend_color.r;
+                dest_ptr[1] = (u8)blend_color.g;
+                dest_ptr[2] = (u8)blend_color.b;
+                dest_ptr[3] = (u8)blend_color.a;
+            }
             dest_ptr += dest.channels;
             src_ptr += src.channels;
         }   
 
-        dest_ptr = dest.memory + (position.x * dest.channels) + ((position.y) * dest.pitch) + (y * dest.pitch);
+        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
         src_ptr = src.memory + (y * src.pitch);
 
         if (dest_ptr > dest.memory + (dest.width * dest.channels) + (dest.height * dest.pitch) + (y * dest.pitch))
@@ -168,7 +154,7 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
         s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
         Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, ((float32)height / 2.0f) - ((float32)char_height / 2.0f)};
 
-        copy_bitmap_into_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords));
+        copy_blend_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords), { 0, 0, 0 });
 
         s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
         current_point += scale * (kern + font_char->ax);
@@ -180,14 +166,14 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
 }
 
 internal Bitmap
-create_circle_bitmap(Vector2_s32 dim, Vector4 color) {
+create_circle_bitmap(Vector2_s32 dim) {
     Bitmap bitmap   = {};
     bitmap.width    = dim.x;
     bitmap.height   = dim.y;
-    bitmap.channels = 4;
+    bitmap.channels = 1;
     bitmap.pitch    = bitmap.width * bitmap.channels;
     bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
+    memset(bitmap.memory, 0x00, bitmap.width * bitmap.height * bitmap.channels);
 
     u8 *dest_ptr = bitmap.memory;
 
@@ -200,10 +186,7 @@ create_circle_bitmap(Vector2_s32 dim, Vector4 color) {
             s32 dx = x2 - x1;
             s32 dy = y2 - y1;
             if ((dx * dx + dy * dy) <= (r * r)) {
-                dest_ptr[0] = (u8)color.r;
-                dest_ptr[1] = (u8)color.g;
-                dest_ptr[2] = (u8)color.b;
-                dest_ptr[3] = (u8)color.a;
+                *dest_ptr = 0xFF;
             }
 
             dest_ptr += bitmap.channels;
@@ -215,8 +198,42 @@ create_circle_bitmap(Vector2_s32 dim, Vector4 color) {
     return bitmap;
 }
 
+internal void
+add_balls_line(Bitmap bitmap, Bitmap circle_bitmap, s32 x, s32 number, Vector3 color) {
+    float32 radius = (circle_bitmap.width  / 2.0f);
+    for (s32 i = 1; i <= number; i++) {
+        float32 y = (bitmap.height * (float32(i) / float32(number + 1))) - radius;
+        copy_blend_bitmap(bitmap, circle_bitmap, { x, s32(y) }, color);
+    }
+}
+
+internal void
+add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
+    float32 x = 0.0f;
+    float32 y = 0.0f;
+
+    float32 radius = (circle_bitmap.width  / 2.0f);
+
+    s32 *design = rows[number];
+    s32 columns = 0; // count how many columns are in this design to only space for that many
+    for (u32 i = 0; i < 3; i++) {
+        if (design[i] > 0)
+            columns++;
+    }
+
+    // draw each column that is not zero
+    s32 columns_index = 1; 
+    for (u32 i = 0; i < 3; i++) {
+        if (design[i] > 0) {
+            x = (bitmap.width * (columns_index++ / float32(columns + 1))) - radius;
+            add_balls_line(bitmap, circle_bitmap, s32(x), design[i], ball_colors[number]);
+        }
+    }
+    
+}
+
 internal Bitmap
-create_card_bitmap(Font *font, s32 number) {
+create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
     Bitmap bitmap   = {};
     bitmap.width    = 1024;
     bitmap.height   = 1638;
@@ -224,6 +241,11 @@ create_card_bitmap(Font *font, s32 number) {
     bitmap.pitch    = bitmap.width * bitmap.channels;
     bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
     memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
+
+    add_balls_to_bitmap(bitmap, circle_bitmap, number);
+
+    if (number == 13)
+        number = -5;
 
     char str[3] = {};
     switch(number) {
@@ -235,23 +257,18 @@ create_card_bitmap(Font *font, s32 number) {
     }
 
     Bitmap str_bitmap = create_string_into_bitmap(font, 350.0f, str);
-    s32 ball_index = number;
-    if (ball_index == -5)
-        ball_index = 13;
-    Bitmap circle_bitmap = create_circle_bitmap({ 200, 200 }, ball_colors[ball_index]);
-
-    u32 x_center = (bitmap.width  / 2) - (circle_bitmap.width  / 2);
-    u32 y_center = (bitmap.height / 2) - (circle_bitmap.height / 2);
-    copy_blend_bitmap(bitmap, circle_bitmap, { s32(x_center), s32(y_center) });
 
     s32 padding = 50;
+    Vector3 text_color = { 0, 0, 0 };
+    if (number == -5)
+        text_color = { 255, 0, 0 };
 
     Vector2_s32 bottom_right = {
         bitmap.width - str_bitmap.width - padding,
         bitmap.height - str_bitmap.height - padding
     };
-    copy_blend_bitmap(bitmap, str_bitmap, { padding, padding });
-    copy_blend_bitmap(bitmap, str_bitmap, bottom_right);
+    copy_blend_bitmap(bitmap, str_bitmap, { padding, padding }, text_color);
+    copy_blend_bitmap(bitmap, str_bitmap, bottom_right, text_color);
 
     render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
 
@@ -263,11 +280,25 @@ create_card_bitmap(Font *font, s32 number) {
 
 internal void
 init_card_bitmaps(Bitmap *bitmaps, Font *font) {
-    for (s32 i = 0; i <= 12; i++) {
-        bitmaps[i] = create_card_bitmap(font, i);
+    Bitmap circle_bitmap = create_circle_bitmap({ 200, 200 });
+
+    for (s32 i = 0; i <= 13; i++) {
+        bitmaps[i] = create_card_bitmap(font, i, circle_bitmap);
     }
 
-    bitmaps[13] = create_card_bitmap(font, -5);
+    platform_free(circle_bitmap.memory);
+}
+
+internal void
+draw_card_bitmaps(Bitmap bitmaps[14], Vector2_s32 window_dim) {
+    Vector2 pos = { 0, 0 };
+    Vector2 dim = { window_dim.x / 14.0f, 0 };
+    float32 percent = dim.x / bitmaps[0].width;
+    dim.y = bitmaps[0].height * percent;
+    for (u32 i = 0; i < 14; i++) {
+        pos.x = i * dim.x;
+        draw_rect(pos, 0, dim, &bitmaps[i]);
+    }
 }
 
 //
@@ -328,18 +359,26 @@ load_card_model(bool8 flipped, Vector3 position, float32 degrees, Vector3 scale)
     if (!flipped) {
         Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
         rotation = flip * rotation;
-        position.y += 0.05f;
-    }
+        position.y += (0.101767f * scale.y); // Hardcoded card.obj height
+        return create_transform_m4x4(position, rotation, scale);
+    } else
+        return create_transform_m4x4(position, rotation, scale);
+}
 
-    return create_transform_m4x4(position, rotation, scale);
+internal float32
+get_pile_y_scale(u32 cards) {
+    float32 max_y_scale = 10.0f;
+    float32 min_y_scale = 0.5f;
+    float32 percent = float32(cards) / float32(DECK_SIZE);
+    return (max_y_scale * percent) + min_y_scale;
 }
 
 internal void
 load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
     Vector3 selected_card_coords = {0.0f, 1.0f, -2.7f};
-    Vector3 pile_coords          = { -1.1f, 0.35f, 0 };
-    Vector3 discard_pile_coords  = { 1.1f, 0, 0 };
+    Vector3 pile_coords          = { -1.1f, 0.0f, 0 };
+    Vector3 discard_pile_coords  = {  1.1f, 0.0f, 0 };
 
     for (u32 i = 0; i < game->num_of_players; i++) {
         float32 degrees = (draw->degrees_between_players * i) - 90.0f;
@@ -370,11 +409,16 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     rotate_coords(&discard_pile_coords, pile_rad);
 
     // pile
-    game->top_of_pile_model = load_card_model(false, pile_coords, pile_degs, {1.0f, 4.0f, 1.0f});
+    {
+        float32 pile_y_scale = get_pile_y_scale(DECK_SIZE - game->top_of_pile);
+        game->top_of_pile_model = load_card_model(false, pile_coords, pile_degs, {1.0f, pile_y_scale, 1.0f});
+    }
 
     // discard pile
-    if (game->top_of_discard_pile != 0)
-        game->top_of_discard_pile_model = load_card_model(true, discard_pile_coords, pile_degs, card_scale);
+    if (game->top_of_discard_pile != 0) {
+        float32 pile_y_scale = get_pile_y_scale(game->top_of_discard_pile);
+        game->top_of_discard_pile_model = load_card_model(true, discard_pile_coords, pile_degs, {1.0f, pile_y_scale, 1.0f});
+    }
 }
 
 internal void
@@ -910,6 +954,11 @@ bool8 update_game(State *state, App *app) {
             if (on_down(state->controller.camera_toggle)) {
                 state->camera_mode = FREE_CAMERA;
                 app->input.relative_mouse_mode = true;
+
+                state->camera.position = Vector3{ 0, 0, 1 };
+                state->camera.yaw = 270.0f;
+                state->camera.pitch = 0.0f;
+                break;
             }
                       
             if (on_down(state->controller.right)) {
@@ -978,7 +1027,7 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    if (1) {
+    if (0) {
         if (load_assets(&game->assets, "../assets.ethan"))
             return true;
 
@@ -1248,6 +1297,8 @@ bool8 update(App *app) {
         case IN_GAME: {
             render_depth_test(true);
             draw_game(state, &state->assets, basic_3D, &state->game, false);
+            render_bind_pipeline(&color_pipeline);
+            draw_sphere({ 0, 0, 0 }, 0.0f, { 1, 1, 1 }, { 0, 255, 0, 1 });
             render_depth_test(false);
 
             if (state->game.round_type != HOLE_OVER)

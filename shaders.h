@@ -47,3 +47,10 @@ init_color_frag_layout(Shader *shader) {
     shader->layout_sets[1].descriptors_count = 1;
     render_create_descriptor_pool(shader, shader->max_sets, 1);
 }
+
+inline void
+init_texture_frag_layout(Shader *shader) {
+    shader->layout_sets[1].descriptors[0] = Descriptor(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 0, descriptor_scope::GLOBAL);
+    shader->layout_sets[1].descriptors_count = 1;
+    render_create_descriptor_pool(shader, shader->max_sets, 1);
+}

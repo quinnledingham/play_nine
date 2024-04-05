@@ -50,6 +50,8 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
     if (menu_button(menu, "Quit", *input, { 0, 6 }, { 1, 1 })) 
         return true;
 
+    draw_card_bitmaps(card_bitmaps, window_dim);
+
     return false;
 }
 

@@ -151,6 +151,21 @@ void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Vector4 color) {
     draw_shape(shape);
 }
 
+void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Bitmap *bitmap) {
+    Vector3 coords_v3 = { coords.x, coords.y, 0 };
+    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
+    Vector3 dim_v3 = { dim.x, dim.y, 1 };
+    
+    Shape shape = {};
+    shape.type = SHAPE_RECT;
+    shape.coords = coords_v3;
+    shape.rotation = rotation_quat;
+    shape.dim = dim_v3;
+    shape.draw_type = Shape_Draw_Type::TEXTURE;
+    shape.bitmap = bitmap;
+    draw_shape(shape);
+}
+
 //
 // Circle
 //
@@ -290,9 +305,6 @@ Mesh get_sphere_mesh(float32 radius, u32 u_subdivision, u32 v_subdivision) {
     return mesh;
 }
 
-Render_Pipeline basic_pipeline;
-Render_Pipeline color_pipeline;
-
 void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 /*
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
@@ -308,8 +320,8 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 */
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     render_bind_pipeline(&color_pipeline);
-    Descriptor_Set *object_set = render_get_descriptor_set(color_pipeline.shader, 1);
-    render_bind_descriptor_set(object_set, 1);  
+    Descriptor_Set *object_set = render_get_descriptor_set(color_pipeline.shader, 3);
+    render_bind_descriptor_set(object_set, 2);  
     render_update_ubo(object_set, 0, (void*)&color, false);
 
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
@@ -415,11 +427,13 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 //
 
 void init_shapes(Assets *assets) {
+    // Meshes
 	shapes.rect_mesh = get_rect_mesh_2D();
     shapes.rect_3D_mesh = get_rect_mesh();
     shapes.sphere_mesh = get_sphere_mesh(0.025f, 10, 10);
     shapes.cube_mesh = get_cube_mesh(true);
 
+    // Text Pipeline
     shapes.text_shader = find_shader(assets, "TEXT");
 
     init_basic_vert_layout(shapes.text_shader);
@@ -429,6 +443,7 @@ void init_shapes(Assets *assets) {
     shapes.text_pipeline.depth_test = false;
     render_create_graphics_pipeline(&shapes.text_pipeline, get_vertex_xu_info());
 
+    // Color Pipeline
     shapes.color_shader = find_shader(assets, "COLOR");
 
     init_basic_vert_layout(shapes.color_shader);
@@ -437,11 +452,22 @@ void init_shapes(Assets *assets) {
     shapes.color_pipeline.shader = shapes.color_shader;
     shapes.color_pipeline.depth_test = false;
     render_create_graphics_pipeline(&shapes.color_pipeline, get_vertex_xu_info());
+
+    // Texture Pipeline
+    shapes.texture_shader = find_shader(assets, "TEXTURE");
+
+    init_basic_vert_layout(shapes.texture_shader);
+    init_texture_frag_layout(shapes.texture_shader);
+
+    shapes.texture_pipeline.shader = shapes.texture_shader;
+    shapes.texture_pipeline.depth_test = false;
+    render_create_graphics_pipeline(&shapes.texture_pipeline, get_vertex_xu_info());
 }
 
 void cleanup_shapes() {
     render_pipeline_cleanup(&shapes.text_pipeline);
     render_pipeline_cleanup(&shapes.color_pipeline);
+    render_pipeline_cleanup(&shapes.texture_pipeline);
 }
 
 internal void
@@ -455,6 +481,14 @@ draw_shape(Shape shape) {
             set = render_get_descriptor_set(shapes.color_pipeline.shader, 1);
             render_bind_descriptor_set(set, 1);   
             render_update_ubo(set, 0, (void*)&shape.color, false);
+        } break;
+
+        case Shape_Draw_Type::TEXTURE: {
+            render_bind_pipeline(&shapes.texture_pipeline);
+            shader = shapes.texture_pipeline.shader;
+            set = render_get_descriptor_set(shapes.texture_pipeline.shader, 1);
+            render_bind_descriptor_set(set, 1);   
+            render_set_bitmap(set, shape.bitmap, 1);
         } break;
 
         case Shape_Draw_Type::TEXT: {
