@@ -151,3 +151,4 @@ void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set);
 internal u32 vulkan_set_bitmap(VkDescriptorSet set, Bitmap *bitmap, u32 binding);
 internal void vulkan_init_layout_offsets(Layout *layout);
 void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set, void *data, u32 size);
+internal u32 vulkan_set_bitmap2(Descriptor_Set *set, Bitmap *bitmap, u32 binding);

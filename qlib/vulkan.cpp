@@ -1557,7 +1557,7 @@ vulkan_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
 	VkDescriptorSet *vulkan_set = (VkDescriptorSet *)set->gpu_info[vulkan_info.current_frame];
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
 
-	if (set->texture_index == 0) {
+	if (vulkan_info.active_shader->texture_index == 0) {
 		VkDescriptorImageInfo image_info[TEXTURE_ARRAY_SIZE] = {};
 		for (u32 i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
 	    	image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1570,9 +1570,9 @@ vulkan_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
 	    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	    descriptor_writes[0].dstSet = *vulkan_set;
 	    descriptor_writes[0].dstBinding = binding;
-	    descriptor_writes[0].dstArrayElement = set->texture_index;
+	    descriptor_writes[0].dstArrayElement = vulkan_info.active_shader->texture_index;
 	    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	    descriptor_writes[0].descriptorCount = TEXTURE_ARRAY_SIZE - set->texture_index;
+	    descriptor_writes[0].descriptorCount = TEXTURE_ARRAY_SIZE - vulkan_info.active_shader->texture_index;
 	    descriptor_writes[0].pImageInfo = image_info;
 
 	    vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
@@ -1587,16 +1587,16 @@ vulkan_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
 	    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	    descriptor_writes[0].dstSet = *vulkan_set;
 	    descriptor_writes[0].dstBinding = binding;
-	    descriptor_writes[0].dstArrayElement = set->texture_index;
+	    descriptor_writes[0].dstArrayElement = vulkan_info.active_shader->texture_index;
 	    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	    descriptor_writes[0].descriptorCount = 1;
 	    descriptor_writes[0].pImageInfo = &image_info;
 
 	    vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
 	}
-	u32 index = set->texture_index;
+	u32 index = vulkan_info.active_shader->texture_index;
 
-	set->texture_index++;
+	vulkan_info.active_shader->texture_index++;
 
 	return index;
 }
@@ -2113,11 +2113,15 @@ VkDescriptorSet vulkan_get_descriptor_set2(Layout *layout) {
 
     u32 return_index = layout->sets_in_use++;
     if (vulkan_info.current_frame == 1)
-        return_index += 32;
+        return_index += layout->max_sets / 2;
 
     return layout->descriptor_sets[return_index];
 }
-
+/*
+IMPORTANT:
+This coming after the update of the descriptor is very important in scenarios where the data
+is changing frame to frame.
+*/
 void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set) {
 	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &set, 0, nullptr);
 }
@@ -2148,9 +2152,9 @@ vulkan_set_bitmap(VkDescriptorSet set, Bitmap *bitmap, u32 binding) {
 	    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	    descriptor_writes[0].dstSet = set;
 	    descriptor_writes[0].dstBinding = binding;
-	    descriptor_writes[0].dstArrayElement = vulkan_info.active_shader->texture_index;
+	    descriptor_writes[0].dstArrayElement = 0;
 	    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	    descriptor_writes[0].descriptorCount = TEXTURE_ARRAY_SIZE - vulkan_info.active_shader->texture_index;
+	    descriptor_writes[0].descriptorCount = TEXTURE_ARRAY_SIZE;
 	    descriptor_writes[0].pImageInfo = image_info;
 
 	    vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);

@@ -162,7 +162,7 @@ struct Layout_Binding {
 
 struct Layout {
     static const u32 max_bindings = 10;
-    static const u32 max_sets = 64;
+    static const u32 max_sets = 128;
 
     Layout_Binding bindings[max_bindings];
     u32 binding_count;
@@ -226,7 +226,7 @@ struct Descriptor {
 // use these to manage the uniforms in the game code
 struct Descriptor_Set {
     u32 set_index; // in shader: set = 0, set = 1
-    static const u32 max_descriptors = 10;
+    static const u32 max_descriptors = 64;
     Descriptor descriptors[max_descriptors];
     u32 descriptors_count;
     u32 push_constant_count;

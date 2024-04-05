@@ -551,16 +551,20 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     render_bind_descriptor_set(object_set, 2);
 
     Object object = {};
+    VkDescriptorSet v_set = vulkan_get_descriptor_set2(&layouts[2]);
+
     s32 indices[60];
     platform_memory_set(indices, -1, sizeof(u32) * 60);
 
     while(string[i] != 0) {
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
         if (bitmap->bitmap.width != 0) {   
-            indices[i] = vulkan_set_bitmap(object_set, &bitmap->bitmap, 2);
+            indices[i] = vulkan_set_bitmap(v_set, &bitmap->bitmap, 2);
         }
         i++;
     }
+
+    vulkan_bind_descriptor_set(v_set, 2);
 
     i = 0;
     u32 bitmap_index = 0;
