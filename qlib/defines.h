@@ -31,6 +31,6 @@ typedef double float64;
 
 #define ASSERT(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #define ARRAY_COUNT(n)     (sizeof(n) / sizeof(n[0]))
-#define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t)))
+#define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t))) // WARNING!!!! Make sure n is in brackets if operation
 
 #endif // DEFINES_H

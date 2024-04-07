@@ -232,7 +232,9 @@ load_assets(Assets *assets, const char *filepath) {
 
 internal bool8
 add_assets(Assets *assets, Asset new_assets[14], u32 num_of_assets) {
-    Asset *new_data = ARRAY_MALLOC(Asset, assets->num_of_assets + num_of_assets);
+    Asset *new_data = ARRAY_MALLOC(Asset, (assets->num_of_assets + num_of_assets + 10));
+    platform_memory_set(new_data, 0, sizeof(Asset) * (assets->num_of_assets + num_of_assets + 10));
+    
     Asset_Array new_types[ASSET_TYPE_AMOUNT];
 
     for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++)
@@ -240,7 +242,6 @@ add_assets(Assets *assets, Asset new_assets[14], u32 num_of_assets) {
 
     for (u32 i = 0; i < num_of_assets; i++) {
         Asset *asset = &new_assets[i];
-        assets->num_of_assets++;
         new_types[asset->type].num_of_assets++;
     }
 
@@ -248,7 +249,9 @@ add_assets(Assets *assets, Asset new_assets[14], u32 num_of_assets) {
 
     s32 indexes[ASSET_TYPE_AMOUNT];
     for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++) {
-        platform_memory_copy(new_types[i].data, assets->types[i].data, sizeof(Asset) * assets->types[i].num_of_assets);
+        for (u32 j = 0; j < assets->types[i].num_of_assets; j++) {
+            new_types[i].data[j] = assets->types[i].data[j];
+        }
         indexes[i] = assets->types[i].num_of_assets;
     }
 
@@ -259,11 +262,19 @@ add_assets(Assets *assets, Asset new_assets[14], u32 num_of_assets) {
 
     platform_free(assets->data);
 
+    assets->num_of_assets += num_of_assets;
     assets->data = new_data;
     for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++)
         assets->types[i] = new_types[i];
 
     return 0;
+}
+
+internal void
+print_assets(Assets *assets) {
+    for (u32 i = 0; i < assets->num_of_assets; i++) {
+        print("type %d, tag: %s\n", assets->data[i].type, assets->data[i].tag);
+    }
 }
 
 //

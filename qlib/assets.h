@@ -177,12 +177,12 @@ struct Layout {
     u32 binding_count;
 
     u32 set_number; // what set in the shader it is
-    VkDescriptorSetLayout descriptor_set_layout;
-    u32 offsets[max_sets]; // for static uniform buffers
-    VkDescriptorSet descriptor_sets[max_sets];
-
     u32 sets_in_use;
+    u32 offsets[max_sets]; // for static uniform buffers, correlates with descriptor_sets
 
+    VkDescriptorSet descriptor_sets[max_sets];
+    VkDescriptorSetLayout descriptor_set_layout;
+    
     void add_binding(Layout_Binding new_binding) {
         bindings[new_binding.binding] = new_binding; // Set up so array index == binding location
     }
@@ -198,7 +198,7 @@ struct Push_Constant {
 };
 
 struct Layout_Set {
-    Layout descriptor_sets[5];
+    Layout *descriptor_sets[5];
     Push_Constant push_constants[5];
 
     u32 descriptor_sets_count;
@@ -206,7 +206,7 @@ struct Layout_Set {
 
     bool8 enabled;
 
-    void add_layout(Layout layout) {
+    void add_layout(Layout *layout) {
         descriptor_sets[descriptor_sets_count++] = layout;
     }
 
@@ -361,8 +361,6 @@ struct Asset {
         Model model;
         void *memory;
     };  
-
-    Asset() {}
 };
 
 struct Asset_Array {

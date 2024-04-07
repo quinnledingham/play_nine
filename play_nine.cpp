@@ -273,7 +273,7 @@ create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
     render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
 
     platform_free(str_bitmap.memory);
-    platform_free(bitmap.memory);
+    //platform_free(bitmap.memory);
   
     return bitmap;
 }
@@ -422,7 +422,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
 }
 
 internal void
-draw_card(Model *card_model, VkDescriptorSet color_set, s32 indices[16], u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color) {
+draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color) {
     u32 bitmap_index = number;
     if (number == -5)
         bitmap_index = 13;
@@ -450,7 +450,7 @@ get_highlight_color(Game_Draw *draw, u32 index) {
 //       0
 internal void
 draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highlight, s32 indices[16]) {
-    VkDescriptorSet color_set = vulkan_get_descriptor_set2(&layouts[5]);
+    Descriptor color_set = vulkan_get_descriptor_set(&layouts[5]);
 
     //Vector4 color = { 150, 150, 150, 1 };
     //render_update_ubo(color_set, 0, (void*)&color, false);
@@ -1064,15 +1064,11 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
         if (load_assets(&game->assets, "../assets.ethan"))
             return true;
-
-        FILE *file = fopen("assets.save", "wb");
-        save_assets(&game->assets, file);
-        fclose(file);
     } else {
         const char *filepath = "assets.save";
         u32 offset = 0;
@@ -1091,28 +1087,36 @@ bool8 init_data(App *app) {
 
     print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 
-    init_card_bitmaps(card_bitmaps, default_font); 
-    if (0) {
+    if (load_and_save_assets) {
+        init_card_bitmaps(card_bitmaps, default_font); 
         Asset *card_assets = ARRAY_MALLOC(Asset, 14);
         for (u32 i = 0; i < 14; i++) {
             Asset *asset = &card_assets[i];
+            asset->type = ASSET_TYPE_BITMAP;
             asset->bitmap = card_bitmaps[i];
             asset->tag = (const char *)platform_malloc(5);
+            asset->tag_length = 4;
             platform_memory_set((void*)asset->tag, 0, 5);
-            const char *tag = "card";
+            const char *tag = "carb";
             platform_memory_copy((void*)asset->tag, (void*)tag, 4);
         };
         add_assets(&game->assets, card_assets, 14);
+        //print_assets(&game->assets);
+
+        FILE *file = fopen("assets.save", "wb");
+        save_assets(&game->assets, file);
+        fclose(file);
+    } else {
+        for (u32 i = 0; i < 14; i++) {
+            card_bitmaps[i] = game->assets.types[0].data[i + 3].bitmap;
+        }
     }
 
     default_font = find_font(&game->assets, "CASLON");
 
-    clear_font_bitmap_cache(default_font);
+    //clear_font_bitmap_cache(default_font);
     
-    if (load_and_save_assets) {
-        
-    }
-
+    global_assets = &game->assets;
     init_layouts(layouts, find_bitmap(&game->assets, "DAVID"));
 
     u32 test = sizeof(Layout_Set);

@@ -3,7 +3,7 @@ init_layouts(Layout layouts[10], Bitmap *bitmap) {
     layouts[0].bindings[0] = Layout_Binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene)); // 2D.vert, basic.vert
     layouts[1].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Light)); // basic.frag, color3D.frag
     layouts[2].bindings[0] = Layout_Binding(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, TEXTURE_ARRAY_SIZE); // basic.frag, text.frag
-    layouts[3].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, TEXTURE_ARRAY_SIZE); // texture.frag
+    layouts[3].bindings[0] = Layout_Binding(0, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, TEXTURE_ARRAY_SIZE); // texture.frag
     layouts[4].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, SHADER_STAGE_FRAGMENT, 1, sizeof(Vector4)); // color.frag, text.frag
     layouts[5].bindings[0] = Layout_Binding(2, DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, SHADER_STAGE_FRAGMENT, 1, sizeof(Vector4)); // color3D.frag
 
@@ -23,7 +23,7 @@ init_layouts(Layout layouts[10], Bitmap *bitmap) {
 
 inline void
 init_basic_vert_layout(Layout_Set *set, Layout layouts[10]) {
-    set->add_layout(layouts[0]);
+    set->add_layout(&layouts[0]);
 
     set->add_push(SHADER_STAGE_VERTEX, sizeof(Object));
     set->enabled = true;
@@ -31,28 +31,28 @@ init_basic_vert_layout(Layout_Set *set, Layout layouts[10]) {
 
 inline void
 init_basic_frag_layout(Shader *shader, Layout layouts[10]) {
-    shader->set.add_layout(layouts[1]);
-    shader->set.add_layout(layouts[2]);
+    shader->set.add_layout(&layouts[1]);
+    shader->set.add_layout(&layouts[2]);
 }
 
 inline void
 init_color3D_frag_layout(Shader *shader, Layout layouts[10]) {
-    shader->set.add_layout(layouts[1]);
-    shader->set.add_layout(layouts[5]);
+    shader->set.add_layout(&layouts[1]);
+    shader->set.add_layout(&layouts[5]);
 }
 
 inline void
 init_text_frag_layout(Shader *shader, Layout layouts[10]) {
-    shader->set.add_layout(layouts[4]);
-    shader->set.add_layout(layouts[2]);
+    shader->set.add_layout(&layouts[4]);
+    shader->set.add_layout(&layouts[2]);
 }
 
 inline void
 init_color_frag_layout(Shader *shader, Layout layouts[10]) {
-    shader->set.add_layout(layouts[4]);
+    shader->set.add_layout(&layouts[4]);
 }
 
 inline void
 init_texture_frag_layout(Shader *shader, Layout layouts[10]) {
-    shader->set.add_layout(layouts[3]);
+    shader->set.add_layout(&layouts[3]);
 }

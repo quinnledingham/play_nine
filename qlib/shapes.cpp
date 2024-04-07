@@ -320,8 +320,8 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 */
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     render_bind_pipeline(&color_pipeline);
-    VkDescriptorSet object_set = vulkan_get_descriptor_set2(&layouts[5]);
-    vulkan_bind_descriptor_set(object_set, 0, (void*)&color, sizeof(Vector4));
+    Descriptor object_desc = vulkan_get_descriptor_set(&layouts[5]);
+    vulkan_bind_descriptor_set(object_desc, 0, (void*)&color, sizeof(Vector4));
 
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
     vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Model));  
@@ -410,7 +410,7 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     render_bind_pipeline(&color_pipeline);
     vulkan_bind_descriptor_set(light_set);
 
-    VkDescriptorSet object_set = vulkan_get_descriptor_set2(&layouts[5]);
+    Descriptor object_set = vulkan_get_descriptor_set(&layouts[5]);
     vulkan_bind_descriptor_set(object_set, 2, (void*)&color, sizeof(Vector4));
 
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
@@ -478,7 +478,7 @@ draw_shape(Shape shape) {
         case Shape_Draw_Type::COLOR: {
             render_bind_pipeline(&shapes.color_pipeline);
 
-            VkDescriptorSet v_set = vulkan_get_descriptor_set2(&layouts[4]);
+            Descriptor v_set = vulkan_get_descriptor_set(&layouts[4]);
             vulkan_bind_descriptor_set(v_set, 1, (void*)&shape.color, sizeof(Vector4));
         } break;
 
@@ -525,7 +525,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
 
     u32 i = 0;
 
-    VkDescriptorSet v_color_set = vulkan_get_descriptor_set2(&layouts[4]);
+    Descriptor v_color_set = vulkan_get_descriptor_set(&layouts[4]);
     vulkan_bind_descriptor_set(v_color_set, 1, (void*)&color, sizeof(Vector4));
 
     Object object = {};

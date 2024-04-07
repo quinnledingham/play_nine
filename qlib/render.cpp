@@ -54,7 +54,7 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
     Object object = {};
 
     Descriptor bitmap_desc = vulkan_get_descriptor_set(&layouts[2]);
-    VkDescriptorSet color_set = vulkan_get_descriptor_set2(&layouts[5]);
+    Descriptor color_set = vulkan_get_descriptor_set(&layouts[5]);
     
     for (u32 i = 0; i < model->meshes_count; i++) {
         if (model->meshes[i].material.diffuse_map.memory != 0) {
@@ -73,7 +73,7 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
 
 Descriptor texture_desc = {};
 
-void render_draw_model(Model *model, VkDescriptorSet color_set, Vector4 color, s32 front_index, s32 back_index, Matrix_4x4 model_matrix) {
+void render_draw_model(Model *model, Descriptor color_set, Vector4 color, s32 front_index, s32 back_index, Matrix_4x4 model_matrix) {
     //Descriptor_Set *bitmap_set = render_get_descriptor_set(basic_pipeline.shader, 3);
     //render_set_bitmap(bitmap_set, bitmap, 2);
 
@@ -112,7 +112,7 @@ void render_draw_model(Model *model, Render_Pipeline *color_pipeline, Vector4 co
     shader = color_pipeline->shader;
     vulkan_bind_descriptor_set(light_set_2);
 
-    VkDescriptorSet color_set = vulkan_get_descriptor_set2(&layouts[5]);
+    Descriptor color_set = vulkan_get_descriptor_set(&layouts[5]);
     vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
 
     vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));

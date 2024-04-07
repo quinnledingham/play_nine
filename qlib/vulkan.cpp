@@ -859,7 +859,7 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 
 	VkDescriptorSetLayout descriptor_set_layouts[5];
 	for (u32 i = 0; i < shader->set.descriptor_sets_count; i++) {
-		descriptor_set_layouts[i] = shader->set.descriptor_sets[i].descriptor_set_layout;
+		descriptor_set_layouts[i] = shader->set.descriptor_sets[i]->descriptor_set_layout;
 	}
 
 	VkPushConstantRange push_constant_ranges[5] = {};
@@ -1862,18 +1862,6 @@ vulkan_create_set_layout(Layout *layout) {
 
 // Descriptor Set Usage
 
-
-VkDescriptorSet vulkan_get_descriptor_set2(Layout *layout) {
-    if (layout->sets_in_use + 1 > layout->max_sets)
-        ASSERT(0);
-
-    u32 return_index = layout->sets_in_use++;
-    if (vulkan_info.current_frame == 1)
-        return_index += layout->max_sets / 2;
-
-    return layout->descriptor_sets[return_index];
-}
-
 Descriptor vulkan_get_descriptor_set(Layout *layout) {
     if (layout->sets_in_use + 1 > layout->max_sets)
         ASSERT(0);
@@ -1926,21 +1914,17 @@ This coming after the update of the descriptor is very important in scenarios wh
 is changing frame to frame.
 Maybe should combine update and bind functions.
 */
-void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set) {
-	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &set, 0, nullptr);
-}
-
 void vulkan_bind_descriptor_set(Descriptor desc) {
 	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
 }
 
-void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set, void *data, u32 size) {
+void vulkan_bind_descriptor_set(Descriptor desc, u32 first_set, void *data, u32 size) {
 	u32 alignment = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
 	u32 offset = vulkan_get_next_offset(&vulkan_info.dynamic_uniform_buffer.offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE);
 
-	memcpy((char*)vulkan_info.dynamic_uniform_buffer.data + offset, data, size);
+	memcpy((char*)vulkan_info.dynamic_uniform_buffer.data + offset, data, desc.binding.size);
 
-	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &set, 1, &offset);
+	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, desc.vulkan_set, 1, &offset);
 }
 
 void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {

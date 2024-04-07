@@ -55,6 +55,8 @@ global const Vector4 play_nine_dark_yellow = { 197, 180, 22, 1 };
 
 const Vector4 highlight_colors[3] = { play_nine_yellow, play_nine_light_yellow, play_nine_dark_yellow };
 
+Assets *global_assets;
+
 enum Round_Types {
     FLIP_ROUND,
     REGULAR_ROUND,
