@@ -90,10 +90,14 @@ struct Vulkan_Info {
     VkDeviceMemory static_buffer_memory;
     u32 static_buffer_offset; // where to enter new bytes
 	
-	VkBuffer uniform_buffer;
-	VkDeviceMemory uniform_buffer_memory;
+	VkBuffer static_uniform_buffer;
+	VkDeviceMemory static_uniform_buffer_memory;
+	u32 static_uniforms_offset; // where to go to update the dynamic uniforms
+
+	VkBuffer dynamic_uniform_buffer;
+	VkDeviceMemory dynamic_uniform_buffer_memory;
 	u32 dymanic_uniforms_offset; // where to go to update the dynamic uniforms
-	u32 uniform_buffer_offset;
+
 	void *uniform_data;
 
 	// Depth Buffer

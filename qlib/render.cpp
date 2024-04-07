@@ -50,31 +50,30 @@ update_camera_with_keys(Camera *camera, Vector3 target, Vector3 up_v, Vector3 ma
 //
 
 void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternion rotation) {
-    Descriptor_Set *bitmap_set = render_get_descriptor_set(shader, 3);
-
     Vector4 color = { 148, 99, 46, 1 };
-    Descriptor_Set *color_set = render_get_descriptor_set(shader, 3);
-    render_update_ubo(color_set, 0, (void*)&color, false);
+    Object object = {};
 
+    VkDescriptorSet bitmap_set = vulkan_get_descriptor_set2(&layouts[2]);
+    VkDescriptorSet color_set = vulkan_get_descriptor_set2(&layouts[5]);
+    
     for (u32 i = 0; i < model->meshes_count; i++) {
-        Matrix_4x4 model_matrix = create_transform_m4x4(position, rotation, {15.0f, 1.0f, 15.0f});
-        render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
-
         if (model->meshes[i].material.diffuse_map.memory != 0) {
-            render_set_bitmap(bitmap_set, &model->meshes[i].material.diffuse_map, 2);
-            render_bind_descriptor_set(bitmap_set, 2);
+            object.index = vulkan_set_bitmap(bitmap_set, &model->meshes[i].material.diffuse_map, 2);
+            vulkan_bind_descriptor_set(bitmap_set, 2);
         } else {
-            
-            render_bind_descriptor_set(color_set, 2);
+            vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
         }
+
+        object.model = create_transform_m4x4(position, rotation, {15.0f, 1.0f, 15.0f});
+        vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
         render_draw_mesh(&model->meshes[i]);
     }
 }
 
-Descriptor_Set *texture_set = {};
+VkDescriptorSet texture_set = {};
 
-void render_draw_model(Model *model, Descriptor_Set *color_set, s32 front_index, s32 back_index, Matrix_4x4 model_matrix) {
+void render_draw_model(Model *model, VkDescriptorSet color_set, Vector4 color, s32 front_index, s32 back_index, Matrix_4x4 model_matrix) {
     //Descriptor_Set *bitmap_set = render_get_descriptor_set(basic_pipeline.shader, 3);
     //render_set_bitmap(bitmap_set, bitmap, 2);
 
@@ -92,19 +91,16 @@ void render_draw_model(Model *model, Descriptor_Set *color_set, s32 front_index,
         object.model = model_matrix;
 
         if (i == 0) {
-            render_bind_descriptor_set(color_set, 2);
-            //render_bind_descriptor_set(light_set, 1);
+            vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
         } else if (i == 1) {
-            //render_bind_descriptor_set(front_set, 2);
-            render_bind_descriptor_set(texture_set, 2);
+            vulkan_bind_descriptor_set(texture_set, 2);
             object.index = front_index;
         } else if (i == 2) {
-            //render_bind_descriptor_set(back_set, 2);
-            render_bind_descriptor_set(texture_set, 2);
+            vulkan_bind_descriptor_set(texture_set, 2);
             object.index = back_index;
         }
 
-        render_push_constants(&shader->layout_sets[2], (void *)&object);
+        vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
         render_draw_mesh(&model->meshes[i]);
     }
@@ -114,13 +110,12 @@ void render_draw_model(Model *model, Render_Pipeline *color_pipeline, Vector4 co
     Shader *shader = 0;
     render_bind_pipeline(color_pipeline);
     shader = color_pipeline->shader;
-    render_bind_descriptor_set(light_set_2, 1);
+    vulkan_bind_descriptor_set(light_set_2, 1);
 
-    Descriptor_Set *object_set = render_get_descriptor_set(shader, 3);
-    render_update_ubo(object_set, 0, (void*)&color, false);
-    render_bind_descriptor_set(object_set, 2);
+    VkDescriptorSet color_set = vulkan_get_descriptor_set2(&layouts[5]);
+    vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
 
-    render_push_constants(&shader->layout_sets[2], (void *)&model_matrix);
+    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));
 
     for (u32 i = 0; i < model->meshes_count; i++) {
         render_draw_mesh(&model->meshes[i]);

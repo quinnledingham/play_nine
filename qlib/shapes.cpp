@@ -35,8 +35,6 @@ struct Shapes {
     Render_Pipeline color_pipeline;
     Render_Pipeline texture_pipeline;
     Render_Pipeline text_pipeline;
-
-    Descriptor_Set *texture_set;
 };
 
 Shapes shapes = {};
@@ -322,12 +320,12 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 */
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     render_bind_pipeline(&color_pipeline);
-    Descriptor_Set *object_set = render_get_descriptor_set(color_pipeline.shader, 3);
-    render_bind_descriptor_set(object_set, 2);  
-    render_update_ubo(object_set, 0, (void*)&color, false);
+    VkDescriptorSet object_set = vulkan_get_descriptor_set2(&layouts[5]);
+    vulkan_bind_descriptor_set(object_set, 0, (void*)&color, sizeof(Vector4));
 
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
-    render_push_constants(&color_pipeline.shader->layout_sets[2], (void *)&model);  
+    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Model));  
+
     render_draw_mesh(&shapes.sphere_mesh);    
 }
 
@@ -410,15 +408,14 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 */
 
     render_bind_pipeline(&color_pipeline);
-    render_bind_descriptor_set(light_set, 1);
+    vulkan_bind_descriptor_set(light_set, 1);
 
-    Descriptor_Set *object_set = render_get_descriptor_set(color_pipeline.shader, 3);
-    render_update_ubo(object_set, 0, (void*)&color, false);
-    render_bind_descriptor_set(object_set, 2);  
+    VkDescriptorSet object_set = vulkan_get_descriptor_set2(&layouts[5]);
+    vulkan_bind_descriptor_set(object_set, 0, (void*)&color, sizeof(Vector4));
 
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
-    render_push_constants(&color_pipeline.shader->layout_sets[2], (void *)&model);  
+    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Model)); 
 
     render_draw_mesh(&shapes.cube_mesh);    
 }
@@ -438,8 +435,8 @@ void init_shapes(Assets *assets) {
     // Text Pipeline
     shapes.text_shader = find_shader(assets, "TEXT");
 
-    init_basic_vert_layout(shapes.text_shader);
-    init_text_frag_layout(shapes.text_shader);
+    init_basic_vert_layout(shapes.text_shader, layouts);
+    init_text_frag_layout(shapes.text_shader, layouts);
 
     shapes.text_pipeline.shader = shapes.text_shader;
     shapes.text_pipeline.depth_test = false;
@@ -448,8 +445,8 @@ void init_shapes(Assets *assets) {
     // Color Pipeline
     shapes.color_shader = find_shader(assets, "COLOR");
 
-    init_basic_vert_layout(shapes.color_shader);
-    init_color_frag_layout(shapes.color_shader);
+    init_basic_vert_layout(shapes.color_shader, layouts);
+    init_color_frag_layout(shapes.color_shader, layouts);
 
     shapes.color_pipeline.shader = shapes.color_shader;
     shapes.color_pipeline.depth_test = false;
@@ -458,14 +455,12 @@ void init_shapes(Assets *assets) {
     // Texture Pipeline
     shapes.texture_shader = find_shader(assets, "TEXTURE");
 
-    init_basic_vert_layout(shapes.texture_shader);
-    init_texture_frag_layout(shapes.texture_shader);
+    init_basic_vert_layout(shapes.texture_shader, layouts);
+    init_texture_frag_layout(shapes.texture_shader, layouts);
 
     shapes.texture_pipeline.shader = shapes.texture_shader;
     shapes.texture_pipeline.depth_test = false;
     render_create_graphics_pipeline(&shapes.texture_pipeline, get_vertex_xu_info());
-
-    shapes.texture_set = render_get_descriptor_set(shapes.text_pipeline.shader, 3);
 }
 
 void cleanup_shapes() {
@@ -474,36 +469,24 @@ void cleanup_shapes() {
     render_pipeline_cleanup(&shapes.texture_pipeline);
 }
 
-Layout layouts[10];
-
 internal void
 draw_shape(Shape shape) {
-    Shader *shader = 0;
-    Descriptor_Set *set = 0;
     Object object = {};
 
     switch(shape.draw_type) {
         case Shape_Draw_Type::COLOR: {
             render_bind_pipeline(&shapes.color_pipeline);
-            shader = shapes.color_pipeline.shader;
-            set = render_get_descriptor_set(shapes.color_pipeline.shader, 1);
-            render_bind_descriptor_set(set, 1);   
-            render_update_ubo(set, 0, (void*)&shape.color, false);
 
-            //VkDescriptorSet v_set = vulkan_get_descriptor_set2(&layouts[4]);
-            //vulkan_bind_descriptor_set(v_set, 1, (void*)&shape.color, sizeof(Vector4));
+            VkDescriptorSet v_set = vulkan_get_descriptor_set2(&layouts[4]);
+            vulkan_bind_descriptor_set(v_set, 1, (void*)&shape.color, sizeof(Vector4));
         } break;
 
         case Shape_Draw_Type::TEXTURE: {
             render_bind_pipeline(&shapes.texture_pipeline);
-            shader = shapes.texture_pipeline.shader;
-            //set = render_get_descriptor_set(shapes.texture_pipeline.shader, 1);
-            //render_bind_descriptor_set(set, 1);   
-            //object.index = render_set_bitmap(set, shape.bitmap, 1);
 
             VkDescriptorSet v_set = vulkan_get_descriptor_set2(&layouts[3]);
-            vulkan_bind_descriptor_set(v_set, 1);
             object.index = vulkan_set_bitmap(v_set, shape.bitmap, 1);
+            vulkan_bind_descriptor_set(v_set, 1);
         } break;
 
         case Shape_Draw_Type::TEXT: {
@@ -517,7 +500,7 @@ draw_shape(Shape shape) {
     }
 
     object.model = create_transform_m4x4(shape.coords, shape.rotation, shape.dim);
-    render_push_constants(&shader->layout_sets[2], (void *)&object);  
+    vulkan_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 
     switch(shape.type) {
         case SHAPE_RECT:   render_draw_mesh(&shapes.rect_mesh);   break;
@@ -543,12 +526,8 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
 
     u32 i = 0;
 
-    Descriptor_Set *color_set = render_get_descriptor_set(shapes.text_shader, 1);
-    render_update_ubo(color_set, 0, (void*)&color, false);
-    render_bind_descriptor_set(color_set, 1);
-
-    Descriptor_Set *object_set = render_get_descriptor_set(shapes.text_shader, 3);
-    render_bind_descriptor_set(object_set, 2);
+    VkDescriptorSet v_color_set = vulkan_get_descriptor_set2(&layouts[4]);
+    vulkan_bind_descriptor_set(v_color_set, 1, (void*)&color, sizeof(Vector4));
 
     Object object = {};
     VkDescriptorSet v_set = vulkan_get_descriptor_set2(&layouts[2]);
@@ -584,7 +563,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             coords_v3.y += dim_v3.y / 2.0f; // coords = top left corner
     		object.model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
             object.index = indices[i];
-            render_push_constants(&shapes.text_shader->layout_sets[2], (void *)&object);  
+            vulkan_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));   
             
             render_draw_mesh(&shapes.rect_mesh);
             // End of Draw

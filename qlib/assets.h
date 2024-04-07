@@ -177,6 +177,32 @@ struct Layout {
     }
 };
 
+struct Push_Constant {
+    u32 shader_stage;
+    u32 size;
+};
+
+struct Layout_Set {
+    Layout descriptor_sets[5];
+    Push_Constant push_constants[5];
+
+    u32 descriptor_sets_count;
+    u32 push_constants_count;
+
+    bool8 enabled;
+
+    void add_layout(Layout layout) {
+        descriptor_sets[descriptor_sets_count++] = layout;
+    }
+
+    void add_push(u32 shader_stage, u32 size) {
+        Push_Constant push = {};  
+        push.shader_stage = shader_stage;
+        push.size = size;
+        push_constants[push_constants_count++] = push;
+    }
+};
+/*
 struct Descriptor {
     u32 binding;
     u32 type;
@@ -249,25 +275,27 @@ struct Vulkan_Shader_Info {
     VkDescriptorSet descriptor_sets[max_sets * 2]; // @TODO add MAX_FRAMES_IN_FLIGHT    
 };
 #endif
-
+*/
 struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
-    static const u32 max_sets = 32;
-    static const u32 layout_count = 4;                // layout sets for the 3 scopes
+    //static const u32 max_sets = 32;
+    //tatic const u32 layout_count = 4;                // layout sets for the 3 scopes
     
-    Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
-    Descriptor_Set descriptor_sets[layout_count][max_sets]; //
+    //Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
+    //Descriptor_Set descriptor_sets[layout_count][max_sets]; //
 
-    u32 sets_count[layout_count];
+    //u32 sets_count[layout_count];
     u32 texture_index;
 
-    Descriptor_Set *texture_set;
+//    Descriptor_Set *texture_set;
 
 #ifdef VULKAN
-    Vulkan_Shader_Info vulkan_infos[layout_count];
+  //  Vulkan_Shader_Info vulkan_infos[layout_count];
 #endif
+
+    Layout_Set set;
 
     bool8 compiled;
     u32 handle;

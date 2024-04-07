@@ -8,7 +8,6 @@ struct Object {
     s32 index;
 };
 
-
 struct Render_Pipeline {
     Shader *shader;
     bool8 blend;
@@ -29,8 +28,9 @@ struct Render {
 };
 
 global Render render_info = {};
-Descriptor_Set *light_set;
-Descriptor_Set *light_set_2;
+VkDescriptorSet light_set;
+VkDescriptorSet light_set_2;
+Layout layouts[10];
 
 #define TEXTURE_ARRAY_SIZE 64
 struct Light {
@@ -113,23 +113,10 @@ RENDER_FUNC(void, create_graphics_pipeline, Render_Pipeline *pipeline, Vertex_In
 RENDER_FUNC(void, pipeline_cleanup, Render_Pipeline *pipe);
 RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
 
-RENDER_FUNC(void, create_descriptor_pool, Shader *shader, u32 descriptor_set_count, u32 set_index);
-RENDER_FUNC(Descriptor_Set*, get_descriptor_set, Shader *shader, bool8 layout_index);
-
 RENDER_FUNC(void, create_texture, Bitmap *bitmap, u32 texture_parameters);
 RENDER_FUNC(void, delete_texture, Bitmap *bitmap);
-RENDER_FUNC(u32, set_bitmap, Descriptor_Set *set, Bitmap *bitmap, u32 binding);
 
 void render_init_model(Model *model);
-//RENDER_FUNC(void, init_model, Model *model);
-//RENDER_FUNC(void, draw_model, Model *model, Shader *shader, Vector3 position, Quaternion rotation);
-
-RENDER_FUNC(void, update_ubo, Descriptor_Set *set, u32 descriptor_index, void *data, bool8 static_update);
-RENDER_FUNC(void, push_constants, Descriptor_Set *push_constants, void *data);
-RENDER_FUNC(void, push_constants2, Descriptor_Set *push_constants, void *data, u32 index);
-
-// this is when you tell the shader where the memory is
-RENDER_FUNC(void, bind_descriptor_set, Descriptor_Set *set, u32 first_set);
 
 RENDER_FUNC(void, init_mesh, Mesh *mesh);
 RENDER_FUNC(void, draw_mesh, Mesh *mesh);
@@ -138,7 +125,6 @@ RENDER_FUNC(void, set_scissor, s32 x, s32 y, u32 window_width, u32 window_height
 
 RENDER_FUNC(void, compile_shader, Shader *shader);
 
-RENDER_FUNC(void, reset_descriptor_sets, Assets *assets);
 RENDER_FUNC(void, assets_cleanup, Assets *assets);
 RENDER_FUNC(void, wait_frame, );
 
@@ -151,4 +137,4 @@ void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set);
 internal u32 vulkan_set_bitmap(VkDescriptorSet set, Bitmap *bitmap, u32 binding);
 internal void vulkan_init_layout_offsets(Layout *layout);
 void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set, void *data, u32 size);
-internal u32 vulkan_set_bitmap2(Descriptor_Set *set, Bitmap *bitmap, u32 binding);
+void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) ;
