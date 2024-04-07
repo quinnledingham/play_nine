@@ -98,7 +98,8 @@ struct Vulkan_Info {
 	VkDeviceMemory dynamic_uniform_buffer_memory;
 	u32 dymanic_uniforms_offset; // where to go to update the dynamic uniforms
 
-	void *uniform_data;
+	void *static_uniform_data;
+	void *dynamic_uniform_data;
 
 	// Depth Buffer
 	VkImage depth_image;
@@ -134,6 +135,8 @@ vulkan_active_cmd_buffer(Vulkan_Info *info) {
 }
 
 #define VULKAN_STATIC_BUFFER_SIZE 20000000
+#define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 10000
+#define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000000
 
 global Vulkan_Info vulkan_info;
 

@@ -213,8 +213,8 @@ struct State {
     // Drawing
     Scene scene;
     Scene ortho_scene;
-    VkDescriptorSet scene_set;
-    VkDescriptorSet scene_ortho_set;
+    Descriptor scene_set;
+    Descriptor scene_ortho_set;
     
     Camera camera;
     s32 indices[16];

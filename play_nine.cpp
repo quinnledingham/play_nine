@@ -460,7 +460,7 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
     if (!highlight) {
         draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
         render_bind_pipeline(&basic_pipeline);
-        vulkan_bind_descriptor_set(texture_set, 2);
+        vulkan_bind_descriptor_set(texture_desc);
 
         Object object = {};
         object.model = create_transform_m4x4({ 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }), {15.0f, 1.0f, 15.0f});
@@ -970,7 +970,7 @@ bool8 update_game(State *state, App *app) {
                 update_camera_with_mouse(&state->camera, app->input.mouse_rel, mouse_move_speed, mouse_move_speed);
                 update_camera_target(&state->camera);    
                 state->scene.view = get_view(state->camera);
-                vulkan_bind_descriptor_set(state->scene_set, 0, (void*)&state->scene, sizeof(Scene));
+                vulkan_update_ubo(state->scene_set, (void *)&state->scene);
     
                 float32 m_per_s = 6.0f; 
                 float32 m_moved = m_per_s * (float32)app->time.frame_time_s;
@@ -1016,7 +1016,7 @@ bool8 update_game(State *state, App *app) {
 
             update_camera_target(&state->camera);    
             state->scene.view = get_view(state->camera);
-            vulkan_bind_descriptor_set(state->scene_set, 0, (void*)&state->scene, sizeof(Scene));
+            vulkan_update_ubo(state->scene_set, (void*)&state->scene);
 
             bool8 selected[SELECTED_SIZE] = {};
             if (state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) {
@@ -1113,17 +1113,19 @@ bool8 init_data(App *app) {
         
     }
 
-    init_layouts(layouts);
+    init_layouts(layouts, find_bitmap(&game->assets, "DAVID"));
+
+    u32 test = sizeof(Layout_Set);
 
 	Shader *basic_3D = find_shader(&game->assets, "BASIC3D");
-    init_basic_vert_layout(basic_3D, layouts);
+    init_basic_vert_layout(&basic_3D->set, layouts);
     init_basic_frag_layout(basic_3D, layouts);
     basic_pipeline.shader = basic_3D;
     basic_pipeline.depth_test = true;
 	render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
 	
     Shader *color_3D = find_shader(&game->assets, "COLOR3D");
-    init_basic_vert_layout(color_3D, layouts);
+    init_basic_vert_layout(&color_3D->set, layouts);
     init_color3D_frag_layout(color_3D, layouts);
     color_pipeline.shader = color_3D;
     color_pipeline.depth_test = true;
@@ -1212,14 +1214,15 @@ bool8 init_data(App *app) {
     game->selected_mutex = win32_create_mutex();
 
     vulkan_info.active_shader = basic_pipeline.shader;
-    texture_set = vulkan_get_descriptor_set2(&layouts[2]);
-    for (u32 i = 0; i < 14; i++) {
-        game->indices[i] = vulkan_set_bitmap(texture_set, &card_bitmaps[i], 2);
-    }
-    game->indices[14] = vulkan_set_bitmap(texture_set, find_bitmap(&game->assets, "YOGI"), 2);
-    Model *model = find_model(&game->assets, "TABLE");
-    game->indices[15] = vulkan_set_bitmap(texture_set, &model->meshes[0].material.diffuse_map, 2);
+    Descriptor texture_desc = vulkan_get_descriptor_set(&layouts[2], 0);
 
+    for (u32 j = 0; j < 14; j++) {
+        game->indices[j] = vulkan_set_bitmap(&texture_desc, &card_bitmaps[j]);
+    }
+    game->indices[14] = vulkan_set_bitmap(&texture_desc, find_bitmap(&game->assets, "YOGI"));
+    Model *model = find_model(&game->assets, "TABLE");
+    game->indices[15] = vulkan_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
+    
 	return false;
 }
 
@@ -1295,31 +1298,33 @@ bool8 update(App *app) {
     }
     render_start_frame();
 
-    texture_set = vulkan_get_descriptor_set2(&layouts[2]);
+    //texture_set = vulkan_get_descriptor_set2(&layouts[2]);
+    texture_desc = vulkan_get_descriptor_set(&layouts[2], 0);
 
     render_set_viewport(app->window.width, app->window.height);
     render_set_scissor(0, 0, app->window.width, app->window.height);
 
-    state->scene_set = vulkan_get_descriptor_set2(&layouts[0]);
+    state->scene_set = vulkan_get_descriptor_set(&layouts[0]);
     //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
     state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
-    vulkan_bind_descriptor_set(state->scene_set, 0, (void*)&state->scene, sizeof(Scene));
+    vulkan_update_ubo(state->scene_set, (void*)&state->scene);
     //render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
-    state->scene_ortho_set = vulkan_get_descriptor_set2(&layouts[0]);
+    state->scene_ortho_set = vulkan_get_descriptor_set(&layouts[0]);
     state->ortho_scene.view = identity_m4x4();
     state->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
-    vulkan_bind_descriptor_set(state->scene_ortho_set, 0, (void*)&state->ortho_scene, sizeof(Scene));
+    vulkan_update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
+    //vulkan_bind_descriptor_set(state->scene_ortho_set, 0, (void*)&state->ortho_scene, sizeof(Scene));
     //render_update_ubo(state->scene_ortho_set, 0, (void*)&state->ortho_scene, true);
     
     render_depth_test(false);
 
-    light_set = vulkan_get_descriptor_set2(&layouts[1]);
-    vulkan_bind_descriptor_set(light_set, 1, (void*)&global_light, sizeof(Light));
+    light_set = vulkan_get_descriptor_set(&layouts[1]);
+    vulkan_update_ubo(light_set, (void*)&global_light);
     //render_update_ubo(light_set, 0, (void*)&global_light, false);
 
-    light_set_2 = vulkan_get_descriptor_set2(&layouts[1]);
-    vulkan_bind_descriptor_set(light_set_2, 1, (void*)&global_light_2, sizeof(Light));
+    light_set_2 = vulkan_get_descriptor_set(&layouts[1]);
+    vulkan_update_ubo(light_set_2, (void*)&global_light_2);
     //render_update_ubo(light_set_2, 0, (void*)&global_light_2, false);
 
     //vulkan_init_bitmap_set(shapes.texture_set, find_bitmap(assets, "DAVID"), 2);
@@ -1327,7 +1332,7 @@ bool8 update(App *app) {
     if (state->menu_list.mode != IN_GAME && state->menu_list.mode != PAUSE_MENU) {
         render_bind_pipeline(&shapes.color_pipeline);
         //render_bind_descriptor_set(state->scene_ortho_set, 0);
-        vulkan_bind_descriptor_set(state->scene_ortho_set, 0, (void*)&state->ortho_scene, sizeof(Scene));
+        vulkan_bind_descriptor_set(state->scene_ortho_set);
     }
 
     switch(state->menu_list.mode) {
@@ -1370,9 +1375,9 @@ bool8 update(App *app) {
             //render_bind_descriptor_set(state->scene_set, 0);
             //render_bind_descriptor_set(light_set, 1);
             //render_bind_descriptor_set(texture_set, 2);
-            vulkan_bind_descriptor_set(state->scene_set, 0, (void*)&state->scene, sizeof(Scene));
-            vulkan_bind_descriptor_set(light_set, 1, (void*)&global_light, sizeof(Light));
-            vulkan_bind_descriptor_set(texture_set, 2);
+            vulkan_bind_descriptor_set(state->scene_set);
+            vulkan_bind_descriptor_set(light_set);
+            vulkan_bind_descriptor_set(texture_desc);
 
 
             draw_game(state, &state->assets, basic_3D, &state->game, false, state->indices);
@@ -1386,7 +1391,7 @@ bool8 update(App *app) {
             //draw_ray(&state->mouse_ray);
 
             //render_bind_descriptor_set(state->scene_ortho_set, 0);
-            vulkan_bind_descriptor_set(state->scene_ortho_set, 0, (void*)&state->ortho_scene, sizeof(Scene));
+            vulkan_bind_descriptor_set(state->scene_ortho_set);
 
 
             float32 pixel_height = app->window.dim.x / 20.0f;

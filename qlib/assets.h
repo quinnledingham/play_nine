@@ -128,6 +128,7 @@ enum struct descriptor_scope {
     AMOUNT
 };
 
+// Could be descriptor
 struct Layout_Binding {
     u32 binding;
     u32 descriptor_type;
@@ -138,7 +139,6 @@ struct Layout_Binding {
     
     // ubo specific
     u32 size;
-    u32 offsets[2];
 
     Layout_Binding() {}
 
@@ -160,6 +160,15 @@ struct Layout_Binding {
     }
 };
 
+// What is returned from renderer for the drawing code to interact with the descriptors
+struct Descriptor {
+    Layout_Binding binding; // layout binding for this binding
+    u32 offset; // offset in memory for a single binding in descriptor set
+    u32 set_number;
+    u32 texture_index; // where to write next texture for this frame
+    VkDescriptorSet *vulkan_set;
+};
+
 struct Layout {
     static const u32 max_bindings = 10;
     static const u32 max_sets = 128;
@@ -167,10 +176,16 @@ struct Layout {
     Layout_Binding bindings[max_bindings];
     u32 binding_count;
 
+    u32 set_number; // what set in the shader it is
     VkDescriptorSetLayout descriptor_set_layout;
+    u32 offsets[max_sets]; // for static uniform buffers
     VkDescriptorSet descriptor_sets[max_sets];
 
     u32 sets_in_use;
+
+    void add_binding(Layout_Binding new_binding) {
+        bindings[new_binding.binding] = new_binding; // Set up so array index == binding location
+    }
 
     void reset() {
         sets_in_use = 0;
@@ -202,99 +217,11 @@ struct Layout_Set {
         push_constants[push_constants_count++] = push;
     }
 };
-/*
-struct Descriptor {
-    u32 binding;
-    u32 type;
-    u32 count;
-    u32 stages[SHADER_STAGES_AMOUNT];
-    u32 stages_count;
-    descriptor_scope scope;
-    
-    u32 size;
-    u32 offsets[2];
-    void *handle; // OpenGL
 
-    Descriptor() {
-        
-    }
-
-    Descriptor(u32 in_binding, u32 in_type, u32 in_stage, u32 in_size, descriptor_scope in_scope) {
-        binding = in_binding;
-        type = in_type;
-        stages[0] = in_stage;
-        stages_count = 1;
-        size = in_size;
-        scope = in_scope;
-        count = 1;
-    } 
-
-    Descriptor(u32 in_binding, u32 in_type, u32 in_stage, u32 in_size, u32 in_count, descriptor_scope in_scope) {
-        binding = in_binding;
-        type = in_type;
-        stages[0] = in_stage;
-        stages_count = 1;
-        size = in_size;
-        scope = in_scope;
-        count = in_count;
-    } 
-
-    void Push_Descriptor(u32 in_stage, u32 in_size, descriptor_scope in_scope) {
-        stages[0] = in_stage;
-        stages_count = 1;
-        size = in_size;
-        scope = in_scope;
-        offsets[0] = 0;
-        offsets[1] = 0;
-    } 
-};
-
-// use these to manage the uniforms in the game code
-struct Descriptor_Set {
-    u32 set_index; // in shader: set = 0, set = 1
-    static const u32 max_descriptors = 64;
-    Descriptor descriptors[max_descriptors];
-    u32 descriptors_count;
-    u32 push_constant_count;
-    u32 texture_index;
-
-#ifdef VULKAN
-    VkDescriptorSet *gpu_info[2]; // Vulkan Descriptor Set
-#endif
-    //u32 handles[2]; // index to descriptor sets (0 - (max_sets - 1))
-};
-
-// Contains vulkan info about each descriptor layout
-#ifdef VULKAN
-struct Vulkan_Shader_Info {
-    static const u32 max_sets = 32;
-    u32 sets_count;
-
-    VkDescriptorSetLayout descriptor_set_layout;
-    VkDescriptorPool descriptor_pool;
-    VkDescriptorSet descriptor_sets[max_sets * 2]; // @TODO add MAX_FRAMES_IN_FLIGHT    
-};
-#endif
-*/
 struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
     
-    //static const u32 max_sets = 32;
-    //tatic const u32 layout_count = 4;                // layout sets for the 3 scopes
-    
-    //Descriptor_Set layout_sets[layout_count];         // meant to be more of a layout tool
-    //Descriptor_Set descriptor_sets[layout_count][max_sets]; //
-
-    //u32 sets_count[layout_count];
-    u32 texture_index;
-
-//    Descriptor_Set *texture_set;
-
-#ifdef VULKAN
-  //  Vulkan_Shader_Info vulkan_infos[layout_count];
-#endif
-
     Layout_Set set;
 
     bool8 compiled;

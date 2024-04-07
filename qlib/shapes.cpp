@@ -408,10 +408,10 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 */
 
     render_bind_pipeline(&color_pipeline);
-    vulkan_bind_descriptor_set(light_set, 1);
+    vulkan_bind_descriptor_set(light_set);
 
     VkDescriptorSet object_set = vulkan_get_descriptor_set2(&layouts[5]);
-    vulkan_bind_descriptor_set(object_set, 0, (void*)&color, sizeof(Vector4));
+    vulkan_bind_descriptor_set(object_set, 2, (void*)&color, sizeof(Vector4));
 
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
@@ -435,7 +435,8 @@ void init_shapes(Assets *assets) {
     // Text Pipeline
     shapes.text_shader = find_shader(assets, "TEXT");
 
-    init_basic_vert_layout(shapes.text_shader, layouts);
+    Layout_Set set = {};
+    init_basic_vert_layout(&shapes.text_shader->set, layouts);
     init_text_frag_layout(shapes.text_shader, layouts);
 
     shapes.text_pipeline.shader = shapes.text_shader;
@@ -445,7 +446,7 @@ void init_shapes(Assets *assets) {
     // Color Pipeline
     shapes.color_shader = find_shader(assets, "COLOR");
 
-    init_basic_vert_layout(shapes.color_shader, layouts);
+    init_basic_vert_layout(&shapes.color_shader->set, layouts);
     init_color_frag_layout(shapes.color_shader, layouts);
 
     shapes.color_pipeline.shader = shapes.color_shader;
@@ -455,7 +456,7 @@ void init_shapes(Assets *assets) {
     // Texture Pipeline
     shapes.texture_shader = find_shader(assets, "TEXTURE");
 
-    init_basic_vert_layout(shapes.texture_shader, layouts);
+    init_basic_vert_layout(&shapes.texture_shader->set, layouts);
     init_texture_frag_layout(shapes.texture_shader, layouts);
 
     shapes.texture_pipeline.shader = shapes.texture_shader;
@@ -484,9 +485,9 @@ draw_shape(Shape shape) {
         case Shape_Draw_Type::TEXTURE: {
             render_bind_pipeline(&shapes.texture_pipeline);
 
-            VkDescriptorSet v_set = vulkan_get_descriptor_set2(&layouts[3]);
-            object.index = vulkan_set_bitmap(v_set, shape.bitmap, 1);
-            vulkan_bind_descriptor_set(v_set, 1);
+            Descriptor desc = vulkan_get_descriptor_set(&layouts[3]);
+            object.index = vulkan_set_bitmap(&desc, shape.bitmap);
+            vulkan_bind_descriptor_set(desc);
         } break;
 
         case Shape_Draw_Type::TEXT: {
@@ -514,8 +515,6 @@ draw_shape(Shape shape) {
 //
 
 void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color) {
-    //stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
-    //return;
     float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
     float32 string_x_coord = 0.0f;
 
@@ -530,23 +529,22 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     vulkan_bind_descriptor_set(v_color_set, 1, (void*)&color, sizeof(Vector4));
 
     Object object = {};
-    VkDescriptorSet v_set = vulkan_get_descriptor_set2(&layouts[2]);
+    Descriptor desc = vulkan_get_descriptor_set(&layouts[2]);
 
     s32 indices[60];
-    platform_memory_set(indices, -1, sizeof(u32) * 60);
+    platform_memory_set(indices, 0, sizeof(u32) * 60);
 
     while(string[i] != 0) {
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
         if (bitmap->bitmap.width != 0) {   
-            indices[i] = vulkan_set_bitmap(v_set, &bitmap->bitmap, 2);
+            indices[i] = vulkan_set_bitmap(&desc, &bitmap->bitmap);
         }
         i++;
     }
 
-    vulkan_bind_descriptor_set(v_set, 2);
+    vulkan_bind_descriptor_set(desc);
 
     i = 0;
-    u32 bitmap_index = 0;
     while (string[i] != 0) {
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
         Font_Char *font_char = bitmap->font_char;

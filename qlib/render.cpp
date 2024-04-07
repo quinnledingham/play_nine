@@ -53,13 +53,13 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
     Vector4 color = { 148, 99, 46, 1 };
     Object object = {};
 
-    VkDescriptorSet bitmap_set = vulkan_get_descriptor_set2(&layouts[2]);
+    Descriptor bitmap_desc = vulkan_get_descriptor_set(&layouts[2]);
     VkDescriptorSet color_set = vulkan_get_descriptor_set2(&layouts[5]);
     
     for (u32 i = 0; i < model->meshes_count; i++) {
         if (model->meshes[i].material.diffuse_map.memory != 0) {
-            object.index = vulkan_set_bitmap(bitmap_set, &model->meshes[i].material.diffuse_map, 2);
-            vulkan_bind_descriptor_set(bitmap_set, 2);
+            object.index = vulkan_set_bitmap(&bitmap_desc, &model->meshes[i].material.diffuse_map);
+            vulkan_bind_descriptor_set(bitmap_desc);
         } else {
             vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
         }
@@ -71,7 +71,7 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
     }
 }
 
-VkDescriptorSet texture_set = {};
+Descriptor texture_desc = {};
 
 void render_draw_model(Model *model, VkDescriptorSet color_set, Vector4 color, s32 front_index, s32 back_index, Matrix_4x4 model_matrix) {
     //Descriptor_Set *bitmap_set = render_get_descriptor_set(basic_pipeline.shader, 3);
@@ -93,10 +93,10 @@ void render_draw_model(Model *model, VkDescriptorSet color_set, Vector4 color, s
         if (i == 0) {
             vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
         } else if (i == 1) {
-            vulkan_bind_descriptor_set(texture_set, 2);
+            vulkan_bind_descriptor_set(texture_desc);
             object.index = front_index;
         } else if (i == 2) {
-            vulkan_bind_descriptor_set(texture_set, 2);
+            vulkan_bind_descriptor_set(texture_desc);
             object.index = back_index;
         }
 
@@ -110,7 +110,7 @@ void render_draw_model(Model *model, Render_Pipeline *color_pipeline, Vector4 co
     Shader *shader = 0;
     render_bind_pipeline(color_pipeline);
     shader = color_pipeline->shader;
-    vulkan_bind_descriptor_set(light_set_2, 1);
+    vulkan_bind_descriptor_set(light_set_2);
 
     VkDescriptorSet color_set = vulkan_get_descriptor_set2(&layouts[5]);
     vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));

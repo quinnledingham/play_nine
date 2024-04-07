@@ -333,12 +333,14 @@ vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
 	return formats[0];
 }
 
-// VSYNC OFF : VK_PRESENT_MODE_IMMEDIATE_KHR 
-// VSYNC ON  : VK_PRESENT_MODE_MAILBOX_KHR
+// VSYNC SETTINGS AREA
+// VK_PRESENT_MODE_IMMEDIATE_KHR 
+// VK_PRESENT_MODE_MAILBOX_KHR
+// VK_PRESENT_MODE_FIFO_KHR      (VSYNC)
 internal VkPresentModeKHR
 vulkan_choose_swap_present_mode(VkPresentModeKHR *modes, u32 count) {
 	for (u32 i = 0; i < count; i++) {
-		if (modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+		if (modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
 			return modes[i];
 		}
 	}
@@ -779,16 +781,14 @@ vulkan_convert_descriptor_type(u32 descriptor_type) {
 }
 
 internal void
-vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_of_sets) {
+vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_of_sets, u32 offsets[128]) {
 	VkWriteDescriptorSet *write_sets = ARRAY_MALLOC(VkWriteDescriptorSet, num_of_sets);
+	VkDescriptorBufferInfo *static_buffer_infos = ARRAY_MALLOC(VkDescriptorBufferInfo, num_of_sets);
 
-    VkDescriptorBufferInfo buffer_info = {};
-	switch(layout_binding->descriptor_type) {
-		case DESCRIPTOR_TYPE_UNIFORM_BUFFER:         buffer_info.buffer = vulkan_info.static_uniform_buffer;  break;
-		case DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: buffer_info.buffer = vulkan_info.dynamic_uniform_buffer; break;
-	}
-    buffer_info.offset = 0;
-    buffer_info.range = layout_binding->size;
+	VkDescriptorBufferInfo dynamic_buffer_info = {};
+	dynamic_buffer_info.offset = 0;
+    dynamic_buffer_info.range = layout_binding->size;
+	dynamic_buffer_info.buffer = vulkan_info.dynamic_uniform_buffer;
 
 	VkWriteDescriptorSet write_set = {};
     write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -796,22 +796,75 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
     write_set.dstArrayElement = 0;
     write_set.descriptorType = vulkan_convert_descriptor_type(layout_binding->descriptor_type);
     write_set.descriptorCount = 1;
-    write_set.pBufferInfo = &buffer_info;
+    write_set.pBufferInfo = &dynamic_buffer_info;
+
+	if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+		for (u32 i = 0; i < num_of_sets; i++) {
+			u32 alignment = (u32)vulkan_get_alignment(layout_binding->size, (u32)vulkan_info.uniform_buffer_min_alignment);
+			u32 offset = vulkan_get_next_offset(&vulkan_info.static_uniforms_offset, alignment, VULKAN_STATIC_UNIFORM_BUFFER_SIZE);
+
+			offsets[i] = offset;
+
+			VkDescriptorBufferInfo static_buffer_info = {};
+			static_buffer_info.offset = offset;
+    		static_buffer_info.range = layout_binding->size;
+			static_buffer_info.buffer = vulkan_info.static_uniform_buffer;
+			static_buffer_infos[i] = static_buffer_info;
+		}	
+
+	}
 
 	for (u32 i = 0; i < num_of_sets; i++) {
-    	write_set.dstSet = sets[i];
-	    write_sets[i] = write_set;
+		write_sets[i] = write_set;
+    	write_sets[i].dstSet = sets[i];
+		if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+			write_sets[i].pBufferInfo = &static_buffer_infos[i];
 	}
 
 	vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
 
 	platform_free(write_sets);
+	platform_free(static_buffer_infos);
 }
 
 internal void
-vulkan_init_layout_offsets(Layout *layout) {
+vulkan_init_bitmaps(VkDescriptorSet *sets, u32 num_of_sets, Bitmap *bitmap, Layout_Binding *layout_binding) {
+	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
+	VkWriteDescriptorSet *write_sets = ARRAY_MALLOC(VkWriteDescriptorSet, num_of_sets);
+
+	VkDescriptorImageInfo image_info[TEXTURE_ARRAY_SIZE] = {};
+	for (u32 i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
+    	image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    	image_info[i].imageView = texture->image_view;
+    	image_info[i].sampler = texture->sampler;
+	}
+
+    VkWriteDescriptorSet write_set = {};
+    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_set.dstBinding = layout_binding->binding;
+    write_set.dstArrayElement = 0;
+    write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_set.descriptorCount = TEXTURE_ARRAY_SIZE;
+    write_set.pImageInfo = image_info;
+
+	for (u32 i = 0; i < num_of_sets; i++) {
+		write_sets[i] = write_set;
+    	write_sets[i].dstSet = sets[i];
+	}
+
+    vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
+
+	platform_free(write_sets);
+}
+
+internal void
+vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
 	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER || layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-		vulkan_init_ubos(layout->descriptor_sets, &layout->bindings[0], layout->max_sets);
+		vulkan_init_ubos(layout->descriptor_sets, &layout->bindings[0], layout->max_sets, layout->offsets);
+	}
+
+	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_SAMPLER) {
+		vulkan_init_bitmaps(layout->descriptor_sets, layout->max_sets, bitmap, &layout->bindings[0]);
 	}
 }
 
@@ -1640,23 +1693,23 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	vulkan_create_buffer(info->device, 
                      info->physical_device,
-                     10000, 
+                     VULKAN_STATIC_UNIFORM_BUFFER_SIZE, 
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      info->static_uniform_buffer,
                      info->static_uniform_buffer_memory);
 
-	vkMapMemory(info->device, info->static_uniform_buffer_memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.uniform_data);
+	vkMapMemory(info->device, info->static_uniform_buffer_memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.static_uniform_data);
 
 	vulkan_create_buffer(info->device, 
                      info->physical_device,
-                     1000000, 
+                     VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE, 
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      info->dynamic_uniform_buffer,
                      info->dynamic_uniform_buffer_memory);
 	
-	vkMapMemory(info->device, info->dynamic_uniform_buffer_memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.uniform_data);
+	vkMapMemory(info->device, info->dynamic_uniform_buffer_memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.dynamic_uniform_data);
 
 	vulkan_init_presentation_settings(info);
 
@@ -1832,6 +1885,49 @@ VkDescriptorSet vulkan_get_descriptor_set2(Layout *layout) {
 
     return layout->descriptor_sets[return_index];
 }
+
+Descriptor vulkan_get_descriptor_set(Layout *layout) {
+    if (layout->sets_in_use + 1 > layout->max_sets)
+        ASSERT(0);
+
+    u32 return_index = layout->sets_in_use++;
+    if (vulkan_info.current_frame == 1)
+        return_index += layout->max_sets / 2;
+
+	Descriptor desc = {};
+	desc.binding = layout->bindings[0];
+	desc.offset = layout->offsets[return_index];
+	desc.set_number = layout->set_number;
+	desc.vulkan_set = &layout->descriptor_sets[return_index];
+
+    return desc;
+}
+
+Descriptor vulkan_get_descriptor_set(Layout *layout, u32 return_index) {
+    if (layout->sets_in_use + 1 > layout->max_sets)
+        ASSERT(0);
+
+	Descriptor desc = {};
+	desc.binding = layout->bindings[0];
+	desc.offset = layout->offsets[return_index];
+	desc.set_number = layout->set_number;
+	desc.vulkan_set = &layout->descriptor_sets[return_index];
+
+	layout->sets_in_use++;
+
+    return desc;
+}
+
+
+void vulkan_update_ubo(Descriptor desc, void *data) {
+	if (desc.binding.descriptor_type != DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+		logprint("vulkan_update_ubo()", "tried to update non static buffer in static way\n");
+		return;
+	}
+
+	memcpy((char*)vulkan_info.static_uniform_data + desc.offset, data, desc.binding.size);
+}
+
 /*
 IMPORTANT:
 This coming after the update of the descriptor is very important in scenarios where the data
@@ -1842,11 +1938,15 @@ void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set) {
 	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &set, 0, nullptr);
 }
 
+void vulkan_bind_descriptor_set(Descriptor desc) {
+	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
+}
+
 void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set, void *data, u32 size) {
 	u32 alignment = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
-	u32 offset = vulkan_get_next_offset(&vulkan_info.dymanic_uniforms_offset, alignment, 1000000);
+	u32 offset = vulkan_get_next_offset(&vulkan_info.dymanic_uniforms_offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE);
 
-	memcpy((char*)vulkan_info.uniform_data + offset, data, size);
+	memcpy((char*)vulkan_info.dynamic_uniform_data + offset, data, size);
 
 	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &set, 1, &offset);
 }
@@ -1856,49 +1956,29 @@ void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {
 }
 
 internal u32
-vulkan_set_bitmap(VkDescriptorSet set, Bitmap *bitmap, u32 binding) {
+vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
 
-	if (vulkan_info.active_shader->texture_index == 0) {
-		VkDescriptorImageInfo image_info[TEXTURE_ARRAY_SIZE] = {};
-		for (u32 i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
-	    	image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	    	image_info[i].imageView = texture->image_view;
-	    	image_info[i].sampler = texture->sampler;
-		}
+	VkDescriptorImageInfo image_info = {};
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageView = texture->image_view;
+	image_info.sampler = texture->sampler;
 
-	    VkWriteDescriptorSet descriptor_writes[1] = {};
+	VkWriteDescriptorSet descriptor_writes[1] = {};
 
-	    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	    descriptor_writes[0].dstSet = set;
-	    descriptor_writes[0].dstBinding = binding;
-	    descriptor_writes[0].dstArrayElement = 0;
-	    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	    descriptor_writes[0].descriptorCount = TEXTURE_ARRAY_SIZE;
-	    descriptor_writes[0].pImageInfo = image_info;
+    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_writes[0].dstSet = *desc->vulkan_set;
+    descriptor_writes[0].dstBinding = desc->binding.binding;
+    descriptor_writes[0].dstArrayElement = desc->texture_index;
+    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_writes[0].descriptorCount = 1;
+    descriptor_writes[0].pImageInfo = &image_info;
 
-	    vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
-	} else {
-		VkDescriptorImageInfo image_info = {};
-		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		image_info.imageView = texture->image_view;
-		image_info.sampler = texture->sampler;
+    vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
+	
+	u32 index = desc->texture_index;
 
-		VkWriteDescriptorSet descriptor_writes[1] = {};
-
-	    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	    descriptor_writes[0].dstSet = set;
-	    descriptor_writes[0].dstBinding = binding;
-	    descriptor_writes[0].dstArrayElement = vulkan_info.active_shader->texture_index;
-	    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	    descriptor_writes[0].descriptorCount = 1;
-	    descriptor_writes[0].pImageInfo = &image_info;
-
-	    vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
-	}
-	u32 index = vulkan_info.active_shader->texture_index;
-
-	vulkan_info.active_shader->texture_index++;
+	desc->texture_index++;
 
 	return index;
 }
