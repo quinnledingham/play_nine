@@ -566,7 +566,7 @@ vulkan_create_command_buffers(Vulkan_Info *info) {
 	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	alloc_info.commandPool = info->command_pool;
 	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	alloc_info.commandBufferCount = info->MAX_FRAMES_IN_FLIGHT;
+	alloc_info.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
 
 	if (vkAllocateCommandBuffers(info->device, &alloc_info, info->command_buffers) != VK_SUCCESS) {
 		logprint("vulkan_create_command_buffer()", "failed to allocate command buffers\n");
@@ -582,7 +582,7 @@ vulkan_create_sync_objects(Vulkan_Info *info) {
 	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	for (u32 i = 0; i < info->MAX_FRAMES_IN_FLIGHT; i++) {
+	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		if (vkCreateSemaphore(info->device, &semaphore_info, nullptr, &info->image_available_semaphore[i]) != VK_SUCCESS ||
 	    	vkCreateSemaphore(info->device, &semaphore_info, nullptr, &info->render_finished_semaphore[i]) != VK_SUCCESS ||
 	    	vkCreateFence    (info->device, &fence_info,     nullptr, &info->in_flight_fence[i]          ) != VK_SUCCESS) {
@@ -710,9 +710,10 @@ vulkan_update_buffer(Vulkan_Info *info, VkBuffer *buffer, VkDeviceMemory *memory
 }
 
 //
-// Descriptor Sets
+// Helper Functions
 //
 
+// returns next size that will align after in size
 internal VkDeviceSize
 vulkan_get_alignment(VkDeviceSize in, u32 alignment) {
 	while(in % alignment != 0) {
@@ -721,151 +722,19 @@ vulkan_get_alignment(VkDeviceSize in, u32 alignment) {
 	return in;
 }
 
-internal void
-vulkan_allocate_descriptor_set(Layout *layout) {
-	VkDescriptorSetLayout layouts[layout->max_sets];
-	for (u32 i = 0; i < layout->max_sets; i++) {
-		layouts[i] = layout->descriptor_set_layout;
-	}
-
-	VkDescriptorSetAllocateInfo allocate_info = {};
-	allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocate_info.descriptorPool = vulkan_info.descriptor_pool;
-	allocate_info.descriptorSetCount = layout->max_sets;
-	allocate_info.pSetLayouts = layouts;
-
-	VkResult result = vkAllocateDescriptorSets(vulkan_info.device, &allocate_info, layout->descriptor_sets);
-	if (result != VK_SUCCESS) {
-		logprint("vulkan_create_descriptor_sets()", "failed to allocate descriptor sets\n");
-	}
-}
-
-internal u32
-vulkan_get_next_offset(u32 *offset, u32 in_data_size) {
-	u32 return_offset = *offset;
-    *offset += in_data_size;
-	if (*offset > VULKAN_STATIC_BUFFER_SIZE) {
-		//ASSERT(0);
-		//*offset = 0;
-		//return *offset;
-	}
-	return return_offset;
-}
-
 internal u32
 vulkan_get_next_offset(u32 *offset, u32 in_data_size, u32 max_offset) {
 	u32 return_offset = *offset;
     *offset += in_data_size;
+
 	if (*offset > max_offset) {
-		//ASSERT(0);
+#if DEBUG
+		logprint("vulkan_get_next_offset()", "Looping offset back to beginning\n");
+#endif
 		*offset = 0;
 		return *offset;
 	}
 	return return_offset;
-}
-
-internal VkDescriptorType
-vulkan_convert_descriptor_type(u32 descriptor_type) {
-	u32 vulkan_type = 0;
-
-	switch(descriptor_type) {
-		case DESCRIPTOR_TYPE_UNIFORM_BUFFER:         vulkan_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;         break;
-		case DESCRIPTOR_TYPE_SAMPLER:                vulkan_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; break;
-		case DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: vulkan_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC; break;
-		default: {
-			logprint("vulkan_convert_descriptor_type()", "%d is not a render descriptor type\n", descriptor_type);
-		} break;
-	}
-
-	return (VkDescriptorType)vulkan_type;
-}
-
-internal void
-vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_of_sets, u32 offsets[128]) {
-	VkWriteDescriptorSet *write_sets = ARRAY_MALLOC(VkWriteDescriptorSet, num_of_sets);
-	VkDescriptorBufferInfo *static_buffer_infos = ARRAY_MALLOC(VkDescriptorBufferInfo, num_of_sets);
-
-	VkDescriptorBufferInfo dynamic_buffer_info = {};
-	dynamic_buffer_info.offset = 0;
-    dynamic_buffer_info.range = layout_binding->size;
-	dynamic_buffer_info.buffer = vulkan_info.dynamic_uniform_buffer;
-
-	VkWriteDescriptorSet write_set = {};
-    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_set.dstBinding = layout_binding->binding;
-    write_set.dstArrayElement = 0;
-    write_set.descriptorType = vulkan_convert_descriptor_type(layout_binding->descriptor_type);
-    write_set.descriptorCount = 1;
-    write_set.pBufferInfo = &dynamic_buffer_info;
-
-	if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-		for (u32 i = 0; i < num_of_sets; i++) {
-			u32 alignment = (u32)vulkan_get_alignment(layout_binding->size, (u32)vulkan_info.uniform_buffer_min_alignment);
-			u32 offset = vulkan_get_next_offset(&vulkan_info.static_uniforms_offset, alignment, VULKAN_STATIC_UNIFORM_BUFFER_SIZE);
-
-			offsets[i] = offset;
-
-			VkDescriptorBufferInfo static_buffer_info = {};
-			static_buffer_info.offset = offset;
-    		static_buffer_info.range = layout_binding->size;
-			static_buffer_info.buffer = vulkan_info.static_uniform_buffer;
-			static_buffer_infos[i] = static_buffer_info;
-		}	
-
-	}
-
-	for (u32 i = 0; i < num_of_sets; i++) {
-		write_sets[i] = write_set;
-    	write_sets[i].dstSet = sets[i];
-		if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-			write_sets[i].pBufferInfo = &static_buffer_infos[i];
-	}
-
-	vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
-
-	platform_free(write_sets);
-	platform_free(static_buffer_infos);
-}
-
-internal void
-vulkan_init_bitmaps(VkDescriptorSet *sets, u32 num_of_sets, Bitmap *bitmap, Layout_Binding *layout_binding) {
-	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
-	VkWriteDescriptorSet *write_sets = ARRAY_MALLOC(VkWriteDescriptorSet, num_of_sets);
-
-	VkDescriptorImageInfo image_info[TEXTURE_ARRAY_SIZE] = {};
-	for (u32 i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
-    	image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    	image_info[i].imageView = texture->image_view;
-    	image_info[i].sampler = texture->sampler;
-	}
-
-    VkWriteDescriptorSet write_set = {};
-    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_set.dstBinding = layout_binding->binding;
-    write_set.dstArrayElement = 0;
-    write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write_set.descriptorCount = TEXTURE_ARRAY_SIZE;
-    write_set.pImageInfo = image_info;
-
-	for (u32 i = 0; i < num_of_sets; i++) {
-		write_sets[i] = write_set;
-    	write_sets[i].dstSet = sets[i];
-	}
-
-    vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
-
-	platform_free(write_sets);
-}
-
-internal void
-vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
-	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER || layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-		vulkan_init_ubos(layout->descriptor_sets, &layout->bindings[0], layout->max_sets, layout->offsets);
-	}
-
-	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_SAMPLER) {
-		vulkan_init_bitmaps(layout->descriptor_sets, layout->max_sets, bitmap, &layout->bindings[0]);
-	}
 }
 
 internal u32
@@ -883,27 +752,20 @@ vulkan_convert_shader_stage(u32 shader_stage) {
 	};
 }
 
-// just creating with one binding right now
-internal void
-vulkan_create_set_layout(Layout *layout) {
+internal VkDescriptorType
+vulkan_convert_descriptor_type(u32 descriptor_type) {
+	u32 vulkan_type = 0;
 
-	VkDescriptorSetLayoutBinding vulkan_binding = {};
-	vulkan_binding.binding = layout->bindings[0].binding;
-	vulkan_binding.descriptorType = vulkan_convert_descriptor_type(layout->bindings[0].descriptor_type);
- 	vulkan_binding.descriptorCount = layout->bindings[0].descriptor_count;
-	for (u32 i = 0; i < layout->bindings[0].stages_count; i++) {
-		vulkan_binding.stageFlags |= vulkan_convert_shader_stage(layout->bindings[0].stages[i]);
+	switch(descriptor_type) {
+		case DESCRIPTOR_TYPE_UNIFORM_BUFFER:         vulkan_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;         break;
+		case DESCRIPTOR_TYPE_SAMPLER:                vulkan_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; break;
+		case DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: vulkan_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC; break;
+		default: {
+			logprint("vulkan_convert_descriptor_type()", "%d is not a render descriptor type\n", descriptor_type);
+		} break;
 	}
-	vulkan_binding.pImmutableSamplers = nullptr; // Optional
 
-	VkDescriptorSetLayoutCreateInfo layout_info = {};
-	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layout_info.bindingCount = 1;
-	layout_info.pBindings = &vulkan_binding;
-	
-	if (vkCreateDescriptorSetLayout(vulkan_info.device, &layout_info, nullptr, &layout->descriptor_set_layout) != VK_SUCCESS) {
-		logprint("vulkan_create_descriptor_set_layout()", "failed to create descriptor set layout\n");
-	}
+	return (VkDescriptorType)vulkan_type;
 }
 
 //
@@ -1404,8 +1266,6 @@ vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters) {
     }
 }
 
-u32 test_tex = 0;
-
 internal void
 vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
 	vulkan_create_texture_image(bitmap);
@@ -1417,7 +1277,7 @@ internal void
 vulkan_delete_texture(Bitmap *bitmap) {
 	if (bitmap->width == 0)
 		return;
-	test_tex--;
+
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
 	if (texture != 0) {
 		vkDestroySampler(vulkan_info.device, texture->sampler, nullptr);
@@ -1493,34 +1353,30 @@ vulkan_pipeline_cleanup(Render_Pipeline *pipe) {
 
 internal void
 vulkan_assets_cleanup(Assets *assets) {
-    for (u32 i = 0; i < assets->types[ASSET_TYPE_BITMAP].num_of_assets; i++) {
-        Bitmap *bitmap = (Bitmap *)&assets->types[ASSET_TYPE_BITMAP].data[i].memory;
-        vulkan_delete_texture(bitmap);
-    }
+	for (u32 i = 0; i < assets->num_of_assets; i++) {
+        Asset *asset = &assets->data[i];
+        switch(asset->type) {
+            case ASSET_TYPE_FONT: {
+				Font *font = (Font *)&asset->font;
+				for (s32 j = 0; j < font->cache->bitmaps_cached; j++) {
+            		vulkan_delete_texture(&font->cache->bitmaps[j].bitmap);
+        		}
+			} break;
 
-	vkDestroyDescriptorPool(vulkan_info.device, vulkan_info.descriptor_pool, nullptr);
+            case ASSET_TYPE_BITMAP: {
+				Bitmap *bitmap = (Bitmap *)&asset->bitmap;
+        		vulkan_delete_texture(bitmap);
+			} break;
 
-    for (u32 i = 0; i < assets->types[ASSET_TYPE_SHADER].num_of_assets; i++) {
-        Shader *shader = (Shader *)&assets->types[ASSET_TYPE_SHADER].data[i].memory;
+            case ASSET_TYPE_SHADER: break;
+            case ASSET_TYPE_AUDIO: break;
+            case ASSET_TYPE_MODEL: {
+				 Model *model = (Model *)&asset->model;
 
-        for (u32 j = 0; j < shader->set.descriptor_sets_count; j++) {
-            vkDestroyDescriptorSetLayout(vulkan_info.device, shader->set.descriptor_sets[i].descriptor_set_layout, nullptr);
-        }
-    }
-
-    for (u32 i = 0; i < assets->types[ASSET_TYPE_FONT].num_of_assets; i++) {
-        Font *font = (Font *)&assets->types[ASSET_TYPE_FONT].data[i].memory;
-
-        for (s32 j = 0; j < font->cache->bitmaps_cached; j++) {
-            vulkan_delete_texture(&font->cache->bitmaps[j].bitmap);
-        }
-    }
-
-    for (u32 i = 0; i < assets->types[ASSET_TYPE_MODEL].num_of_assets; i++) {
-        Model *model = (Model *)&assets->types[ASSET_TYPE_MODEL].data[i].memory;
-
-        for (u32 j = 0; j < model->meshes_count; j++) {
-            vulkan_delete_texture(&model->meshes[j].material.diffuse_map);
+		        for (u32 j = 0; j < model->meshes_count; j++) {
+		            vulkan_delete_texture(&model->meshes[j].material.diffuse_map);
+		        }
+			} break;
         }
     }
 }
@@ -1528,6 +1384,12 @@ vulkan_assets_cleanup(Assets *assets) {
 internal void
 vulkan_wait_frame() {
 	vkDeviceWaitIdle(vulkan_info.device);
+}
+
+internal void
+vulkan_cleanup_buffer(Vulkan_Buffer buffer) {
+	vkDestroyBuffer(vulkan_info.device, buffer.handle, nullptr);
+	vkFreeMemory(vulkan_info.device, buffer.memory, nullptr);
 }
 
 internal void
@@ -1544,30 +1406,23 @@ vulkan_cleanup() {
     vkDestroyImage(info->device, info->depth_image, nullptr);
     vkFreeMemory(info->device, info->depth_image_memory, nullptr);
 
-	// Uniform buffer
-	for (u32 i = 0; i < info->MAX_FRAMES_IN_FLIGHT; i++) {
-		//vkDestroyBuffer(info->device, info->uniform_buffers[i], nullptr);
-		//vkFreeMemory(info->device, info->uniform_buffers_memory[i], nullptr);
+	vkDestroyDescriptorPool(vulkan_info.device, vulkan_info.descriptor_pool, nullptr);
+
+	for (u32 i = 0; i < ARRAY_COUNT(layouts); i++) {
+		if (layouts[i].descriptor_set_layout != 0)
+			vkDestroyDescriptorSetLayout(vulkan_info.device, layouts[i].descriptor_set_layout, nullptr);
 	}
 
-	//vkDestroyDescriptorPool(info->device, info->descriptor_pool, nullptr);
-	//vkDestroyDescriptorSetLayout(info->device, info->descriptor_set_layout, nullptr);
-
-	vkDestroyBuffer(info->device, info->static_buffer, nullptr);
-	vkFreeMemory(info->device, info->static_buffer_memory, nullptr);
-
-	vkDestroyBuffer(info->device, info->static_uniform_buffer, nullptr);
-	vkFreeMemory(info->device, info->static_uniform_buffer_memory, nullptr);
-
-	vkDestroyBuffer(info->device, info->dynamic_uniform_buffer, nullptr);
-	vkFreeMemory(info->device, info->dynamic_uniform_buffer_memory, nullptr);
+	vulkan_cleanup_buffer(info->static_buffer);
+	vulkan_cleanup_buffer(info->static_uniform_buffer);
+	vulkan_cleanup_buffer(info->dynamic_uniform_buffer);
 	
 	vulkan_pipeline_cleanup(&basic_pipeline);
 	vulkan_pipeline_cleanup(&color_pipeline);
 	
 	vkDestroyRenderPass(info->device, info->render_pass, nullptr);
 
-	for (u32 i = 0; i < info->MAX_FRAMES_IN_FLIGHT; i++) {
+	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(info->device, info->image_available_semaphore[i], nullptr);
 	    vkDestroySemaphore(info->device, info->render_finished_semaphore[i], nullptr);
 	    vkDestroyFence(info->device, info->in_flight_fence[i], nullptr);
@@ -1647,17 +1502,13 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 		logprint("main", "nullptr SDL_Vulkan_GetInstanceExtensions failed\n");
 	}
 
-	const char *extra_instance_extensions[] {
-		VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-	};
-
-	const char **instance_extensions = ARRAY_MALLOC(const char *, instance_extensions_count + ARRAY_COUNT(extra_instance_extensions));
+	const char **instance_extensions = ARRAY_MALLOC(const char *, instance_extensions_count + ARRAY_COUNT(info->extra_instance_extensions));
 	if (SDL_Vulkan_GetInstanceExtensions(sdl_window, &instance_extensions_count, instance_extensions) == SDL_FALSE) {
 		logprint("main", "failed to get instance extensions\n");
 	}
-	instance_extensions[instance_extensions_count] = extra_instance_extensions[0];
-	//instance_extensions[instance_extensions_count + 1] = extra_instance_extensions[1];
-	vulkan_create_instance(info, instance_extensions, instance_extensions_count + ARRAY_COUNT(extra_instance_extensions));
+	instance_extensions[instance_extensions_count] = info->extra_instance_extensions[0];
+
+	vulkan_create_instance(info, instance_extensions, instance_extensions_count + ARRAY_COUNT(info->extra_instance_extensions));
 	platform_free(instance_extensions);
 
 	vulkan_setup_debug_messenger(info);
@@ -1687,8 +1538,8 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
                          VULKAN_STATIC_BUFFER_SIZE, 
                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                         info->static_buffer,
-                         info->static_buffer_memory);
+                         info->static_buffer.handle,
+                         info->static_buffer.memory);
 
 
 	vulkan_create_buffer(info->device, 
@@ -1696,20 +1547,20 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
                      VULKAN_STATIC_UNIFORM_BUFFER_SIZE, 
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     info->static_uniform_buffer,
-                     info->static_uniform_buffer_memory);
+                     info->static_uniform_buffer.handle,
+                     info->static_uniform_buffer.memory);
 
-	vkMapMemory(info->device, info->static_uniform_buffer_memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.static_uniform_data);
+	vkMapMemory(info->device, info->static_uniform_buffer.memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.static_uniform_buffer.data);
 
 	vulkan_create_buffer(info->device, 
                      info->physical_device,
                      VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE, 
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     info->dynamic_uniform_buffer,
-                     info->dynamic_uniform_buffer_memory);
+                     info->dynamic_uniform_buffer.handle,
+                     info->dynamic_uniform_buffer.memory);
 	
-	vkMapMemory(info->device, info->dynamic_uniform_buffer_memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.dynamic_uniform_data);
+	vkMapMemory(info->device, info->dynamic_uniform_buffer.memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.dynamic_uniform_buffer.data);
 
 	vulkan_init_presentation_settings(info);
 
@@ -1827,7 +1678,7 @@ void vulkan_end_frame() {
 		logprint("vulkan_draw_frame()", "failed to acquire swap chain");
 	}
 
-	vulkan_info.current_frame = (vulkan_info.current_frame + 1) % vulkan_info.MAX_FRAMES_IN_FLIGHT;
+	vulkan_info.current_frame = (vulkan_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 //
@@ -1846,9 +1697,9 @@ void vulkan_init_mesh(Mesh *mesh) {
     memcpy(memory, (void*)mesh->vertices, vertices_size);
     memcpy((char*)memory + vertices_size, (void*)mesh->indices, indices_size);
 
-	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.static_buffer_offset, buffer_size);
+	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.static_buffer.offset, buffer_size, VULKAN_STATIC_BUFFER_SIZE);
 
-    vulkan_update_buffer(&vulkan_info, &vulkan_info.static_buffer, &vulkan_info.static_buffer_memory, memory, buffer_size, vulkan_mesh->vertices_offset);
+    vulkan_update_buffer(&vulkan_info, &vulkan_info.static_buffer.handle, &vulkan_info.static_buffer.memory, memory, buffer_size, vulkan_mesh->vertices_offset);
     vulkan_mesh->indices_offset = vulkan_mesh->vertices_offset + vertices_size;
     
     platform_free(memory);
@@ -1858,8 +1709,8 @@ void vulkan_init_mesh(Mesh *mesh) {
 void vulkan_draw_mesh(Mesh *mesh) {
     Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)mesh->gpu_info;
     VkDeviceSize offsets[] = { vulkan_mesh->vertices_offset };
-    vkCmdBindVertexBuffers(vulkan_active_cmd_buffer(&vulkan_info), 0, 1, &vulkan_info.static_buffer, offsets);
-    vkCmdBindIndexBuffer(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.static_buffer, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(vulkan_active_cmd_buffer(&vulkan_info), 0, 1, &vulkan_info.static_buffer.handle, offsets);
+    vkCmdBindIndexBuffer(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.static_buffer.handle, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(vulkan_active_cmd_buffer(&vulkan_info), mesh->indices_count, 1, 0, 0, 0);
 }
 
@@ -1872,8 +1723,145 @@ void vulkan_compile_shader(Shader *shader) {
 }
 
 //
-// Descriptor Set Usage
+// Descriptor Sets
 //
+
+internal void
+vulkan_allocate_descriptor_set(Layout *layout) {
+	VkDescriptorSetLayout layouts[layout->max_sets];
+	for (u32 i = 0; i < layout->max_sets; i++) {
+		layouts[i] = layout->descriptor_set_layout;
+	}
+
+	VkDescriptorSetAllocateInfo allocate_info = {};
+	allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocate_info.descriptorPool = vulkan_info.descriptor_pool;
+	allocate_info.descriptorSetCount = layout->max_sets;
+	allocate_info.pSetLayouts = layouts;
+
+	VkResult result = vkAllocateDescriptorSets(vulkan_info.device, &allocate_info, layout->descriptor_sets);
+	if (result != VK_SUCCESS) {
+		logprint("vulkan_create_descriptor_sets()", "failed to allocate descriptor sets\n");
+	}
+}
+
+
+internal void
+vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_of_sets, u32 offsets[128]) {
+	VkWriteDescriptorSet *write_sets = ARRAY_MALLOC(VkWriteDescriptorSet, num_of_sets);
+	VkDescriptorBufferInfo *static_buffer_infos = ARRAY_MALLOC(VkDescriptorBufferInfo, num_of_sets);
+
+	VkDescriptorBufferInfo dynamic_buffer_info = {};
+	dynamic_buffer_info.offset = 0;
+    dynamic_buffer_info.range = layout_binding->size;
+	dynamic_buffer_info.buffer = vulkan_info.dynamic_uniform_buffer.handle;
+
+	VkWriteDescriptorSet write_set = {};
+    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_set.dstBinding = layout_binding->binding;
+    write_set.dstArrayElement = 0;
+    write_set.descriptorType = vulkan_convert_descriptor_type(layout_binding->descriptor_type);
+    write_set.descriptorCount = 1;
+    write_set.pBufferInfo = &dynamic_buffer_info;
+
+	if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+		for (u32 i = 0; i < num_of_sets; i++) {
+			u32 alignment = (u32)vulkan_get_alignment(layout_binding->size, (u32)vulkan_info.uniform_buffer_min_alignment);
+			u32 offset = vulkan_get_next_offset(&vulkan_info.static_uniform_buffer.offset, alignment, VULKAN_STATIC_UNIFORM_BUFFER_SIZE);
+
+			offsets[i] = offset;
+
+			VkDescriptorBufferInfo static_buffer_info = {};
+			static_buffer_info.offset = offset;
+    		static_buffer_info.range = layout_binding->size;
+			static_buffer_info.buffer = vulkan_info.static_uniform_buffer.handle;
+			static_buffer_infos[i] = static_buffer_info;
+		}	
+
+	}
+
+	for (u32 i = 0; i < num_of_sets; i++) {
+		write_sets[i] = write_set;
+    	write_sets[i].dstSet = sets[i];
+		if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+			write_sets[i].pBufferInfo = &static_buffer_infos[i];
+	}
+
+	vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
+
+	platform_free(write_sets);
+	platform_free(static_buffer_infos);
+}
+
+internal void
+vulkan_init_bitmaps(VkDescriptorSet *sets, u32 num_of_sets, Bitmap *bitmap, Layout_Binding *layout_binding) {
+	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
+	VkWriteDescriptorSet *write_sets = ARRAY_MALLOC(VkWriteDescriptorSet, num_of_sets);
+
+	VkDescriptorImageInfo image_info[TEXTURE_ARRAY_SIZE] = {};
+	for (u32 i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
+    	image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    	image_info[i].imageView = texture->image_view;
+    	image_info[i].sampler = texture->sampler;
+	}
+
+    VkWriteDescriptorSet write_set = {};
+    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_set.dstBinding = layout_binding->binding;
+    write_set.dstArrayElement = 0;
+    write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_set.descriptorCount = TEXTURE_ARRAY_SIZE;
+    write_set.pImageInfo = image_info;
+
+	for (u32 i = 0; i < num_of_sets; i++) {
+		write_sets[i] = write_set;
+    	write_sets[i].dstSet = sets[i];
+	}
+
+    vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
+
+	platform_free(write_sets);
+}
+
+internal void
+vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
+	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER || layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
+		vulkan_init_ubos(layout->descriptor_sets, &layout->bindings[0], layout->max_sets, layout->offsets);
+	}
+
+	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_SAMPLER) {
+		vulkan_init_bitmaps(layout->descriptor_sets, layout->max_sets, bitmap, &layout->bindings[0]);
+	}
+}
+
+
+
+// just creating with one binding right now
+internal void
+vulkan_create_set_layout(Layout *layout) {
+
+	VkDescriptorSetLayoutBinding vulkan_binding = {};
+	vulkan_binding.binding = layout->bindings[0].binding;
+	vulkan_binding.descriptorType = vulkan_convert_descriptor_type(layout->bindings[0].descriptor_type);
+ 	vulkan_binding.descriptorCount = layout->bindings[0].descriptor_count;
+	for (u32 i = 0; i < layout->bindings[0].stages_count; i++) {
+		vulkan_binding.stageFlags |= vulkan_convert_shader_stage(layout->bindings[0].stages[i]);
+	}
+	vulkan_binding.pImmutableSamplers = nullptr; // Optional
+
+	VkDescriptorSetLayoutCreateInfo layout_info = {};
+	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layout_info.bindingCount = 1;
+	layout_info.pBindings = &vulkan_binding;
+	
+	if (vkCreateDescriptorSetLayout(vulkan_info.device, &layout_info, nullptr, &layout->descriptor_set_layout) != VK_SUCCESS) {
+		logprint("vulkan_create_descriptor_set_layout()", "failed to create descriptor set layout\n");
+	}
+}
+
+
+// Descriptor Set Usage
+
 
 VkDescriptorSet vulkan_get_descriptor_set2(Layout *layout) {
     if (layout->sets_in_use + 1 > layout->max_sets)
@@ -1907,13 +1895,17 @@ Descriptor vulkan_get_descriptor_set(Layout *layout, u32 return_index) {
     if (layout->sets_in_use + 1 > layout->max_sets)
         ASSERT(0);
 
+	if (return_index < layout->sets_in_use) {
+		logprint("vulkan_get_descriptor_set()", "descriptor could already be in use\n");
+	} else {
+		layout->sets_in_use = return_index + 1; // jump to after this set
+	}
+
 	Descriptor desc = {};
 	desc.binding = layout->bindings[0];
 	desc.offset = layout->offsets[return_index];
 	desc.set_number = layout->set_number;
 	desc.vulkan_set = &layout->descriptor_sets[return_index];
-
-	layout->sets_in_use++;
 
     return desc;
 }
@@ -1925,7 +1917,7 @@ void vulkan_update_ubo(Descriptor desc, void *data) {
 		return;
 	}
 
-	memcpy((char*)vulkan_info.static_uniform_data + desc.offset, data, desc.binding.size);
+	memcpy((char*)vulkan_info.static_uniform_buffer.data + desc.offset, data, desc.binding.size);
 }
 
 /*
@@ -1944,9 +1936,9 @@ void vulkan_bind_descriptor_set(Descriptor desc) {
 
 void vulkan_bind_descriptor_set(VkDescriptorSet set, u32 first_set, void *data, u32 size) {
 	u32 alignment = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
-	u32 offset = vulkan_get_next_offset(&vulkan_info.dymanic_uniforms_offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE);
+	u32 offset = vulkan_get_next_offset(&vulkan_info.dynamic_uniform_buffer.offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE);
 
-	memcpy((char*)vulkan_info.dynamic_uniform_data + offset, data, size);
+	memcpy((char*)vulkan_info.dynamic_uniform_buffer.data + offset, data, size);
 
 	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, &set, 1, &offset);
 }

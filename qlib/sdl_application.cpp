@@ -296,7 +296,7 @@ int main(int argc, char *argv[]) {
             break;
         
     	sdl_update_time(&app.time);
-        print("%f\n", app.time.frames_per_s);
+        //print("%f\n", app.time.frames_per_s);
         //print("%f\n", app.time.run_time_s);
 
         window_dim = app.window.dim;

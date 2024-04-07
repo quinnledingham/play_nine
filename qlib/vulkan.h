@@ -34,13 +34,24 @@ struct Vulkan_Swap_Chain_Support_Details {
 	u32 present_modes_count;
 };
 
+struct Vulkan_Buffer {
+    VkBuffer handle;
+    VkDeviceMemory memory;
+    u32 offset; // where to enter new bytes
+	void *data; // if the memory is mapped
+};
+
 struct Vulkan_Info {
 	const char *device_extensions[1] = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
+	
+	// on top of the extensions that you need to make the surface
+	const char *extra_instance_extensions[1] = {
+		VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+	};
 
-	static const u32 MAX_FRAMES_IN_FLIGHT = 2;
-	u32 current_frame;
+	u32 current_frame; // which frame to fill ie. MAX_FRAMES_IN_FLIGHT = 2 either 0 or 1
 
 	s32 window_width;
 	s32 window_height;
@@ -86,20 +97,9 @@ struct Vulkan_Info {
 	VkFence in_flight_fence[MAX_FRAMES_IN_FLIGHT];
 
 	// Buffers	
-    VkBuffer static_buffer;
-    VkDeviceMemory static_buffer_memory;
-    u32 static_buffer_offset; // where to enter new bytes
-	
-	VkBuffer static_uniform_buffer;
-	VkDeviceMemory static_uniform_buffer_memory;
-	u32 static_uniforms_offset; // where to go to update the dynamic uniforms
-
-	VkBuffer dynamic_uniform_buffer;
-	VkDeviceMemory dynamic_uniform_buffer_memory;
-	u32 dymanic_uniforms_offset; // where to go to update the dynamic uniforms
-
-	void *static_uniform_data;
-	void *dynamic_uniform_data;
+	Vulkan_Buffer static_buffer;
+	Vulkan_Buffer static_uniform_buffer;
+	Vulkan_Buffer dynamic_uniform_buffer;
 
 	// Depth Buffer
 	VkImage depth_image;
@@ -134,12 +134,6 @@ vulkan_active_cmd_buffer(Vulkan_Info *info) {
 	return info->command_buffers[info->current_frame];
 }
 
-#define VULKAN_STATIC_BUFFER_SIZE 20000000
-#define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 10000
-#define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000000
-
-global Vulkan_Info vulkan_info;
-
 struct Vulkan_Texture {
 	VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
 
@@ -156,7 +150,12 @@ struct Vulkan_Mesh {
     u32 vertices_offset;
     u32 indices_offset;
     
-    u32 uniform_offsets[vulkan_info.MAX_FRAMES_IN_FLIGHT];
+    u32 uniform_offsets[MAX_FRAMES_IN_FLIGHT];
     u32 uniform_size; // size of the individual uniforms
 };
 
+#define VULKAN_STATIC_BUFFER_SIZE 100000
+#define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 100000
+#define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000000
+
+global Vulkan_Info vulkan_info = {};

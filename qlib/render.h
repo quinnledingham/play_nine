@@ -33,6 +33,8 @@ Descriptor light_set_2;
 Layout layouts[10];
 
 #define TEXTURE_ARRAY_SIZE 64
+#define MAX_FRAMES_IN_FLIGHT 2
+
 struct Light {
     Vector4 position;
     Vector4 ambient;
