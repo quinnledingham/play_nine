@@ -729,7 +729,7 @@ vulkan_get_next_offset(u32 *offset, u32 in_data_size, u32 max_offset, bool8 allo
     *offset += in_data_size;
 
 	if (*offset < max_offset)
-		return *offset;
+		return return_offset;
 
 	if (allow_looping) {
 #if DEBUG
