@@ -1887,7 +1887,7 @@ Descriptor vulkan_get_descriptor_set(Layout *layout) {
     return desc;
 }
 
-Descriptor vulkan_get_descriptor_set(Layout *layout, u32 return_index) {
+Descriptor vulkan_get_descriptor_set_index(Layout *layout, u32 return_index) {
     if (layout->sets_in_use + 1 > layout->max_sets)
         ASSERT(0);
 

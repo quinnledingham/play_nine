@@ -320,12 +320,12 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 */
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     render_bind_pipeline(&color_pipeline);
-    Descriptor object_desc = vulkan_get_descriptor_set(&layouts[5]);
-    vulkan_update_ubo(object_desc, (void *)&color);
-    vulkan_bind_descriptor_set(object_desc);
+    Descriptor object_desc = render_get_descriptor_set(&layouts[5]);
+    render_update_ubo(object_desc, (void *)&color);
+    render_bind_descriptor_set(object_desc);
 
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
-    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Model));  
+    render_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Model));  
 
     render_draw_mesh(&shapes.sphere_mesh);    
 }
@@ -409,15 +409,15 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 */
 
     render_bind_pipeline(&color_pipeline);
-    vulkan_bind_descriptor_set(light_set);
+    render_bind_descriptor_set(light_set);
 
-    Descriptor object_set = vulkan_get_descriptor_set(&layouts[5]);
-    vulkan_update_ubo(object_set, (void *)&color);
-    vulkan_bind_descriptor_set(object_set);
+    Descriptor object_set = render_get_descriptor_set(&layouts[5]);
+    render_update_ubo(object_set, (void *)&color);
+    render_bind_descriptor_set(object_set);
 
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
-    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Matrix_4x4)); 
+    render_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Matrix_4x4)); 
 
     render_draw_mesh(&shapes.cube_mesh);    
 }
@@ -480,17 +480,17 @@ draw_shape(Shape shape) {
         case Shape_Draw_Type::COLOR: {
             render_bind_pipeline(&shapes.color_pipeline);
 
-            Descriptor v_set = vulkan_get_descriptor_set(&layouts[4]);
-            vulkan_update_ubo(v_set, &shape.color);
-            vulkan_bind_descriptor_set(v_set);
+            Descriptor v_set = render_get_descriptor_set(&layouts[4]);
+            render_update_ubo(v_set, &shape.color);
+            render_bind_descriptor_set(v_set);
         } break;
 
         case Shape_Draw_Type::TEXTURE: {
             render_bind_pipeline(&shapes.texture_pipeline);
 
-            Descriptor desc = vulkan_get_descriptor_set(&layouts[3]);
-            object.index = vulkan_set_bitmap(&desc, shape.bitmap);
-            vulkan_bind_descriptor_set(desc);
+            Descriptor desc = render_get_descriptor_set(&layouts[3]);
+            object.index = render_set_bitmap(&desc, shape.bitmap);
+            render_bind_descriptor_set(desc);
         } break;
 
         case Shape_Draw_Type::TEXT: {
@@ -504,7 +504,7 @@ draw_shape(Shape shape) {
     }
 
     object.model = create_transform_m4x4(shape.coords, shape.rotation, shape.dim);
-    vulkan_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+    render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 
     switch(shape.type) {
         case SHAPE_RECT:   render_draw_mesh(&shapes.rect_mesh);   break;
@@ -528,12 +528,12 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
 
     u32 i = 0;
 
-    Descriptor v_color_set = vulkan_get_descriptor_set(&layouts[4]);
-    vulkan_update_ubo(v_color_set, (void *)&color);
-    vulkan_bind_descriptor_set(v_color_set);
+    Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
+    render_update_ubo(v_color_set, (void *)&color);
+    render_bind_descriptor_set(v_color_set);
 
     Object object = {};
-    Descriptor desc = vulkan_get_descriptor_set(&layouts[2]);
+    Descriptor desc = render_get_descriptor_set(&layouts[2]);
 
     s32 indices[60];
     platform_memory_set(indices, 0, sizeof(u32) * 60);
@@ -541,12 +541,12 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     while(string[i] != 0) {
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
         if (bitmap->bitmap.width != 0) {   
-            indices[i] = vulkan_set_bitmap(&desc, &bitmap->bitmap);
+            indices[i] = render_set_bitmap(&desc, &bitmap->bitmap);
         }
         i++;
     }
 
-    vulkan_bind_descriptor_set(desc);
+    render_bind_descriptor_set(desc);
 
     i = 0;
     while (string[i] != 0) {
@@ -565,7 +565,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             coords_v3.y += dim_v3.y / 2.0f; // coords = top left corner
     		object.model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
             object.index = indices[i];
-            vulkan_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));   
+            render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));   
             
             render_draw_mesh(&shapes.rect_mesh);
             // End of Draw

@@ -25,6 +25,7 @@ struct Render_Pipeline {
 
 struct Render {
     bool8 vsync;
+    bool8 depth_test;
 };
 
 global Render render_info = {};
@@ -117,11 +118,12 @@ RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
 
 RENDER_FUNC(void, create_texture, Bitmap *bitmap, u32 texture_parameters);
 RENDER_FUNC(void, delete_texture, Bitmap *bitmap);
-
-void render_init_model(Model *model);
+RENDER_FUNC(u32, set_bitmap, Descriptor *desc, Bitmap *bitmap);
 
 RENDER_FUNC(void, init_mesh, Mesh *mesh);
 RENDER_FUNC(void, draw_mesh, Mesh *mesh);
+void render_init_model(Model *model);
+
 RENDER_FUNC(void, set_viewport, u32 window_width, u32 window_height);
 RENDER_FUNC(void, set_scissor, s32 x, s32 y, u32 window_width, u32 window_height);
 
@@ -132,13 +134,13 @@ RENDER_FUNC(void, wait_frame, );
 
 RENDER_FUNC(void, depth_test, bool32 enable);
 
-internal void vulkan_create_set_layout(Layout *layout);
-internal void vulkan_allocate_descriptor_set(Layout *layout);
-internal u32 vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap);
-internal void vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap);
-void vulkan_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32 size);
-void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size);
-void vulkan_update_ubo(u32 offset, void *data, u32 size);
-void vulkan_bind_descriptor_set(Descriptor desc);
-void vulkan_update_ubo(Descriptor desc, void *data);
-Descriptor vulkan_get_descriptor_set(Layout *layout);
+RENDER_FUNC(void, create_set_layout, Layout *layout);
+RENDER_FUNC(void, allocate_descriptor_set, Layout *layout);
+
+RENDER_FUNC(void, init_layout_offsets, Layout *layout, Bitmap *bitmap);
+RENDER_FUNC(void, bind_descriptor_sets, Descriptor desc, u32 first_set, void *data, u32 size);
+RENDER_FUNC(void, push_constants, u32 shader_stage, void *data, u32 data_size);
+RENDER_FUNC(void, bind_descriptor_set, Descriptor desc);
+RENDER_FUNC(void, update_ubo, Descriptor desc, void *data);
+RENDER_FUNC(Descriptor, get_descriptor_set, Layout *layout);
+RENDER_FUNC(Descriptor, get_descriptor_set_index, Layout *layout, u32 return_index);

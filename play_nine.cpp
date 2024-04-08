@@ -421,7 +421,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
 }
 
 internal void
-draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color) {
+draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color, bool8 flipped) {
     u32 bitmap_index = number;
     if (number == -5)
         bitmap_index = 13;
@@ -431,7 +431,7 @@ draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, 
         render_draw_model(card_model, &color_pipeline, highlight_color, model_scale);
     }
 
-    render_draw_model(card_model, color_set, { 150, 150, 150, 1 }, indices[bitmap_index], indices[14], model);
+    render_draw_model(card_model, color_set, indices[bitmap_index], indices[14], model, flipped);
 } 
 
 internal Vector4
@@ -449,22 +449,22 @@ get_highlight_color(Game_Draw *draw, u32 index) {
 //       0
 internal void
 draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highlight, s32 indices[16]) {
-    Descriptor color_set = vulkan_get_descriptor_set(&layouts[5]);
+    Descriptor color_set = render_get_descriptor_set(&layouts[5]);
 
     Vector4 color = { 150, 150, 150, 1 };
-    vulkan_update_ubo(color_set, &color);
+    render_update_ubo(color_set, &color);
 
     Model *card_model = find_model(assets, "CARD");
 
     if (!highlight) {
         draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
         render_bind_pipeline(&basic_pipeline);
-        vulkan_bind_descriptor_set(texture_desc);
+        render_bind_descriptor_set(texture_desc);
 
         Object object = {};
         object.model = create_transform_m4x4({ 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }), {15.0f, 1.0f, 15.0f});
         object.index = indices[15];
-        vulkan_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+        render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 
         Model *model = find_model(assets, "TABLE");
         for (u32 i = 0; i < model->meshes_count; i++) { 
@@ -484,25 +484,25 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
                 case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;
             }
 
-            draw_card(card_model, color_set, indices, card, game->players[i].models[card_index], h, get_highlight_color(&state->game_draw, card_index));
+            draw_card(card_model, color_set, indices, card, game->players[i].models[card_index], h, get_highlight_color(&state->game_draw, card_index), game->players[i].flipped[card_index]);
         }
     }
     
     {
         bool8 h = highlight && stage == SELECT_PILE;
-        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(&state->game_draw, PICKUP_PILE));
+        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(&state->game_draw, PICKUP_PILE), false);
     }
 
     if (game->top_of_discard_pile != 0) {
         bool8 h = highlight && (stage == SELECT_PILE || stage == SELECT_CARD);
         if (stage == SELECT_CARD && !game->players[game->active_player].pile_card)
             h = false;
-        draw_card(card_model, color_set, indices, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(&state->game_draw, DISCARD_PILE));
+        draw_card(card_model, color_set, indices, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(&state->game_draw, DISCARD_PILE), true);
     }
 
     if (stage == SELECT_CARD) {
         s32 card = deck[game->players[game->active_player].new_card];
-        draw_card(card_model, color_set, indices, card, game->players[game->active_player].new_card_model, false, play_nine_yellow);
+        draw_card(card_model, color_set, indices, card, game->players[game->active_player].new_card_model, false, play_nine_yellow, true);
     }
 }
 
@@ -1064,7 +1064,7 @@ bool8 update_game(State *state, App *app) {
     }
 
     state->scene.view = get_view(state->camera);
-    vulkan_update_ubo(state->scene_set, (void *)&state->scene);
+    render_update_ubo(state->scene_set, (void *)&state->scene);
 
     load_card_models(game, draw, rotation_degrees);
 
@@ -1081,7 +1081,7 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&game->assets, "../assets.ethan"))
@@ -1234,15 +1234,14 @@ bool8 init_data(App *app) {
     online.mutex = win32_create_mutex();
     game->selected_mutex = win32_create_mutex();
 
-    vulkan_info.active_shader = basic_pipeline.shader;
-    Descriptor texture_desc = vulkan_get_descriptor_set(&layouts[2], 0);
+    Descriptor texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
     for (u32 j = 0; j < 14; j++) {
-        game->indices[j] = vulkan_set_bitmap(&texture_desc, &card_bitmaps[j]);
+        game->indices[j] = render_set_bitmap(&texture_desc, &card_bitmaps[j]);
     }
-    game->indices[14] = vulkan_set_bitmap(&texture_desc, find_bitmap(&game->assets, "YOGI"));
+    game->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&game->assets, "YOGI"));
     Model *model = find_model(&game->assets, "TABLE");
-    game->indices[15] = vulkan_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
+    game->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
     
 	return false;
 }
@@ -1319,33 +1318,33 @@ bool8 update(App *app) {
     }
     render_start_frame();
 
-    texture_desc = vulkan_get_descriptor_set(&layouts[2], 0);
+    texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
     render_set_viewport(app->window.width, app->window.height);
     render_set_scissor(0, 0, app->window.width, app->window.height);
 
-    state->scene_set = vulkan_get_descriptor_set(&layouts[0]);
+    state->scene_set = render_get_descriptor_set(&layouts[0]);
     //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
     state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
-    vulkan_update_ubo(state->scene_set, (void*)&state->scene);
+    render_update_ubo(state->scene_set, (void*)&state->scene);
 
-    state->scene_ortho_set = vulkan_get_descriptor_set(&layouts[0]);
+    state->scene_ortho_set = render_get_descriptor_set(&layouts[0]);
     state->ortho_scene.view = identity_m4x4();
     state->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
-    vulkan_update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
+    render_update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
     
     render_depth_test(false);
 
-    light_set = vulkan_get_descriptor_set(&layouts[1]);
-    vulkan_update_ubo(light_set, (void*)&global_light);
+    light_set = render_get_descriptor_set(&layouts[1]);
+    render_update_ubo(light_set, (void*)&global_light);
 
-    light_set_2 = vulkan_get_descriptor_set(&layouts[1]);
-    vulkan_update_ubo(light_set_2, (void*)&global_light_2);
+    light_set_2 = render_get_descriptor_set(&layouts[1]);
+    render_update_ubo(light_set_2, (void*)&global_light_2);
 
     if (state->menu_list.mode != IN_GAME && state->menu_list.mode != PAUSE_MENU) {
         render_bind_pipeline(&shapes.color_pipeline);
         //render_bind_descriptor_set(state->scene_ortho_set, 0);
-        vulkan_bind_descriptor_set(state->scene_ortho_set);
+        render_bind_descriptor_set(state->scene_ortho_set);
     }
 
     switch(state->menu_list.mode) {
@@ -1385,9 +1384,9 @@ bool8 update(App *app) {
             
             render_bind_pipeline(&basic_pipeline);
 
-            vulkan_bind_descriptor_set(state->scene_set);
-            vulkan_bind_descriptor_set(light_set);
-            vulkan_bind_descriptor_set(texture_desc);
+            render_bind_descriptor_set(state->scene_set);
+            render_bind_descriptor_set(light_set);
+            render_bind_descriptor_set(texture_desc);
 
             draw_game(state, &state->assets, basic_3D, &state->game, false, state->indices);
             render_bind_pipeline(&color_pipeline);
@@ -1399,7 +1398,7 @@ bool8 update(App *app) {
 
             //draw_ray(&state->mouse_ray);
 
-            vulkan_bind_descriptor_set(state->scene_ortho_set);
+            render_bind_descriptor_set(state->scene_ortho_set);
 
             float32 pixel_height = app->window.dim.x / 20.0f;
             Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });

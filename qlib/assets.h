@@ -166,7 +166,14 @@ struct Descriptor {
     u32 offset; // offset in memory for a single binding in descriptor set
     u32 set_number;
     u32 texture_index; // where to write next texture for this frame
+
+#if VULKAN
     VkDescriptorSet *vulkan_set;
+#elif OPENGL
+    u32 *handle;
+    Bitmap **bitmaps;
+    u32 *bitmaps_saved;
+#endif
 };
 
 struct Layout {
@@ -180,9 +187,15 @@ struct Layout {
     u32 sets_in_use;
     u32 offsets[max_sets]; // for static uniform buffers, correlates with descriptor_sets
 
+#if VULKAN
     VkDescriptorSet descriptor_sets[max_sets];
     VkDescriptorSetLayout descriptor_set_layout;
-    
+#elif OPENGL
+    u32 handles[max_sets];
+    Bitmap *bitmaps[max_sets][16];
+    u32 bitmaps_saved[max_sets];
+#endif    
+
     void add_binding(Layout_Binding new_binding) {
         bindings[new_binding.binding] = new_binding; // Set up so array index == binding location
     }

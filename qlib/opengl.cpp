@@ -37,7 +37,7 @@ void opengl_sdl_init(SDL_Window *sdl_window) {
     glPointSize(4.0f);
     glEnable(GL_MULTISAMPLE);  
 
-    glEnable(GL_CULL_FACE);  
+    //glEnable(GL_CULL_FACE);  
     glCullFace(GL_BACK);
     glFrontFace(GL_CW);  
 
@@ -135,67 +135,83 @@ void opengl_bind_pipeline(Render_Pipeline *pipeline) {
 */
 }
 
-void opengl_create_descriptor_sets(Descriptor_Set *set, Shader *shader, u32 descriptor_set_count, u32 pool_index) {
-
-}
-
 // block index is from glUniformBlockBinding or binding == #
-void opengl_init_ubo(Descriptor_Set *set, Descriptor *descriptor, u32 size, u32 binding) {
-    descriptor->binding = binding; // binding point in buffer (offset)
-    descriptor->size = size;
-    descriptor->handle = platform_malloc(sizeof(u32));
-    glGenBuffers(1, (u32*)descriptor->handle);
+void opengl_init_ubo(u32 *handle, Layout_Binding *layout_binding, u32 num_of_sets, u32 offsets[128]) {
+    glGenBuffers(1, handle);
     
     // clearing buffer
-    glBindBuffer(GL_UNIFORM_BUFFER, *(u32*)descriptor->handle);
-    glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, *handle);
+    glBufferData(GL_UNIFORM_BUFFER, layout_binding->size, NULL, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     
     //glBindBufferBase(GL_UNIFORM_BUFFER, binding, *(u32*)descriptor->handle); // binding index refers to the memory
 }
 
-void opengl_create_descriptor_pool(Shader *shader, u32 descriptor_set_count, u32 set_index) {
-    for (u32 i = 0; i < shader->max_sets; i++) {
-        for (u32 j = 0; j < shader->layout_sets[set_index].descriptors_count; j++) {
-            shader->descriptor_sets[set_index][i].descriptors_count = shader->layout_sets[set_index].descriptors_count;
-            shader->descriptor_sets[set_index][i].descriptors[j].type = shader->layout_sets[set_index].descriptors[j].type;
-            if (shader->layout_sets[set_index].descriptors[j].type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                opengl_init_ubo(&shader->descriptor_sets[set_index][i], 
-                                &shader->descriptor_sets[set_index][i].descriptors[j], 
-                                shader->layout_sets[set_index].descriptors[j].size,
-                                shader->layout_sets[set_index].descriptors[j].binding);
+void opengl_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
+    if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER || layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
+        //opengl_init_ubo(&layout->handle, &layout->bindings[0], layout->max_sets, layout->offsets);
+
+        for (u32 i = 0; i < layout->max_sets; i++) {
+            opengl_init_ubo(&layout->handles[i], &layout->bindings[0], layout->max_sets, layout->offsets); 
         }
     }
+
+    if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_SAMPLER) {
+        //vulkan_init_bitmaps(layout->descriptor_sets, layout->max_sets, bitmap, &layout->bindings[0]);
+    }
+
+
 }
 
 void opengl_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
-/*
-    for (u32 i = 0; i < shader->layout_count; i++) {
-        for (u32 j = 0; j < shader->descriptor_sets[i].descriptors_count; j++) {
-            Descriptor *d = &shader->descriptor_sets[i].descriptors[j];
-            if (d->type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                opengl_init_ubo(d, d->size, d->binding); 
-        }
-    }
-*/
+
 }
 
 void opengl_pipeline_cleanup(Render_Pipeline *pipe) {
 
 }
 
-Descriptor_Set* opengl_get_descriptor_set(Shader *shader, bool8 layout_index) {
+Descriptor opengl_get_descriptor_set(Layout *layout) {
 
-    u32 next_set = shader->sets_count[layout_index]++;
-
-    if (next_set > shader->max_sets) {
-        logprint("opengl_get_descriptor_set()", "ran out of sets to use in shader\n");
+    if (layout->sets_in_use + 1 > layout->max_sets)
         ASSERT(0);
-        return 0;
+
+    u32 return_index = layout->sets_in_use++;
+    //if (vulkan_info.current_frame == 1)
+        //return_index += layout->max_sets / 2;
+
+    Descriptor desc = {};
+    desc.binding = layout->bindings[0];
+    desc.offset = layout->offsets[return_index];
+    desc.set_number = layout->set_number;
+    desc.handle = &layout->handles[return_index];
+    desc.bitmaps = layout->bitmaps[return_index];
+    desc.bitmaps_saved = &layout->bitmaps_saved[return_index];
+    //desc.vulkan_set = &layout->descriptor_sets[return_index];
+
+    return desc;
+
+}
+
+Descriptor opengl_get_descriptor_set_index(Layout *layout, u32 return_index) {
+    if (layout->sets_in_use + 1 > layout->max_sets)
+        ASSERT(0);
+
+    if (return_index < layout->sets_in_use) {
+        logprint("vulkan_get_descriptor_set()", "descriptor could already be in use\n");
+    } else {
+        layout->sets_in_use = return_index + 1; // jump to after this set
     }
 
-    return &shader->descriptor_sets[layout_index][next_set];
+    Descriptor desc = {};
+    desc.binding = layout->bindings[0];
+    desc.offset = layout->offsets[return_index];
+    desc.set_number = layout->set_number;
+    desc.handle = &layout->handles[return_index];
+    desc.bitmaps = layout->bitmaps[return_index];
+    desc.bitmaps_saved = &layout->bitmaps_saved[return_index];
 
+    return desc;
 }
 
 // returns the new offset
@@ -206,7 +222,7 @@ u32 opengl_buffer_sub_data(u32 target, u32 offset, u32 size, void *data) {
 
 #define BUFFER_SUB_DATA(target, offset, n) opengl_buffer_sub_data(target, offset, sizeof(n), (void *)&n)
 
-void opengl_update_ubo(Descriptor_Set *set, u32 descriptor_index, void *data, bool8 static_update) {
+void opengl_update_ubo(Descriptor desc, void *data) {
     GLenum target = GL_UNIFORM_BUFFER;
     u32 offset = 0;
 
@@ -216,18 +232,9 @@ void opengl_update_ubo(Descriptor_Set *set, u32 descriptor_index, void *data, bo
     offset = BUFFER_SUB_DATA(target, offset, matrices.projection);
     glBindBuffer(target, 0);*/
 
-    Descriptor *descriptor = &set->descriptors[descriptor_index];
-    glBindBuffer(target, *(u32*)descriptor->handle);
+    glBindBuffer(target, *desc.handle);
 //  offset = BUFFER_SUB_DATA(target, offset, data);
-    glBufferSubData(target, offset, descriptor->size, data);
-    glBindBuffer(target, 0);
-}
-
-void opengl_update_ubo_v2(Descriptor *descriptor, void *data, u32 offset) {
-    GLenum target = GL_UNIFORM_BUFFER;
-
-    glBindBuffer(target, *(u32*)descriptor->handle);
-    glBufferSubData(target, offset, sizeof(Object), data);
+    glBufferSubData(target, offset, desc.binding.size, data);
     glBindBuffer(target, 0);
 }
 
@@ -237,36 +244,39 @@ void opengl_set_uniform_block_binding(u32 shader_handle, const char *tag, u32 in
     glUniformBlockBinding(shader_handle, tag_uniform_block_index, index);
 }
 
-void opengl_bind_descriptor_set(Descriptor_Set *set, u32 first_set) {
-    for (u32 i = 0; i < set->descriptors_count; i++) {
-        switch(set->descriptors[i].type) {
-            case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-                opengl_set_uniform_block_binding(global_shader_handle, "scene", 0); 
+void opengl_bind_descriptor_set(Descriptor desc) {
+    switch(desc.binding.descriptor_type) {
+        case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
+            opengl_set_uniform_block_binding(global_shader_handle, "scene", 0); 
 
-                glBindBufferBase(GL_UNIFORM_BUFFER, set->descriptors[i].binding, *(u32*)set->descriptors[i].handle);
-            } break;
+            glBindBufferBase(GL_UNIFORM_BUFFER, desc.binding.binding, *(u32*)desc.handle);
+            glBindBuffer(GL_UNIFORM_BUFFER, *desc.handle);
+        } break;
 
-            case DESCRIPTOR_TYPE_SAMPLER: {
-                //glActiveTexture(GL_TEXTURE0 + i);
-                //glBindTexture(GL_TEXTURE_2D, *(u32*)set->descriptors[i].handle);
-            } break;
-        }
+        case DESCRIPTOR_TYPE_SAMPLER: {
+            //glActiveTexture(GL_TEXTURE0 + );
+            //glBindTexture(GL_TEXTURE_2D, *(u32*)desc.handle);
+            for (u32 i = 0; i < *desc.bitmaps_saved; i++) {
+                if (desc.bitmaps[i] == 0) continue;
+                glActiveTexture(GL_TEXTURE0 + i);
+                glBindTexture(GL_TEXTURE_2D, *(u32*)desc.bitmaps[i]->gpu_info);
+            }
+
+            s32 values[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15  };
+            glUniform1iv(glGetUniformLocation(global_shader_handle, "texSampler"), 16, values);
+
+        } break;
     }
 }
 
-void opengl_push_constants(Descriptor_Set *push_constants, void *data) {
+void opengl_push_constants(u32 shader_stage, void *data, u32 data_size) {
+    Object *object = (Object *)data;
+
     GLint location = glGetUniformLocation(global_shader_handle, "object.model");
-    glUniformMatrix4fv(location, (GLsizei)1, false, (GLfloat *)data);
-}
+    glUniformMatrix4fv(location, (GLsizei)1, false, (GLfloat *)&object->model);
 
-void opengl_reset_descriptor_sets(Assets *assets) {
-    Asset_Array *array = &assets->types[ASSET_TYPE_SHADER];
-    for (u32 i = 0; i < array->num_of_assets; i++) {
-        Shader *shader = (Shader *)&array->data[i].memory;
-        for (u32 layout_i = 0; layout_i < shader->layout_count; layout_i++) {
-            shader->sets_count[layout_i] = 0;
-        }
-    }
+    GLint location2 = glGetUniformLocation(global_shader_handle, "object.index");
+    glUniform1i(location2, (GLint)object->index);
 }
 
 void opengl_assets_cleanup(Assets *assets) {
@@ -274,6 +284,41 @@ void opengl_assets_cleanup(Assets *assets) {
 }
 
 void opengl_wait_frame() {
+
+}
+
+u32 opengl_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
+    u32 index = desc->texture_index++;
+    glActiveTexture(GL_TEXTURE0 + index);
+    glBindTexture(GL_TEXTURE_2D, *(u32*)bitmap->gpu_info);
+
+    desc->bitmaps[index] = bitmap;
+    *desc->bitmaps_saved = desc->texture_index;
+
+    return index;
+}
+
+internal void
+opengl_delete_texture(Bitmap *bitmap) {
+    glDeleteTextures(1, (u32*)bitmap->gpu_info);
+}
+
+void opengl_depth_test(bool32 enable) {
+    if (enable)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
+}
+
+void opengl_create_set_layout(Layout *layout) {
+
+}
+
+void opengl_allocate_descriptor_set(Layout *layout) {
+
+}
+
+void opengl_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32 size) {
 
 }
 
@@ -337,7 +382,7 @@ void opengl_compile_shader(Shader *shader) {
     shader->handle = glCreateProgram();
     
     if (shader->files[0].memory == 0) {
-        logprint("compile_shader(Shader *shader)", "vertex shader required");
+        logprint("compile_shader(Shader *shader)", "vertex shader required\n");
         return;
     }
 
@@ -362,7 +407,7 @@ void opengl_compile_shader(Shader *shader) {
     glGetProgramiv(shader->handle, GL_LINK_STATUS, &linked_program);
     if (!linked_program) {
         opengl_debug(GL_PROGRAM, shader->handle);
-        logprint("compile_shader()", "link failed");
+        logprint("compile_shader()", "link failed (%s)\n", shader->files[SHADER_STAGE_FRAGMENT].filepath);
         return;
     }
 
@@ -431,21 +476,4 @@ init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
 
 void opengl_create_texture(Bitmap *bitmap, u32 texture_parameters) { 
     init_bitmap_gpu_handle(bitmap, texture_parameters); 
-}
-
-void opengl_set_bitmap(Descriptor_Set *set, Bitmap *bitmap, u32 binding) {
-    glActiveTexture(GL_TEXTURE0 + binding);
-    glBindTexture(GL_TEXTURE_2D, *(u32*)bitmap->gpu_info);
-}
-
-internal void
-opengl_delete_texture(Bitmap *bitmap) {
-    glDeleteTextures(1, (u32*)bitmap->gpu_info);
-}
-
-void opengl_depth_test(bool32 enable) {
-    if (enable)
-        glEnable(GL_DEPTH_TEST);
-    else
-        glDisable(GL_DEPTH_TEST);
 }

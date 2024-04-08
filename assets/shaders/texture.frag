@@ -1,6 +1,6 @@
 #version 450
 
-layout(set = 1, binding = 0) uniform sampler2D texSampler[64];
+layout(set = 1, binding = 0) uniform sampler2D texSampler[16];
 
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) flat in int fragIndex;

@@ -53,20 +53,20 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
     Vector4 color = { 148, 99, 46, 1 };
     Object object = {};
 
-    Descriptor bitmap_desc = vulkan_get_descriptor_set(&layouts[2]);
-    Descriptor color_set = vulkan_get_descriptor_set(&layouts[5]);
+    Descriptor bitmap_desc = render_get_descriptor_set(&layouts[2]);
+    Descriptor color_set = render_get_descriptor_set(&layouts[5]);
     
     for (u32 i = 0; i < model->meshes_count; i++) {
         if (model->meshes[i].material.diffuse_map.memory != 0) {
-            object.index = vulkan_set_bitmap(&bitmap_desc, &model->meshes[i].material.diffuse_map);
-            vulkan_bind_descriptor_set(bitmap_desc);
+            object.index = render_set_bitmap(&bitmap_desc, &model->meshes[i].material.diffuse_map);
+            render_bind_descriptor_set(bitmap_desc);
         } else {
-            vulkan_update_ubo(color_set, &color);
-            vulkan_bind_descriptor_set(color_set);
+            render_update_ubo(color_set, &color);
+            render_bind_descriptor_set(color_set);
         }
 
         object.model = create_transform_m4x4(position, rotation, {15.0f, 1.0f, 15.0f});
-        vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+        render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
         render_draw_mesh(&model->meshes[i]);
     }
@@ -74,51 +74,47 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
 
 Descriptor texture_desc = {};
 
-void render_draw_model(Model *model, Descriptor color_set, Vector4 color, s32 front_index, s32 back_index, Matrix_4x4 model_matrix) {
-    //Descriptor_Set *bitmap_set = render_get_descriptor_set(basic_pipeline.shader, 3);
-    //render_set_bitmap(bitmap_set, bitmap, 2);
+void render_draw_model(Model *model, Descriptor color_set, s32 front_index, s32 back_index, Matrix_4x4 model_matrix, bool8 flipped) {
+    u32 draw[3] = { 1, 0, 2 };
+    u32 flipped_draw[3] = { 2, 0, 1 };
 
     for (u32 i = 0; i < model->meshes_count; i++) {
-        Shader *shader = 0;
-        if (i == 0) {
-            render_bind_pipeline(&color_pipeline);
-            shader = color_pipeline.shader;
-        } else if (i == 1 || i == 2) {
-            render_bind_pipeline(&basic_pipeline);
-            shader = basic_pipeline.shader;
-        }
+        u32 draw_index = draw[i];
+        if (flipped)
+            draw_index = flipped_draw[i];
 
         Object object = {};
         object.model = model_matrix;
+        object.index = back_index;
 
-        if (i == 0) {
-            vulkan_bind_descriptor_set(color_set);
-        } else if (i == 1) {
-            vulkan_bind_descriptor_set(texture_desc);
-            object.index = front_index;
-        } else if (i == 2) {
-            vulkan_bind_descriptor_set(texture_desc);
-            object.index = back_index;
+        switch(draw_index) {
+            case 0: 
+                render_bind_pipeline(&color_pipeline); 
+                render_bind_descriptor_set(color_set);
+            break;
+
+            case 1:
+                object.index = front_index;
+            case 2: 
+                render_bind_pipeline(&basic_pipeline); 
+                render_bind_descriptor_set(texture_desc);
+            break;
         }
 
-        vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-
-        render_draw_mesh(&model->meshes[i]);
+        render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+        render_draw_mesh(&model->meshes[draw_index]);
     }
 }
 
 void render_draw_model(Model *model, Render_Pipeline *color_pipeline, Vector4 color, Matrix_4x4 model_matrix) {
-    Shader *shader = 0;
     render_bind_pipeline(color_pipeline);
-    shader = color_pipeline->shader;
-    vulkan_bind_descriptor_set(light_set_2);
+    render_bind_descriptor_set(light_set_2);
 
-    Descriptor color_set = vulkan_get_descriptor_set(&layouts[5]);
-    vulkan_update_ubo(color_set, (void *)&color);
-    //vulkan_bind_descriptor_set(color_set);
-    vulkan_bind_descriptor_set(color_set);
+    Descriptor color_set = render_get_descriptor_set(&layouts[5]);
+    render_update_ubo(color_set, (void *)&color);
+    render_bind_descriptor_set(color_set);
 
-    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));
+    render_push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));
 
     for (u32 i = 0; i < model->meshes_count; i++) {
         render_draw_mesh(&model->meshes[i]);

@@ -15,9 +15,9 @@ init_layouts(Layout layouts[10], Bitmap *bitmap) {
     layouts[5].set_number = 2;
 
     for (u32 i = 0; i < 6; i++) {
-        vulkan_create_set_layout(&layouts[i]);
-        vulkan_allocate_descriptor_set(&layouts[i]);
-        vulkan_init_layout_offsets(&layouts[i], bitmap);
+        render_create_set_layout(&layouts[i]);
+        render_allocate_descriptor_set(&layouts[i]);
+        render_init_layout_offsets(&layouts[i], bitmap);
     }
 }
 
