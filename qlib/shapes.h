@@ -3,6 +3,7 @@
 
 Render_Pipeline basic_pipeline;
 Render_Pipeline color_pipeline;
+Compute_Pipeline ray_pipeline;
 
 //
 // shapes.h contains the functions for 2D rendering

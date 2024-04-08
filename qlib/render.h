@@ -23,6 +23,12 @@ struct Render_Pipeline {
     void *gpu_info; // OpenGL = NULL, Vulkan = VkPipeline
 };
 
+struct Compute_Pipeline {
+    Shader *shader;
+    VkPipelineLayout pipeline_layout;
+    VkPipeline compute_pipeline;
+};
+
 struct Render {
     bool8 vsync;
     bool8 depth_test;

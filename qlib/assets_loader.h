@@ -23,6 +23,7 @@ const Pair shader_types[SHADER_STAGES_AMOUNT] = {
     { SHADER_STAGE_TESSELLATION_EVALUATION, "EVALUATION" },
     { SHADER_STAGE_GEOMETRY,                "GEOMETRY"   },
     { SHADER_STAGE_FRAGMENT,                "FRAGMENT"   },
+    { SHADER_STAGE_COMPUTE,                 "COMPUTE"    },
 };
 
 enum Asset_Token_Type {

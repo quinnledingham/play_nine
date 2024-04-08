@@ -141,6 +141,8 @@ load_bitmap(const char *filename, bool8 flip_on_load) {
         logprint("load_bitmap()", "could not load bitmap %s\n", filename);
 
     bitmap.pitch = bitmap.width * bitmap.channels;
+    bitmap.mip_levels = (u32)floor(log2f((float32)max(bitmap.width, bitmap.height))) + 1;
+
     return bitmap;
 }
 
@@ -160,12 +162,13 @@ free_bitmap(Bitmap bitmap) {
 //
 
 // lines up with enum shader_stages
-const u32 shaderc_glsl_file_types[5] = { 
+const u32 shaderc_glsl_file_types[6] = { 
     shaderc_glsl_vertex_shader,
     shaderc_glsl_tess_control_shader ,
-    shaderc_glsl_tess_evaluation_shader ,
+    shaderc_glsl_tess_evaluation_shader,
     shaderc_glsl_geometry_shader,
     shaderc_glsl_fragment_shader,
+    shaderc_glsl_compute_shader,
 };
 
 /*
@@ -180,7 +183,7 @@ compile_glsl_to_spirv(File *file, shaderc_compiler_t compiler, u32 shader_kind, 
 
     if (num_of_warnings != 0 || num_of_errors != 0) {
         const char *error_message = shaderc_result_get_error_message(result);
-        logprint("compile_glsl_to_spv()", "%s\n", error_message);
+        logprint("compile_glsl_to_spirv()", "%s\n", error_message);
     }
 
     u32 length = (u32)shaderc_result_get_length(result);
@@ -277,7 +280,7 @@ compile_spirv_to_glsl(File *file) {
 // loads the files
 void load_shader(Shader *shader)
 {
-    if (shader->files[0].filepath == 0) {
+    if (shader->files[0].filepath == 0 && shader->files[5].filepath == 0) {
         logprint("load_shader()", "must have a vertex shader\n");
         return;
     }

@@ -15,10 +15,10 @@ struct Vulkan_Validation_Layers {
 };
 
 struct Vulkan_Queue_Family_Indices {
-	bool8 graphics_family_found;
+	bool8 graphics_and_compute_family_found;
 	bool8 present_family_found;
 
-	u32 graphics_family;
+	u32 graphics_and_compute_family;
 	u32 present_family;
 
 	static const u32 unique_families = 2;
@@ -76,9 +76,12 @@ struct Vulkan_Info {
 
 	VkQueue graphics_queue;
 	VkQueue present_queue;
+	VkQueue compute_queue;
 
 	VkCommandPool command_pool;
+	VkCommandBuffer *active_command_buffer;
 	VkCommandBuffer command_buffers[MAX_FRAMES_IN_FLIGHT];
+	VkCommandBuffer compute_command_buffers[MAX_FRAMES_IN_FLIGHT];
 	u32 active_command_buffer_index;
 	VkPipelineLayout pipeline_layout; // set this to the currently bounded layout
 
@@ -94,7 +97,10 @@ struct Vulkan_Info {
 	// sync
 	VkSemaphore image_available_semaphore[MAX_FRAMES_IN_FLIGHT];
 	VkSemaphore render_finished_semaphore[MAX_FRAMES_IN_FLIGHT];
+	VkSemaphore compute_finished_semaphore[MAX_FRAMES_IN_FLIGHT];
+
 	VkFence in_flight_fence[MAX_FRAMES_IN_FLIGHT];
+	VkFence compute_in_flight_fences[MAX_FRAMES_IN_FLIGHT];
 
 	// Buffers	
 	Vulkan_Buffer static_buffer;
@@ -115,9 +121,10 @@ struct Vulkan_Info {
 	VkCommandBufferBeginInfo begin_info;
 	VkClearValue clear_values[2];
 
-	VkPipelineStageFlags wait_stages[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkPipelineStageFlags wait_stages[2] = { VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkRenderPassBeginInfo render_pass_info;
 	VkSubmitInfo submit_info;
+	VkSubmitInfo compute_submit_info;
 	VkPresentInfoKHR present_info;
 
 	// Shaders
@@ -131,7 +138,8 @@ struct Vulkan_Info {
 
 inline VkCommandBuffer
 vulkan_active_cmd_buffer(Vulkan_Info *info) {
-	return info->command_buffers[info->current_frame];
+	//return info->command_buffers[info->current_frame];
+	return *info->active_command_buffer;
 }
 
 struct Vulkan_Texture {
@@ -142,8 +150,6 @@ struct Vulkan_Texture {
 	VkImage image;	 		// similar to VkBuffer
 	VkImageView image_view; // provides more info about the image
 	VkSampler sampler;      // allows the shader to sample the image
-
-	u32 index;
 };
 
 struct Vulkan_Mesh {

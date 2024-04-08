@@ -35,6 +35,7 @@ struct Bitmap {
     };
     s32 pitch;
     s32 channels;
+    u32 mip_levels;
     
     void *gpu_info;
 };
@@ -97,6 +98,7 @@ enum shader_stages {
     SHADER_STAGE_TESSELLATION_EVALUATION,
     SHADER_STAGE_GEOMETRY,
     SHADER_STAGE_FRAGMENT,
+    SHADER_STAGE_COMPUTE,
 
     SHADER_STAGES_AMOUNT
 };
@@ -105,6 +107,7 @@ enum descriptor_types {
     DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
     DESCRIPTOR_TYPE_SAMPLER,
+    DESCRIPTOR_TYPE_STORAGE_BUFFER,
 
     DESCRIPTOR_TYPES_AMOUNT
 };
@@ -216,8 +219,6 @@ struct Layout_Set {
 
     u32 descriptor_sets_count;
     u32 push_constants_count;
-
-    bool8 enabled;
 
     void add_layout(Layout *layout) {
         descriptor_sets[descriptor_sets_count++] = layout;

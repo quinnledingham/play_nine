@@ -105,6 +105,7 @@ void * array_malloc(u32 size, u32 n) {
 #include "data_structs.h"
 #include "render.h"
 #include "shapes.h"
+#include "raytrace.h"
 #include "shaders.h"
 #include "application.h"
 #include "input.h"

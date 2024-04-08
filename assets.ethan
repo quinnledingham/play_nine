@@ -14,6 +14,8 @@ COLOR|FRAGMENT,   color.frag
 TEXTURE|VERTEX,   2D.vert
 TEXTURE|FRAGMENT, texture.frag
 
+RAY|COMPUTE, ray.comp
+
 BITMAPS:
 YOGI,  yogi.png
 DAVID, david.jpg

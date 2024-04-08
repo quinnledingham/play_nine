@@ -16,7 +16,6 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "assets.h"
 
 #include "application.h"
-#include "raytrace.h"
 #include "play_nine_input.h"
 #include "play_nine.h"
 
@@ -904,8 +903,13 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
     Game_Draw *draw = &state->game_draw;
     Model *card_model = find_model(&state->assets, "CARD");
 
+    vulkan_start_compute();
+    vulkan_bind_pipeline(&ray_pipeline);
+
     set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
     mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, game, card_model);
+
+    vulkan_end_compute();
 
     if (on_down(state->controller.mouse_left)) {
         platform_memory_copy(draw->highlight_pressed, draw->highlight_hover, sizeof(bool8) * SELECTED_SIZE);
@@ -1153,6 +1157,12 @@ bool8 init_data(App *app) {
     color_pipeline.shader = color_3D;
     color_pipeline.depth_test = true;
     render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
+
+    Shader *ray_comp = find_shader(&game->assets, "RAY");
+    init_basic_vert_layout(&ray_comp->set, layouts);
+    init_color3D_frag_layout(ray_comp, layouts);
+    ray_pipeline.shader = ray_comp;
+    vulkan_create_compute_pipeline(&ray_pipeline);
 
 	// Rendering
     game->camera.position = { 0, 2, -5 };
