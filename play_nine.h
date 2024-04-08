@@ -6,9 +6,11 @@ TODO
 - Show keyboard controls
 - Put raytrace on gpu? because it is really slow
 - Move Pick up deck closer to active player with more players
-- Add column shading to scoreboard
 - View cards with mouse (spinning around at the end of the game)
-- Problem showing -10 in the non-total part of the scoreboard, just showed -1
+- Make face cards
+
+- Add column shading to scoreboard
+- Make it so longer names will not overlap
 
 - Fix online drawing (rotation) (Just leave the cam infront of the client cards)
 

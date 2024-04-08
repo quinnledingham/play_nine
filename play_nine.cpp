@@ -621,6 +621,8 @@ get_test_game() {
         game.players[i].scores[0] = i;
     }
 
+    game.players[0].scores[0] = -10;
+
     return game;
 }
 

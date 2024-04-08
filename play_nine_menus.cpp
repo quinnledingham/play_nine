@@ -225,7 +225,7 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
 
     char *subtotal_text = "subtotal";
     char hole_text[3];
-    char score_text[3]; // can't get over 99 on a hole. 12 * 8 = 96
+    char score_text[4]; // can't get over 99 on a hole. 12 * 8 = 96 BUT -30 is the lowsest score so need 3 digits
     ASSERT(MAX_HOLES < 99);
 
     s32 index = 0;
@@ -239,8 +239,8 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
         menu_text(menu, hole_text, text_color, { 0, index + 1 }, { 1, 1 });
 
         for (s32 player_index = 0; player_index < (s32)game->num_of_players; player_index++) {
-            platform_memory_set(score_text, 0, 3);
-            s32_to_char_array(score_text, 3, game->players[player_index].scores[i]);
+            platform_memory_set(score_text, 0, 4);
+            s32_to_char_array(score_text, 4, game->players[player_index].scores[i]);
             menu_text(menu, score_text, text_color, { player_index + 1, index + 1 }, { 1, 1 }); 
         }
 
