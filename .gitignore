@@ -1,6 +1,5 @@
 /build
 /sdl-vc
 /VulkanSDK
-*.obj
 *.sublime-project
 *.sublime-workspace
