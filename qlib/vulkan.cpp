@@ -722,19 +722,27 @@ vulkan_get_alignment(VkDeviceSize in, u32 alignment) {
 	return in;
 }
 
+// returns true if it looped back to the
 internal u32
-vulkan_get_next_offset(u32 *offset, u32 in_data_size, u32 max_offset) {
+vulkan_get_next_offset(u32 *offset, u32 in_data_size, u32 max_offset, bool8 allow_looping) {
 	u32 return_offset = *offset;
     *offset += in_data_size;
 
-	if (*offset > max_offset) {
+	if (*offset < max_offset)
+		return *offset;
+
+	if (allow_looping) {
 #if DEBUG
 		logprint("vulkan_get_next_offset()", "Looping offset back to beginning\n");
 #endif
 		*offset = 0;
 		return *offset;
+	} else {
+		logprint("vulkan_get_next_offset()", "Went passed end of buffer with looping not allowed\n");
+		ASSERT(0);
+
+		return *offset;
 	}
-	return return_offset;
 }
 
 internal u32
@@ -1697,7 +1705,7 @@ void vulkan_init_mesh(Mesh *mesh) {
     memcpy(memory, (void*)mesh->vertices, vertices_size);
     memcpy((char*)memory + vertices_size, (void*)mesh->indices, indices_size);
 
-	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.static_buffer.offset, buffer_size, VULKAN_STATIC_BUFFER_SIZE);
+	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.static_buffer.offset, buffer_size, VULKAN_STATIC_BUFFER_SIZE, false);
 
     vulkan_update_buffer(&vulkan_info, &vulkan_info.static_buffer.handle, &vulkan_info.static_buffer.memory, memory, buffer_size, vulkan_mesh->vertices_offset);
     vulkan_mesh->indices_offset = vulkan_mesh->vertices_offset + vertices_size;
@@ -1767,7 +1775,7 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
 	if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
 		for (u32 i = 0; i < num_of_sets; i++) {
 			u32 alignment = (u32)vulkan_get_alignment(layout_binding->size, (u32)vulkan_info.uniform_buffer_min_alignment);
-			u32 offset = vulkan_get_next_offset(&vulkan_info.static_uniform_buffer.offset, alignment, VULKAN_STATIC_UNIFORM_BUFFER_SIZE);
+			u32 offset = vulkan_get_next_offset(&vulkan_info.static_uniform_buffer.offset, alignment, VULKAN_STATIC_UNIFORM_BUFFER_SIZE, false);
 
 			offsets[i] = offset;
 
@@ -1920,7 +1928,7 @@ void vulkan_bind_descriptor_set(Descriptor desc) {
 
 void vulkan_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32 size) {
 	u32 alignment = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
-	u32 offset = vulkan_get_next_offset(&vulkan_info.dynamic_uniform_buffer.offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE);
+	u32 offset = vulkan_get_next_offset(&vulkan_info.dynamic_uniform_buffer.offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE, true);
 
 	memcpy((char*)vulkan_info.dynamic_uniform_buffer.data + offset, data, desc.binding.size);
 
