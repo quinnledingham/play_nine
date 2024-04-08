@@ -1030,11 +1030,9 @@ bool8 update_game(State *state, App *app) {
                 float64 mouse_move_speed = 0.1f;
                 //print("%d %d == %d %d\n", mouse.x, mouse.y, app->input.mouse_rel.x, app->input.mouse_rel.y);
                 update_camera_with_mouse(&state->camera, app->input.mouse_rel, mouse_move_speed, mouse_move_speed);
-
                 update_camera_target(&state->camera);    
-                state->scene.view = get_view(state->camera);
-                vulkan_update_ubo(state->scene_set, (void *)&state->scene);
     
+                // I want target to be updated before I do this because it uses it
                 float32 m_per_s = 6.0f; 
                 float32 m_moved = m_per_s * (float32)app->time.frame_time_s;
                 Vector3 move_vector = {m_moved, m_moved, m_moved};
@@ -1062,10 +1060,11 @@ bool8 update_game(State *state, App *app) {
             state->camera.pitch    = -51.0f;
 
             update_camera_target(&state->camera);    
-            state->scene.view = get_view(state->camera);
-            vulkan_update_ubo(state->scene_set, (void*)&state->scene);
         } break;
     }
+
+    state->scene.view = get_view(state->camera);
+    vulkan_update_ubo(state->scene_set, (void *)&state->scene);
 
     load_card_models(game, draw, rotation_degrees);
 
