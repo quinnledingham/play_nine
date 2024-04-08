@@ -231,9 +231,9 @@ load_assets(Assets *assets, const char *filepath) {
 }
 
 internal bool8
-add_assets(Assets *assets, Asset new_assets[14], u32 num_of_assets) {
-    Asset *new_data = ARRAY_MALLOC(Asset, (assets->num_of_assets + num_of_assets + 10));
-    platform_memory_set(new_data, 0, sizeof(Asset) * (assets->num_of_assets + num_of_assets + 10));
+add_assets(Assets *assets, Asset *new_assets, u32 num_of_assets) {
+    Asset *new_data = ARRAY_MALLOC(Asset, (assets->num_of_assets + num_of_assets));
+    platform_memory_set(new_data, 0, sizeof(Asset) * (assets->num_of_assets + num_of_assets));
     
     Asset_Array new_types[ASSET_TYPE_AMOUNT];
 

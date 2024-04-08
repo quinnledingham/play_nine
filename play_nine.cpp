@@ -332,7 +332,7 @@ process_rotation(Rotation *rot, float32 seconds) {
 
     if (rot->speed > 0.0f) {
         if (rot->degrees < rot->dest_degrees) {
-            rot->degrees += seconds * rot->speed;
+            rot->degrees += (seconds * rot->speed);
 
             if (rot->degrees > rot->dest_degrees)
                 rot->degrees = rot->dest_degrees;
@@ -341,7 +341,7 @@ process_rotation(Rotation *rot, float32 seconds) {
         }
     } else if (rot->speed < 0.0f) { 
         if (rot->degrees > rot->dest_degrees) {
-            rot->degrees += seconds * rot->speed;
+            rot->degrees += (seconds * rot->speed);
 
             if (rot->degrees < rot->dest_degrees)
                 rot->degrees = rot->dest_degrees;
@@ -354,8 +354,8 @@ process_rotation(Rotation *rot, float32 seconds) {
 }
 
 internal Matrix_4x4
-load_card_model(bool8 flipped, Vector3 position, float32 degrees, Vector3 scale) {
-    Quaternion rotation = get_rotation(degrees * DEG2RAD, {0, 1, 0});
+load_card_model(bool8 flipped, Vector3 position, float32 rads, Vector3 scale) {
+    Quaternion rotation = get_rotation(rads, {0, 1, 0});
     if (!flipped) {
         Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
         rotation = flip * rotation;
@@ -374,7 +374,7 @@ get_pile_y_scale(u32 cards) {
 }
 
 internal void
-load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
+load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
     Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
     Vector3 selected_card_coords = {0.0f, 1.0f, -2.7f};
     Vector3 pile_coords          = { -1.1f, 0.0f, 0 };
@@ -390,7 +390,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
             Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
             rotate_coords(&card_pos, rad);
             card_pos += position;
-            game->players[i].models[card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, degrees, card_scale);
+            game->players[i].models[card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, rad, card_scale);
         }
     }
 
@@ -399,25 +399,24 @@ load_card_models(Game *game, Game_Draw *draw, float32 seconds) {
     float32 rad = degrees * DEG2RAD; 
     if (game->players[game->active_player].turn_stage == SELECT_CARD) {
         rotate_coords(&selected_card_coords, rad);
-        game->players[game->active_player].new_card_model = load_card_model(true, selected_card_coords, degrees, card_scale);
+        game->players[game->active_player].new_card_model = load_card_model(true, selected_card_coords, rad, card_scale);
     }
 
-    float32 pile_degs = degrees - process_rotation(&draw->pile_rotation, seconds);
-    float32 pile_rad = pile_degs * DEG2RAD;    
+    float32 rotation_rads = (degrees - rotation_degrees) * DEG2RAD;
 
-    rotate_coords(&pile_coords, pile_rad);
-    rotate_coords(&discard_pile_coords, pile_rad);
+    rotate_coords(&pile_coords, rotation_rads);
+    rotate_coords(&discard_pile_coords, rotation_rads);
 
     // pile
     {
         float32 pile_y_scale = get_pile_y_scale(DECK_SIZE - game->top_of_pile);
-        game->top_of_pile_model = load_card_model(false, pile_coords, pile_degs, {1.0f, pile_y_scale, 1.0f});
+        game->top_of_pile_model = load_card_model(false, pile_coords, rotation_rads, {1.0f, pile_y_scale, 1.0f});
     }
 
     // discard pile
     if (game->top_of_discard_pile != 0) {
         float32 pile_y_scale = get_pile_y_scale(game->top_of_discard_pile);
-        game->top_of_discard_pile_model = load_card_model(true, discard_pile_coords, pile_degs, {1.0f, pile_y_scale, 1.0f});
+        game->top_of_discard_pile_model = load_card_model(true, discard_pile_coords, rotation_rads, {1.0f, pile_y_scale, 1.0f});
     }
 }
 
@@ -452,8 +451,8 @@ internal void
 draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highlight, s32 indices[16]) {
     Descriptor color_set = vulkan_get_descriptor_set(&layouts[5]);
 
-    //Vector4 color = { 150, 150, 150, 1 };
-    //render_update_ubo(color_set, 0, (void*)&color, false);
+    Vector4 color = { 150, 150, 150, 1 };
+    vulkan_update_ubo(color_set, &color);
 
     Model *card_model = find_model(assets, "CARD");
 
@@ -767,7 +766,7 @@ next_player(Game *game, Game_Draw *draw) {
         true,
         draw->degrees_between_players,
         0.0f,
-        -draw->rotation_speed
+        -draw->rotation_speed 
     };
 }
 
@@ -950,6 +949,7 @@ bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
 
+    // Change camera mode or menu mode
     switch(state->camera_mode) {
         case FREE_CAMERA: {
             if (on_down(state->controller.pause)) {
@@ -960,27 +960,6 @@ bool8 update_game(State *state, App *app) {
             if (on_down(state->controller.camera_toggle)) {
                 state->camera_mode = PLAYER_CAMERA;
                 app->input.relative_mouse_mode = false;
-            }
-
-            if (app->input.relative_mouse_mode) {
-                float64 mouse_m_per_s = 50.0;
-                //float64 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
-                float64 mouse_move_speed = 0.1f;
-                //print("%d %d == %d %d\n", mouse.x, mouse.y, app->input.mouse_rel.x, app->input.mouse_rel.y);
-                update_camera_with_mouse(&state->camera, app->input.mouse_rel, mouse_move_speed, mouse_move_speed);
-                update_camera_target(&state->camera);    
-                state->scene.view = get_view(state->camera);
-                vulkan_update_ubo(state->scene_set, (void *)&state->scene);
-    
-                float32 m_per_s = 6.0f; 
-                float32 m_moved = m_per_s * (float32)app->time.frame_time_s;
-                Vector3 move_vector = {m_moved, m_moved, m_moved};
-                update_camera_with_keys(&state->camera, state->camera.target, state->camera.up, move_vector,
-                                        is_down(state->controller.forward),  is_down(state->controller.backward),
-                                        is_down(state->controller.left),  is_down(state->controller.right),
-                                        is_down(state->controller.up),  is_down(state->controller.down));                             
-
-                //print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
             }
         } break;
 
@@ -998,25 +977,16 @@ bool8 update_game(State *state, App *app) {
                 state->camera.pitch = 0.0f;
                 break;
             }
-                      
+        } break;
+    }
+    
+    // Game update
+    switch(state->camera_mode) {
+        case PLAYER_CAMERA: {
+            // Game input                      
             if (on_down(state->controller.right)) {
                 next_player(game, &state->game_draw);
             }
-
-            float32 cam_dis = 8.0f + draw->radius;
-            float32 deg = -draw->degrees_between_players * game->active_player;
-            deg += process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
-            float32 rad = deg * DEG2RAD;
-            float32 x = cam_dis * cosf(rad);
-            float32 y = cam_dis * sinf(rad);
-
-            state->camera.position =  Vector3{ x, 14.0f, y };
-            state->camera.yaw      = deg + 180.0f;
-            state->camera.pitch    = -51.0f;
-
-            update_camera_target(&state->camera);    
-            state->scene.view = get_view(state->camera);
-            vulkan_update_ubo(state->scene_set, (void*)&state->scene);
 
             bool8 selected[SELECTED_SIZE] = {};
             if (state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) {
@@ -1040,7 +1010,7 @@ bool8 update_game(State *state, App *app) {
                 win32_release_mutex(state->selected_mutex);
             }
 
-            // game logic
+            // Game logic
             switch(game->round_type) {
                 case FLIP_ROUND:    flip_round_update(game, &state->game_draw, selected); break;
                 case FINAL_ROUND:
@@ -1049,7 +1019,55 @@ bool8 update_game(State *state, App *app) {
         } break;
     }
 
-    load_card_models(game, draw, (float32)app->time.frame_time_s);
+    // Update camera and card models after what happened in game update
+    float32 rotation_degrees = process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
+
+    switch(state->camera_mode) {
+        case FREE_CAMERA: {
+            if (app->input.relative_mouse_mode) {
+                float64 mouse_m_per_s = 50.0;
+                //float64 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
+                float64 mouse_move_speed = 0.1f;
+                //print("%d %d == %d %d\n", mouse.x, mouse.y, app->input.mouse_rel.x, app->input.mouse_rel.y);
+                update_camera_with_mouse(&state->camera, app->input.mouse_rel, mouse_move_speed, mouse_move_speed);
+
+                update_camera_target(&state->camera);    
+                state->scene.view = get_view(state->camera);
+                vulkan_update_ubo(state->scene_set, (void *)&state->scene);
+    
+                float32 m_per_s = 6.0f; 
+                float32 m_moved = m_per_s * (float32)app->time.frame_time_s;
+                Vector3 move_vector = {m_moved, m_moved, m_moved};
+                update_camera_with_keys(&state->camera, state->camera.target, state->camera.up, move_vector,
+                                        is_down(state->controller.forward),  is_down(state->controller.backward),
+                                        is_down(state->controller.left),  is_down(state->controller.right),
+                                        is_down(state->controller.up),  is_down(state->controller.down));                             
+
+                //print("%f %f %f\n", state->camera.position.x, state->camera.position.y, state->camera.position.z);
+            }
+        } break;
+
+        case PLAYER_CAMERA: {
+            // update camera after game logic
+
+            float32 cam_dis = 8.0f + draw->radius;
+            float32 deg = -draw->degrees_between_players * game->active_player;
+            deg += rotation_degrees;
+            float32 rad = deg * DEG2RAD;
+            float32 x = cam_dis * cosf(rad);
+            float32 y = cam_dis * sinf(rad);
+
+            state->camera.position =  Vector3{ x, 14.0f, y };
+            state->camera.yaw      = deg + 180.0f;
+            state->camera.pitch    = -51.0f;
+
+            update_camera_target(&state->camera);    
+            state->scene.view = get_view(state->camera);
+            vulkan_update_ubo(state->scene_set, (void*)&state->scene);
+        } break;
+    }
+
+    load_card_models(game, draw, rotation_degrees);
 
     return 0;
 }
@@ -1064,7 +1082,7 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&game->assets, "../assets.ethan"))
@@ -1302,7 +1320,6 @@ bool8 update(App *app) {
     }
     render_start_frame();
 
-    //texture_set = vulkan_get_descriptor_set2(&layouts[2]);
     texture_desc = vulkan_get_descriptor_set(&layouts[2], 0);
 
     render_set_viewport(app->window.width, app->window.height);
@@ -1312,26 +1329,19 @@ bool8 update(App *app) {
     //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
     state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
     vulkan_update_ubo(state->scene_set, (void*)&state->scene);
-    //render_update_ubo(state->scene_set, 0, (void*)&state->scene, true);
 
     state->scene_ortho_set = vulkan_get_descriptor_set(&layouts[0]);
     state->ortho_scene.view = identity_m4x4();
     state->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
     vulkan_update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
-    //vulkan_bind_descriptor_set(state->scene_ortho_set, 0, (void*)&state->ortho_scene, sizeof(Scene));
-    //render_update_ubo(state->scene_ortho_set, 0, (void*)&state->ortho_scene, true);
     
     render_depth_test(false);
 
     light_set = vulkan_get_descriptor_set(&layouts[1]);
     vulkan_update_ubo(light_set, (void*)&global_light);
-    //render_update_ubo(light_set, 0, (void*)&global_light, false);
 
     light_set_2 = vulkan_get_descriptor_set(&layouts[1]);
     vulkan_update_ubo(light_set_2, (void*)&global_light_2);
-    //render_update_ubo(light_set_2, 0, (void*)&global_light_2, false);
-
-    //vulkan_init_bitmap_set(shapes.texture_set, find_bitmap(assets, "DAVID"), 2);
 
     if (state->menu_list.mode != IN_GAME && state->menu_list.mode != PAUSE_MENU) {
         render_bind_pipeline(&shapes.color_pipeline);
@@ -1376,13 +1386,9 @@ bool8 update(App *app) {
             
             render_bind_pipeline(&basic_pipeline);
 
-            //render_bind_descriptor_set(state->scene_set, 0);
-            //render_bind_descriptor_set(light_set, 1);
-            //render_bind_descriptor_set(texture_set, 2);
             vulkan_bind_descriptor_set(state->scene_set);
             vulkan_bind_descriptor_set(light_set);
             vulkan_bind_descriptor_set(texture_desc);
-
 
             draw_game(state, &state->assets, basic_3D, &state->game, false, state->indices);
             render_bind_pipeline(&color_pipeline);
@@ -1394,9 +1400,7 @@ bool8 update(App *app) {
 
             //draw_ray(&state->mouse_ray);
 
-            //render_bind_descriptor_set(state->scene_ortho_set, 0);
             vulkan_bind_descriptor_set(state->scene_ortho_set);
-
 
             float32 pixel_height = app->window.dim.x / 20.0f;
             Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
@@ -1473,9 +1477,6 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             if (state->is_server)
                 close_server();
 
-            for (u32 i = 0; i < 14; i++) {
-                render_delete_texture(&card_bitmaps[i]);
-            }
             cleanup_shapes();
             render_assets_cleanup(&state->assets);
         } break;

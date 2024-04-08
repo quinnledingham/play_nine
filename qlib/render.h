@@ -136,7 +136,7 @@ internal void vulkan_create_set_layout(Layout *layout);
 internal void vulkan_allocate_descriptor_set(Layout *layout);
 internal u32 vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap);
 internal void vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap);
-void vulkan_bind_descriptor_set(Descriptor desc, u32 first_set, void *data, u32 size);
+void vulkan_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32 size);
 void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size);
 void vulkan_update_ubo(u32 offset, void *data, u32 size);
 void vulkan_bind_descriptor_set(Descriptor desc);

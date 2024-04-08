@@ -310,6 +310,8 @@ int main(int argc, char *argv[]) {
 
         if (app.update(&app))
             break;
+
+        //SDL_Delay(5);
     }
 
     render_wait_frame();

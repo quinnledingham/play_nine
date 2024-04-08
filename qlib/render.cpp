@@ -61,7 +61,8 @@ void render_draw_model(Model *model, Shader *shader, Vector3 position, Quaternio
             object.index = vulkan_set_bitmap(&bitmap_desc, &model->meshes[i].material.diffuse_map);
             vulkan_bind_descriptor_set(bitmap_desc);
         } else {
-            vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
+            vulkan_update_ubo(color_set, &color);
+            vulkan_bind_descriptor_set(color_set);
         }
 
         object.model = create_transform_m4x4(position, rotation, {15.0f, 1.0f, 15.0f});
@@ -91,7 +92,7 @@ void render_draw_model(Model *model, Descriptor color_set, Vector4 color, s32 fr
         object.model = model_matrix;
 
         if (i == 0) {
-            vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
+            vulkan_bind_descriptor_set(color_set);
         } else if (i == 1) {
             vulkan_bind_descriptor_set(texture_desc);
             object.index = front_index;
@@ -113,7 +114,9 @@ void render_draw_model(Model *model, Render_Pipeline *color_pipeline, Vector4 co
     vulkan_bind_descriptor_set(light_set_2);
 
     Descriptor color_set = vulkan_get_descriptor_set(&layouts[5]);
-    vulkan_bind_descriptor_set(color_set, 2, (void*)&color, sizeof(Vector4));
+    vulkan_update_ubo(color_set, (void *)&color);
+    //vulkan_bind_descriptor_set(color_set);
+    vulkan_bind_descriptor_set(color_set);
 
     vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));
 

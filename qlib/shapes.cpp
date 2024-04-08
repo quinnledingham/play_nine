@@ -321,7 +321,8 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     render_bind_pipeline(&color_pipeline);
     Descriptor object_desc = vulkan_get_descriptor_set(&layouts[5]);
-    vulkan_bind_descriptor_set(object_desc, 0, (void*)&color, sizeof(Vector4));
+    vulkan_update_ubo(object_desc, (void *)&color);
+    vulkan_bind_descriptor_set(object_desc);
 
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
     vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Model));  
@@ -411,11 +412,12 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     vulkan_bind_descriptor_set(light_set);
 
     Descriptor object_set = vulkan_get_descriptor_set(&layouts[5]);
-    vulkan_bind_descriptor_set(object_set, 2, (void*)&color, sizeof(Vector4));
+    vulkan_update_ubo(object_set, (void *)&color);
+    vulkan_bind_descriptor_set(object_set);
 
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
-    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Model)); 
+    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Matrix_4x4)); 
 
     render_draw_mesh(&shapes.cube_mesh);    
 }
@@ -479,7 +481,8 @@ draw_shape(Shape shape) {
             render_bind_pipeline(&shapes.color_pipeline);
 
             Descriptor v_set = vulkan_get_descriptor_set(&layouts[4]);
-            vulkan_bind_descriptor_set(v_set, 1, (void*)&shape.color, sizeof(Vector4));
+            vulkan_update_ubo(v_set, &shape.color);
+            vulkan_bind_descriptor_set(v_set);
         } break;
 
         case Shape_Draw_Type::TEXTURE: {
@@ -526,7 +529,8 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     u32 i = 0;
 
     Descriptor v_color_set = vulkan_get_descriptor_set(&layouts[4]);
-    vulkan_bind_descriptor_set(v_color_set, 1, (void*)&color, sizeof(Vector4));
+    vulkan_update_ubo(v_color_set, (void *)&color);
+    vulkan_bind_descriptor_set(v_color_set);
 
     Object object = {};
     Descriptor desc = vulkan_get_descriptor_set(&layouts[2]);

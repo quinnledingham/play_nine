@@ -1918,7 +1918,7 @@ void vulkan_bind_descriptor_set(Descriptor desc) {
 	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
 }
 
-void vulkan_bind_descriptor_set(Descriptor desc, u32 first_set, void *data, u32 size) {
+void vulkan_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32 size) {
 	u32 alignment = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
 	u32 offset = vulkan_get_next_offset(&vulkan_info.dynamic_uniform_buffer.offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE);
 
