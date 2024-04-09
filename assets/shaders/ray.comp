@@ -1,18 +1,9 @@
 #version 450
 
 struct Ray {
-    vec3 origin;    
-    vec3 direction;
+    vec4 origin;    
+    vec4 direction;
 };
-
-layout(set = 0, binding = 0) uniform RayU {
-    Ray a;
-} ray;
-
-layout(push_constant, std430) uniform Object {
-    mat4 model;
-    int index;
-} object;
 
 struct Ray_Intersection {
     vec4 point;
@@ -20,13 +11,13 @@ struct Ray_Intersection {
     int number_of_intersections;
 };
 
-struct Triangle {
-    vec3 a, b, c;
-};
-
 struct Triangle_v4 {
     vec4 a, b, c;
 };
+
+layout(set = 0, binding = 0) uniform RayU {
+    Ray a;
+} ray;
 
 layout(std140, set = 1, binding = 1) readonly buffer TrianglesIn {
    Triangle_v4 triangles_in[ ];
@@ -36,44 +27,45 @@ layout(std140, set = 2, binding = 2) buffer IntersectionsOut {
    Ray_Intersection intersections_out[ ];
 };
 
+layout(push_constant, std430) uniform Object {
+    mat4 model;
+    int index;
+} object;
+
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
-float EPSILON = 0.00001f;
-
-vec3 cross_product(vec3 l, vec3 r) {
-    return vec3 ((l.y * r.z - l.z * r.y),
-        (l.z * r.x - l.x * r.z),
-        (l.x * r.y - l.y * r.x));
+bool PointInOrOn( vec3 P1, vec3 P2, vec3 A, vec3 B )
+{
+    vec3 CP1 = cross(B - A, P1 - A);
+    vec3 CP2 = cross(B - A, P2 - A);
+    return dot(CP1, CP2) >= 0;
 }
 
-float dot_product(vec3 l, vec3 r) {
-    return (l.x * r.x) + (l.y * r.y) + (l.z * r.z);
+bool PointInTriangle( vec3 px, vec3 p0, vec3 p1, vec3 p2 )
+{
+    return PointInOrOn(px, p0, p1, p2) && PointInOrOn(px, p1, p2, p0) && PointInOrOn(px, p2, p0, p1);
 }
 
-float length_squared(vec3 v) { 
-    return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); 
+vec3 IntersectPlane(Ray ray, vec3 p0, vec3 p1, vec3 p2) {
+    vec3 D = ray.direction.xyz;
+    vec3 N = cross(p1-p0, p2-p0);
+    vec3 X = ray.origin.xyz + D * dot(p0 - ray.origin.xyz, N) / dot(D, N);
+
+    return X;
 }
 
-vec3 normalized(vec3 v) {
-    float len_sq = length_squared(v);
-    if (len_sq < EPSILON) 
-        return v;
-    float inverse_length = 1.0f / sqrt(len_sq);
-    return vec3(v.x * inverse_length, v.y * inverse_length, v.z * inverse_length);
+bool IntersectTriangle(Ray ray, vec3 p0, vec3 p1, vec3 p2)
+{
+    vec3 X = IntersectPlane(ray, p0, p1, p2);
+    return PointInTriangle(X, p0, p1, p2);
 }
 
-float distance2(vec3 v1, vec3 v2) {
-    float x = pow(v2.x - v1.x, 2);
-    float y = pow(v2.y - v1.y, 2);
-    float z = pow(v2.z - v1.z, 2);
-    return sqrt(x + y + z);
-}
-
-Ray_Intersection intersect_triangle(Ray ray, Triangle triangle) {    
-    vec3 edge1 = triangle.b - triangle.a;
-    vec3 edge2 = triangle.c - triangle.a;
-    vec3 ray_cross_e2 = cross_product(ray.direction, edge2);
-    float det = dot_product(edge1, ray_cross_e2);
+Ray_Intersection intersect_triangle(Ray ray, Triangle_v4 triangle) {    
+    float EPSILON = 0.0001;
+    vec3 edge1 = triangle.b.xyz - triangle.a.xyz;
+    vec3 edge2 = triangle.c.xyz - triangle.a.xyz;
+    vec3 ray_cross_e2 = cross(ray.direction.xyz, edge2);
+    float det = dot(edge1, ray_cross_e2);
 
     Ray_Intersection no_intersection;
     no_intersection.point = vec4(0, 0, 0, 0);
@@ -85,28 +77,28 @@ Ray_Intersection intersect_triangle(Ray ray, Triangle triangle) {
     }
 
     float inv_det = 1.0f / det;
-    vec3 s = ray.origin - triangle.a;
-    float u = inv_det * dot_product(s, ray_cross_e2);
+    vec3 s = ray.origin.xyz - triangle.a.xyz;
+    float u = inv_det * dot(s, ray_cross_e2);
     if (u < 0 || u > 1) {
         return no_intersection; // no intersection
     }
 
-    vec3 s_cross_e1 = cross_product(s, edge1);
-    float v = inv_det * dot_product(ray.direction, s_cross_e1);
+    vec3 s_cross_e1 = cross(s, edge1);
+    float v = inv_det * dot(ray.direction.xyz, s_cross_e1);
 
-    if (v < 0 || u + v > 1) {
+    if (v < 0 || (u + v) > 1) {
         return no_intersection; // no intersection
     }
 
     // At this stage we can compute t to find out where the intersection point is on the line.
-    float t = inv_det * dot_product(edge2, s_cross_e1);
+    float t = inv_det * dot(edge2, s_cross_e1);
 
     // ray intersection
     if (t > EPSILON) {
         Ray_Intersection p;
-        vec3 point = ray.origin + ray.direction * t;
+        vec3 point = ray.origin.xyz + (ray.direction.xyz * t);
         p.point.xyz = point;
-        //p.normal = normalized(cross_product(edge1, edge2));
+        //p.normal = normalize(cross(edge1, edge2));
         //p.material = material;
         p.number_of_intersections = 1;
         return p;
@@ -123,22 +115,26 @@ void main() {
     float min = 9999.9f;
     for (int i = 0; i < 204; i++) {
         Triangle_v4 triangle = triangles_in[i];
-        Triangle tri;
-        tri.a = vec3(object.model * vec4(triangle.a.xyz, 1.0));    
-        tri.b = vec3(object.model * vec4(triangle.b.xyz, 1.0));
-        tri.c = vec3(object.model * vec4(triangle.c.xyz, 1.0)); 
+        Triangle_v4 tri;
+        tri.a = object.model * vec4(triangle.a.xyz, 1.0);    
+        tri.b = object.model * vec4(triangle.b.xyz, 1.0);
+        tri.c = object.model * vec4(triangle.c.xyz, 1.0); 
 
-        Ray_Intersection intersection = intersect_triangle(ray.a, tri);
+        Ray_Intersection intersection = intersect_triangle(ray.a, triangle);
 
-        float dist_point_to_origin = distance2(intersection.point.xyz, ray.a.origin);
-        if (intersection.number_of_intersections != 0 && dist_point_to_origin < min) {
-            min = dist_point_to_origin;
-            intersections_out[0] = intersection;
-            test++;
+        //float dist_point_to_origin = distance(intersection.point.xyz, ray.a.origin.xyz);
+        //if ((intersection.number_of_intersections != 0) && (dist_point_to_origin < min)) {
+            //min = dist_point_to_origin;
+            //intersections_out[i].number_of_intersections = 1;
+        //}
+
+        intersections_out[0].point = triangle.c;
+        intersections_out[0].normal = tri.c;
+
+        if (IntersectTriangle(ray.a, tri.a.xyz, tri.b.xyz, tri.c.xyz)) {
+            intersections_out[0].number_of_intersections = 1;
         }
-
-        intersections_out[0].normal.xyz = tri.c.xyz;
     }
-    intersections_out[0].number_of_intersections = test;
-    //intersections_out[0].point.xyz = ray.a.origin;
+    //intersections_out[0].number_of_intersections = test;
+    //intersections_out[0].point.xyz = ray.a.direction.xyz;
 }

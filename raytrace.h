@@ -3,6 +3,11 @@ struct Ray {
     Vector3 direction;
 };
 
+struct Ray_v4 {
+    Vector4 origin;
+    Vector4 direction;
+};
+
 struct Ray_Intersection {
     Vector4 point;
     Vector4 normal;

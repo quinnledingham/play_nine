@@ -7,8 +7,8 @@ init_layouts(Layout layouts[10], Bitmap *bitmap) {
     layouts[4].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Vector4)); // color.frag, text.frag
     layouts[5].bindings[0] = Layout_Binding(2, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Vector4)); // color3D.frag
 
-    layouts[6].bindings[0] = Layout_Binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_COMPUTE, 1, sizeof(Ray)); // ray.comp
-    layouts[7].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_STORAGE_BUFFER, SHADER_STAGE_COMPUTE, 1, sizeof(Triangle)); // ray.comp
+    layouts[6].bindings[0] = Layout_Binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_COMPUTE, 1, sizeof(Ray_v4)); // ray.comp
+    layouts[7].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_STORAGE_BUFFER, SHADER_STAGE_COMPUTE, 1, sizeof(Triangle_v4)); // ray.comp
     layouts[8].bindings[0] = Layout_Binding(2, DESCRIPTOR_TYPE_STORAGE_BUFFER, SHADER_STAGE_COMPUTE, 1, sizeof(Ray_Intersection)); // ray.comp
 
     layouts[0].set_number = 0;

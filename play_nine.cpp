@@ -871,13 +871,20 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
 }
 
 internal bool8
-ray_model_intersection8(Ray ray, Model *model, Matrix_4x4 card) {
+ray_model_intersection3(Ray ray, Model *model, Matrix_4x4 card) {
+/*
     for (u32 i = 0; i < model->meshes_count; i++) {
         Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card);
         if (p.number_of_intersections != 0) {
             print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
             return true;
         }
+    }
+*/
+    Ray_Intersection p = intersect_triangle_array(ray, NULL, card);
+    if (p.number_of_intersections != 0) {
+        print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+        return true;
     }
 
     return false;
@@ -891,6 +898,9 @@ internal bool8
 ray_model_intersection(Ray ray, Model *model, Matrix_4x4 card) {
     vulkan_start_compute();
     vulkan_bind_pipeline(&ray_pipeline);
+
+    u32 test = 204 * sizeof(Triangle_v4);
+    memset((char*)vulkan_info.storage_buffer.data, 0, test);
 
     //Descriptor ray_desc = vulkan_get_descriptor_set_index(&layouts[6], 0);
     //Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
@@ -908,7 +918,6 @@ ray_model_intersection(Ray ray, Model *model, Matrix_4x4 card) {
     vulkan_end_compute();
 
     Ray_Intersection p = *((Ray_Intersection*)vulkan_info.storage_buffer.data + out_desc.offset);
-
     if (p.number_of_intersections != 0) {
         print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
         return true;
@@ -939,23 +948,23 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
 
     set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);\
 
-    vulkan_start_compute();
-    vulkan_bind_pipeline(&ray_pipeline);
-
     ray_desc = vulkan_get_descriptor_set_index(&layouts[6], 0);
     tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
     out_desc = vulkan_get_descriptor_set_index(&layouts[8], 0);
 
-    vulkan_update_ubo(ray_desc, &state->mouse_ray);
-    vulkan_set_storage_buffer(out_desc);
+    Ray_v4 ray_v4 = {
+        { state->mouse_ray.origin.x, state->mouse_ray.origin.y, state->mouse_ray.origin.z, 0.0f },
+        { state->mouse_ray.direction.x, state->mouse_ray.direction.y, state->mouse_ray.direction.z, 0.0f },
+    };
+
+    vulkan_update_ubo(ray_desc, &ray_v4);
+    vulkan_set_storage_buffer1(out_desc, 204 * sizeof(Triangle_v4));
 
     //vulkan_bind_descriptor_set(ray_desc);
     //vulkan_bind_descriptor_set(tri_desc);
     //vulkan_bind_descriptor_set(out_desc);
 
     //vulkan_dispatch(1, 1, 1);
-
-    vulkan_end_compute();
 
     //Ray_Intersection test = *((Ray_Intersection*)vulkan_info.storage_buffer.data + out_desc.offset);
     //print("%d\n", test.number_of_intersections);

@@ -1709,7 +1709,7 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	vulkan_create_buffer(info->device, 
                      	 info->physical_device,
-                     	 1000, 
+                     	 10000, 
                      	 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
                      	 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                      	 info->storage_buffer.handle,
@@ -2173,10 +2173,10 @@ vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
 }
 
 internal void
-vulkan_set_storage_buffer(Descriptor desc) {
+vulkan_set_storage_buffer1(Descriptor desc, u32 size) {
 	VkDescriptorBufferInfo buffer_info = {};
 	buffer_info.offset = 0;
-    buffer_info.range = desc.binding.size;
+    buffer_info.range = size;
 	buffer_info.buffer = vulkan_info.storage_buffer.handle;
 
 	VkWriteDescriptorSet write_set = {};

@@ -78,6 +78,35 @@ intersect_triangle(Ray ray, Triangle triangle) {
     }
 }
 
+Triangle_v4 *global_tris;
+
+internal Ray_Intersection
+intersect_triangle_array(Ray ray, Mesh *mesh, Matrix_4x4 model) {
+    Ray_Intersection result = {};
+    float32 min = 9999.9f;
+    for (u32 i = 0; i < 204; i++) {
+        Triangle_v4 triangle = global_tris[i];
+
+        Vector4 a = m4x4_mul_v4(model, { triangle.a.x, triangle.a.y, triangle.a.z, 1.0f });
+        Vector4 b = m4x4_mul_v4(model, { triangle.b.x, triangle.b.y, triangle.b.z, 1.0f });
+        Vector4 c = m4x4_mul_v4(model, { triangle.c.x, triangle.c.y, triangle.c.z, 1.0f });
+    
+        Triangle tri = { 
+            a.xyz,
+            b.xyz,
+            c.xyz
+        };
+
+        Ray_Intersection intersection = intersect_triangle(ray, tri);
+        float32 dist_point_to_origin = distance(intersection.point.xyz, ray.origin);
+        if (intersection.number_of_intersections != 0 && dist_point_to_origin < min) {
+            min = dist_point_to_origin;
+            result = intersection;
+        }
+    }
+    return result;
+}
+
 internal Ray_Intersection
 intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
     Ray_Intersection result = {};
@@ -149,6 +178,8 @@ init_triangles(Model *model) {
     
     u32 size = sizeof(Triangle_v4) * triangle_count;
     memcpy((char*)vulkan_info.triangle_buffer.data, triangles, size);
+
+    global_tris = triangles;
 
     Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
     vulkan_set_storage_buffer(tri_desc, size);
