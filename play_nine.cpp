@@ -871,13 +871,47 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
 }
 
 internal bool8
-ray_model_intersection(Ray ray, Model *model, Matrix_4x4 card) {
+ray_model_intersection8(Ray ray, Model *model, Matrix_4x4 card) {
     for (u32 i = 0; i < model->meshes_count; i++) {
         Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card);
         if (p.number_of_intersections != 0) {
-            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+            print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
             return true;
         }
+    }
+
+    return false;
+}
+
+Descriptor ray_desc;
+Descriptor tri_desc;
+Descriptor out_desc;
+
+internal bool8
+ray_model_intersection(Ray ray, Model *model, Matrix_4x4 card) {
+    vulkan_start_compute();
+    vulkan_bind_pipeline(&ray_pipeline);
+
+    //Descriptor ray_desc = vulkan_get_descriptor_set_index(&layouts[6], 0);
+    //Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
+    //Descriptor out_desc = vulkan_get_descriptor_set_index(&layouts[8], 0);
+
+    vulkan_bind_descriptor_set(ray_desc);
+    vulkan_bind_descriptor_set(tri_desc);
+    vulkan_bind_descriptor_set(out_desc);
+
+    Object object = {};
+    object.model = card;
+    render_push_constants(SHADER_STAGE_COMPUTE, (void *)&object, sizeof(Object)); 
+
+    vulkan_dispatch(1, 1, 1);
+    vulkan_end_compute();
+
+    Ray_Intersection p = *((Ray_Intersection*)vulkan_info.storage_buffer.data + out_desc.offset);
+
+    if (p.number_of_intersections != 0) {
+        print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+        return true;
     }
 
     return false;
@@ -903,13 +937,30 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
     Game_Draw *draw = &state->game_draw;
     Model *card_model = find_model(&state->assets, "CARD");
 
+    set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);\
+
     vulkan_start_compute();
     vulkan_bind_pipeline(&ray_pipeline);
 
-    set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);
-    mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, game, card_model);
+    ray_desc = vulkan_get_descriptor_set_index(&layouts[6], 0);
+    tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
+    out_desc = vulkan_get_descriptor_set_index(&layouts[8], 0);
+
+    vulkan_update_ubo(ray_desc, &state->mouse_ray);
+    vulkan_set_storage_buffer(out_desc);
+
+    //vulkan_bind_descriptor_set(ray_desc);
+    //vulkan_bind_descriptor_set(tri_desc);
+    //vulkan_bind_descriptor_set(out_desc);
+
+    //vulkan_dispatch(1, 1, 1);
 
     vulkan_end_compute();
+
+    //Ray_Intersection test = *((Ray_Intersection*)vulkan_info.storage_buffer.data + out_desc.offset);
+    //print("%d\n", test.number_of_intersections);
+    
+    mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, game, card_model);
 
     if (on_down(state->controller.mouse_left)) {
         platform_memory_copy(draw->highlight_pressed, draw->highlight_hover, sizeof(bool8) * SELECTED_SIZE);
@@ -1159,8 +1210,7 @@ bool8 init_data(App *app) {
     render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
 
     Shader *ray_comp = find_shader(&game->assets, "RAY");
-    init_basic_vert_layout(&ray_comp->set, layouts);
-    init_color3D_frag_layout(ray_comp, layouts);
+    init_ray_comp_layout(&ray_comp->set, layouts);
     ray_pipeline.shader = ray_comp;
     vulkan_create_compute_pipeline(&ray_pipeline);
 
@@ -1254,6 +1304,8 @@ bool8 init_data(App *app) {
     game->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&game->assets, "YOGI"));
     Model *model = find_model(&game->assets, "TABLE");
     game->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
+    
+    init_triangles(find_model(&game->assets, "CARD"));
     
 	return false;
 }
@@ -1455,6 +1507,11 @@ bool8 update(App *app) {
     }
 
     draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
+
+    char buffer[20];
+    float_to_char_array((float32)app->time.frames_per_s, buffer, 20);
+    draw_string_tl(default_font, buffer, { 10, 40 }, 40.0f, { 255, 50, 50, 1 });
+
 
     render_end_frame();
 

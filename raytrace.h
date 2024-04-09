@@ -4,11 +4,15 @@ struct Ray {
 };
 
 struct Ray_Intersection {
-    u32 number_of_intersections;
-    Vector3 point;
-    Vector3 normal;
+    Vector4 point;
+    Vector4 normal;
+    s32 number_of_intersections;
 };
 
 struct Triangle {
     Vector3 a, b, c;
+};
+
+struct Triangle_v4 {
+    Vector4 a, b, c;
 };

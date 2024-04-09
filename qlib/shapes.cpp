@@ -325,7 +325,7 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     render_bind_descriptor_set(object_desc);
 
     Matrix_4x4 model = create_transform_m4x4(coords, rotation_quat, dim);
-    render_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Model));  
+    render_push_constants(SHADER_STAGE_VERTEX, (void *)&model, sizeof(Matrix_4x4));  
 
     render_draw_mesh(&shapes.sphere_mesh);    
 }

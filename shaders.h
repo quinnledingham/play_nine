@@ -22,7 +22,7 @@ init_layouts(Layout layouts[10], Bitmap *bitmap) {
     layouts[7].set_number = 1;
     layouts[8].set_number = 2;
 
-    for (u32 i = 0; i < 6; i++) {
+    for (u32 i = 0; i < 9; i++) {
         render_create_set_layout(&layouts[i]);
         render_allocate_descriptor_set(&layouts[i]);
         render_init_layout_offsets(&layouts[i], bitmap);

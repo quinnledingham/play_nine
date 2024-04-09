@@ -206,10 +206,10 @@ float_to_char_array(float32 f) {
     platform_memory_set(buffer, 0, size);
     u32 ret = snprintf(buffer, size, "%f", f);
     if (ret < 0) {
-        logprint("float_to_char_array()", "ftos() failed");
+        logprint("float_to_char_array()", "ftos() failed\n");
         return 0;
     }
-    if (ret >= size) logprint("float_to_char_array(float32 f)", "ftos(): result was truncated");
+    if (ret >= size) logprint("float_to_char_array(float32 f)", "ftos(): result was truncated\n");
     return buffer;
 }
 
@@ -217,10 +217,10 @@ inline void
 float_to_char_array(float32 f, char *buffer, u32 buffer_size) {
     u32 ret = snprintf(buffer, buffer_size, "%f", f);
     if (ret < 0) {
-        logprint("float_to_char_array(float32 f, char *buffer, u32 buffer_size)", "ftos() failed");
+        logprint("float_to_char_array(float32 f, char *buffer, u32 buffer_size)", "ftos() failed\n");
         return;
     }
-    if (ret >= buffer_size) logprint("float_to_char_array(float32 f, char *buffer, u32 buffer_size)", "ftos(): result was truncated");
+    if (ret >= buffer_size) logprint("float_to_char_array(float32 f, char *buffer, u32 buffer_size)", "ftos(): result was truncated\n");
 }
 
 // char_array_to_float

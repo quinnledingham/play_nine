@@ -1615,7 +1615,7 @@ vulkan_init_presentation_settings(Vulkan_Info *info) {
 */
 	// End of frame
 	info->submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	info->submit_info.waitSemaphoreCount = 2;
+	info->submit_info.waitSemaphoreCount = 1;
 	info->submit_info.pWaitSemaphores = &info->image_available_semaphore[info->current_frame];
 	info->submit_info.pWaitDstStageMask = info->wait_stages;
 	info->submit_info.commandBufferCount = 1;
@@ -1707,6 +1707,24 @@ void vulkan_sdl_init(SDL_Window *sdl_window) {
 	
 	vkMapMemory(info->device, info->dynamic_uniform_buffer.memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.dynamic_uniform_buffer.data);
 
+	vulkan_create_buffer(info->device, 
+                     	 info->physical_device,
+                     	 1000, 
+                     	 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
+                     	 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     	 info->storage_buffer.handle,
+                      	 info->storage_buffer.memory);
+	vkMapMemory(info->device, info->storage_buffer.memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.storage_buffer.data);
+
+	vulkan_create_buffer(info->device, 
+                     	 info->physical_device,
+                     	 10000, 
+                     	 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
+                     	 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     	 info->triangle_buffer.handle,
+                      	 info->triangle_buffer.memory);
+	vkMapMemory(info->device, info->triangle_buffer.memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.triangle_buffer.data);
+
 	vulkan_init_presentation_settings(info);
 
 	//
@@ -1780,7 +1798,7 @@ void vulkan_bind_pipeline(Compute_Pipeline *pipeline) {
 
 void vulkan_start_compute() {
 	// Compute submission
-	vkWaitForFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
+	//vkWaitForFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
 	
 	vkResetFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame]);
 	vulkan_info.active_command_buffer = &vulkan_info.compute_command_buffers[vulkan_info.current_frame];
@@ -1799,12 +1817,14 @@ void vulkan_end_compute() {
 	vulkan_info.compute_submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	vulkan_info.compute_submit_info.commandBufferCount = 1;
 	vulkan_info.compute_submit_info.pCommandBuffers = &vulkan_info.compute_command_buffers[vulkan_info.current_frame];
-	vulkan_info.compute_submit_info.signalSemaphoreCount = 1;
+	vulkan_info.compute_submit_info.signalSemaphoreCount = 0;
 	vulkan_info.compute_submit_info.pSignalSemaphores = &vulkan_info.compute_finished_semaphore[vulkan_info.current_frame];
 
 	if (vkQueueSubmit(vulkan_info.compute_queue, 1, &vulkan_info.compute_submit_info, vulkan_info.compute_in_flight_fences[vulkan_info.current_frame]) != VK_SUCCESS) {
 	    logprint("vulkan_end_compute()", "failed to submit compute command buffer!\n");
 	};
+
+	vkWaitForFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
 };
 
 void vulkan_start_frame() {
@@ -1845,7 +1865,6 @@ void vulkan_end_frame() {
 	}
 
 	VkSemaphore wait_semaphores[] = {
-		vulkan_info.compute_finished_semaphore[vulkan_info.current_frame],
 		vulkan_info.image_available_semaphore[vulkan_info.current_frame]
 	};
 	vulkan_info.submit_info.pWaitSemaphores = wait_semaphores;
@@ -2017,7 +2036,8 @@ vulkan_init_bitmaps(VkDescriptorSet *sets, u32 num_of_sets, Bitmap *bitmap, Layo
 
 internal void
 vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
-	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER || layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
+	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
+        layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
 		vulkan_init_ubos(layout->descriptor_sets, &layout->bindings[0], layout->max_sets, layout->offsets);
 	}
 
@@ -2025,8 +2045,6 @@ vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
 		vulkan_init_bitmaps(layout->descriptor_sets, layout->max_sets, bitmap, &layout->bindings[0]);
 	}
 }
-
-
 
 // just creating with one binding right now
 internal void
@@ -2107,7 +2125,10 @@ is changing frame to frame.
 Maybe should combine update and bind functions.
 */
 void vulkan_bind_descriptor_set(Descriptor desc) {
-	vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
+	if (desc.binding.stages[0] == SHADER_STAGE_COMPUTE)
+		vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_info.pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
+	else
+		vkCmdBindDescriptorSets(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
 }
 
 void vulkan_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32 size) {
@@ -2149,4 +2170,42 @@ vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
 	desc->texture_index++;
 
 	return index;
+}
+
+internal void
+vulkan_set_storage_buffer(Descriptor desc) {
+	VkDescriptorBufferInfo buffer_info = {};
+	buffer_info.offset = 0;
+    buffer_info.range = desc.binding.size;
+	buffer_info.buffer = vulkan_info.storage_buffer.handle;
+
+	VkWriteDescriptorSet write_set = {};
+    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_set.dstSet = *desc.vulkan_set;
+    write_set.dstBinding = desc.binding.binding;
+    write_set.dstArrayElement = 0;
+    write_set.descriptorType = vulkan_convert_descriptor_type(desc.binding.descriptor_type);
+    write_set.descriptorCount = 1;
+    write_set.pBufferInfo = &buffer_info;
+	
+	vkUpdateDescriptorSets(vulkan_info.device, 1, &write_set, 0, nullptr);
+}
+
+internal void
+vulkan_set_storage_buffer(Descriptor desc, u32 size) {
+	VkDescriptorBufferInfo buffer_info = {};
+	buffer_info.offset = 0;
+    buffer_info.range = size;
+	buffer_info.buffer = vulkan_info.triangle_buffer.handle;
+
+	VkWriteDescriptorSet write_set = {};
+    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_set.dstSet = *desc.vulkan_set;
+    write_set.dstBinding = desc.binding.binding;
+    write_set.dstArrayElement = 0;
+    write_set.descriptorType = vulkan_convert_descriptor_type(desc.binding.descriptor_type);
+    write_set.descriptorCount = 1;
+    write_set.pBufferInfo = &buffer_info;
+	
+	vkUpdateDescriptorSets(vulkan_info.device, 1, &write_set, 0, nullptr);
 }

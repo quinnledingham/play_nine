@@ -107,6 +107,9 @@ struct Vulkan_Info {
 	Vulkan_Buffer static_uniform_buffer;
 	Vulkan_Buffer dynamic_uniform_buffer;
 
+	Vulkan_Buffer storage_buffer;
+	Vulkan_Buffer triangle_buffer;
+
 	// Depth Buffer
 	VkImage depth_image;
 	VkDeviceMemory depth_image_memory;
@@ -121,7 +124,7 @@ struct Vulkan_Info {
 	VkCommandBufferBeginInfo begin_info;
 	VkClearValue clear_values[2];
 
-	VkPipelineStageFlags wait_stages[2] = { VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkPipelineStageFlags wait_stages[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkRenderPassBeginInfo render_pass_info;
 	VkSubmitInfo submit_info;
 	VkSubmitInfo compute_submit_info;

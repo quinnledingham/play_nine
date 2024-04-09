@@ -66,7 +66,8 @@ intersect_triangle(Ray ray, Triangle triangle) {
     // ray intersection
     if (t > EPSILON) {
         Ray_Intersection p;
-        p.point = ray.origin + ray.direction * t;
+        Vector3 point = ray.origin + ray.direction * t;
+        p.point.xyz = point;
         //p.normal = normalized(cross_product(edge1, edge2));
         //p.material = material;
         p.number_of_intersections = 1;
@@ -81,7 +82,7 @@ internal Ray_Intersection
 intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
     Ray_Intersection result = {};
     float32 min = 9999.9f;
-    
+    Vector3 test = {};
     for (u32 i = 0; i < mesh->indices_count; i += 3) {
         u32 i1 = mesh->indices[i + 0];
         u32 i2 = mesh->indices[i + 1];
@@ -102,13 +103,55 @@ intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
         };
 
         Ray_Intersection intersection = intersect_triangle(ray, triangle);
-        if (intersection.number_of_intersections != 0 && distance(intersection.point, ray.origin) < min) {
-            min = distance(intersection.point, ray.origin);
+        if (intersection.number_of_intersections != 0 && distance(intersection.point.xyz, ray.origin) < min) {
+            min = distance(intersection.point.xyz, ray.origin);
             result = intersection;
         }
+
+        test = triangle.c;
     }
 
     return result;
+}
+
+internal void
+init_triangles(Model *model) {
+    u32 triangle_count = 0;
+    for (u32 i = 0; i < model->meshes_count; i++) {
+        Mesh *mesh = &model->meshes[i];
+        for (u32 j = 0; j < mesh->indices_count; j += 3) {
+            triangle_count++;
+        }
+    }
+
+    Triangle_v4 *triangles = ARRAY_MALLOC(Triangle_v4, triangle_count);
+    u32 triangle_index = 0;
+
+    for (u32 i = 0; i < model->meshes_count; i++) {
+        Mesh *mesh = &model->meshes[i];
+        for (u32 j = 0; j < mesh->indices_count; j += 3) {
+            u32 i1 = mesh->indices[j + 0];
+            u32 i2 = mesh->indices[j + 1];
+            u32 i3 = mesh->indices[j + 2];
+        
+            Vertex_XNU v1 = ((Vertex_XNU *)mesh->vertices)[i1];
+            Vertex_XNU v2 = ((Vertex_XNU *)mesh->vertices)[i2];
+            Vertex_XNU v3 = ((Vertex_XNU *)mesh->vertices)[i3];
+
+            Triangle_v4 triangle = {};
+            triangle.a.xyz = v1.position;
+            triangle.b.xyz = v2.position;
+            triangle.c.xyz = v3.position;
+
+            triangles[triangle_index++] = triangle;
+        }
+    }
+    
+    u32 size = sizeof(Triangle_v4) * triangle_count;
+    memcpy((char*)vulkan_info.triangle_buffer.data, triangles, size);
+
+    Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
+    vulkan_set_storage_buffer(tri_desc, size);
 }
 
 internal void
