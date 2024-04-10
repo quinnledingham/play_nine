@@ -10,6 +10,7 @@ init_layouts(Layout layouts[10], Bitmap *bitmap) {
     layouts[6].bindings[0] = Layout_Binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_COMPUTE, 1, sizeof(Ray_v4)); // ray.comp
     layouts[7].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_STORAGE_BUFFER, SHADER_STAGE_COMPUTE, 1, sizeof(Triangle_v4)); // ray.comp
     layouts[8].bindings[0] = Layout_Binding(2, DESCRIPTOR_TYPE_STORAGE_BUFFER, SHADER_STAGE_COMPUTE, 1, sizeof(Ray_Intersection)); // ray.comp
+    layouts[9].bindings[0] = Layout_Binding(3, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_COMPUTE, 1, 10 * sizeof(Matrix_4x4)); // ray.comp
 
     layouts[0].set_number = 0;
     layouts[1].set_number = 1;
@@ -21,8 +22,9 @@ init_layouts(Layout layouts[10], Bitmap *bitmap) {
     layouts[6].set_number = 0;
     layouts[7].set_number = 1;
     layouts[8].set_number = 2;
+    layouts[9].set_number = 3;
 
-    for (u32 i = 0; i < 9; i++) {
+    for (u32 i = 0; i < 10; i++) {
         render_create_set_layout(&layouts[i]);
         render_allocate_descriptor_set(&layouts[i]);
         render_init_layout_offsets(&layouts[i], bitmap);
@@ -69,6 +71,7 @@ init_ray_comp_layout(Layout_Set *set, Layout layouts[10]) {
     set->add_layout(&layouts[6]);
     set->add_layout(&layouts[7]);
     set->add_layout(&layouts[8]);
+    set->add_layout(&layouts[9]);
 
-    set->add_push(SHADER_STAGE_COMPUTE, sizeof(Object));
+    //set->add_push(SHADER_STAGE_COMPUTE, sizeof(Object));
 }

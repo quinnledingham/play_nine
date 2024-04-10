@@ -15,6 +15,10 @@ struct Triangle_v4 {
     vec4 a, b, c;
 };
 
+struct Object {
+    mat4 model;
+};
+
 layout(set = 0, binding = 0) uniform RayU {
     Ray a;
 } ray;
@@ -27,9 +31,8 @@ layout(std140, set = 2, binding = 2) buffer IntersectionsOut {
    Ray_Intersection intersections_out[ ];
 };
 
-layout(push_constant, std430) uniform Object {
-    mat4 model;
-    int index;
+layout(std140, set = 3, binding = 3) uniform ObjectU {
+    Object o[10];
 } object;
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
@@ -113,26 +116,27 @@ void main() {
     int test = 0;
 
     float min = 9999.9f;
-    for (int i = 0; i < 204; i++) {
-        Triangle_v4 triangle = triangles_in[i];
-        Triangle_v4 tri;
-        tri.a = object.model * vec4(triangle.a.xyz, 1.0);    
-        tri.b = object.model * vec4(triangle.b.xyz, 1.0);
-        tri.c = object.model * vec4(triangle.c.xyz, 1.0); 
+    for (int uniform_index = 0; uniform_index < 10; uniform_index++) {
+        for (int i = 0; i < 204; i++) {
+            Triangle_v4 triangle = triangles_in[i];
+            Triangle_v4 tri;
+            tri.a = object.o[uniform_index].model * vec4(triangle.a.xyz, 1.0);    
+            tri.b = object.o[uniform_index].model * vec4(triangle.b.xyz, 1.0);
+            tri.c = object.o[uniform_index].model * vec4(triangle.c.xyz, 1.0); 
 
-        Ray_Intersection intersection = intersect_triangle(ray.a, triangle);
+            Ray_Intersection intersection = intersect_triangle(ray.a, triangle);
 
-        //float dist_point_to_origin = distance(intersection.point.xyz, ray.a.origin.xyz);
-        //if ((intersection.number_of_intersections != 0) && (dist_point_to_origin < min)) {
-            //min = dist_point_to_origin;
-            //intersections_out[i].number_of_intersections = 1;
-        //}
+            //float dist_point_to_origin = distance(intersection.point.xyz, ray.a.origin.xyz);
+            //if ((intersection.number_of_intersections != 0) && (dist_point_to_origin < min)) {
+                //min = dist_point_to_origin;
+                //intersections_out[i].number_of_intersections = 1;
+            //}
 
-        intersections_out[0].point = triangle.c;
-        intersections_out[0].normal = tri.c;
-
-        if (IntersectTriangle(ray.a, tri.a.xyz, tri.b.xyz, tri.c.xyz)) {
-            intersections_out[0].number_of_intersections = 1;
+            if (IntersectTriangle(ray.a, tri.a.xyz, tri.b.xyz, tri.c.xyz)) {
+                intersections_out[uniform_index].point = triangle.c;
+                intersections_out[uniform_index].normal = tri.c;
+                intersections_out[uniform_index].number_of_intersections = 1;
+            }
         }
     }
     //intersections_out[0].number_of_intersections = test;

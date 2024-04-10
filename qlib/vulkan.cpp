@@ -1958,13 +1958,16 @@ vulkan_allocate_descriptor_set(Layout *layout) {
 
 
 internal void
-vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_of_sets, u32 offsets[128]) {
+vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_of_sets, u32 offsets[64]) {
 	VkWriteDescriptorSet *write_sets = ARRAY_MALLOC(VkWriteDescriptorSet, num_of_sets);
-	VkDescriptorBufferInfo *static_buffer_infos = ARRAY_MALLOC(VkDescriptorBufferInfo, num_of_sets);
+	VkDescriptorBufferInfo *static_buffer_infos = ARRAY_MALLOC(VkDescriptorBufferInfo, (num_of_sets * layout_binding->descriptor_count));
+
+	u32 alignment = (u32)vulkan_get_alignment(layout_binding->size * layout_binding->descriptor_count, (u32)vulkan_info.uniform_buffer_min_alignment);
+	//u32 dyn_offset = vulkan_get_next_offset(&vulkan_info.dynamic_uniform_buffer.offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE, false);
 
 	VkDescriptorBufferInfo dynamic_buffer_info = {};
 	dynamic_buffer_info.offset = 0;
-    dynamic_buffer_info.range = layout_binding->size;
+    dynamic_buffer_info.range = layout_binding->size * layout_binding->descriptor_count;
 	dynamic_buffer_info.buffer = vulkan_info.dynamic_uniform_buffer.handle;
 
 	VkWriteDescriptorSet write_set = {};
@@ -1972,20 +1975,23 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
     write_set.dstBinding = layout_binding->binding;
     write_set.dstArrayElement = 0;
     write_set.descriptorType = vulkan_convert_descriptor_type(layout_binding->descriptor_type);
-    write_set.descriptorCount = 1;
+    write_set.descriptorCount = layout_binding->descriptor_count;
     write_set.pBufferInfo = &dynamic_buffer_info;
 
 	if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
 		for (u32 i = 0; i < num_of_sets; i++) {
-			u32 alignment = (u32)vulkan_get_alignment(layout_binding->size, (u32)vulkan_info.uniform_buffer_min_alignment);
 			u32 offset = vulkan_get_next_offset(&vulkan_info.static_uniform_buffer.offset, alignment, VULKAN_STATIC_UNIFORM_BUFFER_SIZE, false);
-
 			offsets[i] = offset;
+		}
+
+		for (u32 i = 0; i < num_of_sets * layout_binding->descriptor_count; i++) {
+			u32 offset_index = i / layout_binding->descriptor_count;
 
 			VkDescriptorBufferInfo static_buffer_info = {};
-			static_buffer_info.offset = offset;
+			static_buffer_info.offset = offsets[offset_index];
     		static_buffer_info.range = layout_binding->size;
 			static_buffer_info.buffer = vulkan_info.static_uniform_buffer.handle;
+
 			static_buffer_infos[i] = static_buffer_info;
 		}	
 
@@ -1994,8 +2000,9 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
 	for (u32 i = 0; i < num_of_sets; i++) {
 		write_sets[i] = write_set;
     	write_sets[i].dstSet = sets[i];
-		if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-			write_sets[i].pBufferInfo = &static_buffer_infos[i];
+		if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+			write_sets[i].pBufferInfo = &static_buffer_infos[i *  layout_binding->descriptor_count];
+		}
 	}
 
 	vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
