@@ -1,6 +1,10 @@
 #include <SDL.h>
 
-#ifdef WINDOWS
+#define OS_WINDOWS
+#define API_SDL
+#define API_VULKAN
+
+#ifdef OS_WINDOWS
 
 #pragma message("WINDOWS")
 
@@ -96,7 +100,6 @@ void * array_malloc(u32 size, u32 n) {
     return platform_malloc(n * size);
 }
 
-
 #include "print.h"
 #include "types_math.h"
 #include "char_array.h"
@@ -153,6 +156,7 @@ sdl_update_time(App_Time *time) {
     // fps
     time->frames_per_s = 1.0 / time->frame_time_s;
 }
+
 internal bool8
 sdl_process_input(App *app, App_Window *window, App_Input *input) {
     window->resized = false;

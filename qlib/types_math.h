@@ -5,21 +5,21 @@
 // Vector2
 //
 
-inline Vector2 operator+(const Vector2 &l, const Vector2  &r) { return { l.x + r.x, l.y + r.y }; }
-inline Vector2 operator+(const Vector2 &l, const float32 &r)  { return { l.x + r  , l.y + r   }; }
-inline Vector2 operator-(const Vector2 &l, const Vector2  &r) { return { l.x - r.x, l.y - r.y }; }
-inline Vector2 operator*(const Vector2 &l, const Vector2  &r) { return { l.x * r.x, l.y * r.y }; }
-inline Vector2 operator*(const Vector2 &l, const float32 &r)  { return { l.x * r  , l.y * r   }; }
-inline Vector2 operator/(const Vector2 &l, const Vector2  &r) { return { l.x / r.x, l.y / r.y }; }
-inline Vector2 operator/(const Vector2 &l, const float32 &r)  { return { l.x / r  , l.y / r   }; }
-inline Vector2 operator-(const Vector2 &v)                    { return { -v.x     , -v.y      }; }
+inline Vector2 operator+(const Vector2 &l, const Vector2 &r) { return { l.x + r.x, l.y + r.y }; }
+inline Vector2 operator+(const Vector2 &l, const float32 &r) { return { l.x + r  , l.y + r   }; }
+inline Vector2 operator-(const Vector2 &l, const Vector2 &r) { return { l.x - r.x, l.y - r.y }; }
+inline Vector2 operator*(const Vector2 &l, const Vector2 &r) { return { l.x * r.x, l.y * r.y }; }
+inline Vector2 operator*(const Vector2 &l, const float32 &r) { return { l.x * r  , l.y * r   }; }
+inline Vector2 operator/(const Vector2 &l, const Vector2 &r) { return { l.x / r.x, l.y / r.y }; }
+inline Vector2 operator/(const Vector2 &l, const float32 &r) { return { l.x / r  , l.y / r   }; }
+inline Vector2 operator-(const Vector2 &v)                   { return { -v.x     , -v.y      }; }
 
-inline void operator+=(Vector2 &l, const Vector2  &r) { l.x = l.x + r.x; l.y = l.y + r.y; }
-inline void operator-=(Vector2 &l, const Vector2  &r) { l.x = l.x - r.x; l.y = l.y - r.y; }
-inline void operator-=(Vector2 &l, const float32 &r)  { l.x = l.x - r;   l.y = l.y - r;   }
-inline void operator*=(Vector2 &l, const float32 &r)  { l.x = l.x * r;   l.y = l.y * r;   }
-inline void operator/=(Vector2 &l, const Vector2  &r) { l.x = l.x / r.x; l.y = l.y / r.y; }
-inline void operator/=(Vector2 &l, const float32 &r)  { l.x = l.x / r;   l.y = l.y / r;   }
+inline void operator+=(Vector2 &l, const Vector2 &r) { l.x = l.x + r.x; l.y = l.y + r.y; }
+inline void operator-=(Vector2 &l, const Vector2 &r) { l.x = l.x - r.x; l.y = l.y - r.y; }
+inline void operator-=(Vector2 &l, const float32 &r) { l.x = l.x - r;   l.y = l.y - r;   }
+inline void operator*=(Vector2 &l, const float32 &r) { l.x = l.x * r;   l.y = l.y * r;   }
+inline void operator/=(Vector2 &l, const Vector2 &r) { l.x = l.x / r.x; l.y = l.y / r.y; }
+inline void operator/=(Vector2 &l, const float32 &r) { l.x = l.x / r;   l.y = l.y / r;   }
 
 inline float32 dot_product(const Vector2 &l, const Vector2 &r) { return (l.x * r.x) + (l.y * r.y); }
 inline float32 length_squared(const Vector2 &v) { return (v.x * v.x) + (v.y * v.y); }
@@ -31,16 +31,14 @@ inline Vector2 v2_add(const Vector2 l, const Vector2 r) {
     return result;
 }
 inline 
-Vector2 pow(const Vector2 &v, u32 exponent)
-{
+Vector2 pow(const Vector2 &v, u32 exponent) {
     Vector2 result = v;
     for (u32 i = 1; i < exponent; i++) { result.x *= v.x; result.y *= v.y; }
     return result;
 }
 
 inline Vector2
-normalized(const Vector2 &v)
-{
+normalized(const Vector2 &v) {
     float32 len_sq = length_squared(v);
     if (len_sq < EPSILON) return v;
     float32 inverse_length = 1.0f / sqrtf(len_sq);
@@ -48,22 +46,19 @@ normalized(const Vector2 &v)
 }
 
 inline Vector2
-projection_onto_line(Vector2 v, Vector2 line)
-{
+projection_onto_line(Vector2 v, Vector2 line) {
     return line * (dot_product(v, line) / dot_product(line, line));
 }
 
 inline float32
-magnitude(const Vector2 &v)
-{
+magnitude(const Vector2 &v) {
     float32 len_sq = length_squared(v);
     if (len_sq < EPSILON) return 1;
     return (float32)sqrt(len_sq);
 }
 
 inline float32
-angle_between(const Vector2 &a, const Vector2 &b)
-{
+angle_between(const Vector2 &a, const Vector2 &b) {
     float32 dot = (dot_product(a, b));
     float32 cos_theta = dot / (magnitude(a) * magnitude(b));
     

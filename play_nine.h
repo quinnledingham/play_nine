@@ -4,7 +4,6 @@ TODO
 
 - Flip "animation"
 - Show keyboard controls
-- Put raytrace on gpu? because it is really slow
 - Move Pick up deck closer to active player with more players
 - View cards with mouse (spinning around at the end of the game)
 - Make face cards

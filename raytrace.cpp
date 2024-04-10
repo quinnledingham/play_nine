@@ -1,6 +1,6 @@
 // https://antongerdelan.net/opengl/raycasting.html
 internal void
-set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, Vector2_s32 mouse, Vector2_s32 screen_dim) {
+set_ray_coords(Ray *ray, Camera camera, Scene scene, Vector2_s32 mouse, Vector2_s32 screen_dim) {
     Vector3 ray_nds = {
         (2.0f * mouse.x) / screen_dim.width - 1.0f,
         (2.0f * mouse.y) / screen_dim.height - 1.0f,
@@ -23,8 +23,8 @@ set_ray_coords(Ray *ray, Camera camera, Matrix_4x4 projection, Matrix_4x4 view, 
     };
 #endif
 
-    Vector4 ray_eye = m4x4_mul_v4(inverse(projection), ray_clip);    
-    Vector4 ray_world_v4 = m4x4_mul_v4(inverse(view), ray_eye);
+    Vector4 ray_eye = m4x4_mul_v4(inverse(scene.projection), ray_clip);    
+    Vector4 ray_world_v4 = m4x4_mul_v4(inverse(scene.view), ray_eye);
     Vector3 ray_world = ray_world_v4.xyz;
     ray_world = ray_world / ray_world_v4.w;
 
@@ -78,14 +78,12 @@ intersect_triangle(Ray ray, Triangle triangle) {
     }
 }
 
-Triangle_v4 *global_tris;
-
 internal Ray_Intersection
-intersect_triangle_array(Ray ray, Mesh *mesh, Matrix_4x4 model) {
+intersect_triangle_array(Ray ray, Triangle_v4 *triangles, Matrix_4x4 model) {
     Ray_Intersection result = {};
     float32 min = 9999.9f;
     for (u32 i = 0; i < 204; i++) {
-        Triangle_v4 triangle = global_tris[i];
+        Triangle_v4 triangle = triangles[i];
 
         Vector4 a = m4x4_mul_v4(model, { triangle.a.x, triangle.a.y, triangle.a.z, 1.0f });
         Vector4 b = m4x4_mul_v4(model, { triangle.b.x, triangle.b.y, triangle.b.z, 1.0f });
@@ -143,7 +141,7 @@ intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
     return result;
 }
 
-internal void
+internal Triangle_v4*
 init_triangles(Model *model) {
     u32 triangle_count = 0;
     for (u32 i = 0; i < model->meshes_count; i++) {
@@ -175,8 +173,6 @@ init_triangles(Model *model) {
             triangles[triangle_index++] = triangle;
         }
     }
-
-    global_tris = triangles;
     
 #ifdef VULKAN
     u32 size = sizeof(Triangle_v4) * triangle_count;
@@ -186,6 +182,7 @@ init_triangles(Model *model) {
     vulkan_set_storage_buffer(tri_desc, size);
 #endif // VULKAN
 
+    return triangles;
 }
 
 internal void

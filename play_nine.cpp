@@ -946,7 +946,7 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
 
     // 48 is the size of Ray_Intersection in glsl
     for (u32 i = 0; i < 10; i++) {
-        Ray_Intersection p = *((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (48 * i)));
+        Ray_Intersection p = *((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (sizeof(Ray_Intersection) * i)));
         if (p.number_of_intersections != 0) {
             //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
             selected[i] = true;
@@ -964,13 +964,13 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
     Game_Draw *draw = &state->game_draw;
     Model *card_model = find_model(&state->assets, "CARD");
 
-    set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);\
+    set_ray_coords(&state->mouse_ray, state->camera, state->scene, app->input.mouse, app->window.dim);
 
-#if VULKAN
+    #if VULKAN
     mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, game, card_model);
-#elif OPENGL
+    #elif OPENGL
     mouse_ray_model_intersections_cpu(draw->highlight_hover, state->mouse_ray, game, card_model);
-#endif // VULKAN / OPENGL
+    #endif // VULKAN / OPENGL
 
     if (on_down(state->controller.mouse_left)) {
         platform_memory_copy(draw->highlight_pressed, draw->highlight_hover, sizeof(bool8) * SELECTED_SIZE);
@@ -1475,10 +1475,11 @@ bool8 update(App *app) {
             render_bind_descriptor_set(state->scene_ortho_set);
 
             float32 pixel_height = app->window.dim.x / 20.0f;
+            float32 padding = 10.0f;
             Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
-            draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - 5, 5 }, pixel_height, { 255, 255, 255, 1 });
+            draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - padding, padding }, pixel_height, { 255, 255, 255, 1 });
 
-            draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { 5, 5 }, pixel_height, { 255, 255, 255, 1 });
+            draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { padding, padding }, pixel_height, { 255, 255, 255, 1 });
 
             Player *active_player = &state->game.players[state->game.active_player];
             if (state->menu_list.mode == PAUSE_MENU) {

@@ -8,7 +8,7 @@ struct Ray_v4 {
     Vector4 direction;
 };
 
-struct Ray_Intersection {
+struct alignas(16) Ray_Intersection {
     Vector4 point;
     Vector4 normal;
     s32 number_of_intersections;
