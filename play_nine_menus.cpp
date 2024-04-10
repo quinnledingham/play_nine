@@ -109,7 +109,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
             
         }
 
-        if (menu_button(menu, "Start", *input, { 1, menu_row + 2 }, { 1, 1 })) {
+        if (menu_button(menu, "Start", *input, { 0, menu_row + 2 }, { 1, 1 })) {
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 start_game(&state->game, game->num_of_players);
@@ -128,7 +128,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     if (state->is_client)
         back_width = 2;
 
-    if (menu_button(menu, "Back", *input, { 0, menu_row + 2 }, { back_width, 1 })) {
+    if (menu_button(menu, "Back", *input, { 1, menu_row + 2 }, { back_width, 1 })) {
         state->menu_list.mode = MAIN_MENU;
         game->num_of_players = 1;
         menu->hot_section = { 0, 0 };
@@ -215,6 +215,16 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
     draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
 
+    // columns
+    for (s32 i = 0; i < menu->sections.x; i++) {
+        if (i % 2 == 0) {
+            menu_rect(menu, {i, 0}, { 1, menu->sections.y}, { 0, 0, 0, 0.2f});
+        }
+    }
+
+    menu_rect(menu, {0, 0}, { menu->sections.x, 1}, { 255, 255, 0, 0.01f});
+    menu_rect(menu, {0, menu->sections.y - 2}, { menu->sections.x, 1}, { 255, 255, 0, 0.01f});
+
     // Top
     Vector4 text_color = { 231, 213, 36,  1 };
 
@@ -271,10 +281,10 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
             start_game(game, game->num_of_players);
         return 1;
     }
-    if (menu_button(menu, "View Cards", *input, { (s32)game->num_of_players - 1, scroll_length + 2 }, { 1, 1 })) {
+    if (menu_button(menu, "Back", *input, { (s32)game->num_of_players - 1, scroll_length + 2 }, { 1, 1 })) {
         return 1;
     }
-    if (menu_button(menu, "Quit Game", *input, { (s32)game->num_of_players, scroll_length + 2 }, { 1, 1 })) {
+    if (menu_button(menu, "Quit", *input, { (s32)game->num_of_players, scroll_length + 2 }, { 1, 1 })) {
         return 2;   
     }
 

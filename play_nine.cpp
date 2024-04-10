@@ -376,14 +376,19 @@ internal void
 load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
     Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
     Vector3 selected_card_coords = {0.0f, 1.0f, -2.7f};
-    Vector3 pile_coords          = { -1.1f, 0.0f, 0 };
+    Vector3 pile_coords          = { -1.1f, 0.0f, -2.0f };
     Vector3 discard_pile_coords  = {  1.1f, 0.0f, 0 };
+
+    Vector3 active_player_position = {};
 
     for (u32 i = 0; i < game->num_of_players; i++) {
         float32 degrees = (draw->degrees_between_players * i) - 90.0f;
         float32 rad = degrees * DEG2RAD; 
         Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, i);
         
+        if (i == 0)
+            active_player_position = position;
+
         // draw player cards    
         for (u32 card_index = 0; card_index < 8; card_index++) {
             Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
@@ -392,6 +397,12 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
             game->players[i].models[card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, rad, card_scale);
         }
     }
+
+    float32 center_of_piles_z = -active_player_position.x + 6.0f;
+
+    pile_coords.z = center_of_piles_z;
+    discard_pile_coords.z = center_of_piles_z;
+    selected_card_coords.z = center_of_piles_z + selected_card_coords.z;
 
     // draw card selected from pile
     float32 degrees = (draw->degrees_between_players * game->active_player) - 90.0f;
@@ -402,6 +413,8 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
     }
 
     float32 rotation_rads = (degrees - rotation_degrees) * DEG2RAD;
+
+    //Vector3 dir = normalized(active_player_position);
 
     rotate_coords(&pile_coords, rotation_rads);
     rotate_coords(&discard_pile_coords, rotation_rads);
@@ -577,7 +590,8 @@ start_hole(Game *game) {
     game->top_of_discard_pile = 0;
     shuffle_pile(game->pile);
     deal_cards(game);
-    game->active_player = 0;
+    //game->active_player = 0;
+    game->active_player = game->starting_player;
     game->round_type = FLIP_ROUND;
     game->last_turn = 0;
 }
@@ -585,6 +599,7 @@ start_hole(Game *game) {
 internal void
 start_game(Game *game, u32 num_of_players) {
     game->holes_played = 0;
+    game->starting_player = 0;
     game->num_of_players = num_of_players;
     game->game_over = false;
     start_hole(game);
@@ -612,8 +627,8 @@ get_draw_radius(u32 num_of_players, float32 hand_width, float32 card_height) {
 internal Game
 get_test_game() {
     Game game = {};
-    game.num_of_players = 2;
-    game.holes_played = 2;
+    game.num_of_players = 6;
+    game.holes_played = 4;
 
     for (u32 i = 0; i < game.num_of_players; i++) {
         default_player_name_string(game.players[i].name, i);
@@ -739,6 +754,12 @@ next_player(Game *game, Game_Draw *draw) {
         game->holes_played++;
         game->round_type = HOLE_OVER;
 
+        game->starting_player++;
+
+        if (game->starting_player >= game->num_of_players) {
+            game->starting_player = 0;
+        }
+
         // END GAME
         if (game->holes_played == GAME_LENGTH) {
             game->game_over = true;
@@ -748,8 +769,9 @@ next_player(Game *game, Game_Draw *draw) {
     // end of round: loop back around if required
     if (game->active_player >= game->num_of_players) {
         game->active_player = 0;
+    }
 
-        if (game->round_type == FLIP_ROUND)
+    if (game->active_player == game->starting_player && game->round_type == FLIP_ROUND) {
             game->round_type = REGULAR_ROUND;
     }
 
@@ -1148,7 +1170,7 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
         if (load_assets(&game->assets, "../assets.ethan"))

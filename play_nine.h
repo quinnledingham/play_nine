@@ -4,16 +4,11 @@ TODO
 
 - Flip "animation"
 - Show keyboard controls
-- Move Pick up deck closer to active player with more players
 - View cards with mouse (spinning around at the end of the game)
 - Make face cards
 
-- Add column shading to scoreboard
-- Make it so longer names will not overlap
-
 - Fix online drawing (rotation) (Just leave the cam infront of the client cards)
 
-- Change who starts each hole
 - Change how ingame menus work?
 
 Slight Problems
@@ -119,6 +114,7 @@ struct Game {
     u32 num_of_players;
     u32 active_player;
 
+    u32 starting_player;
     u32 holes_played;
     bool8 game_over;
 

@@ -14,7 +14,11 @@ draw_button(const Draw_Button button) {
     text_coords.y = button.coords.y + (button.dim.y / 2.0f) + (text_dim.y / 2.0f);
 
     draw_rect(button.coords, 0, button.dim, back_color);                                           // back
-    if (button.text) draw_string(button.font, button.text, text_coords, pixel_height, text_color); // text
+    if (button.text) {
+        render_set_scissor((s32)floor(button.coords.x), (s32)floor(button.coords.y), (u32)ceil(button.dim.x), (u32)ceil(button.dim.y) );
+        draw_string(button.font, button.text, text_coords, pixel_height, text_color); // text
+        render_set_scissor(0, 0, window_dim.x, window_dim.y);
+    }
 }
 
 internal float32
@@ -62,6 +66,29 @@ draw_textbox(const Draw_Textbox textbox) {
         draw_rect(cursor_coords, 0.0f, { textbox.cursor_width, textbox.dim.y }, textbox.cursor_color); // cursor
 
     return shift;
+}
+
+inline Vector2
+get_screen_coords(Menu *menu, Vector2_s32 section_coords) {
+    Vector2 coords = {
+        (menu->rect.dim.x / menu->sections.x) * section_coords.x + menu->rect.coords.x,
+        (menu->rect.dim.y / menu->sections.y) * section_coords.y + menu->rect.coords.y
+    };
+    return coords;
+}
+
+inline Vector2
+get_screen_dim(Menu *menu, Vector2_s32 section_dim) {
+    Vector2 dim = {
+        (menu->rect.dim.x / menu->sections.x) * section_dim.x,
+        (menu->rect.dim.y / menu->sections.y) * section_dim.y
+    };
+    return dim;
+}
+
+inline void
+menu_rect(Menu *menu, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector4 color) {
+    draw_rect(get_screen_coords(menu, section_coords), 0, get_screen_dim(menu, section_dim), color );
 }
 
 internal bool8
@@ -132,7 +159,9 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
     text_coords.x = coords.x + (dim.x / 2.0f) - (text_dim.x / 2.0f);
     text_coords.y = coords.y + (dim.y / 2.0f) + (text_dim.y / 2.0f);
 
+    render_set_scissor((s32)floor(coords.x), (s32)floor(coords.y), (u32)ceil(dim.x), (u32)ceil(dim.y) );
     draw_string(menu->font, text, text_coords, pixel_height, color);
+    render_set_scissor(0, 0, window_dim.x, window_dim.y);
 }
 
 internal u32
