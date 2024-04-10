@@ -25,8 +25,12 @@ struct Render_Pipeline {
 
 struct Compute_Pipeline {
     Shader *shader;
+
+#ifdef VULKAN
     VkPipelineLayout pipeline_layout;
     VkPipeline compute_pipeline;
+#endif
+
 };
 
 struct Render {
@@ -119,6 +123,7 @@ RENDER_FUNC(void, start_frame, );
 RENDER_FUNC(void, end_frame, );
 RENDER_FUNC(void, cleanup);
 RENDER_FUNC(void, create_graphics_pipeline, Render_Pipeline *pipeline, Vertex_Info vertex_info);
+RENDER_FUNC(void, create_compute_pipeline, Compute_Pipeline *pipeline);
 RENDER_FUNC(void, pipeline_cleanup, Render_Pipeline *pipe);
 RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
 

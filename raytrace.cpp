@@ -175,14 +175,17 @@ init_triangles(Model *model) {
             triangles[triangle_index++] = triangle;
         }
     }
+
+    global_tris = triangles;
     
+#ifdef VULKAN
     u32 size = sizeof(Triangle_v4) * triangle_count;
     memcpy((char*)vulkan_info.triangle_buffer.data, triangles, size);
 
-    global_tris = triangles;
-
     Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
     vulkan_set_storage_buffer(tri_desc, size);
+#endif // VULKAN
+
 }
 
 internal void

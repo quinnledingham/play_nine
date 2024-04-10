@@ -854,12 +854,7 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
                     next_player(game, draw);
                     return;
                 }
-/*
-                if (selected[DISCARD_PILE] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
-                    next_player(game, draw);
-                    return;
-                }
-*/
+
                 if (selected[PASS_BUTTON] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
                     next_player(game, draw);
                     return;
@@ -872,58 +867,23 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
 
 internal bool8
 ray_model_intersection_cpu(Ray ray, Model *model, Matrix_4x4 card) {
-/*
+
     for (u32 i = 0; i < model->meshes_count; i++) {
         Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card);
         if (p.number_of_intersections != 0) {
-            print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
             return true;
         }
     }
-*/
+
+/*
     Ray_Intersection p = intersect_triangle_array(ray, NULL, card);
     if (p.number_of_intersections != 0) {
         print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
         return true;
     }
-
+*/
     return false;
-}
-
-Descriptor ray_desc;
-Descriptor tri_desc;
-Descriptor out_desc;
-Descriptor object_desc;
-
-internal void
-ray_model_intersection(bool8 *selected, Ray ray, Model *model, Matrix_4x4 card) {
-    vulkan_start_compute();
-    vulkan_bind_pipeline(&ray_pipeline);
-
-    u32 test = 204 * sizeof(Triangle_v4);
-    memset((char*)vulkan_info.storage_buffer.data, 0, test);
-
-    Object object = {};
-    object.model = card;
-
-    vulkan_bind_descriptor_set(ray_desc);
-    vulkan_bind_descriptor_set(tri_desc);
-    vulkan_bind_descriptor_set(out_desc);
-    vulkan_bind_descriptor_set(object_desc);
-
-    vulkan_dispatch(1, 1, 1);
-    vulkan_end_compute();
-
-    // 48 is the size of Ray_Intersection in glsl
-    for (u32 i = 0; i < 10; i++) {
-        Ray_Intersection p = *((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (48 * i)));
-        if (p.number_of_intersections != 0) {
-            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
-            selected[i] = true;
-        } else {
-            selected[i] = false;
-        }
-    }
 }
 
 internal void
@@ -940,10 +900,25 @@ mouse_ray_model_intersections_cpu(bool8 *selected, Ray mouse_ray, Game *game, Mo
         selected[DISCARD_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, game->top_of_discard_pile_model);
 }
 
+#if VULKAN
+
 internal void
 mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game *game, Model *card_model) {
     Player *active_player = &game->players[game->active_player];
+    Descriptor ray_desc = vulkan_get_descriptor_set_index(&layouts[6], 0);
+    Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
+    Descriptor out_desc = vulkan_get_descriptor_set_index(&layouts[8], 0);
+    Descriptor object_desc = vulkan_get_descriptor_set_index(&layouts[9], 0);
 
+    Ray_v4 ray_v4 = {
+        { mouse_ray.origin.x, mouse_ray.origin.y, mouse_ray.origin.z, 0.0f },
+        { mouse_ray.direction.x, mouse_ray.direction.y, mouse_ray.direction.z, 0.0f },
+    };
+
+    vulkan_update_ubo(ray_desc, &ray_v4);
+    vulkan_set_storage_buffer1(out_desc, 10 * 48);
+
+    // load ubo buffer
     Matrix_4x4 object[10];
     for (u32 card_index = 0; card_index < 8; card_index++) {
         object[card_index] = active_player->models[card_index];
@@ -955,8 +930,33 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
     char *test = (char*)vulkan_info.static_uniform_buffer.data + object_desc.offset;
     memcpy(test, object, sizeof(Matrix_4x4) * 10);
 
-    ray_model_intersection(selected, mouse_ray, card_model, game->top_of_pile_model);
+    // compute intersections
+    vulkan_start_compute();
+    vulkan_bind_pipeline(&ray_pipeline);
+
+    memset((char*)vulkan_info.storage_buffer.data, 0, 204 * sizeof(Triangle_v4));
+
+    vulkan_bind_descriptor_set(ray_desc);
+    vulkan_bind_descriptor_set(tri_desc);
+    vulkan_bind_descriptor_set(out_desc);
+    vulkan_bind_descriptor_set(object_desc);
+
+    vulkan_dispatch(16, 1, 1);
+    vulkan_end_compute();
+
+    // 48 is the size of Ray_Intersection in glsl
+    for (u32 i = 0; i < 10; i++) {
+        Ray_Intersection p = *((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (48 * i)));
+        if (p.number_of_intersections != 0) {
+            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+            selected[i] = true;
+        } else {
+            selected[i] = false;
+        }
+    }
 }
+
+#endif // VULKAN
 
 internal void
 do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) {
@@ -966,20 +966,11 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
 
     set_ray_coords(&state->mouse_ray, state->camera, state->scene.projection, state->scene.view, app->input.mouse, app->window.dim);\
 
-    ray_desc = vulkan_get_descriptor_set_index(&layouts[6], 0);
-    tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
-    out_desc = vulkan_get_descriptor_set_index(&layouts[8], 0);
-    object_desc = vulkan_get_descriptor_set_index(&layouts[9], 0);
-
-    Ray_v4 ray_v4 = {
-        { state->mouse_ray.origin.x, state->mouse_ray.origin.y, state->mouse_ray.origin.z, 0.0f },
-        { state->mouse_ray.direction.x, state->mouse_ray.direction.y, state->mouse_ray.direction.z, 0.0f },
-    };
-
-    vulkan_update_ubo(ray_desc, &ray_v4);
-    vulkan_set_storage_buffer1(out_desc, 204 * sizeof(Triangle_v4));
-
+#if VULKAN
     mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, game, card_model);
+#elif OPENGL
+    mouse_ray_model_intersections_cpu(draw->highlight_hover, state->mouse_ray, game, card_model);
+#endif // VULKAN / OPENGL
 
     if (on_down(state->controller.mouse_left)) {
         platform_memory_copy(draw->highlight_pressed, draw->highlight_hover, sizeof(bool8) * SELECTED_SIZE);
@@ -1231,7 +1222,7 @@ bool8 init_data(App *app) {
     Shader *ray_comp = find_shader(&game->assets, "RAY");
     init_ray_comp_layout(&ray_comp->set, layouts);
     ray_pipeline.shader = ray_comp;
-    vulkan_create_compute_pipeline(&ray_pipeline);
+    render_create_compute_pipeline(&ray_pipeline);
 
 	// Rendering
     game->camera.position = { 0, 2, -5 };

@@ -322,6 +322,10 @@ void opengl_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32
 
 }
 
+void opengl_create_compute_pipeline(Compute_Pipeline *pipeline) {
+
+}
+
 //
 // Shaders
 //
