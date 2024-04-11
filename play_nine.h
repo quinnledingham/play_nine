@@ -84,6 +84,7 @@ struct Player_Card {
 
 struct Player {
     char name[MAX_NAME_SIZE];
+    Bitmap name_plate;
     s32 scores[MAX_HOLES];
 
     u32 cards[HAND_SIZE];     // indices to global deck array

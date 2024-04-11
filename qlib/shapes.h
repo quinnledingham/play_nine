@@ -3,6 +3,7 @@
 
 Render_Pipeline basic_pipeline;
 Render_Pipeline color_pipeline;
+Render_Pipeline text_pipeline;
 Compute_Pipeline ray_pipeline;
 
 //

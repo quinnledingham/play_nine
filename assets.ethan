@@ -14,6 +14,9 @@ COLOR|FRAGMENT,   color.frag
 TEXTURE|VERTEX,   2D.vert
 TEXTURE|FRAGMENT, texture.frag
 
+TEXT3D|VERTEX,      basic.vert
+TEXT3D|FRAGMENT,    text.frag
+
 RAY|COMPUTE, ray.comp
 
 BITMAPS:

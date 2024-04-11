@@ -519,6 +519,9 @@ draw_shape(Shape shape) {
 
 void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color) {
     float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
+    if (scale == 0.0f)
+        return;
+
     float32 string_x_coord = 0.0f;
 
     float32 current_point = coords.x;

@@ -11,6 +11,7 @@ struct App_Window {
 	};
 	float32 aspect_ratio;
 	bool8 resized;
+	bool8 minimized;
 };
 
 global Vector2_s32 window_dim;
@@ -70,6 +71,7 @@ struct App {
 	App_Window window;
 	App_Time time;
 	App_Input input;
+	Bitmap *icon;
 
 	bool8 (*update)(App *app);
 

@@ -192,6 +192,14 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
 						    dx12_resize_window(&dx12_renderer, window);
 						#endif // OPENGL / DX12
                     } break;
+
+                    case SDL_WINDOWEVENT_MINIMIZED: {
+                        app->window.minimized = true;
+                    } break;
+
+                    case SDL_WINDOWEVENT_RESTORED: {
+                        app->window.minimized = false;
+                    } break;
                 }
             } break;
 
@@ -251,6 +259,13 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
 	return false;
 }
 
+internal void
+sdl_set_icon(Bitmap *icon, SDL_Window *sdl_window) {
+    SDL_Surface *icon_surface = SDL_CreateRGBSurfaceFrom(icon->memory, icon->dim.width, icon->dim.height, 32, icon->pitch, 0x00000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+    SDL_SetWindowIcon(sdl_window, icon_surface);
+    SDL_FreeSurface(icon_surface);
+}
+
 int main(int argc, char *argv[]) {
 	print("starting application...\n");
 
@@ -291,12 +306,9 @@ int main(int argc, char *argv[]) {
     if (event_handler(&app, APP_INIT, 0) == 1)
         return 1;
 
-    srand(SDL_GetTicks());
+    sdl_set_icon(app.icon, sdl_window);
 
-    State *state = (State *)app.data;
-    Bitmap *icon = find_bitmap(&state->assets, "ICON");
-    SDL_Surface *icon_surface = SDL_CreateRGBSurfaceFrom(icon->memory, icon->dim.width, icon->dim.height, 32, icon->pitch, 0x00000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
-    SDL_SetWindowIcon(sdl_window, icon_surface);
+    srand(SDL_GetTicks());
 
     while (1) {
         if (app.input.relative_mouse_mode) 
@@ -313,6 +325,9 @@ int main(int argc, char *argv[]) {
         //print("%f\n", app.time.run_time_s);
 
         window_dim = app.window.dim;
+
+        if (app.window.minimized)
+            continue;
 
         if (app.update(&app))
             break;

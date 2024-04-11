@@ -114,8 +114,12 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
 
     float32 current_point = 0.0f;
 
+    s32 top = 0;
+    s32 bottom = 0;
+
     s32 height = 0;
     float32 left = 0.0f;
+    float32 baseline = 0.0f;
 
     u32 i = 0;
     while (str[i] != 0 ) {
@@ -123,18 +127,27 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
         Font_Char *font_char = fbitmap->font_char;
 
         Vector2 char_coords = { current_point + (font_char->lsb * scale), (float32)fbitmap->bb_0.y };
-        s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
+        //s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
+        //s32 char_height = fbitmap->bitmap.height;
 
-        if (char_height > height)
-            height = char_height;
+        if (fbitmap->bb_0.y < top)
+            top = fbitmap->bb_0.y;
+        if (fbitmap->bb_1.y > bottom)
+            bottom = fbitmap->bb_1.y;
+
         if (char_coords.x < 0)
             left = char_coords.x;
+
+        if ((float32)-fbitmap->bb_0.y > baseline)
+            baseline = (float32)-fbitmap->bb_0.y;
 
         s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
         current_point += scale * (kern + font_char->ax);
         
         i++;
     }
+
+    height = bottom - top;
 
     bitmap.width = s32(current_point - left);
     bitmap.height = s32(height);
@@ -150,9 +163,9 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
         Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
         Font_Char *font_char = fbitmap->font_char;
 
-        s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
-        Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, ((float32)height / 2.0f) - ((float32)char_height / 2.0f)};
-
+        s32 char_height = fbitmap->bitmap.height;
+        //Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, ((float32)height / 2.0f) - ((float32)char_height / 2.0f)};
+        Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, baseline + (float32)fbitmap->bb_0.y };
         copy_blend_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords), { 0, 0, 0 });
 
         s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
@@ -398,8 +411,9 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
         }
     }
 
-    float32 center_of_piles_z = -active_player_position.x + 6.0f;
+    // move piles closer to player
 
+    float32 center_of_piles_z = -active_player_position.x + 6.0f;
     pile_coords.z = center_of_piles_z;
     discard_pile_coords.z = center_of_piles_z;
     selected_card_coords.z = center_of_piles_z + selected_card_coords.z;
@@ -469,7 +483,10 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
     Model *card_model = find_model(assets, "CARD");
 
     if (!highlight) {
+        // Skybox
         draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
+
+        // Table
         render_bind_pipeline(&basic_pipeline);
         render_bind_descriptor_set(texture_desc);
 
@@ -482,7 +499,47 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
         for (u32 i = 0; i < model->meshes_count; i++) { 
             render_draw_mesh(&model->meshes[i]);
         }
+    
+        render_bind_pipeline(&text_pipeline);
+        render_bind_descriptor_set(light_set);
+
+        // Name Plate
+        Game_Draw *draw = &state->game_draw;
+        for (u32 i = 0; i < game->num_of_players; i++) {
+            if (game->players[i].name_plate.gpu_info == 0)
+                continue;
+
+            float32 degrees = (draw->degrees_between_players * i) - 90.0f;
+            float32 rad = degrees * DEG2RAD; 
+            Vector4 name_plate_color = { 255, 255, 255, 1 };
+            Object object = {};
+
+            Descriptor bitmap_desc = render_get_descriptor_set(&layouts[2]);
+            object.index = render_set_bitmap(&bitmap_desc, &game->players[i].name_plate);
+            render_bind_descriptor_set(bitmap_desc);
+
+            Descriptor color_set_2 = render_get_descriptor_set(&layouts[4]);
+            render_update_ubo(color_set_2, (void *)&name_plate_color);
+            render_bind_descriptor_set(color_set_2);
+
+            Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, i);
+            position += normalized(position) * 4.1f;
+
+            Vector3 scale = {(float32)game->players[i].name_plate.width / 250.0f, (float32)game->players[i].name_plate.height / 250.0f, 1.0f};
+            position.y = 0.1f;
+
+            Quaternion rot = get_rotation(-90.0f * DEG2RAD, { 1, 0, 0 });
+            rot = rot * get_rotation(rad, { 0, 1, 0 });
+            object.model = create_transform_m4x4(position, rot, scale);
+            render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+
+            render_draw_mesh(&shapes.rect_3D_mesh);
+        }
     }
+
+    render_bind_pipeline(&basic_pipeline);
+    render_bind_descriptor_set(light_set);
+    render_bind_descriptor_set(texture_desc);
 
     Player *active_player = &game->players[game->active_player];
     enum Turn_Stages stage = active_player->turn_stage;
@@ -598,6 +655,15 @@ start_hole(Game *game) {
 
 internal void
 start_game(Game *game, u32 num_of_players) {
+    for (u32 i = 0; i < num_of_players; i++) {
+        if (game->players[i].name_plate.gpu_info != 0) {
+            platform_free(game->players[i].name_plate.memory);
+            render_delete_texture(&game->players[i].name_plate);
+        }
+
+        game->players[i].name_plate = create_string_into_bitmap(default_font, 350.0f, game->players[i].name);
+        render_create_texture(&game->players[i].name_plate, TEXTURE_PARAMETERS_CHAR);
+    }
     game->holes_played = 0;
     game->starting_player = 0;
     game->num_of_players = num_of_players;
@@ -616,12 +682,18 @@ reset_game(Game *game) {
 internal float32
 get_draw_radius(u32 num_of_players, float32 hand_width, float32 card_height) {
     if (num_of_players == 2) {
-        return 2.0f * card_height + 0.2f;
-    }
+        return 2.0f * card_height;
+    } 
 
     float32 angle = (360.0f / float32(num_of_players)) / 2.0f;
     float32 radius = (hand_width / 2.0f) / tanf(angle * DEG2RAD);
-    return radius + card_height + 0.1f;
+    radius += card_height + 0.1f;
+
+    if (num_of_players == 3) {
+        radius += 1.0f;
+    }
+
+    return radius;
 }
 
 internal Game
@@ -1062,9 +1134,9 @@ bool8 update_game(State *state, App *app) {
                 state->camera_mode = FREE_CAMERA;
                 app->input.relative_mouse_mode = true;
 
-                state->camera.position = Vector3{ 0, 0, 1 };
-                state->camera.yaw = 270.0f;
-                state->camera.pitch = 0.0f;
+                //state->camera.position = Vector3{ 0, 0, 1 };
+                //state->camera.yaw = 270.0f;
+                //state->camera.pitch = 0.0f;
                 break;
             }
         } break;
@@ -1164,15 +1236,20 @@ bool8 update_game(State *state, App *app) {
                 deg = draw->rotation;
             }
 
-            float32 cam_dis = 8.0f + draw->radius;
+            float32 cam_dis = 9.56f + draw->radius;
+            //float32 cam_dis = 15.96f;
             deg += rotation_degrees;
             float32 rad = deg * DEG2RAD;
             float32 x = cam_dis * cosf(rad);
             float32 y = cam_dis * sinf(rad);
-
+/*
             state->camera.position =  Vector3{ x, 14.0f, y };
             state->camera.yaw      = deg + 180.0f;
-            state->camera.pitch    = -51.0f;
+            state->camera.pitch    = -54.5f;
+*/
+            state->camera.position =  Vector3{ x, 11.85f, y };
+            state->camera.yaw      = deg + 180.0f;
+            state->camera.pitch    = -45.5f;
 
             update_camera_target(&state->camera);    
         } break;
@@ -1196,7 +1273,7 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&game->assets, "../assets.ethan"))
@@ -1266,6 +1343,13 @@ bool8 init_data(App *app) {
     color_pipeline.shader = color_3D;
     color_pipeline.depth_test = true;
     render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
+
+    Shader *text_3D = find_shader(&game->assets, "TEXT3D");
+    init_basic_vert_layout(&text_3D->set, layouts);
+    init_text_frag_layout(text_3D, layouts);
+    text_pipeline.shader = text_3D;
+    text_pipeline.depth_test = true;
+    render_create_graphics_pipeline(&text_pipeline, get_vertex_xnu_info());
 
     Shader *ray_comp = find_shader(&game->assets, "RAY");
     init_ray_comp_layout(&ray_comp->set, layouts);
@@ -1525,7 +1609,7 @@ bool8 update(App *app) {
             float32 pixel_height = app->window.dim.x / 20.0f;
             float32 padding = 10.0f;
             Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
-            draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - padding, padding }, pixel_height, { 255, 255, 255, 1 });
+            //draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - padding, padding }, pixel_height, { 255, 255, 255, 1 });
 
             draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { padding, padding }, pixel_height, { 255, 255, 255, 1 });
 
@@ -1596,6 +1680,8 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             app->update = &update;
             if (init_data(app))
                 return 1;
+            State *state = (State *)app->data;
+            app->icon = find_bitmap(&state->assets, "ICON");
         } break;
 
         case APP_EXIT: {

@@ -4,8 +4,8 @@ layout(set = 1, binding = 1) uniform Color {
     vec4 c;
 } color;
 
-layout(location = 0) in vec2 fragTexCoord;
-layout(location = 1) flat in int fragIndex;
+layout(location = 1) in vec2 fragTexCoord;
+layout(location = 3) flat in int fragIndex;
 
 layout(location = 0) out vec4 outColor;
 
