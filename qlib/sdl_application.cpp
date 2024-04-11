@@ -243,7 +243,7 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
                 SDL_KeyboardEvent *keyboard_event = &event.key;
                 u32 key_id = keyboard_event->keysym.sym;
                 event_handler(app, APP_KEYUP, key_id);
-            } break;
+            } break;    
 		}
 	}
 
@@ -307,7 +307,8 @@ int main(int argc, char *argv[]) {
     	if (sdl_process_input(&app, &app.window, &app.input)) 
             break;
         
-    	sdl_update_time(&app.time);
+
+        sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
         //print("%f\n", app.time.run_time_s);
 
@@ -316,6 +317,8 @@ int main(int argc, char *argv[]) {
         if (app.update(&app))
             break;
 
+
+        
         //SDL_Delay(5);
     }
 

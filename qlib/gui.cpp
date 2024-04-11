@@ -478,7 +478,8 @@ add_onscreen_notification(Onscreen_Notifications *n, const char *not) {
 internal void
 update_onscreen_notifications(Onscreen_Notifications *n, float32 frame_time_s) {
     for (u32 i = 0; i < n->lines; i++) {
-        n->times[i] -= frame_time_s;
+        if (frame_time_s < 1.0f)
+            n->times[i] -= frame_time_s;
 
         n->colors[i].a = n->times[i];
 

@@ -363,6 +363,8 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
             state->is_client = true;
 
             client_set_name(state->client, state->name);
+        } else {
+            add_onscreen_notification(&state->notifications, "Unable to join");
         }
     }
     if (menu_button(menu, "Back", *input, { 1, 4 }, { 1, 1 })) {

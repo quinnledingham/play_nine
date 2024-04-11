@@ -4,12 +4,9 @@ TODO
 
 - Flip "animation"
 - Show keyboard controls
-- View cards with mouse (spinning around at the end of the game)
 - Make face cards
 
 - Fix online drawing (rotation) (Just leave the cam infront of the client cards)
-
-- Change how ingame menus work?
 
 Slight Problems
 - Make assets packing better
@@ -145,6 +142,8 @@ struct Game_Draw {
     Rotation camera_rotation;
 
     float32 rotation_speed;
+    float32 rotation; // for in hole over state
+    Vector2_s32 mouse_down;
 
     float32 degrees_between_players;
     float32 radius;

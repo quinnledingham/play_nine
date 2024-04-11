@@ -629,6 +629,7 @@ get_test_game() {
     Game game = {};
     game.num_of_players = 6;
     game.holes_played = 4;
+    game.round_type = HOLE_OVER;
 
     for (u32 i = 0; i < game.num_of_players; i++) {
         default_player_name_string(game.players[i].name, i);
@@ -1072,11 +1073,32 @@ bool8 update_game(State *state, App *app) {
     // Game update
     switch(state->camera_mode) {
         case PLAYER_CAMERA: {
-            // Game input                      
-            if (on_down(state->controller.right)) {
-                next_player(game, &state->game_draw);
-            }
+            // Game input
+            if (game->round_type == HOLE_OVER) {
+                float32 rot_speed = 100.0f * (float32)app->time.frame_time_s;
+                float32 mouse_rot_speed = 50.0f * (float32)app->time.frame_time_s;
 
+                if (is_down(state->controller.right)) {
+                    draw->rotation += rot_speed;
+                }
+
+                if (is_down(state->controller.left)) {
+                    draw->rotation -= rot_speed;
+                }
+
+                if (on_down(state->controller.mouse_left)) {
+                    draw->mouse_down = app->input.mouse;
+                }
+
+                if (is_down(state->controller.mouse_left)) {
+                    float32 x_delta = float32(app->input.mouse.x - draw->mouse_down.x);
+                    draw->rotation -= (x_delta * mouse_rot_speed);
+                    draw->mouse_down = app->input.mouse;
+                }
+                
+                break; // don't need to check game input or no game logic if hole over
+            } 
+    
             bool8 selected[SELECTED_SIZE] = {};
             if (state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) {
                 do_mouse_selected_update(state, app, selected);
@@ -1136,9 +1158,13 @@ bool8 update_game(State *state, App *app) {
 
         case PLAYER_CAMERA: {
             // update camera after game logic
+            
+            float32 deg = -draw->degrees_between_players * game->active_player;
+            if (game->round_type == HOLE_OVER) {
+                deg = draw->rotation;
+            }
 
             float32 cam_dis = 8.0f + draw->radius;
-            float32 deg = -draw->degrees_between_players * game->active_player;
             deg += rotation_degrees;
             float32 rad = deg * DEG2RAD;
             float32 x = cam_dis * cosf(rad);
@@ -1291,7 +1317,7 @@ bool8 init_data(App *app) {
     
     init_shapes(&game->assets);
 
-    clean_assets(&game->assets);
+    //clean_assets(&game->assets);
 
     game->game_draw.rotation_speed = 150.0f;
     game->camera_mode = PLAYER_CAMERA;
@@ -1519,6 +1545,7 @@ bool8 update(App *app) {
                     if (gui_button(&gui, default_style, "Proceed", default_font, { app->window.dim.x - pass_width, 5 + text_dim.y + 50 }, { pass_width, pixel_height }, button_input)) {
                         state->menu_list.mode = SCOREBOARD_MENU;
                         state->menu_list.scoreboard.initialized = false;
+                        state->game_draw.rotation = 0.0f;
                     }
                 }
 
