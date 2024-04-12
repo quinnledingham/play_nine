@@ -42,6 +42,7 @@ struct Play_Nine_Packet {
     enum Menu_Mode mode;
     char buffer[BUFFER_SIZE];
     bool8 selected[SELECTED_SIZE];
+    Rotation pile_rotation;
 };
 
 Play_Nine_Online online = {};

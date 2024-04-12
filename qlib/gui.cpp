@@ -216,9 +216,15 @@ menu_get_state(Menu *menu, Menu_Input input,
 
     return state;
 }
+/*
+void
+ui_button(UI *ui, Vector2 coords, Vector2 dim, const char *text) {
+
+}
+*/
 
 internal bool8
-gui_button(GUI *gui, Draw_Style style, const char *text, Font *font, Vector2 coords, Vector2 dim, Button_Input input) {
+gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2 dim) {
     Draw_Button button = {
         style,
         GUI_DEFAULT,
@@ -226,22 +232,22 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Font *font, Vector2 coo
         coords,
         dim,
 
-        font,
+        gui->font,
         text
     };
 
     u32 state = GUI_DEFAULT;
 
     Button gui_select = {};
-    if (input.active_input_type == KEYBOARD_INPUT) {
-        gui_select = input.select;
+    if (gui->input.active_input_type == KEYBOARD_INPUT) {
+        gui_select = gui->input.select;
 
         if (gui->hover == 0)
             gui->hover = 1;
-    } else if (input.active_input_type == MOUSE_INPUT) {
-        gui_select = input.mouse_left;
+    } else if (gui->input.active_input_type == MOUSE_INPUT) {
+        gui_select = gui->input.mouse_left;
 
-        if (coords_in_rect(input.mouse, coords, dim)) {
+        if (coords_in_rect(gui->input.mouse, coords, dim)) {
             gui->hover = gui->index;
         } else if (gui->hover == gui->index) {
             gui->hover = 0;

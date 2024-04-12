@@ -82,6 +82,7 @@ play_nine_server_com(void *parameters) {
                 return_packet.type = SET_GAME;
                 return_packet.mode = state->menu_list.mode;
                 return_packet.game_index = player->game_index;
+                return_packet.pile_rotation = state->game_draw.camera_rotation;
                 platform_memory_copy(return_packet.buffer, &state->game, sizeof(Game));
                 win32_send(player->sock, (const char *)&return_packet, sizeof(return_packet), 0);
             } break;
@@ -185,6 +186,7 @@ client_get_game(QSock_Socket sock, State *state) {
                 if (state->menu_list.mode != PAUSE_MENU)
                     state->menu_list.mode = recv_packet->mode;
                 state->client_game_index = recv_packet->game_index;
+                state->game_draw.camera_rotation = recv_packet->pile_rotation;
             } break;
             
             case CLOSE_CONNECTION: {

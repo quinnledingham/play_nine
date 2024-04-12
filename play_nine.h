@@ -48,6 +48,7 @@ global const Vector4 play_nine_dark_yellow = { 197, 180, 22, 1 };
 const Vector4 highlight_colors[3] = { play_nine_yellow, play_nine_light_yellow, play_nine_dark_yellow };
 
 Assets *global_assets;
+Descriptor texture_desc = {}; // card textures
 
 enum Round_Types {
     FLIP_ROUND,
@@ -155,7 +156,7 @@ struct Game_Draw {
     bool8 highlight_hover[SELECTED_SIZE];
     bool8 highlight_pressed[SELECTED_SIZE];
 
-    Bitmap name_plate[6];
+    Bitmap name_plates[6];
 };
 
 enum Menu_Mode {
@@ -201,10 +202,9 @@ struct State {
     char port[TEXTBOX_SIZE] = "4444";
 
     bool8 is_server;
-
     bool8 is_client;
     QSock_Socket client;
-    u32 client_game_index;
+    u32 client_game_index; // what player index in game for the local player
 
     bool8 selected[SELECTED_SIZE];
     s64 selected_mutex;

@@ -19,7 +19,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "play_nine_input.h"
 #include "play_nine.h"
 
-#include "raytrace.cpp"
+#include "play_nine_raytrace.cpp"
 
 internal void
 default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
@@ -49,274 +49,6 @@ remove_player(Game *game, u32 index) {
     game->num_of_players--;
 }
 
-#include "play_nine_online.cpp"
-#include "play_nine_bitmaps.cpp"
-
-//
-// drawing card
-//
-
-internal void
-rotate_coords(Vector3 *coords, float32 rad) {
-    *coords = { 
-         cosf(rad) * coords->x + sinf(rad) * coords->z, 
-         coords->y, 
-        -sinf(rad) * coords->x + cosf(rad) * coords->z 
-    };
-}
-
-// -deg: negative because I want to go counter clockwise but still
-// have degrees between players be positive
-internal Vector3
-get_hand_position(float32 hyp, float32 deg, u32 i) {
-    float32 rad = -deg * DEG2RAD;
-    Vector3 position = { 0, 0, 0 };
-    position.x = hyp * cosf(i * rad);
-    position.z = hyp * sinf(i * rad);
-    return position;
-}
-
-internal float32
-process_rotation(Rotation *rot, float32 seconds) {
-    if (!rot->rotating)
-        return rot->dest_degrees;
-
-    if (rot->speed > 0.0f) {
-        if (rot->degrees < rot->dest_degrees) {
-            rot->degrees += (seconds * rot->speed);
-
-            if (rot->degrees > rot->dest_degrees)
-                rot->degrees = rot->dest_degrees;
-        } else {
-            rot->rotating = false;
-        }
-    } else if (rot->speed < 0.0f) { 
-        if (rot->degrees > rot->dest_degrees) {
-            rot->degrees += (seconds * rot->speed);
-
-            if (rot->degrees < rot->dest_degrees)
-                rot->degrees = rot->dest_degrees;
-        } else {
-            rot->rotating = false;
-        }
-    }
-
-    return rot->degrees;
-}
-
-internal Matrix_4x4
-load_card_model(bool8 flipped, Vector3 position, float32 rads, Vector3 scale) {
-    Quaternion rotation = get_rotation(rads, {0, 1, 0});
-    if (!flipped) {
-        Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
-        rotation = flip * rotation;
-        position.y += (0.101767f * scale.y); // Hardcoded card.obj height
-        return create_transform_m4x4(position, rotation, scale);
-    } else
-        return create_transform_m4x4(position, rotation, scale);
-}
-
-internal float32
-get_pile_y_scale(u32 cards) {
-    float32 max_y_scale = 10.0f;
-    float32 min_y_scale = 0.5f;
-    float32 percent = float32(cards) / float32(DECK_SIZE);
-    return (max_y_scale * percent) + min_y_scale;
-}
-
-internal void
-load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
-    Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
-    Vector3 selected_card_coords = {0.0f, 1.0f, -2.7f};
-    Vector3 pile_coords          = { -1.1f, 0.0f, -2.0f };
-    Vector3 discard_pile_coords  = {  1.1f, 0.0f, 0 };
-
-    Vector3 active_player_position = {};
-
-    for (u32 i = 0; i < game->num_of_players; i++) {
-        float32 degrees = (draw->degrees_between_players * i) - 90.0f;
-        float32 rad = degrees * DEG2RAD; 
-        Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, i);
-        
-        if (i == 0)
-            active_player_position = position;
-
-        // draw player cards    
-        for (u32 card_index = 0; card_index < 8; card_index++) {
-            Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
-            rotate_coords(&card_pos, rad);
-            card_pos += position;
-            game->players[i].models[card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, rad, card_scale);
-        }
-    }
-
-    // move piles closer to player
-
-    float32 center_of_piles_z = -active_player_position.x + 6.0f;
-    pile_coords.z = center_of_piles_z;
-    discard_pile_coords.z = center_of_piles_z;
-    selected_card_coords.z = center_of_piles_z + selected_card_coords.z;
-
-    // draw card selected from pile
-    float32 degrees = (draw->degrees_between_players * game->active_player) - 90.0f;
-    float32 rad = degrees * DEG2RAD; 
-    if (game->players[game->active_player].turn_stage == SELECT_CARD) {
-        rotate_coords(&selected_card_coords, rad);
-        game->players[game->active_player].new_card_model = load_card_model(true, selected_card_coords, rad, card_scale);
-    }
-
-    float32 rotation_rads = (degrees - rotation_degrees) * DEG2RAD;
-
-    //Vector3 dir = normalized(active_player_position);
-
-    rotate_coords(&pile_coords, rotation_rads);
-    rotate_coords(&discard_pile_coords, rotation_rads);
-
-    // pile
-    {
-        float32 pile_y_scale = get_pile_y_scale(DECK_SIZE - game->top_of_pile);
-        game->top_of_pile_model = load_card_model(false, pile_coords, rotation_rads, {1.0f, pile_y_scale, 1.0f});
-    }
-
-    // discard pile
-    if (game->top_of_discard_pile != 0) {
-        float32 pile_y_scale = get_pile_y_scale(game->top_of_discard_pile);
-        game->top_of_discard_pile_model = load_card_model(true, discard_pile_coords, rotation_rads, {1.0f, pile_y_scale, 1.0f});
-    }
-}
-
-internal void
-draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color, bool8 flipped) {
-    u32 bitmap_index = number;
-    if (number == -5)
-        bitmap_index = 13;
-
-    if (highlight) {
-        Matrix_4x4 model_scale = m4x4_scale(model, { 1.06f, 1.06f, 1.06f });
-        render_draw_model(card_model, &color_pipeline, highlight_color, model_scale);
-    }
-
-    render_draw_model(card_model, color_set, indices[bitmap_index], indices[14], model, flipped);
-} 
-
-internal Vector4
-get_highlight_color(Game_Draw *draw, u32 index) {
-    Vector4 highlight_color = highlight_colors[0];
-    if (draw->highlight_hover[index])
-        highlight_color = highlight_colors[1];
-    if (draw->highlight_pressed[index])
-        highlight_color = highlight_colors[2];
-    return highlight_color;
-}
-
-internal void
-draw_name_plates(Game *game, Game_Draw *draw) {
-    for (u32 i = 0; i < game->num_of_players; i++) {
-        if (game->players[i].name[0] == 0)
-            continue;
-
-        float32 degrees = (draw->degrees_between_players * i) - 90.0f;
-        float32 rad = degrees * DEG2RAD; 
-        Vector4 name_plate_color = { 255, 255, 255, 1 };
-        Object object = {};
-
-        Descriptor bitmap_desc = render_get_descriptor_set(&layouts[2]);
-        object.index = render_set_bitmap(&bitmap_desc, &draw->name_plate[i]);
-        render_bind_descriptor_set(bitmap_desc);
-
-        Descriptor color_set_2 = render_get_descriptor_set(&layouts[4]);
-        render_update_ubo(color_set_2, (void *)&name_plate_color);
-        render_bind_descriptor_set(color_set_2);
-
-        Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, i);
-        position += normalized(position) * 4.1f;
-
-        Vector3 scale = {(float32)draw->name_plate[i].width / 250.0f, (float32)draw->name_plate[i].height / 250.0f, 1.0f};
-        position.y = 0.1f;
-
-        Quaternion rot = get_rotation(-90.0f * DEG2RAD, { 1, 0, 0 });
-        rot = rot * get_rotation(rad, { 0, 1, 0 });
-        object.model = create_transform_m4x4(position, rot, scale);
-        render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-
-        render_draw_mesh(&shapes.rect_3D_mesh);
-    }
-}
-
-//      180
-// 270        90
-//       0
-internal void
-draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highlight, s32 indices[16]) {
-    Descriptor color_set = render_get_descriptor_set(&layouts[5]);
-
-    Vector4 color = { 150, 150, 150, 1 };
-    render_update_ubo(color_set, &color);
-
-    Model *card_model = find_model(assets, "CARD");
-
-    if (!highlight) {
-        // Skybox
-        draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
-
-        // Table
-        render_bind_pipeline(&basic_pipeline);
-        render_bind_descriptor_set(texture_desc);
-
-        Object object = {};
-        object.model = create_transform_m4x4({ 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }), {15.0f, 1.0f, 15.0f});
-        object.index = indices[15];
-        render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
-
-        Model *model = find_model(assets, "TABLE");
-        for (u32 i = 0; i < model->meshes_count; i++) { 
-            render_draw_mesh(&model->meshes[i]);
-        }
-    
-        render_bind_pipeline(&text_pipeline);
-        render_bind_descriptor_set(light_set);
-
-        // Name Plate
-        draw_name_plates(game, &state->game_draw);
-    }
-
-    render_bind_pipeline(&basic_pipeline);
-    render_bind_descriptor_set(light_set);
-    render_bind_descriptor_set(texture_desc);
-
-    Player *active_player = &game->players[game->active_player];
-    enum Turn_Stages stage = active_player->turn_stage;
-
-    for (u32 i = 0; i < game->num_of_players; i++) {
-        for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
-            s32 card = deck[game->players[i].cards[card_index]];
-            bool8 h = highlight && i == game->active_player;
-            switch (stage) {
-                case SELECT_PILE: h = false; break;
-                case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;
-            }
-
-            draw_card(card_model, color_set, indices, card, game->players[i].models[card_index], h, get_highlight_color(&state->game_draw, card_index), game->players[i].flipped[card_index]);
-        }
-    }
-    
-    {
-        bool8 h = highlight && stage == SELECT_PILE;
-        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(&state->game_draw, PICKUP_PILE), false);
-    }
-
-    if (game->top_of_discard_pile != 0) {
-        bool8 h = highlight && (stage == SELECT_PILE || stage == SELECT_CARD);
-        if (stage == SELECT_CARD && !game->players[game->active_player].pile_card)
-            h = false;
-        draw_card(card_model, color_set, indices, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(&state->game_draw, DISCARD_PILE), true);
-    }
-
-    if (stage == SELECT_CARD) {
-        s32 card = deck[game->players[game->active_player].new_card];
-        draw_card(card_model, color_set, indices, card, game->players[game->active_player].new_card_model, false, play_nine_yellow, true);
-    }
-}
 
 internal void
 init_deck() {
@@ -385,21 +117,6 @@ deal_cards(Game *game) {
 }
 
 internal void
-load_name_plates(Game *game, Game_Draw *draw) {
-    for (u32 i = 0; i < game->num_of_players; i++) {
-        if (draw->name_plate[i].gpu_info != 0) {
-            platform_free(draw->name_plate[i].memory);
-            render_delete_texture(&draw->name_plate[i]);
-        }
-
-        draw->name_plate[i] = create_string_into_bitmap(default_font, 350.0f, game->players[i].name);
-        render_create_texture(&draw->name_plate[i], TEXTURE_PARAMETERS_CHAR);
-    }
-
-    game->name_plates_loaded = true;
-}
-
-internal void
 start_hole(Game *game) {
     game->top_of_pile = 0;
     game->top_of_discard_pile = 0;
@@ -462,6 +179,9 @@ get_test_game() {
     return game;
 }
 
+#include "play_nine_online.cpp"
+#include "play_nine_bitmaps.cpp"
+#include "play_nine_draw.cpp"
 #include "play_nine_menus.cpp"
 
 //
@@ -979,23 +699,24 @@ bool8 update_game(State *state, App *app) {
 
         case PLAYER_CAMERA: {
             // update camera after game logic
-            
-            float32 deg = -draw->degrees_between_players * game->active_player;
-            if (game->round_type == HOLE_OVER) {
-                deg = draw->rotation;
+            float32 deg = 0.0f;
+
+            if (!state->is_server && !state->is_client) {
+                deg = -draw->degrees_between_players * game->active_player;
+                deg += rotation_degrees;
+            } else {
+                deg = -draw->degrees_between_players * state->client_game_index;
             }
 
-            float32 cam_dis = 9.56f + draw->radius;
-            //float32 cam_dis = 15.96f;
-            deg += rotation_degrees;
+            if (game->round_type == HOLE_OVER) {
+                deg = draw->rotation; // draw->rotation is set above
+            }
+            
             float32 rad = deg * DEG2RAD;
+            float32 cam_dis = 9.56f + draw->radius;
             float32 x = cam_dis * cosf(rad);
             float32 y = cam_dis * sinf(rad);
-/*
-            state->camera.position =  Vector3{ x, 14.0f, y };
-            state->camera.yaw      = deg + 180.0f;
-            state->camera.pitch    = -54.5f;
-*/
+
             state->camera.position =  Vector3{ x, 11.85f, y };
             state->camera.yaw      = deg + 180.0f;
             state->camera.pitch    = -45.5f;
@@ -1018,16 +739,16 @@ https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#qu
 
 bool8 init_data(App *app) {
 	app->data = platform_malloc(sizeof(State));
-    State *game = (State *)app->data;
-    *game = {};
-	game->assets = {};
+    State *state = (State *)app->data;
+    *state = {};
+	state->assets = {};
 
-    global_assets = &game->assets;
+    global_assets = &state->assets;
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
-        if (load_assets(&game->assets, "../assets.ethan"))
+        if (load_assets(&state->assets, "../assets.ethan"))
             return true;
     } else {
         const char *filepath = "assets.save";
@@ -1037,13 +758,13 @@ bool8 init_data(App *app) {
         // const char *filepath = "river.exe";
         // u32 offset = exe_offset;
 
-        if (load_saved_assets(&game->assets, filepath, offset))
+        if (load_saved_assets(&state->assets, filepath, offset))
             return 1;
     }
 
-    init_assets(&game->assets);
+    init_assets(&state->assets);
 
-    default_font = find_font(&game->assets, "CASLON");
+    default_font = find_font(&state->assets, "CASLON");
 
     print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 
@@ -1060,105 +781,104 @@ bool8 init_data(App *app) {
             const char *tag = "carb";
             platform_memory_copy((void*)asset->tag, (void*)tag, 4);
         };
-        add_assets(&game->assets, card_assets, 14);
-        //print_assets(&game->assets);
+        add_assets(&state->assets, card_assets, 14);
+        //print_assets(&state->assets);
 
         FILE *file = fopen("assets.save", "wb");
-        save_assets(&game->assets, file);
+        save_assets(&state->assets, file);
         fclose(file);
     } else {
         for (u32 i = 0; i < 14; i++) {
-            card_bitmaps[i] = game->assets.types[0].data[i + 3].bitmap;
+            card_bitmaps[i] = state->assets.types[0].data[i + 3].bitmap;
         }
     }
 
-    default_font = find_font(&game->assets, "CASLON");
+    default_font = find_font(&state->assets, "CASLON");
 
     //clear_font_bitmap_cache(default_font);
     
-    global_assets = &game->assets;
-    init_layouts(layouts, find_bitmap(&game->assets, "DAVID"));
+    global_assets = &state->assets;
+    init_layouts(layouts, find_bitmap(&state->assets, "DAVID"));
 
     u32 test = sizeof(Layout_Set);
 
-	Shader *basic_3D = find_shader(&game->assets, "BASIC3D");
+	Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
     init_basic_vert_layout(&basic_3D->set, layouts);
     init_basic_frag_layout(basic_3D, layouts);
     basic_pipeline.shader = basic_3D;
     basic_pipeline.depth_test = true;
 	render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
 	
-    Shader *color_3D = find_shader(&game->assets, "COLOR3D");
+    Shader *color_3D = find_shader(&state->assets, "COLOR3D");
     init_basic_vert_layout(&color_3D->set, layouts);
     init_color3D_frag_layout(color_3D, layouts);
     color_pipeline.shader = color_3D;
     color_pipeline.depth_test = true;
     render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
 
-    Shader *text_3D = find_shader(&game->assets, "TEXT3D");
+    Shader *text_3D = find_shader(&state->assets, "TEXT3D");
     init_basic_vert_layout(&text_3D->set, layouts);
     init_text_frag_layout(text_3D, layouts);
     text_pipeline.shader = text_3D;
     text_pipeline.depth_test = true;
     render_create_graphics_pipeline(&text_pipeline, get_vertex_xnu_info());
 
-    Shader *ray_comp = find_shader(&game->assets, "RAY");
+    Shader *ray_comp = find_shader(&state->assets, "RAY");
     init_ray_comp_layout(&ray_comp->set, layouts);
     ray_pipeline.shader = ray_comp;
     render_create_compute_pipeline(&ray_pipeline);
 
+    init_shapes(&state->assets);
+    //clean_assets(&state->assets);
+
 	// Rendering
-    game->camera.position = { 0, 2, -5 };
-    game->camera.target   = { 0, 0, 0 };
-    game->camera.up       = { 0, -1, 0 };
-    game->camera.fov      = 75.0f;
-    game->camera.yaw      = 180.0f;
-    game->camera.pitch    = -75.0f;
-		
-	set(&game->controller.forward, 'w');
-    set(&game->controller.forward, SDLK_UP);
-	set(&game->controller.backward, SDLK_s);
-    set(&game->controller.backward, SDLK_DOWN);
-	set(&game->controller.left, SDLK_a);
-    set(&game->controller.left, SDLK_LEFT);
-	set(&game->controller.right, SDLK_d);
-    set(&game->controller.right, SDLK_RIGHT);
+    state->camera.position = { 0, 2, -5 };
+    state->camera.target   = { 0, 0, 0 };
+    state->camera.up       = { 0, -1, 0 };
+    state->camera.fov      = 75.0f;
+    state->camera.yaw      = 180.0f;
+    state->camera.pitch    = -75.0f;
+    state->camera_mode = PLAYER_CAMERA;
 
-	set(&game->controller.up, SDLK_SPACE);
-	set(&game->controller.down, SDLK_LSHIFT);
+    //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
+    state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
 
-    set(&game->controller.select, SDLK_RETURN);
-	set(&game->controller.pause,  SDLK_ESCAPE);
-    set(&game->controller.pass,   SDLK_p); 
+    state->ortho_scene.view = identity_m4x4();
+    state->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
 
-    set(&game->controller.camera_toggle, SDLK_c);
+    // Input
+	set(&state->controller.forward, 'w');
+    set(&state->controller.forward, SDLK_UP);
+	set(&state->controller.backward, SDLK_s);
+    set(&state->controller.backward, SDLK_DOWN);
+	set(&state->controller.left, SDLK_a);
+    set(&state->controller.left, SDLK_LEFT);
+	set(&state->controller.right, SDLK_d);
+    set(&state->controller.right, SDLK_RIGHT);
 
-    set(&game->controller.one,   SDLK_y);
-    set(&game->controller.two,   SDLK_u);
-    set(&game->controller.three, SDLK_i);
-    set(&game->controller.four,  SDLK_o);
+	set(&state->controller.up, SDLK_SPACE);
+	set(&state->controller.down, SDLK_LSHIFT);
 
-    set(&game->controller.five,  SDLK_h);
-    set(&game->controller.six,   SDLK_j);
-    set(&game->controller.seven, SDLK_k);
-    set(&game->controller.eight, SDLK_l);
+    set(&state->controller.select, SDLK_RETURN);
+	set(&state->controller.pause,  SDLK_ESCAPE);
+    set(&state->controller.pass,   SDLK_p); 
 
-    set(&game->controller.nine,  SDLK_9);
-    set(&game->controller.zero,  SDLK_0);
+    set(&state->controller.camera_toggle, SDLK_c);
 
-    set(&game->controller.mouse_left, SDL_BUTTON_LEFT);
+    set(&state->controller.one,   SDLK_y);
+    set(&state->controller.two,   SDLK_u);
+    set(&state->controller.three, SDLK_i);
+    set(&state->controller.four,  SDLK_o);
 
-    init_deck();
-    
-    init_shapes(&game->assets);
+    set(&state->controller.five,  SDLK_h);
+    set(&state->controller.six,   SDLK_j);
+    set(&state->controller.seven, SDLK_k);
+    set(&state->controller.eight, SDLK_l);
 
-    //clean_assets(&game->assets);
+    set(&state->controller.nine,  SDLK_9);
+    set(&state->controller.zero,  SDLK_0);
 
-    game->game_draw.rotation_speed = 150.0f;
-    game->camera_mode = PLAYER_CAMERA;
-
-    game->notifications.font = default_font;
-    game->notifications.text_color = { 255, 255, 255, 1 };
+    set(&state->controller.mouse_left, SDL_BUTTON_LEFT);
 
     // Setting default Menus
     Menu default_menu = {};
@@ -1181,25 +901,35 @@ bool8 init_data(App *app) {
     default_style = default_menu.style;
 
     for (u32 i = 0; i < IN_GAME; i++) {
-        game->menu_list.menus[i] = default_menu;
+        state->menu_list.menus[i] = default_menu;
     }
 
+    gui.font = default_font;
+
     // Online
-    game->mutex = win32_create_mutex();
+    state->mutex = win32_create_mutex();
     online.mutex = win32_create_mutex();
-    game->selected_mutex = win32_create_mutex();
+    state->selected_mutex = win32_create_mutex();
 
     Descriptor texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
     for (u32 j = 0; j < 14; j++) {
-        game->indices[j] = render_set_bitmap(&texture_desc, &card_bitmaps[j]);
+        state->indices[j] = render_set_bitmap(&texture_desc, &card_bitmaps[j]);
     }
-    game->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&game->assets, "YOGI"));
-    Model *model = find_model(&game->assets, "TABLE");
-    game->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
+    state->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&state->assets, "YOGI"));
+    Model *model = find_model(&state->assets, "TABLE");
+    state->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
     
-    init_triangles(find_model(&game->assets, "CARD"));
-    
+    // General Game
+
+    init_triangles(find_model(&state->assets, "CARD")); // Fills array on graphics card
+    init_deck();
+
+    state->game_draw.rotation_speed = 150.0f;
+
+    state->notifications.font = default_font;
+    state->notifications.text_color = { 255, 255, 255, 1 };
+
 	return false;
 }
 
@@ -1282,13 +1012,9 @@ bool8 update(App *app) {
     render_set_scissor(0, 0, app->window.width, app->window.height);
 
     state->scene_set = render_get_descriptor_set(&layouts[0]);
-    //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
-    state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
     render_update_ubo(state->scene_set, (void*)&state->scene);
 
     state->scene_ortho_set = render_get_descriptor_set(&layouts[0]);
-    state->ortho_scene.view = identity_m4x4();
-    state->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
     render_update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
     
     render_depth_test(false);
@@ -1338,32 +1064,22 @@ bool8 update(App *app) {
 
         case PAUSE_MENU:
         case IN_GAME: {
-            render_depth_test(true);
-            
-            render_bind_pipeline(&basic_pipeline);
+            draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
 
-            render_bind_descriptor_set(state->scene_set);
-            render_bind_descriptor_set(light_set);
-            render_bind_descriptor_set(texture_desc);
-
-            draw_game(state, &state->assets, basic_3D, &state->game, false, state->indices);
-            render_bind_pipeline(&color_pipeline);
-            //draw_sphere({ 0, 0, 0 }, 0.0f, { 1, 1, 1 }, { 0, 255, 0, 1 });
-            render_depth_test(false);
-
-            if (state->game.round_type != HOLE_OVER)
-                draw_game(state, &state->assets, basic_3D, &state->game, true, state->indices);
-
-            //draw_ray(&state->mouse_ray);
-
+            // depth test already off from draw_game()
             render_bind_descriptor_set(state->scene_ortho_set);
 
             float32 pixel_height = app->window.dim.x / 20.0f;
             float32 padding = 10.0f;
-            //Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
-            //draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - padding, padding }, pixel_height, { 255, 255, 255, 1 });
 
             draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { padding, padding }, pixel_height, { 255, 255, 255, 1 });
+
+            gui.input = {
+                        app->input.active,
+                        state->controller.select,
+                        app->input.mouse,
+                        state->controller.mouse_left
+                    };
 
             Player *active_player = &state->game.players[state->game.active_player];
             if (state->menu_list.mode == PAUSE_MENU) {
@@ -1371,14 +1087,8 @@ bool8 update(App *app) {
             } else if (state->game.round_type == HOLE_OVER) {
 
                 if (!state->is_client) {                
-                    Button_Input button_input = {
-                        app->input.active,
-                        state->controller.select,
-                        app->input.mouse,
-                        state->controller.mouse_left
-                    };
                     float32 pass_width = app->window.dim.x / 7.0f;
-                    if (gui_button(&gui, default_style, "Proceed", default_font, { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height }, button_input)) {
+                    if (gui_button(&gui, default_style, "Proceed", { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height })) {
                         state->menu_list.mode = SCOREBOARD_MENU;
                         state->menu_list.scoreboard.initialized = false;
                         state->game_draw.rotation = 0.0f;
@@ -1386,15 +1096,8 @@ bool8 update(App *app) {
                 }
 
             } else if (active_player->turn_stage == FLIP_CARD && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
-
-                Button_Input button_input = {
-                    app->input.active,
-                    state->controller.select,
-                    app->input.mouse,
-                    state->controller.mouse_left
-                };
                 float32 pass_width = app->window.dim.x / 7.0f;
-                if (gui_button(&gui, default_style, "Pass", default_font, { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height }, button_input)) {
+                if (gui_button(&gui, default_style, "Pass", { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height })) {
                     state->pass_selected = true; // in update_game feed this into selected
                 }
             }
