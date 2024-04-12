@@ -5,7 +5,9 @@ TODO
 - Flip "animation"
 - Show keyboard controls
 - Make face cards
+- Fix always going back to 0 cam rotation in hole over
 
+- Fix online
 - Fix online drawing (rotation) (Just leave the cam infront of the client cards)
 
 Slight Problems
@@ -19,16 +21,16 @@ Render.cpp
 - Fix "skybox" shading
 */
 
-#define PICKUP_PILE 8
-#define DISCARD_PILE 9
-#define PASS_BUTTON 10
+#define PICKUP_PILE    8
+#define DISCARD_PILE   9
+#define PASS_BUTTON   10
 #define SELECTED_SIZE 11
 
-#define MAX_NAME_SIZE 20
-#define HAND_SIZE 8
-#define DECK_SIZE 108
-#define MAX_HOLES 20 // max holes that can be played in one gamed
-#define GAME_LENGTH 2 // play NINE
+#define MAX_NAME_SIZE  20
+#define HAND_SIZE       8
+#define DECK_SIZE     108
+#define MAX_HOLES      20 // max holes that can be played in one gamed
+#define GAME_LENGTH     2 // play NINE
 
 global s8 deck[DECK_SIZE];
 global Bitmap card_bitmaps[14];
@@ -84,7 +86,6 @@ struct Player_Card {
 
 struct Player {
     char name[MAX_NAME_SIZE];
-    Bitmap name_plate;
     s32 scores[MAX_HOLES];
 
     u32 cards[HAND_SIZE];     // indices to global deck array
@@ -115,6 +116,8 @@ struct Game {
     u32 starting_player;
     u32 holes_played;
     bool8 game_over;
+
+    bool8 name_plates_loaded;
 
     enum Round_Types round_type;
     u32 last_turn;
@@ -151,6 +154,8 @@ struct Game_Draw {
 
     bool8 highlight_hover[SELECTED_SIZE];
     bool8 highlight_pressed[SELECTED_SIZE];
+
+    Bitmap name_plate[6];
 };
 
 enum Menu_Mode {
@@ -218,28 +223,27 @@ struct State {
     Assets assets;
 };
 
-
 // 0 1 2 3 4 5 6 7 8 9 10 11 12 -5
 Vector3 ball_colors[14] = {
-    {  39,  77,  20 },
-    { 231, 213,  36 },
+    {  39,  77,  20 }, // 0
+    { 231, 213,  36 }, // 1
     { 240, 229, 118 },
     { 197, 180,  22 },
     { 200,   0, 200 },
     {   0, 255,   0 },
-    {   0,   0, 255 },
+    {   0,   0, 255 }, // 6
 
-    {  39,  77,  20 },
-    { 231, 213,  36 },
+    {  39,  77,  20 }, // 7
+    { 255, 213,  36 },
     { 240, 229, 118 },
     { 255, 255,   0 },
     { 255, 100,   0 },
     {   0, 255, 100 },
-    { 255,   0,   0 }
+    { 255,   0,   0 } // 13
 };
 
 s32 rows[14][3] = {
-    { 0, 1, 0 }, // 0
+    { 0, 0, 0 }, // 0
 
     { 0, 1, 0, }, // 1
     { 0, 2, 0, }, // 2
@@ -253,7 +257,7 @@ s32 rows[14][3] = {
     { 3, 2, 3, }, // 8
     { 3, 3, 3, }, // 9
 
-    { 0, 1, 0, }, // 10
+    { 4, 2, 4, }, // 10
     { 0, 1, 0, }, // 11
     { 0, 1, 0, }, // 12
 

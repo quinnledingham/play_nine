@@ -1,3 +1,16 @@
+// WARNING: centers vertically using baseline
+inline Vector2
+get_centered_text_coords(Font *font, const char *text, float32 pixel_height, Vector2 dim) {
+    Vector2 coords = { 0, 0 };
+    Vector2 text_coords = {};
+
+    String_Draw_Info string_info = get_string_draw_info(font, text, -1, pixel_height);
+    text_coords.x = coords.x + (dim.x / 2.0f) - (string_info.dim.x      / 2.0f) + string_info.baseline.x;
+    text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
+
+    return text_coords;
+}
+
 internal void
 draw_button(const Draw_Button button) {
     Vector4 back_color = button.style.E[button.state][0];
@@ -8,12 +21,9 @@ draw_button(const Draw_Button button) {
         pixel_height = button.dim.x;
     pixel_height *= 0.8f;
 
-    Vector2 text_dim = get_string_dim(button.font, button.text, pixel_height, text_color);
-    Vector2 text_coords = {};
-    text_coords.x = button.coords.x + (button.dim.x / 2.0f) - (text_dim.x / 2.0f);
-    text_coords.y = button.coords.y + (button.dim.y / 2.0f) + (text_dim.y / 2.0f);
+    Vector2 text_coords = button.coords + get_centered_text_coords(button.font, button.text, pixel_height, button.dim);
 
-    draw_rect(button.coords, 0, button.dim, back_color);                                           // back
+    draw_rect(button.coords, 0, button.dim, back_color); // back
     if (button.text) {
         render_set_scissor((s32)floor(button.coords.x), (s32)floor(button.coords.y), (u32)ceil(button.dim.x), (u32)ceil(button.dim.y) );
         draw_string(button.font, button.text, text_coords, pixel_height, text_color); // text
@@ -31,14 +41,14 @@ draw_textbox(const Draw_Textbox textbox) {
     Vector4 back_color = textbox.style.E[textbox.state][0];
     Vector4 text_color = textbox.style.E[textbox.state][1];
 
-    Vector2 text_dim = get_string_dim(textbox.font, textbox.text, pixel_height, text_color);
+    String_Draw_Info string_info = get_string_draw_info(textbox.font, textbox.text, -1, pixel_height);
     Vector2 text_coords = {};
-    text_coords.x = textbox.coords.x + (textbox.dim.x / 2.0f) - (text_dim.x / 2.0f);
-    text_coords.y = textbox.coords.y + (textbox.dim.y / 2.0f) + (text_dim.y / 2.0f);
+    text_coords.x = textbox.coords.x + (textbox.dim.x / 2.0f) - (string_info.dim.x      / 2.0f) + string_info.baseline.x;
+    text_coords.y = textbox.coords.y + (textbox.dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
 
-    Vector2 text_dim_cursor = get_string_dim(textbox.font, textbox.text, textbox.cursor_position, pixel_height, text_color);
+    String_Draw_Info string_info_cursor = get_string_draw_info(textbox.font, textbox.text, -1, pixel_height);
     Vector2 cursor_coords = text_coords;
-    cursor_coords.x += text_dim_cursor.x;
+    cursor_coords.x += string_info_cursor.dim.x;
     cursor_coords.y = textbox.coords.y;
 
     float32 shift = textbox.text_shift;
@@ -53,7 +63,7 @@ draw_textbox(const Draw_Textbox textbox) {
         cursor_coords.x -= shift;
     }
 
-    if (text_dim.x < textbox.dim.x)
+    if (string_info.dim.x < textbox.dim.x)
         shift = 0.0f;
 
     draw_rect(textbox.coords, 0, textbox.dim, back_color);
@@ -154,10 +164,7 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
         pixel_height = dim.x;
     pixel_height *= 0.8f;
 
-    Vector2 text_dim = get_string_dim(menu->font, text, pixel_height, color);
-    Vector2 text_coords = {};
-    text_coords.x = coords.x + (dim.x / 2.0f) - (text_dim.x / 2.0f);
-    text_coords.y = coords.y + (dim.y / 2.0f) + (text_dim.y / 2.0f);
+    Vector2 text_coords = coords + get_centered_text_coords(menu->font, text, pixel_height, dim);
 
     render_set_scissor((s32)floor(coords.x), (s32)floor(coords.y), (u32)ceil(dim.x), (u32)ceil(dim.y) );
     draw_string(menu->font, text, text_coords, pixel_height, color);
@@ -516,10 +523,11 @@ draw_onscreen_notifications(Onscreen_Notifications *n, Vector2_s32 window_dim, f
 
     float32 above_text_coord = 0.0f;
     for (u32 i = 0; i < n->lines; i++) {
-        Vector2 text_dim = get_string_dim(n->font, n->memory[i], pixel_height, n->text_color);
+        //Vector2 text_dim = get_string_dim(n->font, n->memory[i], pixel_height, n->text_color);
+        String_Draw_Info string_info = get_string_draw_info(n->font, n->memory[i], -1, pixel_height);
         Vector2 text_coords = {};
-        text_coords.x = (window_dim.x / 2.0f) - (text_dim.x / 2.0f);
-        text_coords.y = above_text_coord + text_dim.y + 10.0f;
+        text_coords.x = (window_dim.x / 2.0f) - (string_info.dim.x / 2.0f) + string_info.baseline.x;
+        text_coords.y = above_text_coord + string_info.baseline.y + 10.0f;
 
         if (n->times[i] == 0.0f)
             print("yo\n");

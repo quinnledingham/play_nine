@@ -50,268 +50,7 @@ remove_player(Game *game, u32 index) {
 }
 
 #include "play_nine_online.cpp"
-
-//
-// creating card bitmpas
-//
-
-internal Vector4
-get_color(u8 *ptr, u32 channels, Vector3 color) {
-    switch(channels) {
-        case 1: return { color.r, color.g, color.b, float32(*ptr) }; break;
-        case 3: return { float32(ptr[0]), float32(ptr[1]), float32(ptr[2]), 0xFF }; break;
-        case 4: return { float32(ptr[0]), float32(ptr[1]), float32(ptr[2]), float32(ptr[3]) }; break;
-    }
-
-    return { 0, 0, 0, 0 };
-}
-
-internal Vector4
-get_color(Vector4 c1, Vector4 c2) {
-    float32 alpha = 255 - ((255 - c1.E[3]) * (255 - c2.E[3]) / 255);
-    float32 red   = (c1.E[0] * (255 - c2.E[3]) + c2.E[0] * c2.E[3]) / 255;
-    float32 green = (c1.E[1] * (255 - c2.E[3]) + c2.E[1] * c2.E[3]) / 255;
-    float32 blue  = (c1.E[2] * (255 - c2.E[3]) + c2.E[2] * c2.E[3]) / 255;
-    return {red, green, blue, alpha};
-}
-
-// color contains what to fill conversion from 1 channel to 4 channels with
-internal void
-copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position, Vector3 color) {
-    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
-    u8 *src_ptr = src.memory;
-    for (s32 y = 0; y < src.height; y++) {
-        for (s32 x = 0; x < src.width; x++) { 
-            if (dest.channels == 1) {
-                *dest_ptr = *src_ptr;
-            } else if (dest.channels == 4) { 
-                Vector4 src_color = get_color(src_ptr, src.channels, color);
-                Vector4 dest_color = get_color(dest_ptr, dest.channels, color);
-                Vector4 blend_color = get_color(dest_color, src_color);
-
-                dest_ptr[0] = (u8)blend_color.r;
-                dest_ptr[1] = (u8)blend_color.g;
-                dest_ptr[2] = (u8)blend_color.b;
-                dest_ptr[3] = (u8)blend_color.a;
-            }
-            dest_ptr += dest.channels;
-            src_ptr += src.channels;
-        }   
-
-        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
-        src_ptr = src.memory + (y * src.pitch);
-
-        if (dest_ptr > dest.memory + (dest.width * dest.channels) + (dest.height * dest.pitch) + (y * dest.pitch))
-            ASSERT(0);
-    }
-}
-
-internal Bitmap
-create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
-    Bitmap bitmap = {};
-    
-    float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
-
-    float32 current_point = 0.0f;
-
-    s32 top = 0;
-    s32 bottom = 0;
-
-    s32 height = 0;
-    float32 left = 0.0f;
-    float32 baseline = 0.0f;
-
-    u32 i = 0;
-    while (str[i] != 0 ) {
-        Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
-        Font_Char *font_char = fbitmap->font_char;
-
-        Vector2 char_coords = { current_point + (font_char->lsb * scale), (float32)fbitmap->bb_0.y };
-        //s32 char_height = fbitmap->bb_1.y - fbitmap->bb_0.y;
-        //s32 char_height = fbitmap->bitmap.height;
-
-        if (fbitmap->bb_0.y < top)
-            top = fbitmap->bb_0.y;
-        if (fbitmap->bb_1.y > bottom)
-            bottom = fbitmap->bb_1.y;
-
-        if (char_coords.x < 0)
-            left = char_coords.x;
-
-        if ((float32)-fbitmap->bb_0.y > baseline)
-            baseline = (float32)-fbitmap->bb_0.y;
-
-        s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
-        current_point += scale * (kern + font_char->ax);
-        
-        i++;
-    }
-
-    height = bottom - top;
-
-    bitmap.width = s32(current_point - left);
-    bitmap.height = s32(height);
-    bitmap.channels = 1;
-    bitmap.pitch = bitmap.width * bitmap.channels;
-    bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0x00, bitmap.width * bitmap.height * bitmap.channels);
-
-    current_point = 0.0f;
-
-    i = 0;
-    while (str[i] != 0 ) {
-        Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
-        Font_Char *font_char = fbitmap->font_char;
-
-        s32 char_height = fbitmap->bitmap.height;
-        //Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, ((float32)height / 2.0f) - ((float32)char_height / 2.0f)};
-        Vector2 char_coords = { current_point + (font_char->lsb * scale) - left, baseline + (float32)fbitmap->bb_0.y };
-        copy_blend_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords), { 0, 0, 0 });
-
-        s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
-        current_point += scale * (kern + font_char->ax);
-        
-        i++;
-    }
-
-    return bitmap;
-}
-
-internal Bitmap
-create_circle_bitmap(Vector2_s32 dim) {
-    Bitmap bitmap   = {};
-    bitmap.width    = dim.x;
-    bitmap.height   = dim.y;
-    bitmap.channels = 1;
-    bitmap.pitch    = bitmap.width * bitmap.channels;
-    bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0x00, bitmap.width * bitmap.height * bitmap.channels);
-
-    u8 *dest_ptr = bitmap.memory;
-
-    s32 x1 = dim.x / 2;
-    s32 y1 = dim.y / 2;
-    s32 r = dim.x / 2;
-
-    for (s32 y2 = 0; y2 < dim.y; y2++) {
-        for (s32 x2 = 0; x2 < dim.x; x2++) {
-            s32 dx = x2 - x1;
-            s32 dy = y2 - y1;
-            if ((dx * dx + dy * dy) <= (r * r)) {
-                *dest_ptr = 0xFF;
-            }
-
-            dest_ptr += bitmap.channels;
-        }
-
-        dest_ptr = bitmap.memory + (y2 * bitmap.pitch);
-    }
-
-    return bitmap;
-}
-
-internal void
-add_balls_line(Bitmap bitmap, Bitmap circle_bitmap, s32 x, s32 number, Vector3 color) {
-    float32 radius = (circle_bitmap.width  / 2.0f);
-    for (s32 i = 1; i <= number; i++) {
-        float32 y = (bitmap.height * (float32(i) / float32(number + 1))) - radius;
-        copy_blend_bitmap(bitmap, circle_bitmap, { x, s32(y) }, color);
-    }
-}
-
-internal void
-add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
-    float32 x = 0.0f;
-    float32 y = 0.0f;
-
-    float32 radius = (circle_bitmap.width  / 2.0f);
-
-    s32 *design = rows[number];
-    s32 columns = 0; // count how many columns are in this design to only space for that many
-    for (u32 i = 0; i < 3; i++) {
-        if (design[i] > 0)
-            columns++;
-    }
-
-    // draw each column that is not zero
-    s32 columns_index = 1; 
-    for (u32 i = 0; i < 3; i++) {
-        if (design[i] > 0) {
-            x = (bitmap.width * (columns_index++ / float32(columns + 1))) - radius;
-            add_balls_line(bitmap, circle_bitmap, s32(x), design[i], ball_colors[number]);
-        }
-    }
-    
-}
-
-internal Bitmap
-create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
-    Bitmap bitmap   = {};
-    bitmap.width    = 1024;
-    bitmap.height   = 1638;
-    bitmap.channels = 4;
-    bitmap.pitch    = bitmap.width * bitmap.channels;
-    bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
-
-    add_balls_to_bitmap(bitmap, circle_bitmap, number);
-
-    if (number == 13)
-        number = -5;
-
-    char str[3] = {};
-    switch(number) {
-        case -5: str[0] = '-'; str[1] = '5'; break;
-        case 10: str[0] = '1'; str[1] = '0'; break;
-        case 11: str[0] = '1'; str[1] = '1'; break;
-        case 12: str[0] = '1'; str[1] = '2'; break;
-        default: str[0] = number + 48; break;
-    }
-
-    Bitmap str_bitmap = create_string_into_bitmap(font, 350.0f, str);
-
-    s32 padding = 50;
-    Vector3 text_color = { 0, 0, 0 };
-    if (number == -5)
-        text_color = { 255, 0, 0 };
-
-    Vector2_s32 bottom_right = {
-        bitmap.width - str_bitmap.width - padding,
-        bitmap.height - str_bitmap.height - padding
-    };
-    copy_blend_bitmap(bitmap, str_bitmap, { padding, padding }, text_color);
-    copy_blend_bitmap(bitmap, str_bitmap, bottom_right, text_color);
-
-    render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
-
-    platform_free(str_bitmap.memory);
-    //platform_free(bitmap.memory);
-  
-    return bitmap;
-}
-
-internal void
-init_card_bitmaps(Bitmap *bitmaps, Font *font) {
-    Bitmap circle_bitmap = create_circle_bitmap({ 200, 200 });
-
-    for (s32 i = 0; i <= 13; i++) {
-        bitmaps[i] = create_card_bitmap(font, i, circle_bitmap);
-    }
-
-    platform_free(circle_bitmap.memory);
-}
-
-internal void
-draw_card_bitmaps(Bitmap bitmaps[14], Vector2_s32 window_dim) {
-    Vector2 pos = { 0, 0 };
-    Vector2 dim = { window_dim.x / 14.0f, 0 };
-    float32 percent = dim.x / bitmaps[0].width;
-    dim.y = bitmaps[0].height * percent;
-    for (u32 i = 0; i < 14; i++) {
-        pos.x = i * dim.x;
-        draw_rect(pos, 0, dim, &bitmaps[i]);
-    }
-}
+#include "play_nine_bitmaps.cpp"
 
 //
 // drawing card
@@ -470,6 +209,40 @@ get_highlight_color(Game_Draw *draw, u32 index) {
     return highlight_color;
 }
 
+internal void
+draw_name_plates(Game *game, Game_Draw *draw) {
+    for (u32 i = 0; i < game->num_of_players; i++) {
+        if (game->players[i].name[0] == 0)
+            continue;
+
+        float32 degrees = (draw->degrees_between_players * i) - 90.0f;
+        float32 rad = degrees * DEG2RAD; 
+        Vector4 name_plate_color = { 255, 255, 255, 1 };
+        Object object = {};
+
+        Descriptor bitmap_desc = render_get_descriptor_set(&layouts[2]);
+        object.index = render_set_bitmap(&bitmap_desc, &draw->name_plate[i]);
+        render_bind_descriptor_set(bitmap_desc);
+
+        Descriptor color_set_2 = render_get_descriptor_set(&layouts[4]);
+        render_update_ubo(color_set_2, (void *)&name_plate_color);
+        render_bind_descriptor_set(color_set_2);
+
+        Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, i);
+        position += normalized(position) * 4.1f;
+
+        Vector3 scale = {(float32)draw->name_plate[i].width / 250.0f, (float32)draw->name_plate[i].height / 250.0f, 1.0f};
+        position.y = 0.1f;
+
+        Quaternion rot = get_rotation(-90.0f * DEG2RAD, { 1, 0, 0 });
+        rot = rot * get_rotation(rad, { 0, 1, 0 });
+        object.model = create_transform_m4x4(position, rot, scale);
+        render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+
+        render_draw_mesh(&shapes.rect_3D_mesh);
+    }
+}
+
 //      180
 // 270        90
 //       0
@@ -504,37 +277,7 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, bool8 highli
         render_bind_descriptor_set(light_set);
 
         // Name Plate
-        Game_Draw *draw = &state->game_draw;
-        for (u32 i = 0; i < game->num_of_players; i++) {
-            if (game->players[i].name_plate.gpu_info == 0)
-                continue;
-
-            float32 degrees = (draw->degrees_between_players * i) - 90.0f;
-            float32 rad = degrees * DEG2RAD; 
-            Vector4 name_plate_color = { 255, 255, 255, 1 };
-            Object object = {};
-
-            Descriptor bitmap_desc = render_get_descriptor_set(&layouts[2]);
-            object.index = render_set_bitmap(&bitmap_desc, &game->players[i].name_plate);
-            render_bind_descriptor_set(bitmap_desc);
-
-            Descriptor color_set_2 = render_get_descriptor_set(&layouts[4]);
-            render_update_ubo(color_set_2, (void *)&name_plate_color);
-            render_bind_descriptor_set(color_set_2);
-
-            Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, i);
-            position += normalized(position) * 4.1f;
-
-            Vector3 scale = {(float32)game->players[i].name_plate.width / 250.0f, (float32)game->players[i].name_plate.height / 250.0f, 1.0f};
-            position.y = 0.1f;
-
-            Quaternion rot = get_rotation(-90.0f * DEG2RAD, { 1, 0, 0 });
-            rot = rot * get_rotation(rad, { 0, 1, 0 });
-            object.model = create_transform_m4x4(position, rot, scale);
-            render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-
-            render_draw_mesh(&shapes.rect_3D_mesh);
-        }
+        draw_name_plates(game, &state->game_draw);
     }
 
     render_bind_pipeline(&basic_pipeline);
@@ -642,6 +385,21 @@ deal_cards(Game *game) {
 }
 
 internal void
+load_name_plates(Game *game, Game_Draw *draw) {
+    for (u32 i = 0; i < game->num_of_players; i++) {
+        if (draw->name_plate[i].gpu_info != 0) {
+            platform_free(draw->name_plate[i].memory);
+            render_delete_texture(&draw->name_plate[i]);
+        }
+
+        draw->name_plate[i] = create_string_into_bitmap(default_font, 350.0f, game->players[i].name);
+        render_create_texture(&draw->name_plate[i], TEXTURE_PARAMETERS_CHAR);
+    }
+
+    game->name_plates_loaded = true;
+}
+
+internal void
 start_hole(Game *game) {
     game->top_of_pile = 0;
     game->top_of_discard_pile = 0;
@@ -655,15 +413,6 @@ start_hole(Game *game) {
 
 internal void
 start_game(Game *game, u32 num_of_players) {
-    for (u32 i = 0; i < num_of_players; i++) {
-        if (game->players[i].name_plate.gpu_info != 0) {
-            platform_free(game->players[i].name_plate.memory);
-            render_delete_texture(&game->players[i].name_plate);
-        }
-
-        game->players[i].name_plate = create_string_into_bitmap(default_font, 350.0f, game->players[i].name);
-        render_create_texture(&game->players[i].name_plate, TEXTURE_PARAMETERS_CHAR);
-    }
     game->holes_played = 0;
     game->starting_player = 0;
     game->num_of_players = num_of_players;
@@ -1273,6 +1022,8 @@ bool8 init_data(App *app) {
     *game = {};
 	game->assets = {};
 
+    global_assets = &game->assets;
+
     bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
@@ -1498,14 +1249,15 @@ bool8 update(App *app) {
     }
     
     // Update
-    if (state->is_client)
+    if (state->is_client) {            
+        u32 previous_menu = state->menu_list.mode;
         client_get_game(state->client, state);
+        if (state->menu_list.mode == IN_GAME && previous_menu != IN_GAME)
+            load_name_plates(&state->game, &state->game_draw);
+    }
 
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);
-
-        //if (state->is_client)
-            //client_set_game(state->client, &state->game);
     } else if (state->menu_list.mode == PAUSE_MENU) {
         if (on_down(state->controller.pause)) {
             state->menu_list.mode = IN_GAME;
@@ -1608,7 +1360,7 @@ bool8 update(App *app) {
 
             float32 pixel_height = app->window.dim.x / 20.0f;
             float32 padding = 10.0f;
-            Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
+            //Vector2 text_dim = get_string_dim(default_font, state->game.players[state->game.active_player].name, pixel_height, { 255, 255, 255, 1 });
             //draw_string_tl(default_font, state->game.players[state->game.active_player].name, { app->window.dim.x - text_dim.x - padding, padding }, pixel_height, { 255, 255, 255, 1 });
 
             draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { padding, padding }, pixel_height, { 255, 255, 255, 1 });
@@ -1626,7 +1378,7 @@ bool8 update(App *app) {
                         state->controller.mouse_left
                     };
                     float32 pass_width = app->window.dim.x / 7.0f;
-                    if (gui_button(&gui, default_style, "Proceed", default_font, { app->window.dim.x - pass_width, 5 + text_dim.y + 50 }, { pass_width, pixel_height }, button_input)) {
+                    if (gui_button(&gui, default_style, "Proceed", default_font, { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height }, button_input)) {
                         state->menu_list.mode = SCOREBOARD_MENU;
                         state->menu_list.scoreboard.initialized = false;
                         state->game_draw.rotation = 0.0f;
@@ -1642,7 +1394,7 @@ bool8 update(App *app) {
                     state->controller.mouse_left
                 };
                 float32 pass_width = app->window.dim.x / 7.0f;
-                if (gui_button(&gui, default_style, "Pass", default_font, { app->window.dim.x - pass_width, 5 + text_dim.y + 50 }, { pass_width, pixel_height }, button_input)) {
+                if (gui_button(&gui, default_style, "Pass", default_font, { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height }, button_input)) {
                     state->pass_selected = true; // in update_game feed this into selected
                 }
             }
@@ -1654,8 +1406,7 @@ bool8 update(App *app) {
 
     char buffer[20];
     float_to_char_array((float32)app->time.frames_per_s, buffer, 20);
-    draw_string_tl(default_font, buffer, { 10, 40 }, 40.0f, { 255, 50, 50, 1 });
-
+    draw_string_tl(default_font, buffer, { 10, (float32)app->window.dim.height - 40 }, 40.0f, { 255, 50, 50, 1 });
 
     render_end_frame();
 

@@ -581,8 +581,9 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
 }
 
 void draw_string_tl(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color) {
-    Vector2 text_dim = get_string_dim(font, string, pixel_height, color);
-    //draw_rect(coords, 0.0f, text_dim, { 255, 255, 0, 1 });
-    coords.y += text_dim.y;
+    String_Draw_Info string_info = get_string_draw_info(font, string, -1, pixel_height);
+    //draw_rect(coords, 0.0f, string_info.dim, { 255, 255, 0, 1 });
+    coords.x += string_info.baseline.x;
+    coords.y += string_info.baseline.y;
     draw_string(font, string, coords, pixel_height, color);
 }

@@ -23,6 +23,7 @@ BITMAPS:
 YOGI,  yogi.png
 DAVID, david.jpg
 ICON,  favicon.png
+BALL,  ball10.png
 
 FONTS:
 CASLON, LibreCaslonCondensed-Regular.ttf
