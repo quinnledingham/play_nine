@@ -757,7 +757,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))
@@ -794,14 +794,14 @@ bool8 init_data(App *app) {
             platform_memory_copy((void*)asset->tag, (void*)tag, 4);
         };
         add_assets(&state->assets, card_assets, 14);
-        //print_assets(&state->assets);
+        print_assets(&state->assets);
 
         FILE *file = fopen("assets.save", "wb");
         save_assets(&state->assets, file);
         fclose(file);
     } else {
         for (u32 i = 0; i < 14; i++) {
-            card_bitmaps[i] = state->assets.types[0].data[i + 4].bitmap; // + 4 to go after bitmaps loaded before the card bitmaps
+            card_bitmaps[i] = state->assets.types[0].data[i + 6].bitmap; // + 4 to go after bitmaps loaded before the card bitmaps
         }
     }
 
@@ -810,7 +810,7 @@ bool8 init_data(App *app) {
     clear_font_bitmap_cache(default_font);
     
     global_assets = &state->assets;
-    init_layouts(layouts, find_bitmap(&state->assets, "DAVID"));
+    init_layouts(layouts, find_bitmap(&state->assets, "BACK"));
 
     u32 test = sizeof(Layout_Set);
 
@@ -924,7 +924,7 @@ bool8 init_data(App *app) {
     for (u32 j = 0; j < 14; j++) {
         state->indices[j] = render_set_bitmap(&texture_desc, &card_bitmaps[j]);
     }
-    state->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&state->assets, "YOGI"));
+    state->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&state->assets, "BACK"));
     Model *model = find_model(&state->assets, "TABLE");
     state->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
     

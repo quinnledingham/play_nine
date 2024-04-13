@@ -133,8 +133,11 @@ create_circle_bitmap(Vector2_s32 dim) {
 internal void
 add_balls_line(Bitmap bitmap, Bitmap circle_bitmap, s32 x, s32 number, Vector3 color) {
     float32 radius = (circle_bitmap.width  / 2.0f);
+    float32 dots_height_percent = 0.9f;
+    float32 dots_height = (bitmap.height * dots_height_percent);
+    float32 up = bitmap.height * (1 - dots_height_percent) / 2.0f;
     for (s32 i = 1; i <= number; i++) {
-        float32 y = (bitmap.height * (float32(i) / float32(number + 1))) - radius;
+        float32 y = (dots_height * (float32(i) / float32(number + 1))) - radius + up;
         copy_blend_bitmap(bitmap, circle_bitmap, { x, s32(y) }, color);
     }
 }
@@ -143,8 +146,6 @@ internal void
 add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
     float32 x = 0.0f;
     float32 y = 0.0f;
-
-    float32 radius = (circle_bitmap.width  / 2.0f);
 
     s32 *design = rows[number];
     s32 columns = 0; // count how many columns are in this design to only space for that many
@@ -155,9 +156,13 @@ add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
 
     // draw each column that is not zero
     s32 columns_index = 1; 
+    float32 radius = (circle_bitmap.width  / 2.0f);
+    float32 dots_width_percent = 0.9f;
+    float32 dots_width = (bitmap.width * dots_width_percent);
+    float32 left = bitmap.width * (1 - dots_width_percent) / 2.0f;
     for (u32 i = 0; i < 3; i++) {
         if (design[i] > 0) {
-            x = (bitmap.width * (columns_index++ / float32(columns + 1))) - radius;
+            x = (dots_width * (columns_index++ / float32(columns + 1))) - radius + left;
             add_balls_line(bitmap, circle_bitmap, s32(x), design[i], ball_colors[number]);
         }
     }
@@ -166,23 +171,32 @@ add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
 internal Bitmap
 create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
     Bitmap bitmap   = {};
-    bitmap.width    = 1024;
-    bitmap.height   = 1638;
+    bitmap.width    = 1000;
+    bitmap.height   = 1600;
     bitmap.channels = 4;
     bitmap.pitch    = bitmap.width * bitmap.channels;
     bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
     memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
 
+    Bitmap *front = find_bitmap(global_assets, "FRONT");
+    platform_memory_copy(bitmap.memory, front->memory, front->width * front->height * front->channels);
+
     if (number < 11 || number == 13)
         add_balls_to_bitmap(bitmap, circle_bitmap, number);
 
-    if (number == 11) {
-        Bitmap *bit = find_bitmap(global_assets, "BALL");
+    Bitmap *front_bit = 0;
+    switch(number) {
+        case  0: front_bit = find_bitmap(global_assets, "FRONT0");  break;
+        case 11: front_bit = find_bitmap(global_assets, "FRONT11"); break;
+        case 12: front_bit = find_bitmap(global_assets, "FRONT12"); break;
+    }
+
+    if (front_bit != 0) {
         Vector2_s32 center = {
-            (bitmap.width / 2) - (bit->width / 2),
-            (bitmap.height / 2) - (bit->height / 2),
+            (bitmap.width / 2) - (front_bit->width / 2),
+            (bitmap.height / 2) - (front_bit->height / 2),
         };
-        copy_blend_bitmap(bitmap, *bit, center, { 255, 255, 0 });
+        copy_blend_bitmap(bitmap, *front_bit, center, { 255, 255, 0 });
     }
 
     if (number == 13)
@@ -197,10 +211,11 @@ create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
         default: str[0] = number + 48; break;
     }
 
-    Bitmap str_bitmap = create_string_into_bitmap(font, 275.0f, str);
+    Bitmap str_bitmap = create_string_into_bitmap(font, 300.0f, str);
 
-    s32 padding = 50;
-    Vector3 text_color = { 0, 0, 0 };
+    s32 padding = 60;
+    //Vector3 text_color = ball_colors[number];
+    Vector3 text_color = play_nine_green.xyz;
     if (number == -5)
         text_color = { 255, 0, 0 };
 

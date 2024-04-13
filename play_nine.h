@@ -4,10 +4,10 @@ TODO
 
 - Flip "animation"
 - Show keyboard controls
-- Make face cards
 
 Slight Problems
-- Clean up game hud
+- Improve face cards
+- Improve game hud
 
 Render.cpp
 - Clean up light sources in shaders
@@ -217,21 +217,21 @@ struct State {
 
 // 0 1 2 3 4 5 6 7 8 9 10 11 12 -5
 Vector3 ball_colors[14] = {
-    {  39,  77,  20 }, // 0
-    { 231, 213,  36 }, // 1
-    { 240, 229, 118 },
-    { 197, 180,  22 },
-    { 200,   0, 200 },
-    {   0, 255,   0 },
-    {   0,   0, 255 }, // 6
+    { 255, 255, 255 }, // 0
+    { 129, 125,  21 }, // 1 yellow 
+    { 206,  69,  64 }, // 2 red
+    { 158,  16, 125 }, // 3 purple
+    {  38, 146, 130 }, // 4 teal
+    { 178, 206,  64 }, // 5 lime green
+    { 206,  64, 130 }, // 6 pink
 
     {  39,  77,  20 }, // 7
-    { 255, 213,  36 },
-    { 240, 229, 118 },
-    { 255, 255,   0 },
-    { 255, 100,   0 },
-    {   0, 255, 100 },
-    { 255,   0,   0 } // 13
+    play_nine_yellow.xyz, // 8 { 255, 213,  36 }
+    {  49,  20,  77 }, // 9 dark purple
+    {  20,  48,  77 }, // 10 dark blue
+    { 255, 100,   0 }, // 11
+    {   0, 255, 100 }, // 12
+    { 255,   0,   0 }  // 13 Full red
 };
 
 s32 rows[14][3] = {

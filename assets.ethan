@@ -20,10 +20,12 @@ TEXT3D|FRAGMENT,    text.frag
 RAY|COMPUTE, ray.comp
 
 BITMAPS:
-YOGI,  yogi.png
-DAVID, david.jpg
-ICON,  favicon.png
-BALL,  ball10.png
+BACK,    back.png
+ICON,    favicon.png
+FRONT,   front.png
+FRONT0,  front0.png
+FRONT11, front11.png
+FRONT12, front12.png
 
 FONTS:
 CASLON, LibreCaslonCondensed-Regular.ttf

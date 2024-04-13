@@ -270,10 +270,35 @@ add_assets(Assets *assets, Asset *new_assets, u32 num_of_assets) {
     return 0;
 }
 
+internal u32
+get_asset_size(Asset *asset) {
+    u32 size = 0;
+
+    switch(asset->type) {
+        //case ASSET_TYPE_FONT:   init_font(&asset->font);               break;
+        case ASSET_TYPE_BITMAP: {
+            size += asset->bitmap.width * asset->bitmap.height * asset->bitmap.channels;
+        } break;
+        //case ASSET_TYPE_SHADER: clean_shader(&asset->shader); break;
+
+        case ASSET_TYPE_MODEL: {
+            size += asset->model.meshes_count * sizeof(Mesh);
+            for (u32 i = 0; i < asset->model.meshes_count; i++) {
+                size += asset->model.meshes[i].vertex_info.size * asset->model.meshes[i].vertices_count;
+                size += sizeof(u32) * asset->model.meshes[i].indices_count;
+            }
+
+        } break;
+    }
+
+    return size;
+}
+
 internal void
 print_assets(Assets *assets) {
     for (u32 i = 0; i < assets->num_of_assets; i++) {
-        print("type %d, tag: %s\n", assets->data[i].type, assets->data[i].tag);
+        u32 size = get_asset_size(&assets->data[i]);
+        print("type: %d, tag: %s, size: %d\n", assets->data[i].type, assets->data[i].tag, size);
     }
 }
 
