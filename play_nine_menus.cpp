@@ -4,6 +4,26 @@ menu_set_input(Menu *menu, Menu_Input *input) {
     input->hot_ptr = &menu->hot_section;
 }
 
+internal void
+quit_to_main_menu(State *state, Menu *menu) {
+    win32_wait_mutex(state->mutex);
+
+    state->menu_list.mode = MAIN_MENU;
+    state->game.num_of_players = 1;
+    menu->hot_section = { 0, 0 };
+
+    if (state->is_server) {
+        state->is_server = false;
+        win32_release_mutex(state->mutex);
+        close_server();
+    } else if (state->is_client) {
+        state->is_client = false;
+        client_close_connection(state->client);
+    }
+
+    win32_release_mutex(state->mutex);
+}
+
 // returns game mode
 internal s32
 draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_dim) {
@@ -92,7 +112,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         menu_row = 6;
 
         if (menu_button(menu, "+ Player", *input, { 0, menu_row }, { 1, 1 })) {
-            if (game->num_of_players != 6) {
+            if (game->num_of_players != MAX_PLAYERS) {
                 default_player_name_string(game->players[game->num_of_players].name, game->num_of_players);
                 game->num_of_players++;
             }
@@ -135,17 +155,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     }
     
     if (menu_button(menu, "Back", *input, back_coords, { back_width, 1 })) {
-        state->menu_list.mode = MAIN_MENU;
-        game->num_of_players = 1;
-        menu->hot_section = { 0, 0 };
-
-        if (state->is_server) {
-            state->is_server = false;
-            close_server();
-        } else if (state->is_client) {
-            state->is_client = false;
-            client_close_connection(state->client);
-        }
+        quit_to_main_menu(state, menu);
     }
 
     return false;
@@ -186,17 +196,7 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     }
 
     if (menu_button(menu, "Quit Game", *input, { 0, 1 }, { 1, 1 })) {
-        state->menu_list.mode = MAIN_MENU;
-        game->num_of_players = 1;
-        menu->hot_section = { 0, 0 };
-        if (state->is_server) {
-            state->is_server = false;
-            win32_release_mutex(state->mutex);
-            close_server();
-        } else if (state->is_client) {
-            state->is_client = false;
-            client_close_connection(state->client);
-        }
+        quit_to_main_menu(state, menu);
     }
 
     return false;
@@ -396,6 +396,9 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
             client_set_name(state->client, state->name);
             if (client_get_game(state->client, state)) {
                 add_onscreen_notification(&state->notifications, "Game not in lobby");
+            } else {
+                DWORD thread_id;
+                online.client_handle = CreateThread(0, 0, play_nine_client, (void*)state, 0, &thread_id);
             }
         } else {
             add_onscreen_notification(&state->notifications, "Unable to join");

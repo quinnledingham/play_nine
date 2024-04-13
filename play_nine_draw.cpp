@@ -82,6 +82,9 @@ process_rotation(Rotation *rot, float32 seconds) {
         if (rot->degrees < rot->dest_degrees) {
             rot->degrees += (seconds * rot->speed);
 
+            if (rot->degrees > rot->dest_degrees + 10.0f)
+                rot->signal = false;
+
             if (rot->degrees > rot->dest_degrees)
                 rot->degrees = rot->dest_degrees;
         } else {
@@ -90,6 +93,9 @@ process_rotation(Rotation *rot, float32 seconds) {
     } else if (rot->speed < 0.0f) { 
         if (rot->degrees > rot->dest_degrees) {
             rot->degrees += (seconds * rot->speed);
+
+            if (rot->degrees < rot->dest_degrees + 10.0f)
+                rot->signal = false;
 
             if (rot->degrees < rot->dest_degrees)
                 rot->degrees = rot->dest_degrees;
@@ -143,7 +149,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
             Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
             rotate_coords(&card_pos, rad);
             card_pos += position;
-            game->players[i].models[card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, rad, card_scale);
+            draw->hand_models[i][card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, rad, card_scale);
         }
     }
 
@@ -157,9 +163,9 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
     // draw card selected from pile
     float32 degrees = (draw->degrees_between_players * game->active_player) - 90.0f;
     float32 rad = degrees * DEG2RAD; 
-    if (game->players[game->active_player].turn_stage == SELECT_CARD) {
+    if (game->turn_stage == SELECT_CARD) {
         rotate_coords(&selected_card_coords, rad);
-        game->players[game->active_player].new_card_model = load_card_model(true, selected_card_coords, rad, card_scale);
+        draw->new_card_model = load_card_model(true, selected_card_coords, rad, card_scale);
     }
 
     float32 rotation_rads = (degrees - rotation_degrees) * DEG2RAD;
@@ -172,13 +178,13 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
     // pile
     {
         float32 pile_y_scale = get_pile_y_scale(DECK_SIZE - game->top_of_pile);
-        game->top_of_pile_model = load_card_model(false, pile_coords, rotation_rads, {1.0f, pile_y_scale, 1.0f});
+        draw->top_of_pile_model = load_card_model(false, pile_coords, rotation_rads, {1.0f, pile_y_scale, 1.0f});
     }
 
     // discard pile
     if (game->top_of_discard_pile != 0) {
         float32 pile_y_scale = get_pile_y_scale(game->top_of_discard_pile);
-        game->top_of_discard_pile_model = load_card_model(true, discard_pile_coords, rotation_rads, {1.0f, pile_y_scale, 1.0f});
+        draw->top_of_discard_pile_model = load_card_model(true, discard_pile_coords, rotation_rads, {1.0f, pile_y_scale, 1.0f});
     }
 }
 
@@ -211,7 +217,7 @@ get_highlight_color(Game_Draw *draw, u32 index) {
 internal void
 draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 indices[16]) {
     Player *active_player = &game->players[game->active_player];
-    enum Turn_Stages stage = active_player->turn_stage;
+    enum Turn_Stages stage = game->turn_stage;
     
     Descriptor color_set = render_get_descriptor_set(&layouts[5]);
     Vector4 color = { 150, 150, 150, 1 };
@@ -226,25 +232,25 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 
                 case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;
             }
 
-            draw_card(card_model, color_set, indices, card, game->players[i].models[card_index], h, get_highlight_color(draw, card_index), game->players[i].flipped[card_index]);
+            draw_card(card_model, color_set, indices, card, draw->hand_models[i][card_index], h, get_highlight_color(draw, card_index), game->players[i].flipped[card_index]);
         }
     }
     
     {
         bool8 h = highlight && stage == SELECT_PILE;
-        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], game->top_of_pile_model, h, get_highlight_color(draw, PICKUP_PILE), false);
+        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], draw->top_of_pile_model, h, get_highlight_color(draw, PICKUP_PILE), false);
     }
 
     if (game->top_of_discard_pile != 0) {
         bool8 h = highlight && (stage == SELECT_PILE || stage == SELECT_CARD);
-        if (stage == SELECT_CARD && !game->players[game->active_player].pile_card)
+        if (stage == SELECT_CARD && !game->pile_card)
             h = false;
-        draw_card(card_model, color_set, indices, deck[game->discard_pile[game->top_of_discard_pile - 1]], game->top_of_discard_pile_model, h, get_highlight_color(draw, DISCARD_PILE), true);
+        draw_card(card_model, color_set, indices, deck[game->discard_pile[game->top_of_discard_pile - 1]], draw->top_of_discard_pile_model, h, get_highlight_color(draw, DISCARD_PILE), true);
     }
 
     if (stage == SELECT_CARD) {
-        s32 card = deck[game->players[game->active_player].new_card];
-        draw_card(card_model, color_set, indices, card, game->players[game->active_player].new_card_model, false, play_nine_yellow, true);
+        s32 card = deck[game->new_card];
+        draw_card(card_model, color_set, indices, card, draw->new_card_model, false, play_nine_yellow, true);
     }
 }
 
@@ -263,8 +269,6 @@ load_name_plates(Game *game, Game_Draw *draw) {
         draw->name_plates[i] = create_string_into_bitmap(default_font, 350.0f, game->players[i].name);
         render_create_texture(&draw->name_plates[i], TEXTURE_PARAMETERS_CHAR);
     }
-
-    game->name_plates_loaded = true;
 }
 
 
@@ -334,7 +338,9 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     render_bind_descriptor_set(light_set);
 
     // Name Plate
+    win32_wait_mutex(state->mutex);
     draw_name_plates(game, &state->game_draw);
+    win32_release_mutex(state->mutex);
 
     // Cards
     render_bind_descriptor_set(texture_desc);

@@ -16,8 +16,10 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "assets.h"
 
 #include "application.h"
+#include "win32_thread.h"
 #include "play_nine_input.h"
 #include "play_nine.h"
+#include "play_nine_online.h"
 
 #include "play_nine_raytrace.cpp"
 
@@ -109,8 +111,6 @@ deal_cards(Game *game) {
             game->players[i].cards[card_index] = game->pile[game->top_of_pile++];
             game->players[i].flipped[card_index] = false;
          }
-
-        game->players[i].turn_stage = FLIP_CARD;
      }
 
     game->discard_pile[game->top_of_discard_pile++] = game->pile[game->top_of_pile++];
@@ -125,6 +125,7 @@ start_hole(Game *game) {
     //game->active_player = 0;
     game->active_player = game->starting_player;
     game->round_type = FLIP_ROUND;
+    game->turn_stage = FLIP_CARD;
     game->last_turn = 0;
 }
 
@@ -179,9 +180,9 @@ get_test_game() {
     return game;
 }
 
-#include "play_nine_online.cpp"
 #include "play_nine_bitmaps.cpp"
 #include "play_nine_draw.cpp"
+#include "play_nine_online.cpp"
 #include "play_nine_menus.cpp"
 
 //
@@ -285,15 +286,13 @@ next_player(Game *game, Game_Draw *draw) {
         }
     }
 
-    game->players[game->active_player].turn_stage = SELECT_PILE;
-    game->players[game->active_player].pile_card = false;
-
     // END HOLE
     if (game->last_turn == game->num_of_players && game->round_type != HOLE_OVER) {
         update_scores(game);
         game->holes_played++;
         game->round_type = HOLE_OVER;
         game->starting_player++;
+        game->turn_stage = FLIP_CARD;
 
         if (game->starting_player >= game->num_of_players) {
             game->starting_player = 0;
@@ -307,6 +306,8 @@ next_player(Game *game, Game_Draw *draw) {
         return; // Don't need to move ahead a player now
     }
 
+    game->pile_card = false;
+    game->turn_stage = SELECT_PILE;
     game->active_player++;
 
     // end of round: loop back around if required
@@ -318,9 +319,14 @@ next_player(Game *game, Game_Draw *draw) {
             game->round_type = REGULAR_ROUND;
     }
 
+    if (game->round_type == FLIP_ROUND) {
+        game->turn_stage = FLIP_CARD;
+    }
+
     // Update for draw
     //add_onscreen_notification(&draw->notifications, game->players[game->active_player].name);
     draw->camera_rotation = {
+        true,
         true,
         draw->degrees_between_players,
         0.0f,
@@ -328,6 +334,7 @@ next_player(Game *game, Game_Draw *draw) {
     };
 
     draw->pile_rotation = {
+        true,
         true,
         draw->degrees_between_players,
         0.0f,
@@ -365,22 +372,22 @@ flip_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
 internal void
 regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
     Player *active_player = &game->players[game->active_player];
-    switch(active_player->turn_stage) {
+    switch(game->turn_stage) {
         case SELECT_PILE: {
             if (selected[PICKUP_PILE]) {
-                active_player->new_card = game->pile[game->top_of_pile++];
+                game->new_card = game->pile[game->top_of_pile++];
     
                 // Probably shouldn't happen in a real game
                 if (game->top_of_pile + game->num_of_players >= DECK_SIZE) {
                     game->round_type = FINAL_ROUND;
                 }
 
-                active_player->turn_stage = SELECT_CARD;
-                active_player->pile_card = true;
+                game->turn_stage = SELECT_CARD;
+                game->pile_card = true;
             } else if (selected[DISCARD_PILE]) {
-                active_player->new_card = game->discard_pile[game->top_of_discard_pile - 1];
+                game->new_card = game->discard_pile[game->top_of_discard_pile - 1];
                 game->top_of_discard_pile--;
-                active_player->turn_stage = SELECT_CARD;
+                game->turn_stage = SELECT_CARD;
             }
         } break;
 
@@ -390,8 +397,8 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
                     game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
 
                     active_player->flipped[i] = true;
-                    active_player->cards[i] = active_player->new_card;
-                    active_player->new_card = 0;
+                    active_player->cards[i] = game->new_card;
+                    game->new_card = 0;
 
                     if (get_number_flipped(active_player->flipped) == HAND_SIZE)
                         game->round_type = FINAL_ROUND;
@@ -400,10 +407,10 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
                 }
             }
 
-            if (active_player->pile_card && selected[DISCARD_PILE]) {
-                game->discard_pile[game->top_of_discard_pile++] = active_player->new_card;
-                active_player->new_card = 0;
-                active_player->turn_stage = FLIP_CARD;
+            if (game->pile_card && selected[DISCARD_PILE]) {
+                game->discard_pile[game->top_of_discard_pile++] = game->new_card;
+                game->new_card = 0;
+                game->turn_stage = FLIP_CARD;
             }
         } break;
 
@@ -411,7 +418,7 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (selected[i] && !active_player->flipped[i]) {
                     active_player->flipped[i] = true;
-                    if (get_number_flipped(active_player->flipped) == HAND_SIZE) {
+                    if (get_number_flipped(active_player->flipped) == HAND_SIZE && game->round_type != FINAL_ROUND) {
                         game->round_type = FINAL_ROUND; 
                         game->last_turn = 0;
                     }
@@ -451,24 +458,21 @@ ray_model_intersection_cpu(Ray ray, Model *model, Matrix_4x4 card) {
 }
 
 internal void
-mouse_ray_model_intersections_cpu(bool8 *selected, Ray mouse_ray, Game *game, Model *card_model) {
-    Player *active_player = &game->players[game->active_player];
-
+mouse_ray_model_intersections_cpu(bool8 *selected, Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
     for (u32 card_index = 0; card_index < 8; card_index++) {
-        selected[card_index] = ray_model_intersection_cpu(mouse_ray, card_model, active_player->models[card_index]);
+        selected[card_index] = ray_model_intersection_cpu(mouse_ray, card_model, draw->hand_models[active_player][card_index]);
         if (selected[card_index]) return;
     }
 
-    selected[PICKUP_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, game->top_of_pile_model);
-    if (game->top_of_discard_pile != 0)
-        selected[DISCARD_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, game->top_of_discard_pile_model);
+    selected[PICKUP_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, draw->top_of_pile_model);
+    if (draw->top_of_discard_pile_model.E[0] != 0)
+        selected[DISCARD_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, draw->top_of_discard_pile_model);
 }
 
 #if VULKAN
 
 internal void
-mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game *game, Model *card_model) {
-    Player *active_player = &game->players[game->active_player];
+mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
     Descriptor ray_desc = vulkan_get_descriptor_set_index(&layouts[6], 0);
     Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
     Descriptor out_desc = vulkan_get_descriptor_set_index(&layouts[8], 0);
@@ -485,11 +489,10 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
     // load ubo buffer
     Matrix_4x4 object[10];
     for (u32 card_index = 0; card_index < 8; card_index++) {
-        object[card_index] = active_player->models[card_index];
+        object[card_index] = draw->hand_models[active_player][card_index];
     }
-    object[PICKUP_PILE] = game->top_of_pile_model;
-    if (game->top_of_discard_pile != 0)
-        object[DISCARD_PILE] = game->top_of_discard_pile_model;
+    object[PICKUP_PILE] = draw->top_of_pile_model;
+    object[DISCARD_PILE] = draw->top_of_discard_pile_model;
 
     char *test = (char*)vulkan_info.static_uniform_buffer.data + object_desc.offset;
     memcpy(test, object, sizeof(Matrix_4x4) * 10);
@@ -532,9 +535,9 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
     set_ray_coords(&state->mouse_ray, state->camera, state->scene, app->input.mouse, app->window.dim);
 
     #if VULKAN
-    mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, game, card_model);
+    mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, draw, card_model, game->active_player);
     #elif OPENGL
-    mouse_ray_model_intersections_cpu(draw->highlight_hover, state->mouse_ray, game, card_model);
+    mouse_ray_model_intersections_cpu(draw->highlight_hover, state->mouse_ray, draw, card_model, game->active_player);
     #endif // VULKAN / OPENGL
 
     if (on_down(state->controller.mouse_left)) {
@@ -614,7 +617,7 @@ bool8 update_game(State *state, App *app) {
             // Game input
             if (game->round_type == HOLE_OVER) {
                 float32 rot_speed = 100.0f * (float32)app->time.frame_time_s;
-                float32 mouse_rot_speed = 50.0f * (float32)app->time.frame_time_s;
+                float64 mouse_rot_speed = 0.2f;
 
                 if (is_down(state->controller.right)) {
                     draw->rotation += rot_speed;
@@ -629,8 +632,8 @@ bool8 update_game(State *state, App *app) {
                 }
 
                 if (is_down(state->controller.mouse_left)) {
-                    float32 x_delta = float32(app->input.mouse.x - draw->mouse_down.x);
-                    draw->rotation -= (x_delta * mouse_rot_speed);
+                    float64 x_delta = float64(app->input.mouse.x - draw->mouse_down.x);
+                    draw->rotation -= float32(x_delta * mouse_rot_speed);
                     draw->mouse_down = app->input.mouse;
                 }
                 
@@ -985,11 +988,11 @@ bool8 update(App *app) {
     
     // Update
     if (state->is_client) {            
-        u32 previous_menu = state->menu_list.mode;
-        if (client_get_game(state->client, state))
-            add_onscreen_notification(&state->notifications, "Connection Closed");
-        if (state->menu_list.mode == IN_GAME && previous_menu != IN_GAME)
-            load_name_plates(&state->game, &state->game_draw);
+        //u32 previous_menu = state->menu_list.mode;
+        //if (client_get_game(state->client, state))
+        //    add_onscreen_notification(&state->notifications, "Connection Closed");
+        //if (state->menu_list.mode == IN_GAME && previous_menu != IN_GAME)
+            //load_name_plates(&state->game, &state->game_draw);
     }
 
     if (state->menu_list.mode == IN_GAME) {
@@ -1000,8 +1003,8 @@ bool8 update(App *app) {
         }
     }
 
-    if (state->is_server)
-        win32_wait_mutex(state->mutex);
+    //if (state->is_server)
+    //    win32_wait_mutex(state->mutex);
 
     // Draw
     Shader *basic_3D = find_shader(assets, "BASIC3D");
@@ -1048,15 +1051,13 @@ bool8 update(App *app) {
         } break;
 
         case SCOREBOARD_MENU: {
+            win32_wait_mutex(state->mutex);
             s32 sb_result = draw_scoreboard(&state->menu_list.scoreboard, &state->game, &menu_input, app->window.dim);
+            win32_release_mutex(state->mutex);
             if (sb_result == 1) {
                 state->menu_list.mode = IN_GAME;
             } else if (sb_result == 2) {
-                state->menu_list.mode = MAIN_MENU;
-                if (state->is_server) {
-                    state->is_server = false;
-                    close_server();
-                }
+                quit_to_main_menu(state, &state->menu_list.scoreboard);
             }
         } break;
 
@@ -1089,7 +1090,9 @@ bool8 update(App *app) {
 
             Player *active_player = &state->game.players[state->game.active_player];
             if (state->menu_list.mode == PAUSE_MENU) {
+                //win32_wait_mutex(state->mutex);
                 draw_pause_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
+               // win32_release_mutex(state->mutex);
             } else if (state->game.round_type == HOLE_OVER) {
 
                 if (!state->is_client) {                
@@ -1100,7 +1103,7 @@ bool8 update(App *app) {
                     }
                 }
 
-            } else if (active_player->turn_stage == FLIP_CARD && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
+            } else if (state->game.turn_stage == FLIP_CARD && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
                 float32 pass_width = app->window.dim.x / 7.0f;
                 if (gui_button(&gui, default_style, "Pass", { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height })) {
                     state->pass_selected = true; // in update_game feed this into selected
@@ -1118,8 +1121,8 @@ bool8 update(App *app) {
 
     render_end_frame();
 
-    if (state->is_server)
-        win32_release_mutex(state->mutex);
+    //if (state->is_server)
+     //   win32_release_mutex(state->mutex);
 
     prepare_controller_for_input(&state->controller);
     gui.index = 1;

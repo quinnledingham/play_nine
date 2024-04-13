@@ -7,8 +7,6 @@ TODO
 - Make face cards
 
 Slight Problems
-- Make assets packing better
-- Fix text even more
 - Clean up game hud
 
 Render.cpp
@@ -23,6 +21,7 @@ Render.cpp
 #define SELECTED_SIZE 11
 
 #define MAX_NAME_SIZE  20
+#define MAX_PLAYERS     6
 #define HAND_SIZE       8
 #define DECK_SIZE     108
 #define MAX_HOLES      20 // max holes that can be played in one gamed
@@ -75,38 +74,18 @@ Card indices
 
 */
 
-struct Player_Card {
-    u32 card_index;
-    u32 flipped;
-    Matrix_4x4 model;
-};
-
 struct Player {
     char name[MAX_NAME_SIZE];
     s32 scores[MAX_HOLES];
 
     u32 cards[HAND_SIZE];     // indices to global deck array
     bool8 flipped[HAND_SIZE];
-    Matrix_4x4 models[HAND_SIZE];
-
-    u32 new_card; // the card that was just picked up
-    Matrix_4x4 new_card_model;
-
-    bool8 pile_card; // flag to flip if discard new card
-    enum Turn_Stages turn_stage;
 };
 
 // Stores information about the game of play nine
 struct Game {
-	u32 pile[DECK_SIZE];
-	u32 top_of_pile;
-    Matrix_4x4 top_of_pile_model;
-
-    u32 discard_pile[DECK_SIZE];
-    u32 top_of_discard_pile;
-    Matrix_4x4 top_of_discard_pile_model;
-
-    Player players[6];
+    // Entire Game variables
+    Player players[MAX_PLAYERS];
     u32 num_of_players;
     u32 active_player;
 
@@ -114,10 +93,20 @@ struct Game {
     u32 holes_played;
     bool8 game_over;
 
-    bool8 name_plates_loaded;
+    // Hole variables
+    u32 pile[DECK_SIZE];
+    u32 top_of_pile;
+
+    u32 discard_pile[DECK_SIZE];
+    u32 top_of_discard_pile;
 
     enum Round_Types round_type;
     u32 last_turn;
+
+    // Turn variables
+    u32 new_card; // the card that was just picked up
+    bool8 pile_card; // flag to flip if discard new card
+    enum Turn_Stages turn_stage;
 };
 
 //
@@ -130,6 +119,7 @@ enum Camera_Mode {
 };
 
 struct Rotation {
+    bool8 signal;
     bool8 rotating;
     
     float32 degrees;      // how much to rotate the object
@@ -152,7 +142,12 @@ struct Game_Draw {
     bool8 highlight_hover[SELECTED_SIZE];
     bool8 highlight_pressed[SELECTED_SIZE];
 
-    Bitmap name_plates[6];
+    Bitmap name_plates[MAX_PLAYERS];
+
+    Matrix_4x4 top_of_pile_model;
+    Matrix_4x4 top_of_discard_pile_model;
+    Matrix_4x4 new_card_model;
+    Matrix_4x4 hand_models[MAX_PLAYERS][HAND_SIZE];
 };
 
 enum Menu_Mode {

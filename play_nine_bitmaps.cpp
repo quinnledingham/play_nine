@@ -232,10 +232,11 @@ init_card_bitmaps(Bitmap *bitmaps, Font *font) {
 
 internal void
 draw_card_bitmaps(Bitmap bitmaps[14], Vector2_s32 window_dim) {
-    Vector2 pos = { 0, 0 };
     Vector2 dim = { window_dim.x / 14.0f, 0 };
     float32 percent = dim.x / bitmaps[0].width;
     dim.y = bitmaps[0].height * percent;
+    //Vector2 pos = { 0, window_dim.y - dim.y };
+    Vector2 pos = { 0, 0 };
     for (u32 i = 0; i < 14; i++) {
         pos.x = i * dim.x;
         draw_rect(pos, 0, dim, &bitmaps[i]);
