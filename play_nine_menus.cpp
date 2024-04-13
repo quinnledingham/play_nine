@@ -202,6 +202,15 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     return false;
 }
 
+// Hole 11
+// buffer must be 8 bytes
+internal void
+get_hole_text(char *buffer, u32 hole) {
+    platform_memory_set(buffer, 0, 8);
+    platform_memory_copy(buffer, "Hole ", 5);
+    s32_to_char_array(buffer + 5, 3, hole);
+}
+
 /*
 0 do nothing
 1 next hole

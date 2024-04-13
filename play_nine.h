@@ -185,6 +185,7 @@ struct State {
     enum Camera_Mode camera_mode = PLAYER_CAMERA;
     Ray mouse_ray;
 
+    u32 previous_menu;
     Menu_List menu_list;
 
     // Server

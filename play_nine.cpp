@@ -122,7 +122,6 @@ start_hole(Game *game) {
     game->top_of_discard_pile = 0;
     shuffle_pile(game->pile);
     deal_cards(game);
-    //game->active_player = 0;
     game->active_player = game->starting_player;
     game->round_type = FLIP_ROUND;
     game->turn_stage = FLIP_CARD;
@@ -987,14 +986,6 @@ bool8 update(App *app) {
     };
     
     // Update
-    if (state->is_client) {            
-        //u32 previous_menu = state->menu_list.mode;
-        //if (client_get_game(state->client, state))
-        //    add_onscreen_notification(&state->notifications, "Connection Closed");
-        //if (state->menu_list.mode == IN_GAME && previous_menu != IN_GAME)
-            //load_name_plates(&state->game, &state->game_draw);
-    }
-
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);
     } else if (state->menu_list.mode == PAUSE_MENU) {
@@ -1002,9 +993,6 @@ bool8 update(App *app) {
             state->menu_list.mode = IN_GAME;
         }
     }
-
-    //if (state->is_server)
-    //    win32_wait_mutex(state->mutex);
 
     // Draw
     Shader *basic_3D = find_shader(assets, "BASIC3D");
@@ -1036,7 +1024,6 @@ bool8 update(App *app) {
 
     if (state->menu_list.mode != IN_GAME && state->menu_list.mode != PAUSE_MENU) {
         render_bind_pipeline(&shapes.color_pipeline);
-        //render_bind_descriptor_set(state->scene_ortho_set, 0);
         render_bind_descriptor_set(state->scene_ortho_set);
     }
 
@@ -1051,9 +1038,7 @@ bool8 update(App *app) {
         } break;
 
         case SCOREBOARD_MENU: {
-            win32_wait_mutex(state->mutex);
             s32 sb_result = draw_scoreboard(&state->menu_list.scoreboard, &state->game, &menu_input, app->window.dim);
-            win32_release_mutex(state->mutex);
             if (sb_result == 1) {
                 state->menu_list.mode = IN_GAME;
             } else if (sb_result == 2) {
@@ -1071,43 +1056,70 @@ bool8 update(App *app) {
 
         case PAUSE_MENU:
         case IN_GAME: {
+            if (state->previous_menu != IN_GAME)
+                win32_wait_mutex(state->mutex);
+
             draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
+
+            if (state->previous_menu != IN_GAME)
+                win32_release_mutex(state->mutex);
 
             // depth test already off from draw_game()
             render_bind_descriptor_set(state->scene_ortho_set);
 
+            Font *font = find_font(&state->assets, "CASLON");
+            float32 hole_pixel_height = app->window.dim.x / 30.0f;
             float32 pixel_height = app->window.dim.x / 20.0f;
             float32 padding = 10.0f;
 
-            draw_string_tl(find_font(&state->assets, "CASLON"), round_types[state->game.round_type], { padding, padding }, pixel_height, { 255, 255, 255, 1 });
+            char hole_text[8];
+            u32 hole_number = state->game.holes_played + 1;
+            if (state->game.round_type == HOLE_OVER)
+                hole_number -= 1;
+            get_hole_text(hole_text, hole_number);
+
+            String_Draw_Info hole_string_info = get_string_draw_info(font, hole_text, -1, hole_pixel_height);
+            String_Draw_Info string_info = get_string_draw_info(font, round_types[state->game.round_type], -1, pixel_height);
+
+            Vector2 hole_coords = { padding, padding };
+            Vector2 round_coords = hole_coords + Vector2{ 0.0f, 2.0f + hole_string_info.dim.y };
+
+            //draw_rect(hole_coords, 0, hole_string_info.dim, { 0, 0, 0, 0.5f} );            
+            //draw_rect(round_coords - Vector2{ 5.0f, 5.0f }, 0, string_info.dim + Vector2{ 5.0f, 5.0f } * 2.0f, { 0, 0, 0, 0.8f} );      
+            draw_string_tl(font, hole_text, hole_coords, hole_pixel_height, { 255, 255, 255, 1 });
+            draw_string_tl(font, round_types[state->game.round_type], round_coords, pixel_height, { 255, 255, 255, 1 });
 
             gui.input = {
-                        app->input.active,
-                        state->controller.select,
-                        app->input.mouse,
-                        state->controller.mouse_left
-                    };
+                app->input.active,
+                state->controller.select,
+                app->input.mouse,
+                state->controller.mouse_left
+            };
 
+            float32 button_width = app->window.dim.x / 7.0f;
             Player *active_player = &state->game.players[state->game.active_player];
+
             if (state->menu_list.mode == PAUSE_MENU) {
-                //win32_wait_mutex(state->mutex);
+
                 draw_pause_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
-               // win32_release_mutex(state->mutex);
+
             } else if (state->game.round_type == HOLE_OVER) {
 
                 if (!state->is_client) {                
-                    float32 pass_width = app->window.dim.x / 7.0f;
-                    if (gui_button(&gui, default_style, "Proceed", { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height })) {
+                    if (gui_button(&gui, default_style, "Proceed", { app->window.dim.x - button_width, 55 }, { button_width, pixel_height })) {
                         state->menu_list.mode = SCOREBOARD_MENU;
                         state->menu_list.scoreboard.initialized = false;
                     }
                 }
 
             } else if (state->game.turn_stage == FLIP_CARD && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
-                float32 pass_width = app->window.dim.x / 7.0f;
-                if (gui_button(&gui, default_style, "Pass", { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height })) {
-                    state->pass_selected = true; // in update_game feed this into selected
+                
+                if (!state->is_client) {
+                    if (gui_button(&gui, default_style, "Pass", { app->window.dim.x - button_width, 55 }, { button_width, pixel_height })) {
+                        state->pass_selected = true; // in update_game feed this into selected
+                    }
                 }
+
             }
 
         } break;
@@ -1120,9 +1132,6 @@ bool8 update(App *app) {
     draw_string_tl(default_font, buffer, { 10, (float32)app->window.dim.height - 40 }, 40.0f, { 255, 50, 50, 1 });
 
     render_end_frame();
-
-    //if (state->is_server)
-     //   win32_release_mutex(state->mutex);
 
     prepare_controller_for_input(&state->controller);
     gui.index = 1;

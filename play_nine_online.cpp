@@ -76,6 +76,12 @@ play_nine_server_com(void *parameters) {
                 win32_wait_mutex(state->mutex);
 
                 add_onscreen_notification(&state->notifications, "Player Left");
+                
+                // @SPECIAL case
+                if (state->menu_list.mode == SCOREBOARD_MENU) {
+                    state->menu_list.mode = LOCAL_MENU;
+                    state->menu_list.scoreboard.hot_section = { 0, 0 };
+                }
 
                 if (state->game.num_of_players - 1 == player->game_index) {
                     state->game.num_of_players--;
@@ -180,9 +186,9 @@ client_get_game(QSock_Socket sock, State *state) {
             case SET_GAME: {
                 state->game = recv_packet->game;
                 if (state->menu_list.mode != PAUSE_MENU && recv_packet->mode != PAUSE_MENU || (recv_packet->mode != PAUSE_MENU && recv_packet->mode != IN_GAME)) {
-                    u32 previous_menu = state->menu_list.mode;
+                    state->previous_menu = state->menu_list.mode;
                     state->menu_list.mode = recv_packet->mode;
-                    if (state->menu_list.mode == IN_GAME && previous_menu != IN_GAME)
+                    if (state->menu_list.mode == IN_GAME && state->previous_menu != IN_GAME)
                         load_name_plates(&state->game, &state->game_draw);
                 }
                 state->client_game_index = recv_packet->game_index;
