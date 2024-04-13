@@ -35,18 +35,26 @@ struct QSock_Socket {
     QSock_Socket *other; // filled in qsock_accept(). it is the sending sock for server using TCP
 };
 
-internal void
-win32_init_winsock() {
-    WSADATA wsaData;
-    int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
-    if (iResult != 0) {
-        print("WSAStartup failed with error: %d\n", iResult);
-    }
-}
+// Function declarations
+#ifdef OS_WINDOWS
+
+#define OS_EXT(n) win32_##n
+
+#endif // OS_WINDOWS
+
+#define QSOCK_FUNC(r, n, ...) r OS_EXT(n)(__VA_ARGS__); r (*qsock_##n)(__VA_ARGS__) = &OS_EXT(n)
+
+QSOCK_FUNC(void, init_qsock, );
+QSOCK_FUNC(bool8, init_socket, QSock_Socket *sock, const char *ip, const char *port);
+QSOCK_FUNC(void, print_socket_error, );
+QSOCK_FUNC(s32, timeout, QSock_Socket sock, s32 seconds, s32 microseconds);
+QSOCK_FUNC(void, listen, QSock_Socket socket);
+QSOCK_FUNC(void, accept, QSock_Socket *sock, QSock_Socket *client);
 
 internal struct QSock_Address_Info
 addrinfo_to_address_info(struct addrinfo og) {
     struct QSock_Address_Info info = {};
+    
     info.family = og.ai_family;
     info.socket_type = og.ai_socktype;
     info.protocol = og.ai_protocol;
@@ -57,6 +65,53 @@ addrinfo_to_address_info(struct addrinfo og) {
     memcpy((void*)info.address, og.ai_addr, info.address_length);
 
     return info;
+}
+
+internal bool8
+qsock_client(QSock_Socket *sock, const char *ip, const char *port, int protocol) {
+    sock->protocol = protocol;
+    sock->passive = false;
+    if (qsock_init_socket(sock, ip, port)) {
+
+        if (sock->protocol == UDP) 
+            qsock_timeout(*sock, 1, 0);
+
+        print("Client socket connected to ip: %s port: %s\n", ip, port);
+        return true;
+    } else {
+        qsock_print_socket_error();
+        return false;
+    }
+}
+
+internal bool8
+qsock_server(QSock_Socket *sock, const char *port, s32 protocol) {
+    sock->protocol = protocol;
+    sock->passive = true;
+    if (qsock_init_socket(sock, NULL, port)) {
+
+        print("Server socket set up with port %s\n", port);
+        return true;
+    } else {
+        qsock_print_socket_error();
+        return false;
+    }
+}
+
+#ifdef OS_WINDOWS
+
+internal void
+win32_init_qsock() {
+    WSADATA wsaData;
+    int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+    if (iResult != 0) {
+        print("WSAStartup failed with error: %d\n", iResult);
+    }
+}
+
+internal void
+win32_print_socket_error() {    
+    print("WSAerror %d\n", WSAGetLastError());
 }
 
 internal bool8
@@ -132,41 +187,6 @@ win32_timeout(QSock_Socket sock, s32 seconds, s32 microseconds) {
 }
 
 internal void
-qsock_listen(struct QSock_Socket socket) {
-    int backlog = 5;
-    int error = listen(socket.handle, backlog);
-    if (error == -1) { 
-        print("sock_listen() error\n"); 
-        print("WSAerror %d\n", WSAGetLastError());
-    }
-}
-
-internal void
-qsock_accept(struct QSock_Socket *socket, struct QSock_Socket *client) {
-    if (!socket->passive) {
-        fprintf(stderr, "qsock_accept(): not a passive(server) socket\n");
-        return;
-    }
-    else if (socket->protocol != TCP) {
-        fprintf(stderr, "qsock_accept(): not a TCP socket\n");
-        return;
-    }
-
-    struct sockaddr address = {};
-    s32 address_length = sizeof(sockaddr);
-
-    client->handle = (s32)accept(socket->handle, &address, &address_length);
-    if (client->handle == -1) {
-        logprint("qsock_accept()", "accept() call failed\n");
-        print("WSAerror %d\n", WSAGetLastError());
-        return;
-    }
-
-    client->info.address = (const char *)malloc(address_length);
-    memcpy((void*)client->info.address, (void*)&address, address_length);
-}
-
-internal void
 win32_free_socket(struct QSock_Socket socket) {
     closesocket(socket.handle);
 }
@@ -199,38 +219,42 @@ win32_send_to(struct QSock_Socket socket, const char *buffer, int buffer_size, i
     return bytes;
 }
 
-
-internal bool8
-qsock_client(QSock_Socket *sock, const char *ip, const char *port, int protocol) {
-    sock->protocol = protocol;
-    sock->passive = false;
-    if (win32_init_socket(sock, ip, port)) {
-
-        if (sock->protocol == UDP) 
-            win32_timeout(*sock, 1, 0);
-
-        print("Client socket connected to ip: %s port: %s\n", ip, port);
-        return true;
-    } else {
-
+internal void
+win32_listen(struct QSock_Socket socket) {
+    int backlog = 5;
+    int error = listen(socket.handle, backlog);
+    if (error == -1) { 
+        print("sock_listen() error\n"); 
         print("WSAerror %d\n", WSAGetLastError());
-        return false;
     }
 }
 
-internal bool8
-qsock_server(QSock_Socket *sock, const char *port, s32 protocol) {
-    sock->protocol = protocol;
-    sock->passive = true;
-    if (win32_init_socket(sock, NULL, port)) {
-
-        print("Server socket set up with port %s\n", port);
-        return true;
-    } else {
-        print("WSAerror %d\n", WSAGetLastError());
-        return false;
+internal void
+win32_accept(struct QSock_Socket *socket, struct QSock_Socket *client) {
+    if (!socket->passive) {
+        fprintf(stderr, "qsock_accept(): not a passive(server) socket\n");
+        return;
     }
+    else if (socket->protocol != TCP) {
+        fprintf(stderr, "qsock_accept(): not a TCP socket\n");
+        return;
+    }
+
+    struct sockaddr address = {};
+    s32 address_length = sizeof(sockaddr);
+
+    client->handle = (s32)accept(socket->handle, &address, &address_length);
+    if (client->handle == -1) {
+        logprint("qsock_accept()", "accept() call failed\n");
+        win32_print_socket_error();
+        return;
+    }
+
+    client->info.address = (const char *)malloc(address_length);
+    memcpy((void*)client->info.address, (void*)&address, address_length);
 }
+
+#endif // OS_WINDOWS
 
 /*
 internal int

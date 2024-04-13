@@ -15,14 +15,14 @@ get_file_stream(u32 output_stream) {
 	}
 }
 
-#ifdef WINDOWS
+#ifdef OS_WINDOWS
 
 inline void
 print_char_array(u32 output_stream, const char *char_array) {
 	OutputDebugStringA((LPCSTR)char_array);
 }
 
-#endif // WINDOWS
+#endif // OS_WINDOWS
 
 #define PRINT_BUFFER_SIZE 2000
 

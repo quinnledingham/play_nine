@@ -1,8 +1,8 @@
 #include <SDL.h>
 
-#define OS_WINDOWS
-#define API_SDL
-#define API_VULKAN
+//#define OS_WINDOWS
+//#define API_SDL
+//#define API_VULKAN
 
 #ifdef OS_WINDOWS
 
@@ -283,7 +283,7 @@ int main(int argc, char *argv[]) {
     	return 1;
     }
 
-    win32_init_winsock();
+    qsock_init_qsock();
 
     u32 sdl_window_flags = SDL_WINDOW_RESIZABLE;
 #ifdef OPENGL
@@ -334,8 +334,6 @@ int main(int argc, char *argv[]) {
         if (app.update(&app))
             break;
 
-
-        
         //SDL_Delay(5);
     }
 
