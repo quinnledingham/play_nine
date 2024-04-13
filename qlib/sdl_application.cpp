@@ -191,6 +191,8 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
 						#elif DX12
 						    dx12_resize_window(&dx12_renderer, window);
 						#endif // OPENGL / DX12
+
+                        event_handler(app, APP_RESIZED, NULL);
                     } break;
 
                     case SDL_WINDOWEVENT_MINIMIZED: {

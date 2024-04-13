@@ -107,6 +107,8 @@ struct Menu_Input {
     // textbox typing inptu
     s32 *buffer;
     s32 buffer_index;
+
+    bool8 full_menu; // if false so a smaller version of the menu
 };
 
 struct Menu {

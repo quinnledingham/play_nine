@@ -63,6 +63,8 @@ typedef enum {
 	APP_KEYDOWN,
 	APP_KEYUP,
 
+	APP_RESIZED,
+
 	APP_MOUSEDOWN,
 	APP_MOUSEUP,
 } App_System_Event;

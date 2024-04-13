@@ -288,14 +288,11 @@ next_player(Game *game, Game_Draw *draw) {
     game->players[game->active_player].turn_stage = SELECT_PILE;
     game->players[game->active_player].pile_card = false;
 
-    game->active_player++;
-
     // END HOLE
     if (game->last_turn == game->num_of_players && game->round_type != HOLE_OVER) {
         update_scores(game);
         game->holes_played++;
         game->round_type = HOLE_OVER;
-
         game->starting_player++;
 
         if (game->starting_player >= game->num_of_players) {
@@ -306,7 +303,11 @@ next_player(Game *game, Game_Draw *draw) {
         if (game->holes_played == GAME_LENGTH) {
             game->game_over = true;
         }
+
+        return; // Don't need to move ahead a player now
     }
+
+    game->active_player++;
 
     // end of round: loop back around if required
     if (game->active_player >= game->num_of_players) {
@@ -319,7 +320,6 @@ next_player(Game *game, Game_Draw *draw) {
 
     // Update for draw
     //add_onscreen_notification(&draw->notifications, game->players[game->active_player].name);
-
     draw->camera_rotation = {
         true,
         draw->degrees_between_players,
@@ -496,6 +496,7 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
 
     // compute intersections
     vulkan_start_compute();
+
     vulkan_bind_pipeline(&ray_pipeline);
 
     memset((char*)vulkan_info.storage_buffer.data, 0, 204 * sizeof(Triangle_v4));
@@ -602,10 +603,6 @@ bool8 update_game(State *state, App *app) {
             if (on_down(state->controller.camera_toggle)) {
                 state->camera_mode = FREE_CAMERA;
                 app->input.relative_mouse_mode = true;
-
-                //state->camera.position = Vector3{ 0, 0, 1 };
-                //state->camera.yaw = 270.0f;
-                //state->camera.pitch = 0.0f;
                 break;
             }
         } break;
@@ -662,6 +659,8 @@ bool8 update_game(State *state, App *app) {
                 win32_release_mutex(state->selected_mutex);
             }
 
+            if (state->is_client) break;            
+
             // Game logic
             switch(game->round_type) {
                 case FLIP_ROUND:    flip_round_update(game, &state->game_draw, selected); break;
@@ -701,15 +700,17 @@ bool8 update_game(State *state, App *app) {
             // update camera after game logic
             float32 deg = 0.0f;
 
-            if (!state->is_server && !state->is_client) {
+            if (game->round_type == HOLE_OVER) {
+                deg = draw->rotation; // draw->rotation is set above
+            } else if (!state->is_server && !state->is_client) {
+                draw->rotation = -draw->degrees_between_players * game->active_player;
+
                 deg = -draw->degrees_between_players * game->active_player;
                 deg += rotation_degrees;
             } else {
-                deg = -draw->degrees_between_players * state->client_game_index;
-            }
+                draw->rotation = -draw->degrees_between_players * state->client_game_index;
 
-            if (game->round_type == HOLE_OVER) {
-                deg = draw->rotation; // draw->rotation is set above
+                deg = -draw->degrees_between_players * state->client_game_index;
             }
             
             float32 rad = deg * DEG2RAD;
@@ -731,6 +732,15 @@ bool8 update_game(State *state, App *app) {
     load_card_models(game, draw, rotation_degrees);
 
     return 0;
+}
+
+internal void
+update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
+    //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
+    scene->projection = perspective_projection(45.0f, (float32)window_dim.width / (float32)window_dim.height, 0.1f, 1000.0f);
+
+    ortho_scene->view = identity_m4x4();
+    ortho_scene->projection = orthographic_projection(0.0f, (float32)window_dim.width, 0.0f, (float32)window_dim.height, -3.0f, 3.0f);
 }
 
 /*
@@ -789,13 +799,13 @@ bool8 init_data(App *app) {
         fclose(file);
     } else {
         for (u32 i = 0; i < 14; i++) {
-            card_bitmaps[i] = state->assets.types[0].data[i + 3].bitmap;
+            card_bitmaps[i] = state->assets.types[0].data[i + 4].bitmap; // + 4 to go after bitmaps loaded before the card bitmaps
         }
     }
 
     default_font = find_font(&state->assets, "CASLON");
 
-    //clear_font_bitmap_cache(default_font);
+    clear_font_bitmap_cache(default_font);
     
     global_assets = &state->assets;
     init_layouts(layouts, find_bitmap(&state->assets, "DAVID"));
@@ -840,11 +850,7 @@ bool8 init_data(App *app) {
     state->camera.pitch    = -75.0f;
     state->camera_mode = PLAYER_CAMERA;
 
-    //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
-    state->scene.projection = perspective_projection(45.0f, (float32)app->window.width / (float32)app->window.height, 0.1f, 1000.0f);
-
-    state->ortho_scene.view = identity_m4x4();
-    state->ortho_scene.projection = orthographic_projection(0.0f, (float32)app->window.width, 0.0f, (float32)app->window.height, -3.0f, 3.0f);
+    update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
 
     // Input
 	set(&state->controller.forward, 'w');
@@ -953,6 +959,7 @@ bool8 update(App *app) {
 	State *state = (State *)app->data;
 	Assets *assets = &state->assets;
 
+    bool8 full_menu = (!state->is_client && !state->is_server) || state->is_server;
     bool8 select = on_up(state->controller.select) || on_up(state->controller.mouse_left);
     bool8 pressed = on_down(state->controller.select) || on_down(state->controller.mouse_left);
     Menu_Input menu_input = {
@@ -971,17 +978,16 @@ bool8 update(App *app) {
         app->input.mouse,
 
         app->input.buffer,
-        app->input.buffer_index
+        app->input.buffer_index,
+
+        full_menu
     };
-
-    if (app->window.resized) {
-
-    }
     
     // Update
     if (state->is_client) {            
         u32 previous_menu = state->menu_list.mode;
-        client_get_game(state->client, state);
+        if (client_get_game(state->client, state))
+            add_onscreen_notification(&state->notifications, "Connection Closed");
         if (state->menu_list.mode == IN_GAME && previous_menu != IN_GAME)
             load_name_plates(&state->game, &state->game_draw);
     }
@@ -1091,7 +1097,6 @@ bool8 update(App *app) {
                     if (gui_button(&gui, default_style, "Proceed", { app->window.dim.x - pass_width, 55 }, { pass_width, pixel_height })) {
                         state->menu_list.mode = SCOREBOARD_MENU;
                         state->menu_list.scoreboard.initialized = false;
-                        state->game_draw.rotation = 0.0f;
                     }
                 }
 
@@ -1147,6 +1152,10 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             cleanup_shapes();
             render_assets_cleanup(&state->assets);
         } break;
+
+        case APP_RESIZED: {
+            update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
+        }
 
         case APP_KEYDOWN: {
             app->input.active = KEYBOARD_INPUT;

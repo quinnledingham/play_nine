@@ -43,15 +43,22 @@ close_server() {
     closesocket(online.sock.handle);
 }
 
+internal void
+server_disconnect_client(Online_Player *player) {
+    Play_Nine_Packet return_packet = {};
+    return_packet.type = CLOSE_CONNECTION;
+    win32_send(player->sock, (const char *)&return_packet, sizeof(return_packet), 0);
+    
+    player->in_use = false;
+    closesocket(player->sock.handle);
+    TerminateThread((HANDLE)player->thread_handle, NULL);
+}
+
 DWORD WINAPI
 play_nine_server_com(void *parameters) {
     Online_Player *player = (Online_Player *)parameters;
     State *state = player->state;
     char buffer[sizeof(Play_Nine_Packet)];
-
-    //u32 player_index = online.player_indices[online.clients_index];
-    //u32 client_index = online.clients_index;
-    //online.clients_index++;
 
     while(1) {
         s32 bytes = win32_recv_from(player->sock, buffer, sizeof(Play_Nine_Packet), 0, &player->sock.recv_info);
@@ -69,13 +76,7 @@ play_nine_server_com(void *parameters) {
 
             case GET_GAME: {
                 if (online.close_threads) {
-                    Play_Nine_Packet return_packet = {};
-                    return_packet.type = CLOSE_CONNECTION;
-                    win32_send(player->sock, (const char *)&return_packet, sizeof(return_packet), 0);
-                    
-                    player->in_use = false;
-                    closesocket(player->sock.handle);
-                    TerminateThread((HANDLE)player->thread_handle, NULL);
+                    server_disconnect_client(player); // closes thread
                 }
 
                 Play_Nine_Packet return_packet = {};
@@ -98,6 +99,8 @@ play_nine_server_com(void *parameters) {
                 closesocket(player->sock.handle);
 
                 win32_wait_mutex(state->mutex);
+
+                add_onscreen_notification(&state->notifications, "Player Left");
 
                 if (state->game.num_of_players - 1 == player->game_index) {
                     state->game.num_of_players--;
@@ -159,8 +162,21 @@ play_nine_server(void *parameters) {
         online.players[player_index].state = state;
 
         win32_wait_mutex(state->mutex);
+        if (state->menu_list.mode != LOCAL_MENU) {
+            win32_release_mutex(state->mutex);
+            char buffer[sizeof(Play_Nine_Packet)];
+            s32 bytes = win32_recv_from(client_sock, buffer, sizeof(Play_Nine_Packet), 0, &client_sock.recv_info);
+
+            Play_Nine_Packet return_packet = {};
+            return_packet.type = CLOSE_CONNECTION;
+            win32_send(client_sock, (const char *)&return_packet, sizeof(return_packet), 0);
+            closesocket(client_sock.handle);
+
+            online.players[player_index].in_use = false;
+
+            continue;
+        }
         state->game.num_of_players++;
-        //default_player_name_string(state->game.players[online.players[player_index].game_index].name, online.players[player_index].game_index);
         win32_release_mutex(state->mutex);
 
         DWORD thread_id;
@@ -170,7 +186,12 @@ play_nine_server(void *parameters) {
     return 0;
 }
 
-internal void
+//
+// Client
+//
+
+// returns true if the connection was closed
+internal bool8
 client_get_game(QSock_Socket sock, State *state) {
     Play_Nine_Packet packet = {};
     packet.type = GET_GAME;
@@ -183,31 +204,24 @@ client_get_game(QSock_Socket sock, State *state) {
         switch(recv_packet->type) {
             case SET_GAME: {
                 state->game = *(Game *)recv_packet->buffer;
-                if (state->menu_list.mode != PAUSE_MENU)
+                if (state->menu_list.mode != PAUSE_MENU && recv_packet->mode != PAUSE_MENU || (recv_packet->mode != PAUSE_MENU && recv_packet->mode != IN_GAME))
                     state->menu_list.mode = recv_packet->mode;
                 state->client_game_index = recv_packet->game_index;
                 state->game_draw.camera_rotation = recv_packet->pile_rotation;
             } break;
-            
+
             case CLOSE_CONNECTION: {
                 closesocket(sock.handle);
                 state->is_client = false;
                 state->menu_list.mode = MAIN_MENU;
-                add_onscreen_notification(&state->notifications, "Connection Closed");
+                return true;
             } break;
         }
     } else {
-        logprint("draw_join_menu()", "Received no bytes\n");
+        logprint("client_get_game()", "Received no bytes\n");
     }
-}
 
-internal void
-client_set_selected(QSock_Socket sock, bool8 selected[SELECTED_SIZE], u32 index) {
-    Play_Nine_Packet packet = {};
-    packet.type = SET_SELECTED;
-    packet.game_index = index;
-    platform_memory_copy(packet.selected, selected, sizeof(selected[0]) * SELECTED_SIZE);
-    win32_send(sock, (const char *)&packet, sizeof(packet), 0);
+    return false;
 }
 
 internal void
@@ -215,6 +229,16 @@ client_set_name(QSock_Socket sock, const char *name) {
     Play_Nine_Packet packet = {};
     packet.type = SET_NAME;
     platform_memory_copy(packet.buffer, (void*)name, get_length(name));
+    win32_send(sock, (const char *)&packet, sizeof(packet), 0);
+}
+
+
+internal void
+client_set_selected(QSock_Socket sock, bool8 selected[SELECTED_SIZE], u32 index) {
+    Play_Nine_Packet packet = {};
+    packet.type = SET_SELECTED;
+    packet.game_index = index;
+    platform_memory_copy(packet.selected, selected, sizeof(selected[0]) * SELECTED_SIZE);
     win32_send(sock, (const char *)&packet, sizeof(packet), 0);
 }
 

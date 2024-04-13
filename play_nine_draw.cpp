@@ -149,7 +149,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
 
     // move piles closer to player
 
-    float32 center_of_piles_z = -active_player_position.x + 6.0f;
+    float32 center_of_piles_z = -active_player_position.x + 5.7f;
     pile_coords.z = center_of_piles_z;
     discard_pile_coords.z = center_of_piles_z;
     selected_card_coords.z = center_of_piles_z + selected_card_coords.z;
@@ -165,7 +165,7 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
     float32 rotation_rads = (degrees - rotation_degrees) * DEG2RAD;
 
     //Vector3 dir = normalized(active_player_position);
-
+    
     rotate_coords(&pile_coords, rotation_rads);
     rotate_coords(&discard_pile_coords, rotation_rads);
 

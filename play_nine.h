@@ -5,10 +5,6 @@ TODO
 - Flip "animation"
 - Show keyboard controls
 - Make face cards
-- Fix always going back to 0 cam rotation in hole over
-
-- Fix online
-- Fix online drawing (rotation) (Just leave the cam infront of the client cards)
 
 Slight Problems
 - Make assets packing better
