@@ -750,10 +750,10 @@ https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#qu
 */
 
 bool8 init_data(App *app) {
-	app->data = platform_malloc(sizeof(State));
+    app->data = platform_malloc(sizeof(State));
     State *state = (State *)app->data;
     *state = {};
-	state->assets = {};
+    state->assets = {};
 
     global_assets = &state->assets;
 
@@ -814,12 +814,12 @@ bool8 init_data(App *app) {
 
     u32 test = sizeof(Layout_Set);
 
-	Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
+    Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
     init_basic_vert_layout(&basic_3D->set, layouts);
     init_basic_frag_layout(basic_3D, layouts);
     basic_pipeline.shader = basic_3D;
     basic_pipeline.depth_test = true;
-	render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
+    render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
 	
     Shader *color_3D = find_shader(&state->assets, "COLOR3D");
     init_basic_vert_layout(&color_3D->set, layouts);

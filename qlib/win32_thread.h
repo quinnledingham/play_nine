@@ -21,3 +21,19 @@ win32_release_mutex(s64 handle) {
         print("ReleaseMutex error: %d\n", GetLastError());
     }
 }
+
+internal s64
+win32_create_thread(void *function, void *data) {
+    DWORD thread_id;
+    return (s64)CreateThread(0, 0, LPTHREAD_START_ROUTINE(function), data, 0, &thread_id);
+}
+
+internal void
+win32_terminate_thread(s64 handle) {
+    TerminateThread((HANDLE)handle, NULL);
+}
+
+internal void
+win32_wait_for_thread(s64 handle) {
+    WaitForSingleObject((HANDLE)handle, INFINITE);
+}
