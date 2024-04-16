@@ -114,6 +114,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         if (menu_button(menu, "+ Player", *input, { 0, menu_row }, { 1, 1 })) {
             if (game->num_of_players != MAX_PLAYERS) {
                 default_player_name_string(game->players[game->num_of_players].name, game->num_of_players);
+                game->players[game->num_of_players].is_bot = false;
                 game->num_of_players++;
             }
         }

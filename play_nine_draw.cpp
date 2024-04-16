@@ -1,56 +1,5 @@
 //
-// Model
-//
-
-void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 back_index, Matrix_4x4 model_matrix, bool8 flipped) {
-    u32 draw[3] = { 1, 0, 2 };
-    u32 flipped_draw[3] = { 2, 0, 1 };
-
-    for (u32 i = 0; i < model->meshes_count; i++) {
-        u32 draw_index = draw[i];
-        if (flipped)
-            draw_index = flipped_draw[i];
-
-        Object object = {};
-        object.model = model_matrix;
-        object.index = back_index;
-
-        switch(draw_index) {
-            case 0: 
-                render_bind_pipeline(&color_pipeline); 
-                render_bind_descriptor_set(color_set);
-            break;
-
-            case 1:
-                object.index = front_index;
-            case 2: 
-                render_bind_pipeline(&basic_pipeline); 
-                render_bind_descriptor_set(texture_desc);
-            break;
-        }
-
-        render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-        render_draw_mesh(&model->meshes[draw_index]);
-    }
-}
-
-// drawing highlight
-void draw_highlight(Model *model, Render_Pipeline *color_pipeline, Vector4 color, Matrix_4x4 model_matrix) {
-    render_bind_pipeline(color_pipeline);
-
-    Descriptor color_set = render_get_descriptor_set(&layouts[5]);
-    render_update_ubo(color_set, (void *)&color);
-    render_bind_descriptor_set(color_set);
-
-    render_push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));
-
-    for (u32 i = 0; i < model->meshes_count; i++) {
-        render_draw_mesh(&model->meshes[i]);
-    }
-}
-
-//
-// Drawing
+// Loading Model Matrices
 //
 
 internal void
@@ -188,6 +137,57 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
     }
 }
 
+//
+// Drawing
+//
+
+void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 back_index, Matrix_4x4 model_matrix, bool8 flipped) {
+    u32 draw[3] = { 1, 0, 2 };
+    u32 flipped_draw[3] = { 2, 0, 1 };
+
+    for (u32 i = 0; i < model->meshes_count; i++) {
+        u32 draw_index = draw[i];
+        if (flipped)
+            draw_index = flipped_draw[i];
+
+        Object object = {};
+        object.model = model_matrix;
+        object.index = back_index;
+
+        switch(draw_index) {
+            case 0: 
+                render_bind_pipeline(&color_pipeline); 
+                render_bind_descriptor_set(color_set);
+            break;
+
+            case 1:
+                object.index = front_index;
+            case 2: 
+                render_bind_pipeline(&basic_pipeline); 
+                render_bind_descriptor_set(texture_desc);
+            break;
+        }
+
+        render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+        render_draw_mesh(&model->meshes[draw_index]);
+    }
+}
+
+// drawing highlight
+void draw_highlight(Model *model, Render_Pipeline *color_pipeline, Vector4 color, Matrix_4x4 model_matrix) {
+    render_bind_pipeline(color_pipeline);
+
+    Descriptor color_set = render_get_descriptor_set(&layouts[5]);
+    render_update_ubo(color_set, (void *)&color);
+    render_bind_descriptor_set(color_set);
+
+    render_push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));
+
+    for (u32 i = 0; i < model->meshes_count; i++) {
+        render_draw_mesh(&model->meshes[i]);
+    }
+}
+
 internal void
 draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color, bool8 flipped) {
     u32 bitmap_index = number;
@@ -218,38 +218,32 @@ internal void
 draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 indices[16]) {
     Player *active_player = &game->players[game->active_player];
     enum Turn_Stages stage = game->turn_stage;
-
-    if (active_player->is_bot) highlight = false;
     
     Descriptor color_set = render_get_descriptor_set(&layouts[5]);
     Vector4 color = { 150, 150, 150, 1 };
     render_update_ubo(color_set, &color);
 
-    for (u32 i = 0; i < game->num_of_players; i++) {
+    for (u32 player_index = 0; player_index < game->num_of_players; player_index++) {
         for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
-            s32 card = deck[game->players[i].cards[card_index]];
-            bool8 h = highlight && i == game->active_player && !game->players[i].is_bot;
-            switch (stage) {
-                case SELECT_PILE: h = false; break;
-                case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;
-            }
+            bool8 h = stage != SELECT_PILE && player_index == game->active_player && highlight;
+            if (stage == FLIP_CARD && active_player->flipped[card_index]) h = false;
 
-            draw_card(card_model, color_set, indices, card, draw->hand_models[i][card_index], h, get_highlight_color(draw, card_index), game->players[i].flipped[card_index]);
+            s32 card = deck[game->players[player_index].cards[card_index]];
+            draw_card(card_model, color_set, indices, card, draw->hand_models[player_index][card_index], h, get_highlight_color(draw, card_index), game->players[player_index].flipped[card_index]);
         }
     }
-    
+
     {
-        bool8 h = highlight && stage == SELECT_PILE;
+        bool8 h = stage == SELECT_PILE && highlight;
         draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], draw->top_of_pile_model, h, get_highlight_color(draw, PICKUP_PILE), false);
     }
 
     if (game->top_of_discard_pile != 0) {
-        bool8 h = highlight && (stage == SELECT_PILE || stage == SELECT_CARD);
-        if (stage == SELECT_CARD && !game->pile_card)
-            h = false;
+        bool8 h = (stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE && highlight;
         draw_card(card_model, color_set, indices, deck[game->discard_pile[game->top_of_discard_pile - 1]], draw->top_of_discard_pile_model, h, get_highlight_color(draw, DISCARD_PILE), true);
     }
 
+    // always draw new card on top
     if (stage == SELECT_CARD) {
         s32 card = deck[game->new_card];
         draw_card(card_model, color_set, indices, card, draw->new_card_model, false, play_nine_yellow, true);
@@ -340,19 +334,21 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     render_bind_descriptor_set(light_set);
 
     // Name Plate
-    //win32_wait_mutex(state->mutex);
     draw_name_plates(game, &state->game_draw);
-    //win32_release_mutex(state->mutex);
 
     // Cards
     render_bind_descriptor_set(texture_desc);
 
     Model *card_model = find_model(assets, "CARD");
-    draw_cards(game, &state->game_draw, card_model, false, indices);
 
     render_depth_test(false);
 
+    if (state->game.round_type == HOLE_OVER)
+        render_depth_test(true);
+    
     bool8 online_bool = state->client_game_index == state->game.active_player || (!state->is_client && !state->is_server);
-    if (state->game.round_type != HOLE_OVER && online_bool && !state->game_draw.camera_rotation.rotating)
-        draw_cards(game, &state->game_draw, card_model, true, indices);
+    bool8 highlight = state->game.round_type != HOLE_OVER && online_bool && !state->game_draw.camera_rotation.rotating && !state->game.players[state->game.active_player].is_bot;
+    draw_cards(game, &state->game_draw, card_model, highlight, indices);
+
+    render_depth_test(false);
 }
