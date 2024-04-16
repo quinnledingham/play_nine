@@ -5,6 +5,8 @@ TODO
 - Flip "animation"
 - Show keyboard controls
 
+- No edit bot names
+
 Slight Problems
 - Improve face cards
 - Improve game hud
@@ -151,6 +153,7 @@ struct Game_Draw {
     bool8 highlight_hover[SELECTED_SIZE];
     bool8 highlight_pressed[SELECTED_SIZE];
 
+    Bitmap *bot_bitmap;
     Bitmap name_plates[MAX_PLAYERS];
 
     Matrix_4x4 top_of_pile_model;
@@ -206,6 +209,8 @@ struct State {
     bool8 is_client;
     QSock_Socket client;
     u32 client_game_index; // what player index in game for the local player
+
+    bool8 is_active; // is currently taking inputs (local game, active player online client, not a bot)
 
     bool8 selected[SELECTED_SIZE];
     s64 selected_mutex;

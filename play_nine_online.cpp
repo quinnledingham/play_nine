@@ -85,12 +85,9 @@ play_nine_server_com(void *parameters) {
 
                 if (state->game.num_of_players - 1 == player->game_index) {
                     state->game.num_of_players--;
+                    remove_online_player(&state->game, player->game_index);
                 } else {
-                    remove_player(&state->game, player->game_index);
-                    for (u32 i = 0; i < 5; i++) {
-                        if (online.players[i].in_use && online.players[i].game_index > player->game_index)
-                            online.players[i].game_index--;
-                    }
+                    remove_player_index(&state->game, player->game_index);
                 }
 
                 win32_release_mutex(state->mutex);
@@ -157,7 +154,8 @@ play_nine_server(void *parameters) {
 
             continue;
         }
-        state->game.num_of_players++;
+        //state->game.num_of_players++;
+        add_player(&state->game, false);
         win32_release_mutex(state->mutex);
 
         online.players[player_index].thread_handle = win32_create_thread(play_nine_server_com, (void*)&online.players[player_index]);

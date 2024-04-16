@@ -239,7 +239,7 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 
     }
 
     if (game->top_of_discard_pile != 0) {
-        bool8 h = (stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE && highlight;
+        bool8 h = ((stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE) && highlight;
         draw_card(card_model, color_set, indices, deck[game->discard_pile[game->top_of_discard_pile - 1]], draw->top_of_discard_pile_model, h, get_highlight_color(draw, DISCARD_PILE), true);
     }
 
@@ -262,8 +262,24 @@ load_name_plates(Game *game, Game_Draw *draw) {
             render_delete_texture(&draw->name_plates[i]);
         }
 
-        draw->name_plates[i] = create_string_into_bitmap(default_font, 350.0f, game->players[i].name);
-        render_create_texture(&draw->name_plates[i], TEXTURE_PARAMETERS_CHAR);
+        Bitmap string_bitmap = create_string_into_bitmap(default_font, 350.0f, game->players[i].name);
+        if (!game->players[i].is_bot)
+            draw->name_plates[i] = string_bitmap;
+        else {
+            Bitmap bitmap {};
+            bitmap.width = draw->bot_bitmap->width + string_bitmap.width;
+            bitmap.height = string_bitmap.height;
+            bitmap.channels = 1;
+            bitmap.pitch = bitmap.width * bitmap.channels;
+            bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
+            memset(bitmap.memory, 0x00, bitmap.width * bitmap.height * bitmap.channels);
+            copy_blend_bitmap(bitmap, *draw->bot_bitmap, { 0, 0 }, { 255, 255, 255 });
+            copy_blend_bitmap(bitmap, string_bitmap, { draw->bot_bitmap->width, 0 }, { 255, 255, 255 });
+            draw->name_plates[i] = bitmap;
+            platform_free(string_bitmap.memory);
+        }
+        if (draw->name_plates[i].height != 0) // height because bot bitmap is set with string height and string height can be zero
+            render_create_texture(&draw->name_plates[i], TEXTURE_PARAMETERS_CHAR);
     }
 }
 
@@ -342,12 +358,11 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     Model *card_model = find_model(assets, "CARD");
 
     render_depth_test(false);
-
-    if (state->game.round_type == HOLE_OVER)
+    bool8 highlight = state->is_active && state->game.round_type != HOLE_OVER && !state->game_draw.camera_rotation.rotating;
+    
+    if (state->game.round_type == HOLE_OVER || !highlight)
         render_depth_test(true);
     
-    bool8 online_bool = state->client_game_index == state->game.active_player || (!state->is_client && !state->is_server);
-    bool8 highlight = state->game.round_type != HOLE_OVER && online_bool && !state->game_draw.camera_rotation.rotating && !state->game.players[state->game.active_player].is_bot;
     draw_cards(game, &state->game_draw, card_model, highlight, indices);
 
     render_depth_test(false);

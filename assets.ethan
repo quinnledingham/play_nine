@@ -26,6 +26,7 @@ FRONT,   front.png
 FRONT0,  front0.png
 FRONT11, front11.png
 FRONT12, front12.png
+BOT,     bot.png
 
 FONTS:
 CASLON, LibreCaslonCondensed-Regular.ttf

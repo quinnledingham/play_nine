@@ -50,15 +50,56 @@ index = 2
 */
 
 internal void
-remove_player(Game *game, u32 index) {
+add_player(Game *game, bool8 bot) {
+    if (game->num_of_players != MAX_PLAYERS) {
+        // count non bots
+        u32 num_of_players = 1;
+        u32 num_of_bots = 1;
+        for (u32 i = 0; i < game->num_of_players; i++) {
+            if (!game->players[i].is_bot) 
+                num_of_players++;
+            else
+                num_of_bots++;
+        }
+        if (!bot)
+            default_player_name_string(game->players[game->num_of_players].name, num_of_players);
+        else
+            default_bot_name_string(game->players[game->num_of_players].name, num_of_bots);
+
+        game->players[game->num_of_players].is_bot = bot;
+        game->num_of_players++;
+    }
+}
+
+internal void
+remove_online_player(Game *game, u32 index) {
+    for (u32 i = 0; i < 5; i++) {
+        if (online.players[i].in_use && online.players[i].game_index > index)
+            online.players[i].game_index--;
+    }
+}
+
+internal void
+remove_player_index(Game *game, u32 index) {
     u32 dest_index = index;
     u32 src_index = index + 1;
-    for (src_index; src_index < game->num_of_players; src_index++) {
+    for (src_index; src_index < game->num_of_players; src_index++) {        
         game->players[dest_index++] = game->players[src_index];
     }
     game->num_of_players--;
+
+    remove_online_player(game, index);
 }
 
+internal void
+remove_player(Game *game, bool8 bot) {
+    for (u32 i = game->num_of_players - 1; i > 0; i--) {
+        if ((!game->players[i].is_bot && !bot) || (game->players[i].is_bot && bot)) {
+            remove_player_index(game, i);
+            break;
+        }
+    }
+}
 
 internal void
 init_deck() {
@@ -653,8 +694,7 @@ bool8 update_game(State *state, App *app) {
             } 
     
             bool8 selected[SELECTED_SIZE] = {};
-            if ((state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) && 
-                !game->players[game->active_player].is_bot) {
+            if (state->is_active) {
                 do_mouse_selected_update(state, app, selected);
                 do_controller_selected_update(selected, game, &state->controller);
 
@@ -666,7 +706,7 @@ bool8 update_game(State *state, App *app) {
                 if (state->is_client && !all_false(selected)) {
                     client_set_selected(state->client, selected, state->client_game_index);
                 }
-            } else if (state->is_server) {
+            } else if (state->is_server && !game->players[game->active_player].is_bot) {
                 win32_wait_mutex(state->selected_mutex);
                 if (!all_false(state->selected)) {
                     platform_memory_copy(selected, state->selected, sizeof(selected[0]) * SELECTED_SIZE);
@@ -765,6 +805,22 @@ update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
 https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f
 */
 
+internal void
+convert_to_one_channel(Bitmap *bitmap) {
+    u8 *new_memory = (u8*)platform_malloc(bitmap->width * bitmap->height * 1);
+
+    for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
+        u8 *src_ptr = bitmap->memory + (i * 4);
+        u8 *dest_ptr = new_memory + i;
+        *dest_ptr = src_ptr[3];
+    }
+    
+    platform_free(bitmap->memory);
+    bitmap->memory = new_memory;
+    bitmap->channels = 1;
+    bitmap->pitch = bitmap->width * bitmap->channels;
+};
+
 bool8 init_data(App *app) {
     app->data = platform_malloc(sizeof(State));
     State *state = (State *)app->data;
@@ -778,6 +834,8 @@ bool8 init_data(App *app) {
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))
             return true;
+
+        convert_to_one_channel(find_bitmap(&state->assets, "BOT"));
     } else {
         const char *filepath = "assets.save";
         u32 offset = 0;
@@ -817,7 +875,7 @@ bool8 init_data(App *app) {
         fclose(file);
     } else {
         for (u32 i = 0; i < 14; i++) {
-            card_bitmaps[i] = state->assets.types[0].data[i + 6].bitmap; // + 4 to go after bitmaps loaded before the card bitmaps
+            card_bitmaps[i] = state->assets.types[0].data[i + 7].bitmap; // + 4 to go after bitmaps loaded before the card bitmaps
         }
     }
 
@@ -949,6 +1007,7 @@ bool8 init_data(App *app) {
     init_triangles(find_model(&state->assets, "CARD")); // Fills array on graphics card
     init_deck();
 
+    state->game_draw.bot_bitmap = find_bitmap(&state->assets, "BOT");
     state->game_draw.rotation_speed = 150.0f;
 
     state->notifications.font = default_font;
@@ -1000,6 +1059,8 @@ bool8 update(App *app) {
 
         full_menu
     };
+
+    state->is_active = (state->client_game_index == state->game.active_player || (!state->is_client && !state->is_server)) && !state->game.players[state->game.active_player].is_bot;
     
     // Update
     if (state->menu_list.mode == IN_GAME) {
@@ -1130,7 +1191,7 @@ bool8 update(App *app) {
 
             } else if (state->game.turn_stage == FLIP_CARD && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
                 
-                if (!state->is_client) {
+                if (state->is_active) {
                     if (gui_button(&gui, default_style, "Pass", { app->window.dim.x - button_width, 55 }, { button_width, pixel_height })) {
                         state->pass_selected = true; // in update_game feed this into selected
                     }

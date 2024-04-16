@@ -38,7 +38,6 @@ copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position, Vector3 c
     for (s32 y = 0; y <= src.height; y++) {
         for (s32 x = 0; x < src.width; x++) { 
             if (dest.channels == 1) {
-                //*dest_ptr = *src_ptr;
                 *dest_ptr = blend_alpha(*dest_ptr, *src_ptr);
             } else if (dest.channels == 4) { 
                 Vector4 src_color = get_color(src_ptr, src.channels, color);
