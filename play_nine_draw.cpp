@@ -218,6 +218,8 @@ internal void
 draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 indices[16]) {
     Player *active_player = &game->players[game->active_player];
     enum Turn_Stages stage = game->turn_stage;
+
+    if (active_player->is_bot) highlight = false;
     
     Descriptor color_set = render_get_descriptor_set(&layouts[5]);
     Vector4 color = { 150, 150, 150, 1 };
@@ -226,7 +228,7 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 
     for (u32 i = 0; i < game->num_of_players; i++) {
         for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
             s32 card = deck[game->players[i].cards[card_index]];
-            bool8 h = highlight && i == game->active_player;
+            bool8 h = highlight && i == game->active_player && !game->players[i].is_bot;
             switch (stage) {
                 case SELECT_PILE: h = false; break;
                 case FLIP_CARD: h = h && !game->players[i].flipped[card_index]; break;

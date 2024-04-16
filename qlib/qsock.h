@@ -37,16 +37,6 @@ struct QSock_Socket {
 	struct QSock_Address_Info connected; // client: info about address of server connected to, server: info about server address
 };
 
-#ifdef OS_WINDOWS
-
-#define OS_EXT(n) win32_##n
-
-#elif OS_LINUX
-
-#define OS_EXT(n) linux_##n
-
-#endif // OS
-
 #define QSOCK_FUNC(r, n, ...) r OS_EXT(n)(__VA_ARGS__); r (*qsock_##n)(__VA_ARGS__) = &OS_EXT(n)
 
 QSOCK_FUNC(void, init_qsock, );

@@ -30,6 +30,14 @@ default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
     memcpy(buffer, "Player ", 7);
     buffer[7] = number + 48; // + 48 turns single digit number into ascii value
 }
+
+internal void
+default_bot_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
+    platform_memory_set((void*)buffer, 0, MAX_NAME_SIZE);
+    buffer[5] = 0;
+    memcpy(buffer, "Bot ", 4);
+    buffer[4] = number + 48; // + 48 turns single digit number into ascii value
+}
 /*
 n_o_p = 5
 index = 2
@@ -322,6 +330,9 @@ next_player(Game *game, Game_Draw *draw) {
         game->turn_stage = FLIP_CARD;
     }
 
+    if (game->players[game->active_player].is_bot)
+        game->bot_thinking_time = 0.0f;
+
     // Update for draw
     //add_onscreen_notification(&draw->notifications, game->players[game->active_player].name);
     draw->camera_rotation = {
@@ -579,6 +590,8 @@ all_false(bool8 selected[SELECTED_SIZE]) {
     return true;
 }
 
+#include "play_nine_bot.cpp"
+
 bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
@@ -640,7 +653,8 @@ bool8 update_game(State *state, App *app) {
             } 
     
             bool8 selected[SELECTED_SIZE] = {};
-            if (state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) {
+            if ((state->client_game_index == game->active_player || (!state->is_client && !state->is_server)) && 
+                !game->players[game->active_player].is_bot) {
                 do_mouse_selected_update(state, app, selected);
                 do_controller_selected_update(selected, game, &state->controller);
 
@@ -659,9 +673,11 @@ bool8 update_game(State *state, App *app) {
                     platform_memory_set(state->selected, 0, sizeof(selected[0]) * SELECTED_SIZE);
                 }
                 win32_release_mutex(state->selected_mutex);
+            } else if (game->players[game->active_player].is_bot) {
+                do_bot_selected_update(selected, game, app->time.frame_time_s);
             }
 
-            if (state->is_client) break;            
+            if (state->is_client) break; // client doesn't do any game updated         
 
             // Game logic
             switch(game->round_type) {
@@ -757,7 +773,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))
@@ -790,7 +806,7 @@ bool8 init_data(App *app) {
             asset->tag = (const char *)platform_malloc(5);
             asset->tag_length = 4;
             platform_memory_set((void*)asset->tag, 0, 5);
-            const char *tag = "carb";
+            const char *tag = "card";
             platform_memory_copy((void*)asset->tag, (void*)tag, 4);
         };
         add_assets(&state->assets, card_assets, 14);
@@ -1163,6 +1179,11 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
 
             cleanup_shapes();
             render_assets_cleanup(&state->assets);
+            render_graphics_pipeline_cleanup(&basic_pipeline);
+            render_graphics_pipeline_cleanup(&color_pipeline);
+            render_graphics_pipeline_cleanup(&text_pipeline);
+            render_compute_pipeline_cleanup(&ray_pipeline);
+            
         } break;
 
         case APP_RESIZED: {

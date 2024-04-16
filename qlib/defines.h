@@ -33,4 +33,18 @@ typedef double float64;
 #define ARRAY_COUNT(n)     (sizeof(n) / sizeof(n[0]))
 #define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t))) // WARNING!!!! Make sure n is in brackets if operation
 
+#ifdef OS_WINDOWS
+#define OS_EXT(n) win32_##n
+#elif OS_LINUX
+#define OS_EXT(n) linux_##n
+#endif // OS
+
+#if OPENGL
+#define API3D_EXT(n) opengl_##n
+#elif VULKAN
+#define API3D_EXT(n) vulkan_##n
+#elif DX12
+#define API3D_EXT(n) dx12_##n
+#endif // OPENGL / VULKAN / DX12
+
 #endif // DEFINES_H

@@ -45,6 +45,10 @@ const Vector4 highlight_colors[3] = { play_nine_yellow, play_nine_light_yellow, 
 Assets *global_assets;
 Descriptor texture_desc = {}; // card textures
 
+Render_Pipeline basic_pipeline;
+Render_Pipeline text_pipeline;
+Compute_Pipeline ray_pipeline;
+
 enum Round_Types {
     FLIP_ROUND,
     REGULAR_ROUND,
@@ -80,6 +84,8 @@ struct Player {
 
     u32 cards[HAND_SIZE];     // indices to global deck array
     bool8 flipped[HAND_SIZE];
+
+    bool8 is_bot;
 };
 
 // Stores information about the game of play nine
@@ -107,6 +113,9 @@ struct Game {
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
+
+    // Bot
+    float32 bot_thinking_time;
 };
 
 //
@@ -202,7 +211,7 @@ struct State {
     s64 selected_mutex;
 
     bool8 pass_selected;
-
+    
     // Drawing
     Scene scene;
     Scene ortho_scene;

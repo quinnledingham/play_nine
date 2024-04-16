@@ -1490,8 +1490,14 @@ vulkan_recreate_swap_chain(Vulkan_Info *info) {
 }
 
 internal void
-vulkan_pipeline_cleanup(Render_Pipeline *pipe) {
+vulkan_graphics_pipeline_cleanup(Render_Pipeline *pipe) {
 	vkDestroyPipeline(vulkan_info.device, pipe->graphics_pipeline, nullptr);
+	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
+}
+
+internal void
+vulkan_compute_pipeline_cleanup(Compute_Pipeline *pipe) {
+	vkDestroyPipeline(vulkan_info.device, pipe->compute_pipeline, nullptr);
 	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
 }
 
@@ -1560,10 +1566,9 @@ vulkan_cleanup() {
 	vulkan_cleanup_buffer(info->static_buffer);
 	vulkan_cleanup_buffer(info->static_uniform_buffer);
 	vulkan_cleanup_buffer(info->dynamic_uniform_buffer);
-	
-	vulkan_pipeline_cleanup(&basic_pipeline);
-	vulkan_pipeline_cleanup(&color_pipeline);
-	
+	vulkan_cleanup_buffer(info->storage_buffer);
+	vulkan_cleanup_buffer(info->triangle_buffer);
+		
 	vkDestroyRenderPass(info->device, info->render_pass, nullptr);
 
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {

@@ -467,9 +467,9 @@ void init_shapes(Assets *assets) {
 }
 
 void cleanup_shapes() {
-    render_pipeline_cleanup(&shapes.text_pipeline);
-    render_pipeline_cleanup(&shapes.color_pipeline);
-    render_pipeline_cleanup(&shapes.texture_pipeline);
+    render_graphics_pipeline_cleanup(&shapes.text_pipeline);
+    render_graphics_pipeline_cleanup(&shapes.color_pipeline);
+    render_graphics_pipeline_cleanup(&shapes.texture_pipeline);
 }
 
 internal void
