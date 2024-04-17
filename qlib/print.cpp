@@ -22,6 +22,13 @@ print_char_array(u32 output_stream, const char *char_array) {
 	OutputDebugStringA((LPCSTR)char_array);
 }
 
+#elif OS_LINUX
+
+inline void
+print_char_array(u32 output_stream, const char *char_array) {
+	fprintf(get_file_stream(output_stream), "%s", char_array);
+}
+
 #endif // OS_WINDOWS
 
 #define PRINT_BUFFER_SIZE 2000
@@ -53,8 +60,8 @@ print_list(u32 output_stream, const char *msg, va_list list) {
                     
 				case 'd': {                    
 					int d = va_arg(list, int);                   
-                    char buffer[10];
-                    length_to_add = s32_to_char_array(buffer, 10, d);
+                    char buffer[20];
+                    length_to_add = s32_to_char_array(buffer, 20, d);
                     copy_char_array(&print_buffer[print_buffer_index], buffer);
 				} break;
                     

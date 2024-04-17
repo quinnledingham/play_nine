@@ -472,7 +472,7 @@ menu_textbox(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section
 //
 
 internal void
-add_onscreen_notification(Onscreen_Notifications *n, const char *not) {
+add_onscreen_notification(Onscreen_Notifications *n, const char *noti) {
     if (n->lines == ARRAY_COUNT(n->memory)) {
         print("add_onscreen_notification(): too many notfications\n");
         return;
@@ -481,9 +481,9 @@ add_onscreen_notification(Onscreen_Notifications *n, const char *not) {
     n->times[n->lines] = 2.0f;
     n->colors[n->lines] = n->text_color;
 
-    u32 not_length = get_length(not);
+    u32 not_length = get_length(noti);
     for (u32 ch = 0; ch < not_length; ch++) {
-        n->memory[n->lines][ch] = not[ch];
+        n->memory[n->lines][ch] = noti[ch];
     }   
     n->lines++;
 }

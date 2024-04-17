@@ -10,11 +10,10 @@ play_nine_client(void *parameters) {
 internal void
 close_server() {
     os_terminate_thread(online.server_handle);
-    //TerminateThread(online.server_handle, NULL);
     online.close_threads = true;
     for (u32 i = 0; i < 5; i++) {
         if (online.players[i].in_use)
-            WaitForSingleObject((HANDLE)online.players[i].thread_handle, INFINITE);
+            os_wait_handle(online.players[i].thread_handle);
     }
     qsock_free_socket(online.sock);
 }
@@ -27,11 +26,10 @@ server_disconnect_client(Online_Player *player) {
     
     player->in_use = false;
     qsock_free_socket(player->sock);
-    TerminateThread((HANDLE)player->thread_handle, NULL);
+    os_terminate_thread(player->thread_handle);
 }
 
-DWORD WINAPI
-play_nine_server_com(void *parameters) {
+u32 play_nine_server_com(void *parameters) {
     Online_Player *player = (Online_Player *)parameters;
     State *state = player->state;
     char buffer[sizeof(Play_Nine_Packet)];
@@ -95,7 +93,7 @@ play_nine_server_com(void *parameters) {
 
                 player->in_use = false;
 
-                TerminateThread((HANDLE)player->thread_handle, NULL);
+                os_terminate_thread(player->thread_handle);
             }
         }
     };
@@ -115,8 +113,7 @@ find_free_player_index() {
     return 0;
 }
 
-DWORD WINAPI
-play_nine_server(void *parameters) {
+u32 play_nine_server(void *parameters) {
     State *state = (State *)parameters;
     online.close_threads = false;
 
@@ -241,12 +238,11 @@ client_close_connection(QSock_Socket sock) {
     packet.type = CLOSE_CONNECTION;
     qsock_send(sock, NULL, (const char *)&packet, sizeof(packet));
     qsock_free_socket(sock);
-    TerminateThread((HANDLE)online.client_handle, NULL);
+    os_terminate_thread(online.client_handle);
 }
 
 // thread that continually calls get game
-DWORD WINAPI
-play_nine_client(void *parameters) {
+u32 play_nine_client(void *parameters) {
     State *state = (State *)parameters;
 
     while (1) {

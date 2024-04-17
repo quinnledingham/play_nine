@@ -237,7 +237,7 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
 internal void
 get_hole_text(char *buffer, u32 hole) {
     platform_memory_set(buffer, 0, 8);
-    platform_memory_copy(buffer, "Hole ", 5);
+    platform_memory_copy(buffer, (void*)"Hole ", 5);
     s32_to_char_array(buffer + 5, 3, hole);
 }
 
@@ -292,7 +292,6 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
         menu_text(menu, game->players[i].name, text_color, { (s32)i + 1, 0 }, { 1, 1 }); 
     }
 
-    char *subtotal_text = "subtotal";
     char hole_text[3];
     char score_text[4]; // can't get over 99 on a hole. 12 * 8 = 96 BUT -30 is the lowsest score so need 3 digits
     ASSERT(MAX_HOLES < 99);
@@ -388,9 +387,8 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     }
 
     if (menu_button(menu, "Host", *input, { 0, 2 }, { 1, 1 })) {
-        DWORD thread_id;
         state->client_game_index = 0;
-        online.server_handle = (s64)CreateThread(0, 0, play_nine_server, (void*)state, 0, &thread_id);
+        online.server_handle = os_create_thread(play_nine_server, (void*)state);
     }
     if (menu_button(menu, "Back", *input, { 1, 2 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;
@@ -436,8 +434,7 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
             if (client_get_game(state->client, state)) {
                 add_onscreen_notification(&state->notifications, "Game not in lobby");
             } else {
-                DWORD thread_id;
-                online.client_handle = (s64)CreateThread(0, 0, play_nine_client, (void*)state, 0, &thread_id);
+                online.client_handle = (s64)os_create_thread(play_nine_client, (void*)state);
             }
         } else {
             add_onscreen_notification(&state->notifications, "Unable to join");

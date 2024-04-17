@@ -27,6 +27,26 @@ extern "C" {
     __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x01;
 }
 
+#elif OS_LINUX
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+#include <time.h>
+#include <malloc.h>
+#include <stdio.h>
+#include <errno.h>
+
+#include <unistd.h>
+#include <stdarg.h>
+#include <ctype.h>
+
+#include <algorithm>
+using namespace std;
+
 #endif // WINDOWS
 
 // Compiling to SPIR in code
@@ -46,7 +66,7 @@ extern "C" {
 
 #elif VULKAN
 
-#pragma message("VULKAN")
+//#pragma message("VULKAN")
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
     
@@ -109,6 +129,8 @@ void * array_malloc(u32 size, u32 n) {
 
 #ifdef OS_WINDOWS
 #include "win32_thread.h"
+#elif OS_LINUX
+#include "linux_thread.h"
 #endif // OS
 
 #include "render.h"
@@ -308,8 +330,8 @@ int main(int argc, char *argv[]) {
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
     SDL_SetRelativeMouseMode(SDL_FALSE);
 
-
     render_sdl_init(sdl_window);
+
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
     if (event_handler(&app, APP_INIT, 0) == 1)
         return 1;

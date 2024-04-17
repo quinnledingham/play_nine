@@ -472,8 +472,7 @@ void cleanup_shapes() {
     render_graphics_pipeline_cleanup(&shapes.texture_pipeline);
 }
 
-internal void
-draw_shape(Shape shape) {
+void draw_shape(Shape shape) {
     Object object = {};
 
     switch(shape.draw_type) {

@@ -381,7 +381,7 @@ save_assets(Assets *assets, FILE *file)
         }
     }
     
-    fclose(file);
+    //fclose(file);
 }
 
 //

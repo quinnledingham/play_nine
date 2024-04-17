@@ -37,6 +37,7 @@ typedef double float64;
 #define WIN32_FUNC(n) os_##n
 #define OS_EXT(n) win32_##n
 #elif OS_LINUX
+#define LINUX_FUNC(n) os_##n
 #define OS_EXT(n) linux_##n
 #endif // OS
 

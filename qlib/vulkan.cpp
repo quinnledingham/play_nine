@@ -220,10 +220,14 @@ vulkan_is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface, const c
 		platform_free(swap_chain_support.present_modes);
 	}
 
-	VkPhysicalDeviceFeatures supported_features;
-	vkGetPhysicalDeviceFeatures(device, &supported_features);
+	VkPhysicalDeviceProperties device_properties;
+	VkPhysicalDeviceFeatures device_features;
+	vkGetPhysicalDeviceProperties(device, &device_properties);
+	vkGetPhysicalDeviceFeatures(device, &device_features);
 
-	return indices.graphics_and_compute_family_found && extensions_supported && swap_chain_adequate && supported_features.samplerAnisotropy;
+	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device:\nApi Version: %d\nDriver Version %d\nDevice Name %s\n", device_properties.apiVersion, device_properties.driverVersion, device_properties.deviceName);
+
+	return indices.graphics_and_compute_family_found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy && device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ;
 }
 
 internal VkSampleCountFlagBits
@@ -846,8 +850,7 @@ vulkan_bool(bool8 in) {
 	else    return VK_FALSE;
 }
 
-internal void
-vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
+void vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
 	Shader *shader = pipeline->shader;
 
 	u32 shader_stages_index = 0;
@@ -1028,8 +1031,7 @@ vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_in
 	}
 }
 
-internal void
-vulkan_create_compute_pipeline(Compute_Pipeline *pipeline) {
+void vulkan_create_compute_pipeline(Compute_Pipeline *pipeline) {
 	Shader *shader = pipeline->shader;
 
 	u32 shader_stages_index = 0;
@@ -1406,8 +1408,7 @@ vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters, u
     }
 }
 
-internal void
-vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
+void vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
 	if (bitmap->mip_levels == 0) {
         bitmap->mip_levels = (u32)floor(log2f((float32)max(bitmap->width, bitmap->height))) + 1;
     }   
@@ -1417,8 +1418,7 @@ vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
     vulkan_create_texture_sampler((Vulkan_Texture *)bitmap->gpu_info, texture_parameters, bitmap->mip_levels);
 }
 
-internal void
-vulkan_delete_texture(Bitmap *bitmap) {
+void vulkan_delete_texture(Bitmap *bitmap) {
 	if (bitmap->width == 0)
 		return;
 
@@ -1489,20 +1489,17 @@ vulkan_recreate_swap_chain(Vulkan_Info *info) {
 	vulkan_create_frame_buffers(info);
 }
 
-internal void
-vulkan_graphics_pipeline_cleanup(Render_Pipeline *pipe) {
+void vulkan_graphics_pipeline_cleanup(Render_Pipeline *pipe) {
 	vkDestroyPipeline(vulkan_info.device, pipe->graphics_pipeline, nullptr);
 	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
 }
 
-internal void
-vulkan_compute_pipeline_cleanup(Compute_Pipeline *pipe) {
+void vulkan_compute_pipeline_cleanup(Compute_Pipeline *pipe) {
 	vkDestroyPipeline(vulkan_info.device, pipe->compute_pipeline, nullptr);
 	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
 }
 
-internal void
-vulkan_assets_cleanup(Assets *assets) {
+void vulkan_assets_cleanup(Assets *assets) {
 	for (u32 i = 0; i < assets->num_of_assets; i++) {
         Asset *asset = &assets->data[i];
         switch(asset->type) {
@@ -1531,8 +1528,7 @@ vulkan_assets_cleanup(Assets *assets) {
     }
 }
 
-internal void
-vulkan_wait_frame() {
+void vulkan_wait_frame() {
 	vkDeviceWaitIdle(vulkan_info.device);
 }
 
@@ -1542,8 +1538,7 @@ vulkan_cleanup_buffer(Vulkan_Buffer buffer) {
 	vkFreeMemory(vulkan_info.device, buffer.memory, nullptr);
 }
 
-internal void
-vulkan_cleanup() {
+void vulkan_cleanup() {
 	Vulkan_Info *info = &vulkan_info;
 /*
 	vkDeviceWaitIdle(info->device);
@@ -1942,8 +1937,7 @@ void vulkan_compile_shader(Shader *shader) {
 // Descriptor Sets
 //
 
-internal void
-vulkan_allocate_descriptor_set(Layout *layout) {
+void vulkan_allocate_descriptor_set(Layout *layout) {
 	VkDescriptorSetLayout layouts[layout->max_sets];
 	for (u32 i = 0; i < layout->max_sets; i++) {
 		layouts[i] = layout->descriptor_set_layout;
@@ -2046,8 +2040,7 @@ vulkan_init_bitmaps(VkDescriptorSet *sets, u32 num_of_sets, Bitmap *bitmap, Layo
 	platform_free(write_sets);
 }
 
-internal void
-vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
+void vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
 	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
         layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
 		vulkan_init_ubos(layout->descriptor_sets, &layout->bindings[0], layout->max_sets, layout->offsets);
@@ -2059,8 +2052,7 @@ vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
 }
 
 // just creating with one binding right now
-internal void
-vulkan_create_set_layout(Layout *layout) {
+void vulkan_create_set_layout(Layout *layout) {
 
 	VkDescriptorSetLayoutBinding vulkan_binding = {};
 	vulkan_binding.binding = layout->bindings[0].binding;
@@ -2156,8 +2148,7 @@ void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {
 	vkCmdPushConstants(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.pipeline_layout, vulkan_convert_shader_stage(shader_stage), 0, data_size, data);
 }
 
-internal u32
-vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
+u32 vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
 
 	VkDescriptorImageInfo image_info = {};
