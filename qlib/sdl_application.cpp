@@ -330,7 +330,10 @@ int main(int argc, char *argv[]) {
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
     SDL_SetRelativeMouseMode(SDL_FALSE);
 
-    render_sdl_init(sdl_window);
+    if (render_sdl_init(sdl_window)) {
+        logprint("main()", "Failed to init renderer\n");
+        return 1;
+    }
 
     render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
     if (event_handler(&app, APP_INIT, 0) == 1)

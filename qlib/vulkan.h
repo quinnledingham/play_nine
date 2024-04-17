@@ -14,14 +14,19 @@ struct Vulkan_Validation_Layers {
 #endif // DEBUG
 };
 
+struct Vulkan_Queue_Family {
+	bool8 found;
+	u32 index;
+};
+
 struct Vulkan_Queue_Family_Indices {
-	bool8 graphics_and_compute_family_found;
-	bool8 present_family_found;
-
-	u32 graphics_and_compute_family;
-	u32 present_family;
-
-	static const u32 unique_families = 2;
+	union {
+		struct {
+			Vulkan_Queue_Family graphics_and_compute_family;
+			Vulkan_Queue_Family present_family;
+		};
+		Vulkan_Queue_Family queue_families[2];
+	};
 };
 
 struct Vulkan_Swap_Chain_Support_Details {
@@ -65,7 +70,6 @@ struct Vulkan_Info {
 
 	VkInstance instance;
 	VkPhysicalDevice physical_device;
-	VkSampleCountFlagBits msaa_samples;
 	VkPhysicalDeviceProperties physical_device_properties;
 	VkDevice device;
 	VkSurfaceKHR surface;
@@ -73,7 +77,9 @@ struct Vulkan_Info {
 	VkRenderPass render_pass;         // general render pass for a pipeline (also pipeline layout)
 	
 	VkDeviceSize uniform_buffer_min_alignment;
+	VkSampleCountFlagBits msaa_samples;
 
+	Vulkan_Queue_Family_Indices indices;
 	VkQueue graphics_queue;
 	VkQueue present_queue;
 	VkQueue compute_queue;

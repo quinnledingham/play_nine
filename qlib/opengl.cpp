@@ -24,10 +24,10 @@ void opengl_sdl_init(SDL_Window *sdl_window) {
     
     // Check OpenGL properties
     gladLoadGL((GLADloadfunc) SDL_GL_GetProcAddress);
-    print("OpenGL loaded:\n");
-    print("Vendor:   %s\n", glGetString(GL_VENDOR));
-    print("Renderer: %s\n", glGetString(GL_RENDERER));
-    print("Version:  %s\n", glGetString(GL_VERSION));
+    print("OpenGL loaded:\n");                         // (vulkan device property)
+    print("Vendor:   %s\n", glGetString(GL_VENDOR));   // i.e. NVIDIA Corporation (vendorID)
+    print("Renderer: %s\n", glGetString(GL_RENDERER)); // Graphics Card Name (deviceName)
+    print("Version:  %s\n", glGetString(GL_VERSION));  // (driverVersion)
 
     opengl_info.sdl_window = sdl_window;
 

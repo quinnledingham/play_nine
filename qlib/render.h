@@ -103,7 +103,7 @@ enum Texture_Parameters {
 // t = api, n = name, a == args
 #define RENDER_FUNC(r, n, ...) r API3D_EXT(n)(__VA_ARGS__); r (*render_##n)(__VA_ARGS__) = &API3D_EXT(n)
 
-RENDER_FUNC(void, sdl_init, SDL_Window *sdl_window);
+RENDER_FUNC(bool8, sdl_init, SDL_Window *sdl_window);
 RENDER_FUNC(void, clear_color, Vector4 color);
 RENDER_FUNC(void, start_frame, );
 RENDER_FUNC(void, end_frame, );

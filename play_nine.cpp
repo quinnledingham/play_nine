@@ -523,10 +523,12 @@ mouse_ray_model_intersections_cpu(bool8 *selected, Ray mouse_ray, Game_Draw *dra
 
 internal void
 mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
-    Descriptor ray_desc = vulkan_get_descriptor_set_index(&layouts[6], 0);
+    vulkan_start_compute();
+    
+    Descriptor ray_desc = vulkan_get_descriptor_set(&layouts[6]);
     Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
-    Descriptor out_desc = vulkan_get_descriptor_set_index(&layouts[8], 0);
-    Descriptor object_desc = vulkan_get_descriptor_set_index(&layouts[9], 0);
+    Descriptor out_desc = vulkan_get_descriptor_set(&layouts[8]);
+    Descriptor object_desc = vulkan_get_descriptor_set(&layouts[9]);
 
     Ray_v4 ray_v4 = {
         { mouse_ray.origin.x, mouse_ray.origin.y, mouse_ray.origin.z, 0.0f },
@@ -548,11 +550,21 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
     memcpy(test, object, sizeof(Matrix_4x4) * 10);
 
     // compute intersections
-    vulkan_start_compute();
+    
+    // 48 is the size of Ray_Intersection in glsl
+    for (u32 i = 0; i < 10; i++) {
+        Ray_Intersection *p = ((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (sizeof(Ray_Intersection) * i)));
+        if (p->number_of_intersections != 0) {
+            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
+            selected[i] = true;
+        } else {
+            selected[i] = false;
+        }
+    }
 
     vulkan_bind_pipeline(&ray_pipeline);
 
-    memset((char*)vulkan_info.storage_buffer.data, 0, 204 * sizeof(Triangle_v4));
+    memset((char*)vulkan_info.storage_buffer.data, 0, 10 * 48);
 
     vulkan_bind_descriptor_set(ray_desc);
     vulkan_bind_descriptor_set(tri_desc);
@@ -562,16 +574,6 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
     vulkan_dispatch(16, 1, 1);
     vulkan_end_compute();
 
-    // 48 is the size of Ray_Intersection in glsl
-    for (u32 i = 0; i < 10; i++) {
-        Ray_Intersection p = *((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (sizeof(Ray_Intersection) * i)));
-        if (p.number_of_intersections != 0) {
-            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
-            selected[i] = true;
-        } else {
-            selected[i] = false;
-        }
-    }
 }
 
 #endif // VULKAN

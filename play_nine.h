@@ -7,8 +7,6 @@ TODO
 - turn off add player for online?
 - see all cards in larger lobby's in online
 
-- No edit bot names
-
 Slight Problems
 - Improve face cards
 - Improve game hud
@@ -158,9 +156,9 @@ struct Game_Draw {
     Bitmap *bot_bitmap;
     Bitmap name_plates[MAX_PLAYERS];
 
+    Matrix_4x4 new_card_model;
     Matrix_4x4 top_of_pile_model;
     Matrix_4x4 top_of_discard_pile_model;
-    Matrix_4x4 new_card_model;
     Matrix_4x4 hand_models[MAX_PLAYERS][HAND_SIZE];
 };
 
