@@ -61,6 +61,14 @@ void opengl_end_frame() {
     SDL_GL_SwapWindow(opengl_info.sdl_window);
 }
 
+void opengl_graphics_pipeline_cleanup(Render_Pipeline *pipe) {
+
+}
+
+void opengl_compute_pipeline_cleanup(Compute_Pipeline *pipe) {
+
+}
+
 void opengl_cleanup() {
 
 }

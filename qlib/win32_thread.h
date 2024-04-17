@@ -8,11 +8,16 @@ WIN32_FUNC(create_mutex)() {
 }
 
 internal void
-WIN32_FUNC(wait_mutex)(s64 handle) {
+WIN32_FUNC(wait_handle)(s64 handle) {
     DWORD wait_result = WaitForSingleObject((HANDLE)handle, INFINITE);
     if (wait_result == WAIT_ABANDONED) {}
 
     if (wait_result == WAIT_OBJECT_0) {}
+}
+
+internal void
+WIN32_FUNC(wait_mutex)(s64 handle) {
+    WIN32_FUNC(wait_handle)(handle);
 }
 
 internal void
