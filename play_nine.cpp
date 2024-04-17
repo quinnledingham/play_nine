@@ -16,7 +16,6 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "assets.h"
 
 #include "application.h"
-#include "win32_thread.h"
 #include "play_nine_input.h"
 #include "play_nine.h"
 #include "play_nine_online.h"
@@ -608,7 +607,7 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
 }
 
 internal void
-do_controller_selected_update(bool8 selected[SELECTED_SIZE], Game *game, Controller *controller) {
+do_controller_selected_update(bool8 selected[SELECTED_SIZE],  Controller *controller) {
     for (u32 i = 0; i < HAND_SIZE; i++) {
         if (on_up(controller->buttons[i])) {
             selected[i] = true;
@@ -696,7 +695,7 @@ bool8 update_game(State *state, App *app) {
             bool8 selected[SELECTED_SIZE] = {};
             if (state->is_active) {
                 do_mouse_selected_update(state, app, selected);
-                do_controller_selected_update(selected, game, &state->controller);
+                do_controller_selected_update(selected, &state->controller);
 
                 if (state->pass_selected) {
                     selected[PASS_BUTTON] = true;
@@ -707,12 +706,12 @@ bool8 update_game(State *state, App *app) {
                     client_set_selected(state->client, selected, state->client_game_index);
                 }
             } else if (state->is_server && !game->players[game->active_player].is_bot) {
-                win32_wait_mutex(state->selected_mutex);
+                os_wait_mutex(state->selected_mutex);
                 if (!all_false(state->selected)) {
                     platform_memory_copy(selected, state->selected, sizeof(selected[0]) * SELECTED_SIZE);
                     platform_memory_set(state->selected, 0, sizeof(selected[0]) * SELECTED_SIZE);
                 }
-                win32_release_mutex(state->selected_mutex);
+                os_release_mutex(state->selected_mutex);
             } else if (game->players[game->active_player].is_bot) {
                 do_bot_selected_update(selected, game, app->time.frame_time_s);
             }
@@ -989,9 +988,9 @@ bool8 init_data(App *app) {
     gui.font = default_font;
 
     // Online
-    state->mutex = win32_create_mutex();
-    online.mutex = win32_create_mutex();
-    state->selected_mutex = win32_create_mutex();
+    state->mutex = os_create_mutex();
+    online.mutex = os_create_mutex();
+    state->selected_mutex = os_create_mutex();
 
     Descriptor texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
@@ -1064,7 +1063,11 @@ bool8 update(App *app) {
     
     // Update
     if (state->menu_list.mode == IN_GAME) {
+        if (state->is_client && state->previous_menu != IN_GAME)
+            os_wait_mutex(state->mutex);
         update_game(state, app);
+        if (state->is_client && state->previous_menu != IN_GAME)
+            os_release_mutex(state->mutex);
     } else if (state->menu_list.mode == PAUSE_MENU) {
         if (on_down(state->controller.pause)) {
             state->menu_list.mode = IN_GAME;
@@ -1133,13 +1136,13 @@ bool8 update(App *app) {
 
         case PAUSE_MENU:
         case IN_GAME: {
-            if (state->previous_menu != IN_GAME)
-                win32_wait_mutex(state->mutex);
+            if (state->is_client && state->previous_menu != IN_GAME)
+                os_wait_mutex(state->mutex);
 
             draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
 
-            if (state->previous_menu != IN_GAME)
-                win32_release_mutex(state->mutex);
+            if (state->is_client && state->previous_menu != IN_GAME)
+                os_release_mutex(state->mutex);
 
             // depth test already off from draw_game()
             render_bind_descriptor_set(state->scene_ortho_set);
@@ -1204,9 +1207,12 @@ bool8 update(App *app) {
 
     draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
 
+#ifdef DEBUG
+    // Draw FPS
     char buffer[20];
     float_to_char_array((float32)app->time.frames_per_s, buffer, 20);
     draw_string_tl(default_font, buffer, { 10, (float32)app->window.dim.height - 40 }, 40.0f, { 255, 50, 50, 1 });
+#endif // DEBUG
 
     render_end_frame();
 

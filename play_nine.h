@@ -4,6 +4,8 @@ TODO
 
 - Flip "animation"
 - Show keyboard controls
+- turn off add player for online?
+- see all cards in larger lobby's in online
 
 - No edit bot names
 

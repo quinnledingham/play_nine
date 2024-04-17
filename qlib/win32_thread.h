@@ -1,5 +1,5 @@
 internal s64
-win32_create_mutex() {
+WIN32_FUNC(create_mutex)() {
     s64 mutex = (s64)CreateMutex(NULL, FALSE, NULL);
     if (mutex == NULL) {
         print("CreateMutex error: %d\n", GetLastError());
@@ -8,7 +8,7 @@ win32_create_mutex() {
 }
 
 internal void
-win32_wait_mutex(s64 handle) {
+WIN32_FUNC(wait_mutex)(s64 handle) {
     DWORD wait_result = WaitForSingleObject((HANDLE)handle, INFINITE);
     if (wait_result == WAIT_ABANDONED) {}
 
@@ -16,24 +16,24 @@ win32_wait_mutex(s64 handle) {
 }
 
 internal void
-win32_release_mutex(s64 handle) {
+WIN32_FUNC(release_mutex)(s64 handle) {
     if (!ReleaseMutex((HANDLE)handle)) {
         print("ReleaseMutex error: %d\n", GetLastError());
     }
 }
 
 internal s64
-win32_create_thread(void *function, void *data) {
+WIN32_FUNC(create_thread)(void *function, void *data) {
     DWORD thread_id;
     return (s64)CreateThread(0, 0, LPTHREAD_START_ROUTINE(function), data, 0, &thread_id);
 }
 
 internal void
-win32_terminate_thread(s64 handle) {
+WIN32_FUNC(terminate_thread)(s64 handle) {
     TerminateThread((HANDLE)handle, NULL);
 }
 
 internal void
-win32_wait_for_thread(s64 handle) {
+WIN32_FUNC(wait_for_thread)(s64 handle) {
     WaitForSingleObject((HANDLE)handle, INFINITE);
 }

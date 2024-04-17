@@ -1,7 +1,7 @@
 /*
 DWORD WINAPI
 play_nine_client(void *parameters) {
-    s32 bytes = win32_send(online.sock, 0, 0, 0);
+    s32 bytes = os_send(online.sock, 0, 0, 0);
 
     return 0;
 }
@@ -9,7 +9,8 @@ play_nine_client(void *parameters) {
 
 internal void
 close_server() {
-    TerminateThread(online.server_handle, NULL);
+    os_terminate_thread(online.server_handle);
+    //TerminateThread(online.server_handle, NULL);
     online.close_threads = true;
     for (u32 i = 0; i < 5; i++) {
         if (online.players[i].in_use)
@@ -64,16 +65,16 @@ play_nine_server_com(void *parameters) {
             } break;
 
             case SET_SELECTED: {
-                win32_wait_mutex(state->selected_mutex);
+                os_wait_mutex(state->selected_mutex);
                 if (state->game.active_player == packet->game_index)
                     platform_memory_copy(state->selected, packet->selected, sizeof(packet->selected[0]) * SELECTED_SIZE);
-                win32_release_mutex(state->selected_mutex);
+                os_release_mutex(state->selected_mutex);
             } break;
 
             case CLOSE_CONNECTION: {
                 qsock_free_socket(player->sock);
 
-                win32_wait_mutex(state->mutex);
+                os_wait_mutex(state->mutex);
 
                 add_onscreen_notification(&state->notifications, "Player Left");
                 
@@ -90,7 +91,7 @@ play_nine_server_com(void *parameters) {
                     remove_player_index(&state->game, player->game_index);
                 }
 
-                win32_release_mutex(state->mutex);
+                os_release_mutex(state->mutex);
 
                 player->in_use = false;
 
@@ -139,9 +140,9 @@ play_nine_server(void *parameters) {
         online.players[player_index].game_index = state->game.num_of_players;
         online.players[player_index].state = state;
 
-        win32_wait_mutex(state->mutex);
+        os_wait_mutex(state->mutex);
         if (state->menu_list.mode != LOCAL_MENU) {
-            win32_release_mutex(state->mutex);
+            os_release_mutex(state->mutex);
             char buffer[sizeof(Play_Nine_Packet)];
             s32 bytes = qsock_recv(online.sock, &client_sock, buffer, sizeof(Play_Nine_Packet));
 
@@ -156,9 +157,9 @@ play_nine_server(void *parameters) {
         }
         //state->game.num_of_players++;
         add_player(&state->game, false);
-        win32_release_mutex(state->mutex);
+        os_release_mutex(state->mutex);
 
-        online.players[player_index].thread_handle = win32_create_thread(play_nine_server_com, (void*)&online.players[player_index]);
+        online.players[player_index].thread_handle = os_create_thread(play_nine_server_com, (void*)&online.players[player_index]);
     }
 
     return 0;
@@ -174,10 +175,11 @@ client_get_game(QSock_Socket sock, State *state) {
     Play_Nine_Packet packet = {};
     packet.type = GET_GAME;
     qsock_send(sock, NULL, (const char *)&packet, sizeof(packet));
-
+    SDL_Delay(100);
     char buffer[sizeof(Play_Nine_Packet)];
     s32 bytes = qsock_recv(sock, NULL, buffer, sizeof(Play_Nine_Packet));
     if (bytes > 0) {
+        os_wait_mutex(state->mutex);        
         Play_Nine_Packet *recv_packet = (Play_Nine_Packet *)&buffer;
         switch(recv_packet->type) {
             case SET_GAME: {
@@ -207,6 +209,7 @@ client_get_game(QSock_Socket sock, State *state) {
                 return true;
             } break;
         }
+        os_release_mutex(state->mutex);
     } else {
         logprint("client_get_game()", "Received no bytes\n");
     }
@@ -216,41 +219,29 @@ client_get_game(QSock_Socket sock, State *state) {
 
 internal void
 client_set_name(QSock_Socket sock, const char *name) {
-    win32_wait_mutex(online.mutex);
-
     Play_Nine_Packet packet = {};
     packet.type = SET_NAME;
     platform_memory_copy(packet.buffer, (void*)name, get_length(name));
     qsock_send(sock, NULL, (const char *)&packet, sizeof(packet));
-
-    win32_release_mutex(online.mutex);
 }
 
 
 internal void
 client_set_selected(QSock_Socket sock, bool8 selected[SELECTED_SIZE], u32 index) {
-    win32_wait_mutex(online.mutex);
-
     Play_Nine_Packet packet = {};
     packet.type = SET_SELECTED;
     packet.game_index = index;
     platform_memory_copy(packet.selected, selected, sizeof(selected[0]) * SELECTED_SIZE);
     qsock_send(sock, NULL, (const char *)&packet, sizeof(packet));
-
-    win32_release_mutex(online.mutex);
 }
 
 internal void
 client_close_connection(QSock_Socket sock) {
-    win32_wait_mutex(online.mutex);
-    
     Play_Nine_Packet packet = {};
     packet.type = CLOSE_CONNECTION;
     qsock_send(sock, NULL, (const char *)&packet, sizeof(packet));
     qsock_free_socket(sock);
     TerminateThread((HANDLE)online.client_handle, NULL);
-
-    win32_release_mutex(online.mutex);
 }
 
 // thread that continually calls get game
@@ -259,17 +250,14 @@ play_nine_client(void *parameters) {
     State *state = (State *)parameters;
 
     while (1) {
-        win32_wait_mutex(state->mutex);
-        win32_wait_mutex(online.mutex);
-        
+        //os_wait_mutex(online.mutex);
 
         if (client_get_game(state->client, state)) {
             add_onscreen_notification(&state->notifications, "Connection Closed");
             break;
         }
 
-        win32_release_mutex(online.mutex);
-        win32_release_mutex(state->mutex);
+        //os_release_mutex(online.mutex);
     }
 
     return 0;

@@ -24,16 +24,17 @@ typedef double float64;
 #define local_persist static
 #define global        static
 
-#define DEG2RAD 0.0174533f
+#define DEG2RAD  0.0174533f
 #define DEG2RADD 0.0174533
-#define PI      3.14159265359f
-#define EPSILON 0.00001f
+#define PI       3.141592653593f
+#define EPSILON  0.00001f
 
 #define ASSERT(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #define ARRAY_COUNT(n)     (sizeof(n) / sizeof(n[0]))
 #define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t))) // WARNING!!!! Make sure n is in brackets if operation
 
 #ifdef OS_WINDOWS
+#define WIN32_FUNC(n) os_##n
 #define OS_EXT(n) win32_##n
 #elif OS_LINUX
 #define OS_EXT(n) linux_##n
@@ -46,5 +47,7 @@ typedef double float64;
 #elif DX12
 #define API3D_EXT(n) dx12_##n
 #endif // OPENGL / VULKAN / DX12
+
+#define OS_FUNC(r, n, ...) r OS_EXT(n)(__VA_ARGS__); r (*os_##n)(__VA_ARGS__) = &OS_EXT(n)
 
 #endif // DEFINES_H

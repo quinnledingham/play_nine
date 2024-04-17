@@ -6,7 +6,7 @@ menu_set_input(Menu *menu, Menu_Input *input) {
 
 internal void
 quit_to_main_menu(State *state, Menu *menu) {
-    win32_wait_mutex(state->mutex);
+    os_wait_mutex(state->mutex);
 
     state->menu_list.mode = MAIN_MENU;
     state->game.num_of_players = 1;
@@ -14,14 +14,14 @@ quit_to_main_menu(State *state, Menu *menu) {
 
     if (state->is_server) {
         state->is_server = false;
-        win32_release_mutex(state->mutex);
+        os_release_mutex(state->mutex);
         close_server();
     } else if (state->is_client) {
         state->is_client = false;
         client_close_connection(state->client);
     }
 
-    win32_release_mutex(state->mutex);
+    os_release_mutex(state->mutex);
 }
 
 // returns game mode
@@ -390,7 +390,7 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     if (menu_button(menu, "Host", *input, { 0, 2 }, { 1, 1 })) {
         DWORD thread_id;
         state->client_game_index = 0;
-        online.server_handle = CreateThread(0, 0, play_nine_server, (void*)state, 0, &thread_id);
+        online.server_handle = (s64)CreateThread(0, 0, play_nine_server, (void*)state, 0, &thread_id);
     }
     if (menu_button(menu, "Back", *input, { 1, 2 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;
@@ -437,7 +437,7 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
                 add_onscreen_notification(&state->notifications, "Game not in lobby");
             } else {
                 DWORD thread_id;
-                online.client_handle = CreateThread(0, 0, play_nine_client, (void*)state, 0, &thread_id);
+                online.client_handle = (s64)CreateThread(0, 0, play_nine_client, (void*)state, 0, &thread_id);
             }
         } else {
             add_onscreen_notification(&state->notifications, "Unable to join");

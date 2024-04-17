@@ -12,8 +12,8 @@ struct Online_Player {
 
 struct Play_Nine_Online {
     QSock_Socket sock = {};
-    HANDLE server_handle; // thread handle
-    HANDLE client_handle;
+    s64 server_handle; // thread handle
+    s64 client_handle;
 
     Online_Player players[5];
 

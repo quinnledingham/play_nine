@@ -106,6 +106,11 @@ void * array_malloc(u32 size, u32 n) {
 #include "assets.h"
 #include "assets_loader.h"
 #include "data_structs.h"
+
+#ifdef OS_WINDOWS
+#include "win32_thread.h"
+#endif // OS
+
 #include "render.h"
 #include "shapes.h"
 #include "play_nine_raytrace.h"
