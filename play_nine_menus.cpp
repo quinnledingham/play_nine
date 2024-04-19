@@ -27,8 +27,6 @@ quit_to_main_menu(State *state, Menu *menu) {
 // returns game mode
 internal s32
 draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_dim) {
-    //menu_update_active(&state->menu_list.main.active, 0, 2, state->controller.backward,  state->controller.forward);
-
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
     window_rect.dim    = cv2(window_dim);
@@ -47,6 +45,8 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
     menu_set_input(menu, input);
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
+    menu->gui.start();
+    
     menu_text(menu, "play_nine", { 231, 213, 36,  1 }, { 0, 0 }, { 1, 2 }); 
 
     if (menu_button(menu, "Local", *input, { 0, 2 }, { 1, 1 })) {
@@ -91,6 +91,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     }
 
     menu_set_input(menu, input);
+    menu->gui.start();
 
     state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
     state->game_draw.radius = get_draw_radius(game->num_of_players, hand_width, 3.2f);
@@ -112,7 +113,8 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         }
         
         if (menu_textbox(menu, game->players[menu_row].name, *input, section_coords, section_dim, draw_dim) && menu_row == state->client_game_index) {
-            client_set_name(state->client, game->players[menu_row].name);
+            if (state->is_client)
+                client_set_name(state->client, game->players[menu_row].name);
         }
 
         if (game->players[menu_row].is_bot) {
@@ -169,6 +171,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 load_name_plates(&state->game, &state->game_draw);
+                load_player_card_models(&state->game, &state->game_draw);
                 start_game(&state->game, game->num_of_players);
             } else {
                 add_onscreen_notification(&state->notifications, "Not enough players");
@@ -184,7 +187,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         back_width = 2;
     }
     
-    if (menu_button(menu, "Back", *input, back_coords, { back_width, 1 })) {
+    if (menu_button(menu, "Quit", *input, back_coords, { back_width, 1 })) {
         quit_to_main_menu(state, menu);
     }
 
@@ -215,13 +218,14 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     }
 
     menu_set_input(menu, input);
+    menu->gui.start();
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
 
     if (input->full_menu) {
         if (menu_button(menu, "Lobby", *input, { 0, 0 }, { 1, 1 })) {
             state->menu_list.mode = LOCAL_MENU;
-            menu->hot_section = { 0, 0 };
+            menu->hot_section = menu->interact_region[0];
         }
     }
 
@@ -270,6 +274,7 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
     }
 
     menu_set_input(menu, input);
+    menu->gui.start();
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
     draw_rect(menu->rect.coords, 0, menu->rect.dim, { 0, 0, 0, 0.2f} );
@@ -377,6 +382,7 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     }
 
     menu_set_input(menu, input);
+    menu->gui.start();
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
 
@@ -412,6 +418,7 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     }
 
     menu_set_input(menu, input);
+    menu->gui.start();
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
 

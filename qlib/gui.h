@@ -68,8 +68,45 @@ struct Textbox {
     u32 cursor_position;
     float32 shift;
     char text[TEXTBOX_SIZE];
-    Vector2_s32 section;
+    //Vector2_s32 section;
+    u32 index; // what GUI index is active
 };
+
+//
+// GUI
+//
+
+struct Button_Input {
+    enum Input_Type *active_input_type;
+    Button *select;
+    Vector2_s32 *mouse;
+    Button *mouse_left;
+
+    // textbox typing input
+    s32 *buffer;
+    s32 *buffer_index;
+    
+};
+
+struct GUI {
+    u32 index = 1; // starts at 1, reset to 1 every frame, because hover/pressed/active default is 0
+    u32 hover;
+    u32 pressed;
+    u32 active;
+    Button_Input input;
+
+    Textbox edit;
+
+    Vector2 coords;
+    Vector2 dim;
+
+    Font *font;
+    Draw_Style style;
+
+    void start() { index = 1; };
+};
+
+GUI gui = {};
 
 //
 // Menu
@@ -114,7 +151,7 @@ struct Menu_Input {
 struct Menu {
     Draw_Style style;
 
-    Textbox edit;
+    //Textbox edit;
 
     Font *font;
     Vector2 padding;
@@ -130,32 +167,10 @@ struct Menu {
 
     Rect rect; // coords and dim of entire menu
 
+    GUI gui;
+
     bool8 initialized;
 };
-
-//
-// GUI
-//
-
-struct Button_Input {
-    enum Input_Type active_input_type;
-    Button select;
-    Vector2_s32 mouse;
-    Button mouse_left;
-};
-
-struct GUI {
-    u32 index = 1; // starts at 1, reset to 1 every frame, because hover/pressed/active default is 0
-
-    u32 hover;
-    u32 pressed;
-    u32 active;
-
-    Font *font;
-    Button_Input input;
-};
-
-GUI gui = {};
 
 //
 // Misc

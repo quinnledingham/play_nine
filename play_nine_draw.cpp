@@ -77,13 +77,8 @@ get_pile_y_scale(u32 cards) {
 }
 
 internal void
-load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
-    Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
-    Vector3 selected_card_coords = {0.0f, 1.0f, -2.7f};
-    Vector3 pile_coords          = { -1.1f, 0.0f, -2.0f };
-    Vector3 discard_pile_coords  = {  1.1f, 0.0f, 0 };
-
-    Vector3 active_player_position = {};
+load_player_card_models(Game *game, Game_Draw *draw) {
+    Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
 
     for (u32 i = 0; i < game->num_of_players; i++) {
         float32 degrees = (draw->degrees_between_players * i) - 90.0f;
@@ -91,20 +86,38 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
         Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, i);
         
         if (i == 0)
-            active_player_position = position;
+            draw->x_hand_position = position.x;
+
+        Quaternion rotation = get_rotation(rad, {0, 1, 0});  
+        Matrix_4x4 default_matrix = create_transform_m4x4(position, rotation, draw->card_scale);
+        rotation = flip * rotation;
+        Matrix_4x4 not_flipped_matrix = create_transform_m4x4(position, rotation, draw->card_scale);
 
         // draw player cards    
         for (u32 card_index = 0; card_index < 8; card_index++) {
             Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
             rotate_coords(&card_pos, rad);
             card_pos += position;
-            draw->hand_models[i][card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, rad, card_scale);
+            //draw->hand_models[i][card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, rad, card_scale);
+            if (game->players[i].flipped[card_index]) {
+                draw->hand_models[i][card_index] = m4x4_set_position(default_matrix, card_pos);
+            } else {
+                card_pos.y += (0.101767f * draw->card_scale.y);
+                draw->hand_models[i][card_index] = m4x4_set_position(not_flipped_matrix, card_pos);
+            }
         }
     }
+  
+}
 
+internal void
+load_pile_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
+    Vector3 selected_card_coords = {0.0f, 1.0f, -2.7f};
+    Vector3 pile_coords          = { -1.1f, 0.0f, -2.0f };
+    Vector3 discard_pile_coords  = {  1.1f, 0.0f, 0 };
+    
     // move piles closer to player
-
-    float32 center_of_piles_z = -active_player_position.x + 5.7f;
+    float32 center_of_piles_z = -draw->x_hand_position + 5.7f;
     pile_coords.z = center_of_piles_z;
     discard_pile_coords.z = center_of_piles_z;
     selected_card_coords.z = center_of_piles_z + selected_card_coords.z;
@@ -114,12 +127,10 @@ load_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
     float32 rad = degrees * DEG2RAD; 
     if (game->turn_stage == SELECT_CARD) {
         rotate_coords(&selected_card_coords, rad);
-        draw->new_card_model = load_card_model(true, selected_card_coords, rad, card_scale);
+        draw->new_card_model = load_card_model(true, selected_card_coords, rad, draw->card_scale);
     }
 
     float32 rotation_rads = (degrees - rotation_degrees) * DEG2RAD;
-
-    //Vector3 dir = normalized(active_player_position);
     
     rotate_coords(&pile_coords, rotation_rads);
     rotate_coords(&discard_pile_coords, rotation_rads);

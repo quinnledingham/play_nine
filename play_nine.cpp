@@ -382,14 +382,6 @@ next_player(Game *game, Game_Draw *draw) {
         0.0f,
         -draw->rotation_speed
     };
-
-    draw->pile_rotation = {
-        true,
-        true,
-        draw->degrees_between_players,
-        0.0f,
-        -draw->rotation_speed 
-    };
 }
 
 internal u32
@@ -404,10 +396,23 @@ get_number_flipped(bool8 *flipped) {
 }
 
 internal void
+flip_card_model(Game_Draw *draw, u32 player_index, u32 card_index) {
+    Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
+    float32 degrees = (draw->degrees_between_players * player_index) - 90.0f;
+    float32 rad = degrees * DEG2RAD; 
+    Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, player_index);
+    Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
+    rotate_coords(&card_pos, rad);
+    card_pos += position;
+    draw->hand_models[player_index][card_index] = load_card_model(true, card_pos, rad, card_scale);    
+}
+
+internal void
 flip_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
     Player *active_player = &game->players[game->active_player];
     for (u32 i = 0; i < HAND_SIZE; i++) {
         if (selected[i]) {
+            flip_card_model(draw, game->active_player, i);
             active_player->flipped[i] = true;
 
             // check if player turn over
@@ -467,6 +472,7 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
         case FLIP_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (selected[i] && !active_player->flipped[i]) {
+                    flip_card_model(draw, game->active_player, i);
                     active_player->flipped[i] = true;
                     if (get_number_flipped(active_player->flipped) == HAND_SIZE && game->round_type != FINAL_ROUND) {
                         game->round_type = FINAL_ROUND; 
@@ -616,9 +622,9 @@ do_controller_selected_update(bool8 selected[SELECTED_SIZE],  Controller *contro
         }
     }    
 
-    if (on_up(controller->nine)) {
+    if (on_up(controller->pile)) {
         selected[PICKUP_PILE] = true;
-    } else if (on_up(controller->zero)) {
+    } else if (on_up(controller->discard)) {
         selected[DISCARD_PILE] = true;
     }
 }
@@ -696,8 +702,10 @@ bool8 update_game(State *state, App *app) {
     
             bool8 selected[SELECTED_SIZE] = {};
             if (state->is_active) {
-                do_mouse_selected_update(state, app, selected);
-                do_controller_selected_update(selected, &state->controller);
+                //if (app->input.active == MOUSE_INPUT)
+                    do_mouse_selected_update(state, app, selected);
+                //else if (app->input.active == KEYBOARD_INPUT)
+                    do_controller_selected_update(selected, &state->controller);
 
                 if (state->pass_selected) {
                     selected[PASS_BUTTON] = true;
@@ -788,233 +796,9 @@ bool8 update_game(State *state, App *app) {
     state->scene.view = get_view(state->camera);
     render_update_ubo(state->scene_set, (void *)&state->scene);
 
-    load_card_models(game, draw, rotation_degrees);
+    load_pile_card_models(game, draw, rotation_degrees);
 
     return 0;
-}
-
-internal void
-update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
-    //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
-    scene->projection = perspective_projection(45.0f, (float32)window_dim.width / (float32)window_dim.height, 0.1f, 1000.0f);
-
-    ortho_scene->view = identity_m4x4();
-    ortho_scene->projection = orthographic_projection(0.0f, (float32)window_dim.width, 0.0f, (float32)window_dim.height, -3.0f, 3.0f);
-}
-
-/*
-https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f
-*/
-
-internal void
-convert_to_one_channel(Bitmap *bitmap) {
-    u8 *new_memory = (u8*)platform_malloc(bitmap->width * bitmap->height * 1);
-
-    for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
-        u8 *src_ptr = bitmap->memory + (i * 4);
-        u8 *dest_ptr = new_memory + i;
-        *dest_ptr = src_ptr[3];
-    }
-    
-    platform_free(bitmap->memory);
-    bitmap->memory = new_memory;
-    bitmap->channels = 1;
-    bitmap->pitch = bitmap->width * bitmap->channels;
-};
-
-bool8 init_data(App *app) {
-    app->data = platform_malloc(sizeof(State));
-    State *state = (State *)app->data;
-    *state = {};
-    state->assets = {};
-
-    global_assets = &state->assets;
-
-    bool8 load_and_save_assets = true;
-
-    if (load_and_save_assets) {
-        if (load_assets(&state->assets, "../assets.ethan"))
-            return true;
-
-        convert_to_one_channel(find_bitmap(&state->assets, "BOT"));
-    } else {
-        const char *filepath = "assets.save";
-        u32 offset = 0;
-
-        // have to compile then run the asset builder application to put the assets in the exe
-        // const char *filepath = "river.exe";
-        // u32 offset = exe_offset;
-
-        if (load_saved_assets(&state->assets, filepath, offset))
-            return 1;
-    }
-
-    init_assets(&state->assets);
-
-    default_font = find_font(&state->assets, "CASLON");
-
-    print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
-
-    if (load_and_save_assets) {
-        init_card_bitmaps(card_bitmaps, default_font); 
-        Asset *card_assets = ARRAY_MALLOC(Asset, 14);
-        for (u32 i = 0; i < 14; i++) {
-            Asset *asset = &card_assets[i];
-            asset->type = ASSET_TYPE_BITMAP;
-            asset->bitmap = card_bitmaps[i];
-            asset->tag = (const char *)platform_malloc(5);
-            asset->tag_length = 4;
-            platform_memory_set((void*)asset->tag, 0, 5);
-            const char *tag = "card";
-            platform_memory_copy((void*)asset->tag, (void*)tag, 4);
-        };
-        add_assets(&state->assets, card_assets, 14);
-        print_assets(&state->assets);
-
-        FILE *file = fopen("assets.save", "wb");
-        save_assets(&state->assets, file);
-        fclose(file);
-    } else {
-        for (u32 i = 0; i < 14; i++) {
-            card_bitmaps[i] = state->assets.types[0].data[i + 7].bitmap; // + 4 to go after bitmaps loaded before the card bitmaps
-        }
-    }
-
-    default_font = find_font(&state->assets, "CASLON");
-
-    clear_font_bitmap_cache(default_font);
-    
-    global_assets = &state->assets;
-    init_layouts(layouts, find_bitmap(&state->assets, "BACK"));
-
-    u32 test = sizeof(Layout_Set);
-
-    Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
-    init_basic_vert_layout(&basic_3D->set, layouts);
-    init_basic_frag_layout(basic_3D, layouts);
-    basic_pipeline.shader = basic_3D;
-    basic_pipeline.depth_test = true;
-    render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
-	
-    Shader *color_3D = find_shader(&state->assets, "COLOR3D");
-    init_basic_vert_layout(&color_3D->set, layouts);
-    init_color3D_frag_layout(color_3D, layouts);
-    color_pipeline.shader = color_3D;
-    color_pipeline.depth_test = true;
-    render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
-
-    Shader *text_3D = find_shader(&state->assets, "TEXT3D");
-    init_basic_vert_layout(&text_3D->set, layouts);
-    init_text_frag_layout(text_3D, layouts);
-    text_pipeline.shader = text_3D;
-    text_pipeline.depth_test = true;
-    render_create_graphics_pipeline(&text_pipeline, get_vertex_xnu_info());
-
-    Shader *ray_comp = find_shader(&state->assets, "RAY");
-    init_ray_comp_layout(&ray_comp->set, layouts);
-    ray_pipeline.shader = ray_comp;
-    render_create_compute_pipeline(&ray_pipeline);
-
-    init_shapes(&state->assets);
-    //clean_assets(&state->assets);
-
-	// Rendering
-    state->camera.position = { 0, 2, -5 };
-    state->camera.target   = { 0, 0, 0 };
-    state->camera.up       = { 0, -1, 0 };
-    state->camera.fov      = 75.0f;
-    state->camera.yaw      = 180.0f;
-    state->camera.pitch    = -75.0f;
-    state->camera_mode = PLAYER_CAMERA;
-
-    update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
-
-    // Input
-	set(&state->controller.forward, 'w');
-    set(&state->controller.forward, SDLK_UP);
-	set(&state->controller.backward, SDLK_s);
-    set(&state->controller.backward, SDLK_DOWN);
-	set(&state->controller.left, SDLK_a);
-    set(&state->controller.left, SDLK_LEFT);
-	set(&state->controller.right, SDLK_d);
-    set(&state->controller.right, SDLK_RIGHT);
-
-	set(&state->controller.up, SDLK_SPACE);
-	set(&state->controller.down, SDLK_LSHIFT);
-
-    set(&state->controller.select, SDLK_RETURN);
-	set(&state->controller.pause,  SDLK_ESCAPE);
-    set(&state->controller.pass,   SDLK_p); 
-
-    set(&state->controller.camera_toggle, SDLK_c);
-
-    set(&state->controller.one,   SDLK_y);
-    set(&state->controller.two,   SDLK_u);
-    set(&state->controller.three, SDLK_i);
-    set(&state->controller.four,  SDLK_o);
-
-    set(&state->controller.five,  SDLK_h);
-    set(&state->controller.six,   SDLK_j);
-    set(&state->controller.seven, SDLK_k);
-    set(&state->controller.eight, SDLK_l);
-
-    set(&state->controller.nine,  SDLK_9);
-    set(&state->controller.zero,  SDLK_0);
-
-    set(&state->controller.mouse_left, SDL_BUTTON_LEFT);
-
-    // Setting default Menus
-    Menu default_menu = {};
-    default_menu.font = default_font;
-
-    default_menu.style.default_back = play_nine_yellow;
-    default_menu.style.default_text = play_nine_green;
-    default_menu.style.hover_back   = play_nine_light_yellow;
-    default_menu.style.hover_text   = play_nine_green;
-    //default_menu.style.hover_text = { 255, 255, 255, 1 };
-    default_menu.style.pressed_back = play_nine_dark_yellow;
-    default_menu.style.pressed_text = play_nine_green;
-    default_menu.style.active_back  = play_nine_yellow;
-    default_menu.style.active_text  = play_nine_green;
-    //default_menu.style.active_text = { 255, 255, 255, 1 };
-
-    default_menu.active_section = { -1, -1 };
-    default_menu.edit.section = { -1, -1 };
-
-    default_style = default_menu.style;
-
-    for (u32 i = 0; i < IN_GAME; i++) {
-        state->menu_list.menus[i] = default_menu;
-    }
-
-    gui.font = default_font;
-
-    // Online
-    state->mutex = os_create_mutex();
-    online.mutex = os_create_mutex();
-    state->selected_mutex = os_create_mutex();
-
-    Descriptor texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
-
-    for (u32 j = 0; j < 14; j++) {
-        state->indices[j] = render_set_bitmap(&texture_desc, &card_bitmaps[j]);
-    }
-    state->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&state->assets, "BACK"));
-    Model *model = find_model(&state->assets, "TABLE");
-    state->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
-    
-    // General Game
-
-    init_triangles(find_model(&state->assets, "CARD")); // Fills array on graphics card
-    init_deck();
-
-    state->game_draw.bot_bitmap = find_bitmap(&state->assets, "BOT");
-    state->game_draw.rotation_speed = 150.0f;
-
-    state->notifications.font = default_font;
-    state->notifications.text_color = { 255, 255, 255, 1 };
-
-	return false;
 }
 
 internal void
@@ -1034,8 +818,8 @@ controller_process_input(Controller *controller, s32 id, bool8 state) {
 }
 
 bool8 update(App *app) {
-	State *state = (State *)app->data;
-	Assets *assets = &state->assets;
+    State *state = (State *)app->data;
+    Assets *assets = &state->assets;
 
     bool8 full_menu = (!state->is_client && !state->is_server) || state->is_server;
     bool8 select = on_up(state->controller.select) || on_up(state->controller.mouse_left);
@@ -1171,11 +955,14 @@ bool8 update(App *app) {
             draw_string_tl(font, hole_text, hole_coords, hole_pixel_height, { 255, 255, 255, 1 });
             draw_string_tl(font, round_types[state->game.round_type], round_coords, pixel_height, { 255, 255, 255, 1 });
 
+            gui.start();
+            gui.coords = { 0, 0 };
+            gui.dim = cv2(app->window.dim);
             gui.input = {
-                app->input.active,
-                state->controller.select,
-                app->input.mouse,
-                state->controller.mouse_left
+                &app->input.active,
+                &state->controller.select,
+                &app->input.mouse,
+                &state->controller.mouse_left
             };
 
             float32 button_width = app->window.dim.x / 7.0f;
@@ -1187,8 +974,10 @@ bool8 update(App *app) {
 
             } else if (state->game.round_type == HOLE_OVER) {
 
-                if (!state->is_client) {                
-                    if (gui_button(&gui, default_style, "Proceed", { app->window.dim.x - button_width, 55 }, { button_width, pixel_height })) {
+                if (!state->is_client) {
+                    Vector2 dim = { button_width, pixel_height };
+                    Vector2 coords = { gui.dim.x - dim.x - padding, gui.dim.y - dim.y - padding };
+                    if (gui_button(&gui, default_style, "Proceed", coords, dim)) {
                         state->menu_list.mode = SCOREBOARD_MENU;
                         state->menu_list.scoreboard.initialized = false;
                     }
@@ -1197,7 +986,9 @@ bool8 update(App *app) {
             } else if (state->game.turn_stage == FLIP_CARD && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
                 
                 if (state->is_active) {
-                    if (gui_button(&gui, default_style, "Pass", { app->window.dim.x - button_width, 55 }, { button_width, pixel_height })) {
+                    Vector2 dim = { button_width, pixel_height };
+                    Vector2 coords = { app->window.dim.x - dim.x - padding, app->window.dim.y - dim.y - padding };
+                    if (gui_button(&gui, default_style, "Pass", coords, dim)) {
                         state->pass_selected = true; // in update_game feed this into selected
                     }
                 }
@@ -1209,23 +1000,267 @@ bool8 update(App *app) {
 
     draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
 
-#ifdef DEBUG
+//#ifdef DEBUG
     // Draw FPS
     char buffer[20];
     float_to_char_array((float32)app->time.frames_per_s, buffer, 20);
     draw_string_tl(default_font, buffer, { 10, (float32)app->window.dim.height - 40 }, 40.0f, { 255, 50, 50, 1 });
-#endif // DEBUG
+//#endif // DEBUG
 
     render_end_frame();
 
     prepare_controller_for_input(&state->controller);
-    gui.index = 1;
     
 	return 0;
 }
 
-bool8 test(App *app) {
-    return 0;
+internal void
+update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
+    //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
+    scene->projection = perspective_projection(45.0f, (float32)window_dim.width / (float32)window_dim.height, 0.1f, 1000.0f);
+
+    ortho_scene->view = identity_m4x4();
+    ortho_scene->projection = orthographic_projection(0.0f, (float32)window_dim.width, 0.0f, (float32)window_dim.height, -3.0f, 3.0f);
+}
+
+/*
+https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f
+*/
+
+internal void
+convert_to_one_channel(Bitmap *bitmap) {
+    u8 *new_memory = (u8*)platform_malloc(bitmap->width * bitmap->height * 1);
+
+    for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
+        u8 *src_ptr = bitmap->memory + (i * 4);
+        u8 *dest_ptr = new_memory + i;
+        *dest_ptr = src_ptr[3];
+    }
+    
+    platform_free(bitmap->memory);
+    bitmap->memory = new_memory;
+    bitmap->channels = 1;
+    bitmap->pitch = bitmap->width * bitmap->channels;
+};
+
+bool8 init_data(App *app) {
+    app->data = platform_malloc(sizeof(State));
+    State *state = (State *)app->data;
+    *state = {};
+    state->assets = {};
+
+    global_assets = &state->assets;
+
+    bool8 load_and_save_assets = false;
+
+    if (load_and_save_assets) {
+        if (load_assets(&state->assets, "../assets.ethan"))
+            return true;
+
+        convert_to_one_channel(find_bitmap(&state->assets, "BOT"));
+    } else {
+        const char *filepath = "assets.save";
+        u32 offset = 0;
+
+        // have to compile then run the asset builder application to put the assets in the exe
+        // const char *filepath = "river.exe";
+        // u32 offset = exe_offset;
+
+        if (load_saved_assets(&state->assets, filepath, offset))
+            return 1;
+    }
+
+    init_assets(&state->assets);
+
+    default_font = find_font(&state->assets, "CASLON");
+
+    print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
+
+    if (load_and_save_assets) {
+        init_card_bitmaps(card_bitmaps, default_font); 
+        Asset *card_assets = ARRAY_MALLOC(Asset, 14);
+        for (u32 i = 0; i < 14; i++) {
+            Asset *asset = &card_assets[i];
+            asset->type = ASSET_TYPE_BITMAP;
+            asset->bitmap = card_bitmaps[i];
+            asset->tag = (const char *)platform_malloc(5);
+            asset->tag_length = 4;
+            platform_memory_set((void*)asset->tag, 0, 5);
+            const char *tag = "card";
+            platform_memory_copy((void*)asset->tag, (void*)tag, 4);
+        };
+        add_assets(&state->assets, card_assets, 14);
+        print_assets(&state->assets);
+
+        FILE *file = fopen("assets.save", "wb");
+        save_assets(&state->assets, file);
+        fclose(file);
+    } else {
+        for (u32 i = 0; i < 14; i++) {
+            card_bitmaps[i] = state->assets.types[0].data[i + 7].bitmap; // + 4 to go after bitmaps loaded before the card bitmaps
+        }
+    }
+
+    default_font = find_font(&state->assets, "CASLON");
+
+    clear_font_bitmap_cache(default_font);
+    
+    global_assets = &state->assets;
+    init_layouts(layouts, find_bitmap(&state->assets, "BACK"));
+
+    u32 test = sizeof(Layout_Set);
+
+    Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
+    init_basic_vert_layout(&basic_3D->set, layouts);
+    init_basic_frag_layout(basic_3D, layouts);
+    basic_pipeline.shader = basic_3D;
+    basic_pipeline.depth_test = true;
+    render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
+	
+    Shader *color_3D = find_shader(&state->assets, "COLOR3D");
+    init_basic_vert_layout(&color_3D->set, layouts);
+    init_color3D_frag_layout(color_3D, layouts);
+    color_pipeline.shader = color_3D;
+    color_pipeline.depth_test = true;
+    render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
+
+    Shader *text_3D = find_shader(&state->assets, "TEXT3D");
+    init_basic_vert_layout(&text_3D->set, layouts);
+    init_text_frag_layout(text_3D, layouts);
+    text_pipeline.shader = text_3D;
+    text_pipeline.depth_test = true;
+    render_create_graphics_pipeline(&text_pipeline, get_vertex_xnu_info());
+
+    Shader *ray_comp = find_shader(&state->assets, "RAY");
+    init_ray_comp_layout(&ray_comp->set, layouts);
+    ray_pipeline.shader = ray_comp;
+    render_create_compute_pipeline(&ray_pipeline);
+
+    init_shapes(&state->assets);
+    //clean_assets(&state->assets);
+
+    // Rendering
+    state->camera.position = { 0, 2, -5 };
+    state->camera.target   = { 0, 0, 0 };
+    state->camera.up       = { 0, -1, 0 };
+    state->camera.fov      = 75.0f;
+    state->camera.yaw      = 180.0f;
+    state->camera.pitch    = -75.0f;
+    state->camera_mode = PLAYER_CAMERA;
+
+    update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
+
+    // Input
+    set(&state->controller.forward, 'w');
+    set(&state->controller.forward, SDLK_UP);
+    set(&state->controller.backward, SDLK_s);
+    set(&state->controller.backward, SDLK_DOWN);
+    set(&state->controller.left, SDLK_a);
+    set(&state->controller.left, SDLK_LEFT);
+    set(&state->controller.right, SDLK_d);
+    set(&state->controller.right, SDLK_RIGHT);
+
+    set(&state->controller.up, SDLK_SPACE);
+    set(&state->controller.down, SDLK_LSHIFT);
+
+    set(&state->controller.select, SDLK_RETURN);
+    set(&state->controller.pause,  SDLK_ESCAPE);
+    set(&state->controller.pass,   SDLK_p); 
+
+    set(&state->controller.camera_toggle, SDLK_c);
+
+    set(&state->controller.one,   SDLK_u);
+    set(&state->controller.two,   SDLK_i);
+    set(&state->controller.three, SDLK_o);
+    set(&state->controller.four,  SDLK_p);
+
+    set(&state->controller.five,  SDLK_j);
+    set(&state->controller.six,   SDLK_k);
+    set(&state->controller.seven, SDLK_l);
+    set(&state->controller.eight, SDLK_SEMICOLON);
+
+    set(&state->controller.pile,   SDLK_9);
+    set(&state->controller.discard,SDLK_0);
+    
+    set(&state->controller.one,   SDLK_q);
+    set(&state->controller.two,   SDLK_w);
+    set(&state->controller.three, SDLK_e);
+    set(&state->controller.four,  SDLK_r);
+
+    set(&state->controller.five,  SDLK_a);
+    set(&state->controller.six,   SDLK_s);
+    set(&state->controller.seven, SDLK_d);
+    set(&state->controller.eight, SDLK_f);
+
+    set(&state->controller.pile,    SDLK_1);
+    set(&state->controller.discard, SDLK_2);
+
+    set(&state->controller.mouse_left, SDL_BUTTON_LEFT);
+
+    // Setting default Menus
+    Menu default_menu = {};
+    default_menu.font = default_font;
+
+    default_menu.style.default_back = play_nine_yellow;
+    default_menu.style.default_text = play_nine_green;
+    default_menu.style.hover_back   = play_nine_light_yellow;
+    default_menu.style.hover_text   = play_nine_green;
+
+    default_menu.style.pressed_back = play_nine_dark_yellow;
+    default_menu.style.pressed_text = play_nine_green;
+    default_menu.style.active_back  = play_nine_yellow;
+    default_menu.style.active_text  = play_nine_green;
+    
+    default_menu.active_section = { -1, - 1 };
+    default_menu.pressed_section = { -1, -1 };
+    //default_menu.hot_section = default_menu.interact_region[0];
+    default_menu.gui.edit.index = 0;
+    
+    default_menu.gui.font = default_font;
+    default_menu.gui.input = {
+        &app->input.active,
+        &state->controller.select,
+        &app->input.mouse,
+        &state->controller.mouse_left,
+
+        app->input.buffer,
+        &app->input.buffer_index
+    };
+
+    default_style = default_menu.style;
+
+    for (u32 i = 0; i < IN_GAME; i++) {
+        state->menu_list.menus[i] = default_menu;
+    }
+
+    gui.font = default_font;
+
+    // Online
+    state->mutex = os_create_mutex();
+    online.mutex = os_create_mutex();
+    state->selected_mutex = os_create_mutex();
+
+    Descriptor texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
+
+    for (u32 j = 0; j < 14; j++) {
+        state->indices[j] = render_set_bitmap(&texture_desc, &card_bitmaps[j]);
+    }
+    state->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&state->assets, "BACK"));
+    Model *model = find_model(&state->assets, "TABLE");
+    state->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
+    
+    // General Game
+
+    init_triangles(find_model(&state->assets, "CARD")); // Fills array on graphics card
+    init_deck();
+
+    state->game_draw.bot_bitmap = find_bitmap(&state->assets, "BOT");
+    state->game_draw.rotation_speed = 150.0f;
+
+    state->notifications.font = default_font;
+    state->notifications.text_color = { 255, 255, 255, 1 };
+
+	return false;
 }
 
 s32 event_handler(App *app, App_System_Event event, u32 arg) {
@@ -1260,20 +1295,26 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
         }
 
         case APP_KEYDOWN: {
+            u32 previous_active = app->input.active;
             app->input.active = KEYBOARD_INPUT;
+            if (previous_active == MOUSE_INPUT && state->menu_list.mode != IN_GAME && arg != 27) break;
             controller_process_input(&state->controller, arg, true);
         } break;
 
         case APP_KEYUP: {
+            u32 previous_active = app->input.active;
             app->input.active = KEYBOARD_INPUT;
+            if (previous_active == MOUSE_INPUT && state->menu_list.mode != IN_GAME && arg != 27) break;
             controller_process_input(&state->controller, arg, false);
         } break;
 
         case APP_MOUSEDOWN: {
+            app->input.active = MOUSE_INPUT;
             controller_process_input(&state->controller, arg, true);
         } break;
 
         case APP_MOUSEUP: {
+            app->input.active = MOUSE_INPUT;
             controller_process_input(&state->controller, arg, false);
         } break;
     }

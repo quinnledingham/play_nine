@@ -457,6 +457,14 @@ create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale) {
 }
 
 inline Matrix_4x4
+m4x4_set_position(Matrix_4x4 m, Vector3 position) {
+    m.F[12] = position.x;
+    m.F[13] = position.y;
+    m.F[14] = position.z;    
+    return m;
+}
+
+inline Matrix_4x4
 m4x4_scale(Matrix_4x4 m, Vector3 scale) {
     for (u32 i = 0; i < 3; i++) {
         m.E[i][0] *= scale.E[i];

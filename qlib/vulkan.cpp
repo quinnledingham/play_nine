@@ -1965,7 +1965,7 @@ void vulkan_allocate_descriptor_set(Layout *layout) {
 
 	VkResult result = vkAllocateDescriptorSets(vulkan_info.device, &allocate_info, layout->descriptor_sets);
 	if (result != VK_SUCCESS) {
-		logprint("vulkan_create_descriptor_sets()", "failed to allocate descriptor sets\n");
+		logprint("vulkan_allocate_descriptor_sets()", "failed to allocate descriptor sets (%s)\n", string_VkResult(result));
 	}
 }
 

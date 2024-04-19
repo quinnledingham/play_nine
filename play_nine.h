@@ -1,7 +1,5 @@
 /*
 TODO
-- Singleplayer (Bot)
-
 - Flip "animation"
 - Show keyboard controls
 - turn off add player for online?
@@ -10,6 +8,7 @@ TODO
 Slight Problems
 - Improve face cards
 - Improve game hud
+- Improve bot (add look ahead at cards)
 
 Render.cpp
 - Clean up light sources in shaders
@@ -140,11 +139,10 @@ struct Rotation {
 };
 
 struct Game_Draw {
-    Rotation pile_rotation;
-    Rotation camera_rotation;
+    Rotation camera_rotation; // rotation when switching players, also controls pile rotation
 
     float32 rotation_speed;
-    float32 rotation; // for in hole over state
+    float32 rotation; // for in HOLE_OVER state
     Vector2_s32 mouse_down;
 
     float32 degrees_between_players;
@@ -160,6 +158,14 @@ struct Game_Draw {
     Matrix_4x4 top_of_pile_model;
     Matrix_4x4 top_of_discard_pile_model;
     Matrix_4x4 hand_models[MAX_PLAYERS][HAND_SIZE];
+
+    Rotation card_rotation; // flip
+    bool8 flipping[HAND_SIZE];
+
+    float32 x_hand_position; // x coords of hand_position of person at 0 degrees
+
+    // How the card looks
+    Vector3 card_scale = {1.0f, 0.5f, 1.0f};
 };
 
 enum Menu_Mode {

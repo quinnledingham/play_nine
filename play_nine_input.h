@@ -13,8 +13,8 @@ struct Controller {
             Button seven;
             Button eight;
 
-            Button nine;
-            Button zero;
+            Button pile;
+            Button discard;
 
             // Camera Controls
             Button camera_toggle;

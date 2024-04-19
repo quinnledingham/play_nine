@@ -69,6 +69,7 @@ using namespace std;
 //#pragma message("VULKAN")
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vk_enum_string_helper.h>
     
 // Provided by VK_EXT_shader_object
 VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
@@ -209,16 +210,15 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
                         window->height = window_event->data2;
                         window->resized = true;
                         
-						#ifdef OPENGL
-						    //opengl_update_window(window);
-                        #elif VULKAN
-                            vulkan_info.window_width = window->width;
-                            vulkan_info.window_height = window->height;
-                            vulkan_info.framebuffer_resized = true;
-						#elif DX12
-						    dx12_resize_window(&dx12_renderer, window);
-						#endif // OPENGL / DX12
-
+						        #ifdef OPENGL
+                        //opengl_update_window(window);
+                    #elif VULKAN
+                        vulkan_info.window_width = window->width;
+                        vulkan_info.window_height = window->height;
+                        vulkan_info.framebuffer_resized = true;
+						        #elif DX12
+						            dx12_resize_window(&dx12_renderer, window);
+						        #endif // OPENGL / DX12
                         event_handler(app, APP_RESIZED, NULL);
                     } break;
 
@@ -327,6 +327,9 @@ int main(int argc, char *argv[]) {
     	return 1;
     }
 
+    if (SDL_HasScreenKeyboardSupport() == SDL_TRUE)
+        print("Has Screen Keyboard Support!\n");
+    
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
     SDL_SetRelativeMouseMode(SDL_FALSE);
 
