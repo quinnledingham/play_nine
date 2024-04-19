@@ -441,7 +441,7 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
             if (client_get_game(state->client, state)) {
                 add_onscreen_notification(&state->notifications, "Game not in lobby");
             } else {
-                online.client_handle = (s64)os_create_thread(play_nine_client, (void*)state);
+                online.client_handle = os_create_thread(play_nine_client, (void*)state);
             }
         } else {
             add_onscreen_notification(&state->notifications, "Unable to join");

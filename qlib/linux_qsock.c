@@ -154,12 +154,16 @@ bool8 linux_init_socket(struct QSock_Socket *sock, const char *ip, const char *p
 
 		if (sock->passive) {
 			// bind socket to address if passive socket everytime
-			if (bind(sock->handle, ptr->ai_addr, ptr->ai_addrlen) != -1) break;
+			if (bind(sock->handle, ptr->ai_addr, ptr->ai_addrlen) != -1) 
+				break;
 			perror("get_address_info(): bind() call failed");
+			return false;
 		} else {
 			// connect socket to address if not passive socket only when using TCP
-			if (sock->protocol == UDP || connect(sock->handle, ptr->ai_addr, ptr->ai_addrlen) != -1) break;
+			if (sock->protocol == UDP || connect(sock->handle, ptr->ai_addr, ptr->ai_addrlen) != -1) 
+				break;
 			perror("get_address_info(): connect() call failed");
+			return false;
 		}
 	}
 

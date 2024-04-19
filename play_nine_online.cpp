@@ -29,7 +29,7 @@ server_disconnect_client(Online_Player *player) {
     os_terminate_thread(player->thread_handle);
 }
 
-u32 play_nine_server_com(void *parameters) {
+THREAD_RETURN play_nine_server_com(void *parameters) {
     Online_Player *player = (Online_Player *)parameters;
     State *state = player->state;
     char buffer[sizeof(Play_Nine_Packet)];
@@ -113,7 +113,7 @@ find_free_player_index() {
     return 0;
 }
 
-u32 play_nine_server(void *parameters) {
+THREAD_RETURN play_nine_server(void *parameters) {
     State *state = (State *)parameters;
     online.close_threads = false;
 
@@ -242,7 +242,7 @@ client_close_connection(QSock_Socket sock) {
 }
 
 // thread that continually calls get game
-u32 play_nine_client(void *parameters) {
+THREAD_RETURN play_nine_client(void *parameters) {
     State *state = (State *)parameters;
 
     while (1) {

@@ -3,7 +3,7 @@
 
 struct Online_Player {
     QSock_Socket sock;
-    s64 thread_handle;
+    THREAD thread_handle;
     u32 game_index;
     bool8 in_use;
 
@@ -12,13 +12,13 @@ struct Online_Player {
 
 struct Play_Nine_Online {
     QSock_Socket sock = {};
-    s64 server_handle; // thread handle
-    s64 client_handle;
+    THREAD server_handle; // thread handle
+    THREAD client_handle;
 
     Online_Player players[5];
 
     bool8 close_threads;
-    s64 mutex;
+    MUTEX mutex;
 };
 
 enum Packet_Types {

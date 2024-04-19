@@ -192,7 +192,7 @@ struct Menu_List {
 };
 
 struct State {
-    s64 mutex;
+    MUTEX mutex;
 
     Game game;
     Game_Draw game_draw;
@@ -219,7 +219,7 @@ struct State {
     bool8 is_active; // is currently taking inputs (local game, active player online client, not a bot)
 
     bool8 selected[SELECTED_SIZE];
-    s64 selected_mutex;
+    MUTEX selected_mutex;
 
     bool8 pass_selected;
     

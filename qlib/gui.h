@@ -89,7 +89,7 @@ struct Button_Input {
 };
 
 struct GUI {
-    u32 index = 1; // starts at 1, reset to 1 every frame, because hover/pressed/active default is 0
+    u32 index; // = 1, starts at 1, reset to 1 every frame, because hover/pressed/active default is 0
     u32 hover;
     u32 pressed;
     u32 active;

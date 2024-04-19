@@ -922,12 +922,12 @@ bool8 update(App *app) {
 
         case PAUSE_MENU:
         case IN_GAME: {
-            if (state->is_client && state->previous_menu != IN_GAME)
+            if (state->is_client )//&& state->previous_menu != IN_GAME)
                 os_wait_mutex(state->mutex);
 
             draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
 
-            if (state->is_client && state->previous_menu != IN_GAME)
+            if (state->is_client )//&& state->previous_menu != IN_GAME)
                 os_release_mutex(state->mutex);
 
             // depth test already off from draw_game()

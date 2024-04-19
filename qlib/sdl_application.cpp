@@ -128,6 +128,7 @@ void * array_malloc(u32 size, u32 n) {
 #include "assets_loader.h"
 #include "data_structs.h"
 
+#include "thread.h"
 #ifdef OS_WINDOWS
 #include "win32_thread.h"
 #elif OS_LINUX
@@ -219,7 +220,7 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
 						        #elif DX12
 						            dx12_resize_window(&dx12_renderer, window);
 						        #endif // OPENGL / DX12
-                        event_handler(app, APP_RESIZED, NULL);
+                        event_handler(app, APP_RESIZED, 0);
                     } break;
 
                     case SDL_WINDOWEVENT_MINIMIZED: {
