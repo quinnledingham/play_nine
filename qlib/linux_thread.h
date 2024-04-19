@@ -20,6 +20,7 @@ void LINUX_FUNC(wait_mutex)(MUTEX handle) {
   if (pthread_mutex_lock(&handle)) {
     logprint("linux_wait_mutex()", "pthread_mutex_lock failed\n");
   }
+  //logprint("linux_wait_mutex()", "mutex locked (%d)\n", handle);
 }
 
 void LINUX_FUNC(release_mutex)(MUTEX handle) {

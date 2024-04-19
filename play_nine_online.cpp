@@ -182,10 +182,10 @@ client_get_game(QSock_Socket sock, State *state) {
             case SET_GAME: {
                 state->game = recv_packet->game;
                 if (state->menu_list.mode != PAUSE_MENU && recv_packet->mode != PAUSE_MENU || (recv_packet->mode != PAUSE_MENU && recv_packet->mode != IN_GAME)) {
-                    state->previous_menu = state->menu_list.mode;
+                    //state->previous_menu = state->menu_list.mode;
                     state->menu_list.mode = recv_packet->mode;
-                    if (state->menu_list.mode == IN_GAME && state->previous_menu != IN_GAME)
-                        load_name_plates(&state->game, &state->game_draw);
+                    //if (state->menu_list.mode == IN_GAME && state->previous_menu != IN_GAME)
+                    //    load_name_plates(&state->game, &state->game_draw);
                 }
                 state->client_game_index = recv_packet->game_index;
                 if (!state->game_draw.camera_rotation.rotating && recv_packet->pile_rotation.signal) {

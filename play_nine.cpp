@@ -851,16 +851,25 @@ bool8 update(App *app) {
     if (state->menu_list.mode == IN_GAME) {
         if (state->is_client && state->previous_menu != IN_GAME)
             os_wait_mutex(state->mutex);
+        
         update_game(state, app);
+        
+        if (!state->game_draw.name_plates_loaded)
+            load_name_plates(&state->game, &state->game_draw);
+            
         if (state->is_client && state->previous_menu != IN_GAME)
             os_release_mutex(state->mutex);
     } else if (state->menu_list.mode == PAUSE_MENU) {
         if (on_down(state->controller.pause)) {
             state->menu_list.mode = IN_GAME;
         }
+    } else {
+        state->game_draw.name_plates_loaded = false;
     }
 
     // Draw
+    //if (state->is_client )//&& state->previous_menu != IN_GAME)
+    os_wait_mutex(state->mutex);
     Shader *basic_3D = find_shader(assets, "BASIC3D");
     Shader *color_3D = find_shader(assets, "COLOR3D");
 
@@ -922,13 +931,9 @@ bool8 update(App *app) {
 
         case PAUSE_MENU:
         case IN_GAME: {
-            if (state->is_client )//&& state->previous_menu != IN_GAME)
-                os_wait_mutex(state->mutex);
 
             draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
 
-            if (state->is_client )//&& state->previous_menu != IN_GAME)
-                os_release_mutex(state->mutex);
 
             // depth test already off from draw_game()
             render_bind_descriptor_set(state->scene_ortho_set);
@@ -1009,6 +1014,8 @@ bool8 update(App *app) {
 
     render_end_frame();
 
+    //if (state->is_client )//&& state->previous_menu != IN_GAME)
+    os_release_mutex(state->mutex);
     prepare_controller_for_input(&state->controller);
     
 	return 0;

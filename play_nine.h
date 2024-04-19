@@ -153,6 +153,7 @@ struct Game_Draw {
 
     Bitmap *bot_bitmap;
     Bitmap name_plates[MAX_PLAYERS];
+    bool name_plates_loaded;
 
     Matrix_4x4 new_card_model;
     Matrix_4x4 top_of_pile_model;

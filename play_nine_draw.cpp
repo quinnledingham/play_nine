@@ -292,6 +292,8 @@ load_name_plates(Game *game, Game_Draw *draw) {
         if (draw->name_plates[i].height != 0) // height because bot bitmap is set with string height and string height can be zero
             render_create_texture(&draw->name_plates[i], TEXTURE_PARAMETERS_CHAR);
     }
+
+    draw->name_plates_loaded = true;
 }
 
 
