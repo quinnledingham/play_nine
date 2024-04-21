@@ -431,7 +431,8 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
         case SELECT_PILE: {
             if (selected[PICKUP_PILE]) {
                 game->new_card = game->pile[game->top_of_pile++];
-    
+
+                // @SPECIAL case
                 // Probably shouldn't happen in a real game
                 if (game->top_of_pile + game->num_of_players >= DECK_SIZE) {
                     game->round_type = FINAL_ROUND;
@@ -450,7 +451,7 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (selected[i]) {
                     game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
-
+                    flip_card_model(draw, game->active_player, i);
                     active_player->flipped[i] = true;
                     active_player->cards[i] = game->new_card;
                     game->new_card = 0;
@@ -491,98 +492,6 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
         } break;
     }
 }
-
-internal bool8
-ray_model_intersection_cpu(Ray ray, Model *model, Matrix_4x4 card) {
-
-    for (u32 i = 0; i < model->meshes_count; i++) {
-        Ray_Intersection p = intersect_triangle_mesh(ray, &model->meshes[i], card);
-        if (p.number_of_intersections != 0) {
-            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
-            return true;
-        }
-    }
-
-/*
-    Ray_Intersection p = intersect_triangle_array(ray, NULL, card);
-    if (p.number_of_intersections != 0) {
-        print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
-        return true;
-    }
-*/
-    return false;
-}
-
-internal void
-mouse_ray_model_intersections_cpu(bool8 *selected, Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
-    for (u32 card_index = 0; card_index < 8; card_index++) {
-        selected[card_index] = ray_model_intersection_cpu(mouse_ray, card_model, draw->hand_models[active_player][card_index]);
-        if (selected[card_index]) return;
-    }
-
-    selected[PICKUP_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, draw->top_of_pile_model);
-    if (draw->top_of_discard_pile_model.E[0] != 0)
-        selected[DISCARD_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, draw->top_of_discard_pile_model);
-}
-
-#if VULKAN
-
-internal void
-mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
-    vulkan_start_compute();
-    
-    Descriptor ray_desc = vulkan_get_descriptor_set(&layouts[6]);
-    Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
-    Descriptor out_desc = vulkan_get_descriptor_set(&layouts[8]);
-    Descriptor object_desc = vulkan_get_descriptor_set(&layouts[9]);
-
-    Ray_v4 ray_v4 = {
-        { mouse_ray.origin.x, mouse_ray.origin.y, mouse_ray.origin.z, 0.0f },
-        { mouse_ray.direction.x, mouse_ray.direction.y, mouse_ray.direction.z, 0.0f },
-    };
-
-    vulkan_update_ubo(ray_desc, &ray_v4);
-    vulkan_set_storage_buffer1(out_desc, 10 * 48);
-
-    // load ubo buffer
-    Matrix_4x4 object[10];
-    for (u32 card_index = 0; card_index < 8; card_index++) {
-        object[card_index] = draw->hand_models[active_player][card_index];
-    }
-    object[PICKUP_PILE] = draw->top_of_pile_model;
-    object[DISCARD_PILE] = draw->top_of_discard_pile_model;
-
-    char *test = (char*)vulkan_info.static_uniform_buffer.data + object_desc.offset;
-    memcpy(test, object, sizeof(Matrix_4x4) * 10);
-
-    // compute intersections
-    
-    // 48 is the size of Ray_Intersection in glsl
-    for (u32 i = 0; i < 10; i++) {
-        Ray_Intersection *p = ((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (sizeof(Ray_Intersection) * i)));
-        if (p->number_of_intersections != 0) {
-            //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
-            selected[i] = true;
-        } else {
-            selected[i] = false;
-        }
-    }
-
-    vulkan_bind_pipeline(&ray_pipeline);
-
-    memset((char*)vulkan_info.storage_buffer.data, 0, 10 * 48);
-
-    vulkan_bind_descriptor_set(ray_desc);
-    vulkan_bind_descriptor_set(tri_desc);
-    vulkan_bind_descriptor_set(out_desc);
-    vulkan_bind_descriptor_set(object_desc);
-
-    vulkan_dispatch(16, 1, 1);
-    vulkan_end_compute();
-
-}
-
-#endif // VULKAN
 
 internal void
 do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) {

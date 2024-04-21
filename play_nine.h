@@ -4,6 +4,7 @@ TODO
 - Show keyboard controls
 - turn off add player for online?
 - see all cards in larger lobby's in online
+- figure out render and online loops
 
 Slight Problems
 - Improve face cards
