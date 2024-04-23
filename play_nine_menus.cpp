@@ -170,9 +170,9 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         if (menu_button(menu, "Start", *input, { 0, menu_row + 2 }, { 1, 1 })) {
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
-                load_name_plates(&state->game, &state->game_draw);
                 start_game(&state->game, game->num_of_players);
-                load_player_card_models(&state->game, &state->game_draw);
+                state->game.draw_signal[state->game.draw_signal_index++] = { SIGNAL_ALL_PLAYER_CARDS, 0, 0 };
+                state->game.draw_signal[state->game.draw_signal_index++] = { SIGNAL_NAME_PLATES, 0, 0 };
             } else {
                 add_onscreen_notification(&state->notifications, "Not enough players");
             }

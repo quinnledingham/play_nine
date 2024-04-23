@@ -228,9 +228,9 @@ get_test_game() {
 }
 
 #include "play_nine_bitmaps.cpp"
-#include "play_nine_draw.cpp"
 #include "play_nine_online.cpp"
 #include "play_nine_menus.cpp"
+#include "play_nine_draw.cpp"
 
 //
 // Scoring
@@ -324,7 +324,7 @@ update_scores(Game *game) {
 //
 
 internal void
-next_player(Game *game, Game_Draw *draw) {
+next_player(Game *game) {
     // Flip all cards after final turn
     if (game->round_type == FINAL_ROUND) {
         game->last_turn++;
@@ -373,6 +373,8 @@ next_player(Game *game, Game_Draw *draw) {
     if (game->players[game->active_player].is_bot)
         game->bot_thinking_time = 0.0f;
 
+    game->draw_signal[game->draw_signal_index++] = { SIGNAL_NEXT_PLAYER_ROTATION, 0, 0 };
+/*
     // Update for draw
     //add_onscreen_notification(&draw->notifications, game->players[game->active_player].name);
     draw->camera_rotation = {
@@ -382,6 +384,7 @@ next_player(Game *game, Game_Draw *draw) {
         0.0f,
         -draw->rotation_speed
     };
+    */
 }
 
 internal u32
@@ -408,16 +411,19 @@ flip_card_model(Game_Draw *draw, u32 player_index, u32 card_index) {
 }
 
 internal void
-flip_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
+flip_round_update(Game *game, bool8 selected[SELECTED_SIZE]) {
     Player *active_player = &game->players[game->active_player];
     for (u32 i = 0; i < HAND_SIZE; i++) {
         if (selected[i]) {
-            flip_card_model(draw, game->active_player, i);
+            //flip_card_model(draw, game->active_player, i);
+
+            game->draw_signal[game->draw_signal_index++] = { SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player };
+
             active_player->flipped[i] = true;
 
             // check if player turn over
             if (get_number_flipped(active_player->flipped) == 2) {
-                next_player(game, draw);
+                next_player(game);
                 return;
             }
         }
@@ -425,7 +431,7 @@ flip_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
 }
 
 internal void
-regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE]) {
+regular_round_update(Game *game, bool8 selected[SELECTED_SIZE]) {
     Player *active_player = &game->players[game->active_player];
     switch(game->turn_stage) {
         case SELECT_PILE: {
@@ -451,14 +457,17 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (selected[i]) {
                     game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
-                    flip_card_model(draw, game->active_player, i);
+                    
+                    //flip_card_model(draw, game->active_player, i);
+                    game->draw_signal[game->draw_signal_index++] = { SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player };
+                                        
                     active_player->flipped[i] = true;
                     active_player->cards[i] = game->new_card;
                     game->new_card = 0;
 
                     if (get_number_flipped(active_player->flipped) == HAND_SIZE)
                         game->round_type = FINAL_ROUND;
-                    next_player(game, draw);
+                    next_player(game);
                     return;
                 }
             }
@@ -473,18 +482,21 @@ regular_round_update(Game *game, Game_Draw *draw, bool8 selected[SELECTED_SIZE])
         case FLIP_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (selected[i] && !active_player->flipped[i]) {
-                    flip_card_model(draw, game->active_player, i);
+                    
+                    //flip_card_model(draw, game->active_player, i);
+                    game->draw_signal[game->draw_signal_index++] = { SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player };
+                                        
                     active_player->flipped[i] = true;
                     if (get_number_flipped(active_player->flipped) == HAND_SIZE && game->round_type != FINAL_ROUND) {
                         game->round_type = FINAL_ROUND; 
                         game->last_turn = 0;
                     }
-                    next_player(game, draw);
+                    next_player(game);
                     return;
                 }
 
                 if (selected[PASS_BUTTON] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
-                    next_player(game, draw);
+                    next_player(game);
                     return;
                 }
 
@@ -548,6 +560,25 @@ all_false(bool8 selected[SELECTED_SIZE]) {
 }
 
 #include "play_nine_bot.cpp"
+
+internal void
+do_draw_update(Game *game, Game_Draw *draw, Draw_Signal draw_signal, State *state) {    
+    switch(draw_signal.type) {
+        case SIGNAL_ALL_PLAYER_CARDS: load_player_card_models(game, draw); break;
+        case SIGNAL_ACTIVE_PLAYER_CARDS: flip_card_model(draw, draw_signal.player_index, draw_signal.card_index); break;
+        case SIGNAL_NEXT_PLAYER_ROTATION: {
+            draw->camera_rotation = {
+                true,
+                true,
+                draw->degrees_between_players,
+                0.0f,
+                -draw->rotation_speed
+            };
+
+        } break;
+        case SIGNAL_NAME_PLATES: load_name_plates(game, draw); break;
+    }
+}
 
 bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
@@ -639,16 +670,24 @@ bool8 update_game(State *state, App *app) {
 
             // Game logic
             switch(game->round_type) {
-                case FLIP_ROUND:    flip_round_update(game, &state->game_draw, selected); break;
+                case FLIP_ROUND:    flip_round_update(game, selected); break;
                 case FINAL_ROUND:
-                case REGULAR_ROUND: regular_round_update(game, &state->game_draw, selected); break;
+                case REGULAR_ROUND: regular_round_update(game, selected); break;
             }
         } break;
     }
 
+    // update card models
+    for (u32 i = game->draw_signal_index; i > 0; i--) {
+        do_draw_update(game, draw, game->draw_signal[i - 1], state);
+    }
+    game->draw_signal_index = 0;
+    
     // Update camera and card models after what happened in game update
     float32 rotation_degrees = process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
+    load_pile_card_models(game, draw, rotation_degrees);
 
+    // Update Camera (uses rotation_degrees)
     switch(state->camera_mode) {
         case FREE_CAMERA: {
             if (app->input.relative_mouse_mode) {
@@ -704,9 +743,7 @@ bool8 update_game(State *state, App *app) {
 
     state->scene.view = get_view(state->camera);
     render_update_ubo(state->scene_set, (void *)&state->scene);
-
-    load_pile_card_models(game, draw, rotation_degrees);
-
+    
     return 0;
 }
 
@@ -763,8 +800,8 @@ bool8 update(App *app) {
         
         update_game(state, app);
         
-        if (!state->game_draw.name_plates_loaded)
-            load_name_plates(&state->game, &state->game_draw);
+        //if (!state->game_draw.name_plates_loaded)
+        //    load_name_plates(&state->game, &state->game_draw);
             
         if (state->is_client && state->previous_menu != IN_GAME)
             os_release_mutex(state->mutex);

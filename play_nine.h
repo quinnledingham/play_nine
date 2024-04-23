@@ -90,6 +90,21 @@ struct Player {
     bool8 is_bot;
 };
 
+enum Draw_Signal_Types {
+    NO_SIGNAL,
+    SIGNAL_ALL_PLAYER_CARDS,
+    SIGNAL_ACTIVE_PLAYER_CARDS,
+    SIGNAL_PILE_CARDS,
+    SIGNAL_NEXT_PLAYER_ROTATION,
+    SIGNAL_NAME_PLATES
+};
+
+struct Draw_Signal {
+    u32 type;
+    u32 card_index;
+    u32 player_index;
+};
+
 // Stores information about the game of play nine
 struct Game {
     // Entire Game variables
@@ -115,6 +130,10 @@ struct Game {
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
+
+    // Draw Signals: so that draw updates don't have to happen in the update functions
+    u32 draw_signal_index;
+    Draw_Signal draw_signal[5];
 
     // Bot
     float32 bot_thinking_time;
