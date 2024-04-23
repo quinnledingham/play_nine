@@ -171,8 +171,8 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 start_game(&state->game, game->num_of_players);
-                state->game.draw_signal[state->game.draw_signal_index++] = { SIGNAL_ALL_PLAYER_CARDS, 0, 0 };
-                state->game.draw_signal[state->game.draw_signal_index++] = { SIGNAL_NAME_PLATES, 0, 0 };
+                add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);
+                add_draw_signal(draw_signals, SIGNAL_NAME_PLATES);
             } else {
                 add_onscreen_notification(&state->notifications, "Not enough players");
             }
@@ -434,13 +434,12 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     if (menu_button(menu, "Join", *input, { 1, 3 }, { 1, 1 })) {
         if (qsock_client(&state->client, state->ip, state->port, TCP)) {
-            state->menu_list.mode = LOCAL_MENU;
-            state->is_client = true;
-
             client_set_name(state->client, state->name);
             if (client_get_game(state->client, state)) {
                 add_onscreen_notification(&state->notifications, "Game not in lobby");
             } else {
+                state->menu_list.mode = LOCAL_MENU;
+                state->is_client = true;
                 online.client_handle = os_create_thread(play_nine_client, (void*)state);
             }
         } else {

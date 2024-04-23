@@ -1,12 +1,3 @@
-/*
-DWORD WINAPI
-play_nine_client(void *parameters) {
-    s32 bytes = os_send(online.sock, 0, 0, 0);
-
-    return 0;
-}
-*/
-
 internal void
 close_server() {
     os_terminate_thread(online.server_handle);
@@ -48,20 +39,6 @@ THREAD_RETURN play_nine_server_com(void *parameters) {
                 platform_memory_copy(state->game.players[player->game_index].name, packet->buffer, MAX_NAME_SIZE);
             } break;
 
-            case GET_GAME: {
-                if (online.close_threads) {
-                    server_disconnect_client(player); // closes thread
-                }
-
-                Play_Nine_Packet return_packet = {};
-                return_packet.type = SET_GAME;
-                return_packet.mode = state->menu_list.mode;
-                return_packet.game_index = player->game_index;
-                return_packet.pile_rotation = state->game_draw.camera_rotation;
-                return_packet.game = state->game;
-                qsock_send(online.sock, &player->sock, (const char *)&return_packet, sizeof(return_packet));
-            } break;
-
             case SET_SELECTED: {
                 os_wait_mutex(state->selected_mutex);
                 if (state->game.active_player == packet->game_index)
@@ -95,6 +72,33 @@ THREAD_RETURN play_nine_server_com(void *parameters) {
 
                 os_terminate_thread(player->thread_handle);
             }
+            
+            // comes from a seperate thread on the client that only asks for game
+            // so it can wait if the server wants it to... if I want to lower the 
+            // amount of times that the game is sent to the clients.
+            case GET_GAME: {
+                if (online.close_threads) {
+                    server_disconnect_client(player); // closes thread
+                }
+
+                Play_Nine_Packet return_packet = {};
+                return_packet.type = SET_GAME;
+                return_packet.mode = state->menu_list.mode;
+                return_packet.game_index = player->game_index;
+                return_packet.game = state->game;
+                platform_memory_copy(return_packet.draw_signals, draw_signals, sizeof(Draw_Signal) * DRAW_SIGNALS_AMOUNT);
+                qsock_send(online.sock, &player->sock, (const char *)&return_packet, sizeof(return_packet));
+
+                // flag that this client has been sent the signal
+                for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
+                    Draw_Signal *signal = &draw_signals[i];
+                    if (signal->in_use && !signal->fulfilled[player->game_index]) {
+                        signal->fulfilled[player->game_index] = true;
+                    }
+                }
+                
+            } break;
+            
         }
     };
 
@@ -181,22 +185,18 @@ client_get_game(QSock_Socket sock, State *state) {
         switch(recv_packet->type) {
             case SET_GAME: {
                 state->game = recv_packet->game;
+                
+                platform_memory_copy(draw_signals, recv_packet->draw_signals, sizeof(Draw_Signal) * DRAW_SIGNALS_AMOUNT);
+                for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
+                    if (recv_packet->draw_signals[i].fulfilled[recv_packet->game_index]) {
+                        draw_signals[i].in_use = false;
+                    }
+                }
+                
                 if (state->menu_list.mode != PAUSE_MENU && recv_packet->mode != PAUSE_MENU || (recv_packet->mode != PAUSE_MENU && recv_packet->mode != IN_GAME)) {
-                    //state->previous_menu = state->menu_list.mode;
                     state->menu_list.mode = recv_packet->mode;
-                    //if (state->menu_list.mode == IN_GAME && state->previous_menu != IN_GAME)
-                    //    load_name_plates(&state->game, &state->game_draw);
                 }
                 state->client_game_index = recv_packet->game_index;
-                if (!state->game_draw.camera_rotation.rotating && recv_packet->pile_rotation.signal) {
-                    state->game_draw.camera_rotation = {
-                        false,
-                        true,
-                        state->game_draw.degrees_between_players,
-                        0.0f,
-                        -state->game_draw.rotation_speed
-                    };
-                }
             } break;
 
             case CLOSE_CONNECTION: {
@@ -209,6 +209,7 @@ client_get_game(QSock_Socket sock, State *state) {
         os_release_mutex(state->mutex);
     } else {
         logprint("client_get_game()", "Received no bytes\n");
+        return true;
     }
 
     return false;

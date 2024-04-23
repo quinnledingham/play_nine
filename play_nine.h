@@ -90,21 +90,6 @@ struct Player {
     bool8 is_bot;
 };
 
-enum Draw_Signal_Types {
-    NO_SIGNAL,
-    SIGNAL_ALL_PLAYER_CARDS,
-    SIGNAL_ACTIVE_PLAYER_CARDS,
-    SIGNAL_PILE_CARDS,
-    SIGNAL_NEXT_PLAYER_ROTATION,
-    SIGNAL_NAME_PLATES
-};
-
-struct Draw_Signal {
-    u32 type;
-    u32 card_index;
-    u32 player_index;
-};
-
 // Stores information about the game of play nine
 struct Game {
     // Entire Game variables
@@ -118,23 +103,19 @@ struct Game {
 
     // Hole variables
     u32 pile[DECK_SIZE];
-    u32 top_of_pile;
+    u32 top_of_pile; // index in pile of the top card
 
     u32 discard_pile[DECK_SIZE];
-    u32 top_of_discard_pile;
+    u32 top_of_discard_pile; // index in discard pile of the top card
 
     enum Round_Types round_type;
-    u32 last_turn;
+    u32 last_turn; // counting how many players have had their last turn
 
     // Turn variables
     u32 new_card; // the card that was just picked up
     bool8 pile_card; // flag to flip if discard new card
     enum Turn_Stages turn_stage;
-
-    // Draw Signals: so that draw updates don't have to happen in the update functions
-    u32 draw_signal_index;
-    Draw_Signal draw_signal[5];
-
+    
     // Bot
     float32 bot_thinking_time;
 };
@@ -142,11 +123,6 @@ struct Game {
 //
 // State
 //
-
-enum Camera_Mode {
-    FREE_CAMERA,
-    PLAYER_CAMERA,
-};
 
 struct Rotation {
     bool8 signal;
@@ -212,6 +188,11 @@ struct Menu_List {
     };
 };
 
+enum Camera_Mode {
+    FREE_CAMERA,
+    PLAYER_CAMERA,
+};
+
 struct State {
     MUTEX mutex;
 
@@ -222,12 +203,10 @@ struct State {
     // Input
     Controller controller = {};
     enum Camera_Mode camera_mode = PLAYER_CAMERA;
-    Ray mouse_ray;
 
-    u32 previous_menu;
     Menu_List menu_list;
 
-    // Server
+    // Host/Join Menu textboxes
     char name[TEXTBOX_SIZE] = "Jeff";
     char ip[TEXTBOX_SIZE] = "127.0.0.1";
     char port[TEXTBOX_SIZE] = "4444";
@@ -252,9 +231,14 @@ struct State {
     
     Camera camera;
     s32 indices[16];
-
+    
     Assets assets;
 };
+
+//
+// Card Designs
+// color and layout of the circles on the card bitmaps
+//
 
 // 0 1 2 3 4 5 6 7 8 9 10 11 12 -5
 Vector3 ball_colors[14] = {
@@ -275,7 +259,7 @@ Vector3 ball_colors[14] = {
     { 255,   0,   0 }  // 13 Full red
 };
 
-s32 rows[14][3] = {
+s32 ball_rows[14][3] = {
     { 0, 0, 0 }, // 0
 
     { 0, 1, 0, }, // 1
@@ -296,3 +280,61 @@ s32 rows[14][3] = {
 
     { 2, 1, 2, }, // -5
 };
+
+//
+// Draw_Signal
+//
+
+enum Draw_Signal_Types {
+    NO_SIGNAL,
+    SIGNAL_ALL_PLAYER_CARDS,
+    SIGNAL_ACTIVE_PLAYER_CARDS,
+    SIGNAL_PILE_CARDS,
+    SIGNAL_NEXT_PLAYER_ROTATION,
+    SIGNAL_NAME_PLATES
+};
+
+struct Draw_Signal {
+    u32 type;
+    u32 card_index;
+    u32 player_index;
+    bool8 fulfilled[6]; // tracking which clients have completed the signal
+    bool8 in_use; // if this signal is still active
+
+    Draw_Signal() {
+        type = 0;
+        card_index = 0;
+        player_index = 0;
+        platform_memory_set(fulfilled, 0, sizeof(bool8) * 6);
+        in_use = 0;
+    }
+    Draw_Signal(u32 in_type, u32 in_card_index, u32 in_player_index) {
+        type = in_type;
+        card_index = in_card_index;
+        player_index = in_player_index;
+        platform_memory_set(fulfilled, 0, sizeof(bool8) * 6);
+        in_use = true;
+    }
+};
+
+// Draw Signals: so that draw updates don't have to happen in the update functions
+#define DRAW_SIGNALS_AMOUNT 5
+
+internal void
+add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_player_index) {
+    for (u32 i = 0 ; i < DRAW_SIGNALS_AMOUNT; i++) {
+        if (!signals[i].in_use) {
+            signals[i] = Draw_Signal(in_type, in_card_index, in_player_index);
+            return;
+        }
+    }
+
+    logprint("add_draw_signal()", "ran out of signal places\n");
+}
+
+internal void
+add_draw_signal(Draw_Signal *signals, u32 in_type) {
+    add_draw_signal(signals, in_type, 0, 0);
+}
+
+Draw_Signal draw_signals[DRAW_SIGNALS_AMOUNT];

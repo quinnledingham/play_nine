@@ -146,7 +146,7 @@ add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
     float32 x = 0.0f;
     float32 y = 0.0f;
 
-    s32 *design = rows[number];
+    s32 *design = ball_rows[number];
     s32 columns = 0; // count how many columns are in this design to only space for that many
     for (u32 i = 0; i < 3; i++) {
         if (design[i] > 0)

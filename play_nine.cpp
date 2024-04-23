@@ -373,18 +373,7 @@ next_player(Game *game) {
     if (game->players[game->active_player].is_bot)
         game->bot_thinking_time = 0.0f;
 
-    game->draw_signal[game->draw_signal_index++] = { SIGNAL_NEXT_PLAYER_ROTATION, 0, 0 };
-/*
-    // Update for draw
-    //add_onscreen_notification(&draw->notifications, game->players[game->active_player].name);
-    draw->camera_rotation = {
-        true,
-        true,
-        draw->degrees_between_players,
-        0.0f,
-        -draw->rotation_speed
-    };
-    */
+    add_draw_signal(draw_signals, SIGNAL_NEXT_PLAYER_ROTATION);
 }
 
 internal u32
@@ -415,10 +404,7 @@ flip_round_update(Game *game, bool8 selected[SELECTED_SIZE]) {
     Player *active_player = &game->players[game->active_player];
     for (u32 i = 0; i < HAND_SIZE; i++) {
         if (selected[i]) {
-            //flip_card_model(draw, game->active_player, i);
-
-            game->draw_signal[game->draw_signal_index++] = { SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player };
-
+            add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
             active_player->flipped[i] = true;
 
             // check if player turn over
@@ -457,10 +443,7 @@ regular_round_update(Game *game, bool8 selected[SELECTED_SIZE]) {
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (selected[i]) {
                     game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
-                    
-                    //flip_card_model(draw, game->active_player, i);
-                    game->draw_signal[game->draw_signal_index++] = { SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player };
-                                        
+                    add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
                     active_player->flipped[i] = true;
                     active_player->cards[i] = game->new_card;
                     game->new_card = 0;
@@ -481,11 +464,8 @@ regular_round_update(Game *game, bool8 selected[SELECTED_SIZE]) {
 
         case FLIP_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
-                if (selected[i] && !active_player->flipped[i]) {
-                    
-                    //flip_card_model(draw, game->active_player, i);
-                    game->draw_signal[game->draw_signal_index++] = { SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player };
-                                        
+                if (selected[i] && !active_player->flipped[i]) {                    
+                    add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
                     active_player->flipped[i] = true;
                     if (get_number_flipped(active_player->flipped) == HAND_SIZE && game->round_type != FINAL_ROUND) {
                         game->round_type = FINAL_ROUND; 
@@ -511,12 +491,13 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
     Game_Draw *draw = &state->game_draw;
     Model *card_model = find_model(&state->assets, "CARD");
 
-    set_ray_coords(&state->mouse_ray, state->camera, state->scene, app->input.mouse, app->window.dim);
+    Ray mouse_ray;
+    set_ray_coords(&mouse_ray, state->camera, state->scene, app->input.mouse, app->window.dim);
 
     #if VULKAN
-    mouse_ray_model_intersections(draw->highlight_hover, state->mouse_ray, draw, card_model, game->active_player);
+    mouse_ray_model_intersections(draw->highlight_hover, mouse_ray, draw, card_model, game->active_player);
     #elif OPENGL
-    mouse_ray_model_intersections_cpu(draw->highlight_hover, state->mouse_ray, draw, card_model, game->active_player);
+    mouse_ray_model_intersections_cpu(draw->highlight_hover, mouse_ray, draw, card_model, game->active_player);
     #endif // VULKAN / OPENGL
 
     if (on_down(state->controller.mouse_left)) {
@@ -562,7 +543,7 @@ all_false(bool8 selected[SELECTED_SIZE]) {
 #include "play_nine_bot.cpp"
 
 internal void
-do_draw_update(Game *game, Game_Draw *draw, Draw_Signal draw_signal, State *state) {    
+do_draw_update(Game *game, Game_Draw *draw, Draw_Signal draw_signal) {    
     switch(draw_signal.type) {
         case SIGNAL_ALL_PLAYER_CARDS: load_player_card_models(game, draw); break;
         case SIGNAL_ACTIVE_PLAYER_CARDS: flip_card_model(draw, draw_signal.player_index, draw_signal.card_index); break;
@@ -577,6 +558,35 @@ do_draw_update(Game *game, Game_Draw *draw, Draw_Signal draw_signal, State *stat
 
         } break;
         case SIGNAL_NAME_PLATES: load_name_plates(game, draw); break;
+    }
+}
+
+internal void
+do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {     
+    for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
+        if (signals[i].in_use) {
+            do_draw_update(game, draw, signals[i]);
+            signals[i].in_use = false;
+        }
+    }
+}
+
+internal void
+do_draw_signals_server(Draw_Signal *signals, Game *game, Game_Draw *draw, u32 fulfilled_index) {     
+    for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
+        if (signals[i].in_use && !signals[i].fulfilled[fulfilled_index]) {
+            do_draw_update(game, draw, signals[i]);
+            signals[i].fulfilled[fulfilled_index] = true;
+        }
+
+        // check if everyone has done this update
+        bool8 completed = true;
+        for (u32 fulfilled_i = 0; fulfilled_i < game->num_of_players; fulfilled_i++) {
+            if (!signals[i].fulfilled[fulfilled_i] && !game->players[fulfilled_i].is_bot)
+                completed = false;
+        }
+        if (completed)
+            signals[i].in_use = false;
     }
 }
 
@@ -663,7 +673,7 @@ bool8 update_game(State *state, App *app) {
                 }
                 os_release_mutex(state->selected_mutex);
             } else if (game->players[game->active_player].is_bot) {
-                do_bot_selected_update(selected, game, app->time.frame_time_s);
+                do_bot_selected_update(selected, game, &game->bot_thinking_time, app->time.frame_time_s);
             }
 
             if (state->is_client) break; // client doesn't do any game updated         
@@ -678,10 +688,10 @@ bool8 update_game(State *state, App *app) {
     }
 
     // update card models
-    for (u32 i = game->draw_signal_index; i > 0; i--) {
-        do_draw_update(game, draw, game->draw_signal[i - 1], state);
-    }
-    game->draw_signal_index = 0;
+    if (state->is_server)
+        do_draw_signals_server(draw_signals, game, draw, state->client_game_index);
+    else
+        do_draw_signals(draw_signals, game, draw);
     
     // Update camera and card models after what happened in game update
     float32 rotation_degrees = process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
@@ -795,15 +805,12 @@ bool8 update(App *app) {
     
     // Update
     if (state->menu_list.mode == IN_GAME) {
-        if (state->is_client && state->previous_menu != IN_GAME)
+        if (state->is_client)
             os_wait_mutex(state->mutex);
         
         update_game(state, app);
-        
-        //if (!state->game_draw.name_plates_loaded)
-        //    load_name_plates(&state->game, &state->game_draw);
-            
-        if (state->is_client && state->previous_menu != IN_GAME)
+                    
+        if (state->is_client)
             os_release_mutex(state->mutex);
     } else if (state->menu_list.mode == PAUSE_MENU) {
         if (on_down(state->controller.pause)) {

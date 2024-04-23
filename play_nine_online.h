@@ -42,7 +42,7 @@ struct Play_Nine_Packet {
         struct {
             enum Menu_Mode mode;
             Game game;
-            Rotation pile_rotation;
+            Draw_Signal draw_signals[DRAW_SIGNALS_AMOUNT];
         };
 
         // what the clients send
