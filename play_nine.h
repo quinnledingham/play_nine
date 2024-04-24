@@ -337,4 +337,10 @@ add_draw_signal(Draw_Signal *signals, u32 in_type) {
     add_draw_signal(signals, in_type, 0, 0);
 }
 
+internal void
+add_draw_signal(Draw_Signal *signals, Draw_Signal s) {
+    add_draw_signal(signals, s.type, s.card_index, s.player_index);
+}
+
+
 Draw_Signal draw_signals[DRAW_SIGNALS_AMOUNT];

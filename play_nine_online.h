@@ -18,16 +18,16 @@ struct Play_Nine_Online {
     Online_Player players[5];
 
     bool8 close_threads;
-    MUTEX mutex;
 };
 
 enum Packet_Types {
     CONNECT,
 
     SET_NAME,
-    GET_GAME,
     SET_GAME,
     SET_SELECTED,
+    SET_MENU_MODE,
+    ADD_DRAW_SIGNAL,
 
     CLOSE_CONNECTION
 };
@@ -40,9 +40,9 @@ struct Play_Nine_Packet {
     union {
         // what the server sends
         struct {
-            enum Menu_Mode mode;
             Game game;
-            Draw_Signal draw_signals[DRAW_SIGNALS_AMOUNT];
+            Draw_Signal signal;
+            enum Menu_Mode mode;
         };
 
         // what the clients send

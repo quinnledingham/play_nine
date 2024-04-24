@@ -1,15 +1,4 @@
 internal void
-close_server() {
-    os_terminate_thread(online.server_handle);
-    online.close_threads = true;
-    for (u32 i = 0; i < 5; i++) {
-        if (online.players[i].in_use)
-            os_wait_handle(online.players[i].thread_handle);
-    }
-    qsock_free_socket(online.sock);
-}
-
-internal void
 server_disconnect_client(Online_Player *player) {
     Play_Nine_Packet return_packet = {};
     return_packet.type = CLOSE_CONNECTION;
@@ -20,6 +9,53 @@ server_disconnect_client(Online_Player *player) {
     os_terminate_thread(player->thread_handle);
 }
 
+
+internal void
+close_server() {
+    os_terminate_thread(online.server_handle);
+    online.close_threads = true;
+    for (u32 i = 0; i < 5; i++) {
+        if (online.players[i].in_use) {
+            server_disconnect_client(&online.players[i]);
+        }
+    }
+    qsock_free_socket(online.sock);
+}
+
+internal void
+server_send_packet_all(Play_Nine_Packet *packet) {
+    for (u32 i = 0; i < 5; i++) {
+        if (online.players[i].in_use) {
+            packet->game_index = online.players[i].game_index;    
+            qsock_send(online.sock, &online.players[i].sock, (const char *)packet, sizeof(*packet));
+        }
+    } 
+}
+
+internal void
+server_send_game(Game *game) {
+    Play_Nine_Packet return_packet = {};
+    return_packet.type = SET_GAME;
+    return_packet.game = *game;
+    server_send_packet_all(&return_packet);
+}
+
+internal void
+server_send_menu_mode(enum Menu_Mode mode) {
+    Play_Nine_Packet packet = {};
+    packet.type = SET_MENU_MODE;
+    packet.mode = mode;
+    server_send_packet_all(&packet);
+};
+/*
+internal void
+server_add_draw_signal(Draw_Signal signal) {
+    Play_Nine_Packet packet = {};
+    packet.type = ADD_DRAW_SIGNAL;
+    packet.signal = signal;
+    server_send_packet_all(&packet);
+}
+*/
 THREAD_RETURN play_nine_server_com(void *parameters) {
     Online_Player *player = (Online_Player *)parameters;
     State *state = player->state;
@@ -37,6 +73,7 @@ THREAD_RETURN play_nine_server_com(void *parameters) {
         switch(packet->type) {
             case SET_NAME: {
                 platform_memory_copy(state->game.players[player->game_index].name, packet->buffer, MAX_NAME_SIZE);
+                server_send_game(&state->game);        
             } break;
 
             case SET_SELECTED: {
@@ -71,34 +108,7 @@ THREAD_RETURN play_nine_server_com(void *parameters) {
                 player->in_use = false;
 
                 os_terminate_thread(player->thread_handle);
-            }
-            
-            // comes from a seperate thread on the client that only asks for game
-            // so it can wait if the server wants it to... if I want to lower the 
-            // amount of times that the game is sent to the clients.
-            case GET_GAME: {
-                if (online.close_threads) {
-                    server_disconnect_client(player); // closes thread
-                }
-
-                Play_Nine_Packet return_packet = {};
-                return_packet.type = SET_GAME;
-                return_packet.mode = state->menu_list.mode;
-                return_packet.game_index = player->game_index;
-                return_packet.game = state->game;
-                platform_memory_copy(return_packet.draw_signals, draw_signals, sizeof(Draw_Signal) * DRAW_SIGNALS_AMOUNT);
-                qsock_send(online.sock, &player->sock, (const char *)&return_packet, sizeof(return_packet));
-
-                // flag that this client has been sent the signal
-                for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
-                    Draw_Signal *signal = &draw_signals[i];
-                    if (signal->in_use && !signal->fulfilled[player->game_index]) {
-                        signal->fulfilled[player->game_index] = true;
-                    }
-                }
-                
-            } break;
-            
+            }            
         }
     };
 
@@ -156,8 +166,13 @@ THREAD_RETURN play_nine_server(void *parameters) {
 
             continue;
         }
-        //state->game.num_of_players++;
         add_player(&state->game, false);
+        
+        Play_Nine_Packet packet = {};
+        packet.type = SET_MENU_MODE;
+        packet.mode = state->menu_list.mode;
+        qsock_send(online.sock, &client_sock, (const char *)&packet, sizeof(packet));
+
         os_release_mutex(state->mutex);
 
         online.players[player_index].thread_handle = os_create_thread(play_nine_server_com, (void*)&online.players[player_index]);
@@ -170,51 +185,6 @@ THREAD_RETURN play_nine_server(void *parameters) {
 // Client
 //
 
-// returns true if the connection was closed
-internal bool8
-client_get_game(QSock_Socket sock, State *state) {
-    Play_Nine_Packet packet = {};
-    packet.type = GET_GAME;
-    qsock_send(sock, NULL, (const char *)&packet, sizeof(packet));
-    SDL_Delay(100);
-    char buffer[sizeof(Play_Nine_Packet)];
-    s32 bytes = qsock_recv(sock, NULL, buffer, sizeof(Play_Nine_Packet));
-    if (bytes > 0) {
-        os_wait_mutex(state->mutex);        
-        Play_Nine_Packet *recv_packet = (Play_Nine_Packet *)&buffer;
-        switch(recv_packet->type) {
-            case SET_GAME: {
-                state->game = recv_packet->game;
-                
-                platform_memory_copy(draw_signals, recv_packet->draw_signals, sizeof(Draw_Signal) * DRAW_SIGNALS_AMOUNT);
-                for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
-                    if (recv_packet->draw_signals[i].fulfilled[recv_packet->game_index]) {
-                        draw_signals[i].in_use = false;
-                    }
-                }
-                
-                if (state->menu_list.mode != PAUSE_MENU && recv_packet->mode != PAUSE_MENU || (recv_packet->mode != PAUSE_MENU && recv_packet->mode != IN_GAME)) {
-                    state->menu_list.mode = recv_packet->mode;
-                }
-                state->client_game_index = recv_packet->game_index;
-            } break;
-
-            case CLOSE_CONNECTION: {
-                qsock_free_socket(sock);
-                state->is_client = false;
-                state->menu_list.mode = MAIN_MENU;
-                return true;
-            } break;
-        }
-        os_release_mutex(state->mutex);
-    } else {
-        logprint("client_get_game()", "Received no bytes\n");
-        return true;
-    }
-
-    return false;
-}
-
 internal void
 client_set_name(QSock_Socket sock, const char *name) {
     Play_Nine_Packet packet = {};
@@ -222,7 +192,6 @@ client_set_name(QSock_Socket sock, const char *name) {
     platform_memory_copy(packet.buffer, (void*)name, get_length(name));
     qsock_send(sock, NULL, (const char *)&packet, sizeof(packet));
 }
-
 
 internal void
 client_set_selected(QSock_Socket sock, bool8 selected[SELECTED_SIZE], u32 index) {
@@ -242,19 +211,42 @@ client_close_connection(QSock_Socket sock) {
     os_terminate_thread(online.client_handle);
 }
 
-// thread that continually calls get game
-THREAD_RETURN play_nine_client(void *parameters) {
+THREAD_RETURN play_nine_client_recv(void *parameters) {
     State *state = (State *)parameters;
 
-    while (1) {
-        //os_wait_mutex(online.mutex);
+    while(1) {
+        char buffer[sizeof(Play_Nine_Packet)];
+        s32 bytes = qsock_recv(state->client, NULL, buffer, sizeof(Play_Nine_Packet));
+        if (bytes > 0) {
+            Play_Nine_Packet *recv_packet = (Play_Nine_Packet *)&buffer;
+            os_wait_mutex(state->mutex);
+            switch(recv_packet->type) {
+                case SET_GAME: {
+                    state->game = recv_packet->game;
+                    state->client_game_index = recv_packet->game_index;
+                } break;
 
-        if (client_get_game(state->client, state)) {
-            add_onscreen_notification(&state->notifications, "Connection Closed");
-            break;
+                case SET_MENU_MODE: {
+                    state->menu_list.mode = recv_packet->mode;
+                } break;
+
+                case ADD_DRAW_SIGNAL: {
+                    add_draw_signal(draw_signals, recv_packet->signal);
+                } break;
+
+                case CLOSE_CONNECTION: {
+                    qsock_free_socket(state->client);
+                    state->is_client = false;
+                    state->menu_list.mode = MAIN_MENU;
+                    add_onscreen_notification(&state->notifications, "Connection Closed");
+                    return 1;
+                } break;
+            }
+            os_release_mutex(state->mutex);
+        } else {
+            logprint("play_nine_client_recv()", "received no bytes\n");
+            return 1;
         }
-
-        //os_release_mutex(online.mutex);
     }
 
     return 0;
