@@ -1,5 +1,6 @@
 /build
 /sdl-vc
 /VulkanSDK
+/.idea
 *.sublime-project
 *.sublime-workspace
