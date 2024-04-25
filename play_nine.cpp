@@ -1012,7 +1012,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))

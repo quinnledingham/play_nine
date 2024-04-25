@@ -37,20 +37,14 @@ struct Play_Nine_Packet {
     s32 type;
     u32 game_index;
 
-    union {
-        // what the server sends
-        struct {
-            Game game;
-            Draw_Signal signal;
-            enum Menu_Mode mode;
-        };
+    // what the server sends
+    Game game;
+    Draw_Signal signal;
+    enum Menu_Mode mode;
 
-        // what the clients send
-        struct {
-            bool8 selected[SELECTED_SIZE];
-            char buffer[TEXTBOX_SIZE];
-        };
-    };
+    // what the clients send
+    bool8 selected[SELECTED_SIZE];
+    char buffer[TEXTBOX_SIZE];
 };
 
 Play_Nine_Online online = {};

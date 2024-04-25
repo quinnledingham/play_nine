@@ -6,7 +6,7 @@ opengl_msaa(u32 samples, u32 width, u32 height) {
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);  
 }
 
-void opengl_sdl_init(SDL_Window *sdl_window) {
+bool8 opengl_sdl_init(SDL_Window *sdl_window) {
 
     SDL_GL_LoadLibrary(NULL);
     
@@ -42,6 +42,8 @@ void opengl_sdl_init(SDL_Window *sdl_window) {
     glFrontFace(GL_CW);  
 
     //glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+
+    return 0;
 }
 
 void opengl_clear_color(Vector4 color) {
@@ -306,8 +308,7 @@ u32 opengl_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
     return index;
 }
 
-internal void
-opengl_delete_texture(Bitmap *bitmap) {
+void opengl_delete_texture(Bitmap *bitmap) {
     glDeleteTextures(1, (u32*)bitmap->gpu_info);
 }
 

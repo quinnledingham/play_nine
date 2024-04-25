@@ -217,8 +217,8 @@ vulkan_is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface, const c
 	vkGetPhysicalDeviceProperties(device, &device_properties);
 	vkGetPhysicalDeviceFeatures(device, &device_features);
 
-	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device:\nApi Version: %d\nDriver Version %d\nDevice Name %s\n", device_properties.apiVersion, device_properties.driverVersion, device_properties.deviceName);
-
+	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device:\nApi Version: %d\nDriver Version: %d\nDevice Name: %s\n", device_properties.apiVersion, device_properties.driverVersion, device_properties.deviceName);
+	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device Limits:\nMax Descriptor Set Samplers: %d\nMax Descriptor Set Uniform Buffers: %d\nMax Uniform Buffer Range %d\n", device_properties.limits.maxDescriptorSetSamplers, device_properties.limits.maxDescriptorSetUniformBuffers, device_properties.limits.maxUniformBufferRange); 
 	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy && device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 }
 
@@ -1745,9 +1745,9 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	VkDescriptorPoolSize pool_sizes[3] = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = 100;
+	pool_sizes[0].descriptorCount = 10000;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[1].descriptorCount = 100;
+	pool_sizes[1].descriptorCount = 10000;
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	pool_sizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT * 2;
 
@@ -1757,7 +1757,8 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	pool_info.pPoolSizes = pool_sizes;
 	pool_info.maxSets = 10000;
 
-	if (vkCreateDescriptorPool(vulkan_info.device, &pool_info, nullptr, &vulkan_info.descriptor_pool) != VK_SUCCESS) {
+  VkResult result = vkCreateDescriptorPool(vulkan_info.device, &pool_info, nullptr, &vulkan_info.descriptor_pool);
+  if (result != VK_SUCCESS) {
 		logprint("vulkan_create_descriptor_pool()", "failed to create descriptor pool\n");
 	}
 
@@ -1980,7 +1981,7 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
 
 	VkDescriptorBufferInfo dynamic_buffer_info = {};
 	dynamic_buffer_info.offset = 0;
-    dynamic_buffer_info.range = layout_binding->size * layout_binding->descriptor_count;
+  dynamic_buffer_info.range = layout_binding->size * layout_binding->descriptor_count;
 	dynamic_buffer_info.buffer = vulkan_info.dynamic_uniform_buffer.handle;
 
 	VkWriteDescriptorSet write_set = {};

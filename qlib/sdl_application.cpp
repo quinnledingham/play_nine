@@ -60,9 +60,10 @@ using namespace std;
 
 #ifdef OPENGL
 
-#pragma message("OPENGL")
+//#pragma message("OPENGL")
 
 #include <gl.h>
+#include <gl.c>
 
 #elif VULKAN
 

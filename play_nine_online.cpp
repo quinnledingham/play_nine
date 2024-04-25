@@ -239,13 +239,13 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
                     state->is_client = false;
                     state->menu_list.mode = MAIN_MENU;
                     add_onscreen_notification(&state->notifications, "Connection Closed");
-                    return 1;
+                    return 0;
                 } break;
             }
             os_release_mutex(state->mutex);
         } else {
             logprint("play_nine_client_recv()", "received no bytes\n");
-            return 1;
+            return 0;
         }
     }
 
