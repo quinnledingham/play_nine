@@ -36,6 +36,7 @@ struct Compute_Pipeline {
 struct Render {
     bool8 vsync;
     bool8 depth_test;
+    bool8 anti_aliasing;
 };
 
 global Render render_info = {};

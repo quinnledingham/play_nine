@@ -40,10 +40,18 @@ struct Vulkan_Swap_Chain_Support_Details {
 };
 
 struct Vulkan_Buffer {
-    VkBuffer handle;
-    VkDeviceMemory memory;
-    u32 offset; // where to enter new bytes
+	VkBuffer handle;
+	VkDeviceMemory memory;
+	u32 offset; // where to enter new bytes
 	void *data; // if the memory is mapped
+};
+
+struct Vulkan_Texture {
+	VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
+	VkDeviceMemory image_memory; // Could put in vulkan info and save it
+	VkImage image;	 		    // similar to VkBuffer
+	VkImageView image_view; // provides more info about the image
+	VkSampler sampler;      // allows the shader to sample the image
 };
 
 struct Vulkan_Info {
@@ -74,7 +82,7 @@ struct Vulkan_Info {
 	VkDevice device;
 	VkSurfaceKHR surface;
 
-	VkRenderPass render_pass;         // general render pass for a pipeline (also pipeline layout)
+	VkRenderPass render_pass; // general render pass for a pipeline (also pipeline layout)
 	
 	VkDeviceSize uniform_buffer_min_alignment;
 	VkSampleCountFlagBits msaa_samples;
@@ -94,7 +102,7 @@ struct Vulkan_Info {
 	// swap_chain
 	VkSwapchainKHR swap_chains[1];
 	Arr<VkImage> swap_chain_images;
-	u32 image_index;                            // set at the start of the frame for the current frame
+	u32 image_index; // set at the start of the frame for the current frame
 	VkFormat swap_chain_image_format;
 	VkExtent2D swap_chain_extent;
 	Arr<VkImageView> swap_chain_image_views;
@@ -116,15 +124,8 @@ struct Vulkan_Info {
 	Vulkan_Buffer storage_buffer;
 	Vulkan_Buffer triangle_buffer;
 
-	// Depth Buffer
-	VkImage depth_image;
-	VkDeviceMemory depth_image_memory;
-	VkImageView depth_image_view;
-
-	// MSAA
-	VkImage color_image;
-	VkDeviceMemory color_image_memory;
-	VkImageView color_image_view;
+	Vulkan_Texture depth_texture; // Depth Buffer
+	Vulkan_Texture color_texture; // MSAA
 
 	// Presentation
 	VkCommandBufferBeginInfo begin_info;
@@ -150,16 +151,6 @@ vulkan_active_cmd_buffer(Vulkan_Info *info) {
 	//return info->command_buffers[info->current_frame];
 	return *info->active_command_buffer;
 }
-
-struct Vulkan_Texture {
-	VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
-
-	VkDeviceMemory image_memory; // Could put in vulkan info and save it
-
-	VkImage image;	 		// similar to VkBuffer
-	VkImageView image_view; // provides more info about the image
-	VkSampler sampler;      // allows the shader to sample the image
-};
 
 struct Vulkan_Mesh {
     u32 vertices_offset;
