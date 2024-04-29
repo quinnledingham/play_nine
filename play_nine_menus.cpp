@@ -345,6 +345,7 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
                 start_hole(game);
             else
                 start_game(game, game->num_of_players);
+            add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);            
             return 1;
         }
         if (menu_button(menu, "Back", *input, { (s32)game->num_of_players - 1, scroll_length + 2 }, { 1, 1 })) {
@@ -412,7 +413,6 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     if (!menu->initialized) {
         menu->initialized = true;
-    
         menu->sections = { 2, 5 };
         menu->interact_region[0] = { 1, 0 };
         menu->interact_region[1] = { 2, 5 };
@@ -422,14 +422,18 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     menu_set_input(menu, input);
     menu->gui.start();
 
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
-    Vector4 text_color = { 231, 213, 36,  1 };
+    Vector4 text_color = play_nine_yellow;
 
+    menu->gui.text_align = ALIGN_LEFT;
+    menu->section_width = 0.5f;
     menu_text(menu, "Name:", text_color, { 0, 0 }, { 1, 1 }); 
     menu_text(menu, "Ip:",   text_color, { 0, 1 }, { 1, 1 }); 
     menu_text(menu, "Port:", text_color, { 0, 2 }, { 1, 1 }); 
-    
+
+    menu->gui.text_align = ALIGN_CENTER;
+    menu->section_width = 1.5f;
     menu_textbox(menu, state->name, *input, { 1, 0 }, { 1, 1 });
     menu_textbox(menu, state->ip,   *input, { 1, 1 }, { 1, 1 });
     menu_textbox(menu, state->port, *input, { 1, 2 }, { 1, 1 });
@@ -439,14 +443,6 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
             online.client_handle = os_create_thread(play_nine_client_recv, (void*)state);
             state->is_client = true;            
             client_set_name(state->client, state->name);
-            /*
-            if (client_get_game(state->client, state)) {
-                add_onscreen_notification(&state->notifications, "Game not in lobby");
-            } else {
-                state->menu_list.mode = LOCAL_MENU;
-                state->is_client = true;
-                online.client_handle = os_create_thread(play_nine_client_recv, (void*)state);
-            }*/
         } else {
             add_onscreen_notification(&state->notifications, "Unable to join");
         }

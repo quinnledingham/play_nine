@@ -44,6 +44,7 @@ struct Draw_Button {
 
     Font *font;
     const char *text;
+    u32 text_align;
 };
 
 struct Draw_Textbox {
@@ -60,6 +61,7 @@ struct Draw_Textbox {
 
     Font *font;
     const char *text;
+    u32 text_align;
 };
 
 #define TEXTBOX_SIZE 20
@@ -101,6 +103,7 @@ struct GUI {
     Vector2 dim;
 
     Font *font;
+    u32 text_align;
     Draw_Style style;
 
     void start() { index = 1; };
@@ -148,13 +151,19 @@ struct Menu_Input {
     bool8 full_menu; // if false so a smaller version of the menu
 };
 
+enum GUI_Align {
+    ALIGN_CENTER,
+    ALIGN_LEFT,    
+    ALIGN_RIGHT,
+};
+
 struct Menu {
     Draw_Style style;
 
-    //Textbox edit;
-
     Font *font;
     Vector2 padding;
+
+    float32 section_width;
 
     Vector2_s32 sections;
     Vector2_s32 interact_region[2]; // sections that can be included

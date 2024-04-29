@@ -1556,9 +1556,6 @@ vulkan_cleanup_buffer(Vulkan_Buffer buffer) {
 
 void vulkan_cleanup() {
 	Vulkan_Info *info = &vulkan_info;
-/*
-	vkDeviceWaitIdle(info->device);
-*/
 	vulkan_cleanup_swap_chain(info);
 
 	vulkan_destroy_texture(&info->depth_texture);
@@ -1581,8 +1578,10 @@ void vulkan_cleanup() {
 
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(info->device, info->image_available_semaphore[i], nullptr);
-	    vkDestroySemaphore(info->device, info->render_finished_semaphore[i], nullptr);
-	    vkDestroyFence(info->device, info->in_flight_fence[i], nullptr);
+    vkDestroySemaphore(info->device, info->render_finished_semaphore[i], nullptr);
+    vkDestroySemaphore(info->device, info->compute_finished_semaphore[i], nullptr);
+    vkDestroyFence(info->device, info->in_flight_fence[i], nullptr);
+    vkDestroyFence(info->device, info->compute_in_flight_fences[i], nullptr);
 	}
 	
 	vkDestroyCommandPool(info->device, info->command_pool, nullptr);

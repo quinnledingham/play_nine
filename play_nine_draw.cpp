@@ -298,6 +298,13 @@ load_name_plates(Game *game, Game_Draw *draw) {
 
 
 internal void
+unload_name_plates(Game_Draw *draw) {
+    for (u32 i = 0; i < MAX_PLAYERS; i++) {
+        render_delete_texture(&draw->name_plates[i]);
+    }
+}
+
+internal void
 draw_name_plates(Game *game, Game_Draw *draw) {
     for (u32 i = 0; i < game->num_of_players; i++) {
         if (draw->name_plates[i].gpu_info == 0)

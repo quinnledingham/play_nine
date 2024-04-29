@@ -20,6 +20,29 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "play_nine.h"
 #include "play_nine_online.h"
 
+internal void
+add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_player_index) {
+    for (u32 i = 0 ; i < DRAW_SIGNALS_AMOUNT; i++) {
+        if (!signals[i].in_use) {
+            signals[i] = Draw_Signal(in_type, in_card_index, in_player_index);
+            if (*global_is_server)
+                server_add_draw_signal(signals[i]);
+            return;
+        }
+    }
+
+    logprint("add_draw_signal()", "ran out of signal places\n");
+}
+
+internal void
+add_draw_signal(Draw_Signal *signals, u32 in_type) {
+    add_draw_signal(signals, in_type, 0, 0);
+}
+
+internal void
+add_draw_signal(Draw_Signal *signals, Draw_Signal s) {
+    add_draw_signal(signals, s.type, s.card_index, s.player_index);
+}
 #include "play_nine_raytrace.cpp"
 
 internal void
@@ -329,7 +352,10 @@ next_player(Game *game) {
     if (game->round_type == FINAL_ROUND) {
         game->last_turn++;
         for (u32 i = 0; i < HAND_SIZE; i++) {
-            game->players[game->active_player].flipped[i] = true;
+            if (!game->players[game->active_player].flipped[i]) {
+                game->players[game->active_player].flipped[i] = true;
+                add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
+            }
         }
     }
 
@@ -571,25 +597,6 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
     }
 }
 
-internal void
-do_draw_signals_server(Draw_Signal *signals, Game *game, Game_Draw *draw, u32 fulfilled_index) {     
-    for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
-        if (signals[i].in_use && !signals[i].fulfilled[fulfilled_index]) {
-            do_draw_update(game, draw, signals[i]);
-            signals[i].fulfilled[fulfilled_index] = true;
-        }
-
-        // check if everyone has done this update
-        bool8 completed = true;
-        for (u32 fulfilled_i = 0; fulfilled_i < game->num_of_players; fulfilled_i++) {
-            if (!signals[i].fulfilled[fulfilled_i] && !game->players[fulfilled_i].is_bot)
-                completed = false;
-        }
-        if (completed)
-            signals[i].in_use = false;
-    }
-}
-
 bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
@@ -684,14 +691,14 @@ bool8 update_game(State *state, App *app) {
                 case FINAL_ROUND:
                 case REGULAR_ROUND: regular_round_update(game, selected); break;
             }
+
+            if (state->is_server)
+                server_send_game(game);
         } break;
     }
 
     // update card models
-    if (state->is_server)
-        do_draw_signals_server(draw_signals, game, draw, state->client_game_index);
-    else
-        do_draw_signals(draw_signals, game, draw);
+    do_draw_signals(draw_signals, game, draw);
     
     // Update camera and card models after what happened in game update
     float32 rotation_degrees = process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
@@ -939,6 +946,8 @@ bool8 update(App *app) {
                     if (gui_button(&gui, default_style, "Proceed", coords, dim)) {
                         state->menu_list.mode = SCOREBOARD_MENU;
                         state->menu_list.scoreboard.initialized = false;
+                        if (state->is_server)
+                            server_send_menu_mode(state->menu_list.mode);
                     }
                 }
 
@@ -1012,7 +1021,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))
@@ -1220,7 +1229,9 @@ bool8 init_data(App *app) {
     state->notifications.font = default_font;
     state->notifications.text_color = { 255, 255, 255, 1 };
 
-	return false;
+    global_is_server = &state->is_server;
+
+    return false;
 }
 
 s32 event_handler(App *app, App_System_Event event, u32 arg) {
@@ -1247,7 +1258,8 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             render_graphics_pipeline_cleanup(&color_pipeline);
             render_graphics_pipeline_cleanup(&text_pipeline);
             render_compute_pipeline_cleanup(&ray_pipeline);
-            
+
+            unload_name_plates(&state->game_draw);
         } break;
 
         case APP_RESIZED: {

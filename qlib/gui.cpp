@@ -1,13 +1,28 @@
 // WARNING: centers vertically using baseline
 inline Vector2
-get_centered_text_coords(Font *font, const char *text, float32 pixel_height, Vector2 dim) {
+get_centered_text_coords(Font *font, const char *text, float32 pixel_height, Vector2 dim, u32 text_align) {
     Vector2 coords = { 0, 0 };
     Vector2 text_coords = {};
 
     String_Draw_Info string_info = get_string_draw_info(font, text, -1, pixel_height);
-    text_coords.x = coords.x + (dim.x / 2.0f) - (string_info.dim.x      / 2.0f) + string_info.baseline.x;
-    text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
 
+    switch(text_align) {
+        case ALIGN_CENTER:
+        text_coords.x = coords.x + (dim.x / 2.0f) - (string_info.dim.x      / 2.0f) + string_info.baseline.x;
+        text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
+        break;
+
+        case ALIGN_RIGHT:
+        text_coords.x = coords.x + (dim.x)        - (string_info.dim.x)             + string_info.baseline.x;
+        text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
+        break;
+        
+        case ALIGN_LEFT:
+        text_coords.x = coords.x + string_info.baseline.x;
+        text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
+        break;
+    }
+    
     return text_coords;
 }
 
@@ -21,7 +36,7 @@ draw_button(const Draw_Button button) {
         pixel_height = button.dim.x;
     pixel_height *= 0.8f;
 
-    Vector2 text_coords = button.coords + get_centered_text_coords(button.font, button.text, pixel_height, button.dim);
+    Vector2 text_coords = button.coords + get_centered_text_coords(button.font, button.text, pixel_height, button.dim, button.text_align);
 
     draw_rect(button.coords, 0, button.dim, back_color); // back
     if (button.text) {
@@ -42,9 +57,7 @@ draw_textbox(const Draw_Textbox textbox) {
     Vector4 text_color = textbox.style.E[textbox.state][1];
 
     String_Draw_Info string_info = get_string_draw_info(textbox.font, textbox.text, -1, pixel_height);
-    Vector2 text_coords = {};
-    text_coords.x = textbox.coords.x + (textbox.dim.x / 2.0f) - (string_info.dim.x      / 2.0f) + string_info.baseline.x;
-    text_coords.y = textbox.coords.y + (textbox.dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
+    Vector2 text_coords = textbox.coords + get_centered_text_coords(textbox.font, textbox.text, pixel_height, textbox.dim, textbox.text_align);
 
     String_Draw_Info string_info_cursor = get_string_draw_info(textbox.font, textbox.text, textbox.cursor_position, pixel_height);
     Vector2 cursor_coords = text_coords;
@@ -91,7 +104,7 @@ ui_button(UI *ui, Vector2 coords, Vector2 dim, const char *text) {
 
 internal u32
 gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
-    u32 state = GUI_DEFAULT;
+    u32 state = GUI_DEFAULT; // the state of the calling gui component
 
     Button gui_select = {};
     if (*gui->input.active_input_type == KEYBOARD_INPUT) {
@@ -133,8 +146,8 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
     
     if (gui->active == gui->index) {
         state = GUI_ACTIVE;
-    }
-
+    } 
+    
     return state;
 }
 
@@ -148,7 +161,8 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2
         dim,
 
         gui->font,
-        text
+        text,
+        gui->text_align
     };
 
     button.state = gui_update(gui, coords, dim);
@@ -239,14 +253,15 @@ gui_textbox(GUI *gui, Draw_Style style, const char *dest, Vector2 coords, Vector
 
         { 255, 255, 255, 1 },
         gui->edit.cursor_position,
-        5.0f,
+        dim.y * 0.05f,
         gui->edit.shift,
 
         coords,
         dim,
 
         gui->font,
-        dest
+        dest,
+        gui->text_align
     };
 
     box.state = gui_update(gui, coords, dim);
@@ -256,7 +271,7 @@ gui_textbox(GUI *gui, Draw_Style style, const char *dest, Vector2 coords, Vector
     bool8 new_text = false;
 
     if (gui->index == gui->active) {
-        if (on_up(*gui->input.select) && gui->edit.index != gui->active) {
+        if ((on_up(*gui->input.select) || on_up(*gui->input.mouse_left)) && gui->edit.index != gui->active) {
             box.text_shift = 0.0f;
             gui->edit.cursor_position = get_length(dest);
             platform_memory_set(gui->edit.text, 0, TEXTBOX_SIZE);
@@ -279,6 +294,7 @@ gui_textbox(GUI *gui, Draw_Style style, const char *dest, Vector2 coords, Vector
                     box.state = GUI_DEFAULT;
                     gui->pressed = 0;
                     gui->active = 0;
+                    gui->edit.index = 0;
                 break;
             
                 default: {
@@ -288,6 +304,7 @@ gui_textbox(GUI *gui, Draw_Style style, const char *dest, Vector2 coords, Vector
                         box.state = GUI_DEFAULT;
                         gui->pressed = 0;
                         gui->active = 0;
+                        gui->edit.index = 0;
                         new_text = true;
                     }
                 } break;
@@ -344,17 +361,6 @@ menu_in_dim(Vector2_s32 coords, Vector2_s32 dim, Vector2_s32 target) {
     return false;
 }
 
-// works if target is in dim
-internal Vector2_s32
-menu_get_dim(Vector2_s32 coords, Vector2_s32 dim, Vector2_s32 target) {
-    Vector2_s32 result = {};
-
-    Vector2_s32 abs_coords = target - coords;
-    result = dim - abs_coords;
-    
-    return result;    
-}
-
 // e is the coordniates of the menu that can be active
 internal void
 menu_update_hot(Menu_Input input, Vector2_s32 coords, Vector2_s32 section_dim, Vector2_s32 e[2]) {
@@ -379,23 +385,15 @@ menu_update_hot(Menu_Input input, Vector2_s32 coords, Vector2_s32 section_dim, V
 
 internal void
 menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coords, Vector2_s32 section_dim) {
-    Vector2 coords = {
-        (menu->rect.dim.x / menu->sections.x) * section_coords.x + menu->rect.coords.x,
-        (menu->rect.dim.y / menu->sections.y) * section_coords.y + menu->rect.coords.y
-    };
+    Vector2 coords = get_screen_coords(menu, section_coords);
+    Vector2 dim = get_screen_dim(menu, section_dim);
     
-    Vector2 dim = {
-        (menu->rect.dim.x / menu->sections.x) * section_dim.x,
-        (menu->rect.dim.y / menu->sections.y) * section_dim.y
-    };
-
     float32 pixel_height = dim.y;
     if (dim.x < dim.y) 
         pixel_height = dim.x;
     pixel_height *= 0.8f;
 
-    Vector2 text_coords = coords + get_centered_text_coords(menu->font, text, pixel_height, dim);
-
+    Vector2 text_coords = coords + get_centered_text_coords(menu->font, text, pixel_height, dim, menu->gui.text_align);
     render_set_scissor((s32)floor(coords.x), (s32)floor(coords.y), (u32)ceil(dim.x), (u32)ceil(dim.y) );
     draw_string(menu->font, text, text_coords, pixel_height, color);
     render_set_scissor(0, 0, window_dim.x, window_dim.y);
@@ -411,6 +409,7 @@ menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_
         menu->gui.hover = menu->gui.index;
     }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
         menu->gui.hover = menu->gui.index;
+        *input.hot_ptr = section_coords;
     }
     
     return gui_button(&menu->gui, menu->style, text, coords, dim);
@@ -431,6 +430,7 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
         menu->gui.hover = menu->gui.index;
     }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
         menu->gui.hover = menu->gui.index;
+        *input.hot_ptr = section_coords;
     }
     
     return gui_textbox(&menu->gui, menu->style, dest, coords, dim);
