@@ -4,7 +4,6 @@ TODO
 - Show keyboard controls
 - turn off add player for online?
 - see all cards in larger lobby's in online
-- figure out render and online loops
 
 Slight Problems
 - Improve face cards
@@ -322,3 +321,7 @@ struct Draw_Signal {
 // Draw Signals: so that draw updates don't have to happen in the update functions
 #define DRAW_SIGNALS_AMOUNT 6
 Draw_Signal draw_signals[DRAW_SIGNALS_AMOUNT];
+
+internal void add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_player_index);
+internal void add_draw_signal(Draw_Signal *signals, u32 in_type);
+internal void add_draw_signal(Draw_Signal *signals, Draw_Signal s);

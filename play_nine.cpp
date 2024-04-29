@@ -20,327 +20,14 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "play_nine.h"
 #include "play_nine_online.h"
 
-internal void
-add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_player_index) {
-    for (u32 i = 0 ; i < DRAW_SIGNALS_AMOUNT; i++) {
-        if (!signals[i].in_use) {
-            signals[i] = Draw_Signal(in_type, in_card_index, in_player_index);
-            if (*global_is_server)
-                server_add_draw_signal(signals[i]);
-            return;
-        }
-    }
-
-    logprint("add_draw_signal()", "ran out of signal places\n");
-}
-
-internal void
-add_draw_signal(Draw_Signal *signals, u32 in_type) {
-    add_draw_signal(signals, in_type, 0, 0);
-}
-
-internal void
-add_draw_signal(Draw_Signal *signals, Draw_Signal s) {
-    add_draw_signal(signals, s.type, s.card_index, s.player_index);
-}
 #include "play_nine_raytrace.cpp"
-
-internal void
-default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
-    platform_memory_set((void*)buffer, 0, MAX_NAME_SIZE);
-    buffer[8] = 0;
-    memcpy(buffer, "Player ", 7);
-    buffer[7] = number + 48; // + 48 turns single digit number into ascii value
-}
-
-internal void
-default_bot_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
-    platform_memory_set((void*)buffer, 0, MAX_NAME_SIZE);
-    buffer[5] = 0;
-    memcpy(buffer, "Bot ", 4);
-    buffer[4] = number + 48; // + 48 turns single digit number into ascii value
-}
-/*
-n_o_p = 5
-index = 2
-
-0 1 2 3 4
-
-0 1 3 4
-
-0 1 2 3
-*/
-
-internal void
-add_player(Game *game, bool8 bot) {
-    if (game->num_of_players != MAX_PLAYERS) {
-        // count non bots
-        u32 num_of_players = 1;
-        u32 num_of_bots = 1;
-        for (u32 i = 0; i < game->num_of_players; i++) {
-            if (!game->players[i].is_bot) 
-                num_of_players++;
-            else
-                num_of_bots++;
-        }
-        if (!bot)
-            default_player_name_string(game->players[game->num_of_players].name, num_of_players);
-        else
-            default_bot_name_string(game->players[game->num_of_players].name, num_of_bots);
-
-        game->players[game->num_of_players].is_bot = bot;
-        game->num_of_players++;
-    }
-}
-
-internal void
-remove_online_player(Game *game, u32 index) {
-    for (u32 i = 0; i < 5; i++) {
-        if (online.players[i].in_use && online.players[i].game_index > index)
-            online.players[i].game_index--;
-    }
-}
-
-internal void
-remove_player_index(Game *game, u32 index) {
-    u32 dest_index = index;
-    u32 src_index = index + 1;
-    for (src_index; src_index < game->num_of_players; src_index++) {        
-        game->players[dest_index++] = game->players[src_index];
-    }
-    game->num_of_players--;
-
-    remove_online_player(game, index);
-}
-
-internal void
-remove_player(Game *game, bool8 bot) {
-    for (u32 i = game->num_of_players - 1; i > 0; i--) {
-        if ((!game->players[i].is_bot && !bot) || (game->players[i].is_bot && bot)) {
-            remove_player_index(game, i);
-            break;
-        }
-    }
-}
-
-internal void
-init_deck() {
-    u32 deck_index = 0;
-    for (s32 i = 0; i <= 12; i++) {
-        for (u32 j = deck_index; j < deck_index + 8; j++) {
-            deck[j] = i;
-        }
-        deck_index += 8;
-    }
-
-    for (u32 j = deck_index; j < deck_index + 4; j++) {
-        deck[j] = -5;
-    }
-
-    // init hand coords
-    float32 card_width = 2.0f;
-    float32 card_height = 3.2f;
-    float32 padding = 0.2f;
-    hand_width = card_width * 4.0f + padding * 3.0f;
-
-    u32 card_index = 0;
-    for (s32 y = 1; y >= 0; y--) {
-        for (s32 x = -2; x <= 1; x++) {
-            hand_coords[card_index++] = { 
-                float32(x) * card_width  + (float32(x) * padding) + (card_width / 2.0f)  + (padding / 2.0f), 
-                float32(y) * card_height + (float32(y) * padding) - (card_height / 2.0f) - (padding / 2.0f)
-            };
-        }
-    }
-}
-
-// srand at beginning of main_loop()
-internal s32
-random(s32 lower, s32 upper) {
-    return lower + (rand() % (upper - lower));
-}
-
-internal void
-shuffle_pile(u32 *pile) {
-    for (u32 i = 0; i < DECK_SIZE; i++) {
-        bool8 not_new_card = true;
-        while(not_new_card) {
-            pile[i] = random(0, DECK_SIZE);
-            not_new_card = false;
-            for (u32 j = 0; j < i; j++) {
-                if (pile[i] == pile[j])
-                    not_new_card = true;
-            }
-        }
-    }
-}
-
-internal void
-deal_cards(Game *game) {
-     for (u32 i = 0; i < game->num_of_players; i++) {
-         for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
-            game->players[i].cards[card_index] = game->pile[game->top_of_pile++];
-            game->players[i].flipped[card_index] = false;
-         }
-     }
-
-    game->discard_pile[game->top_of_discard_pile++] = game->pile[game->top_of_pile++];
-}
-
-internal void
-start_hole(Game *game) {
-    game->top_of_pile = 0;
-    game->top_of_discard_pile = 0;
-    shuffle_pile(game->pile);
-    deal_cards(game);
-    game->active_player = game->starting_player;
-    game->round_type = FLIP_ROUND;
-    game->turn_stage = FLIP_CARD;
-    game->last_turn = 0;
-}
-
-internal void
-start_game(Game *game, u32 num_of_players) {
-    game->holes_played = 0;
-    game->starting_player = 0;
-    game->num_of_players = num_of_players;
-    game->game_over = false;
-    start_hole(game);
-}
-
-internal void
-reset_game(Game *game) {
-    //game->num_of_players = 1;
-    //for (u32 i = 0; i < 6; i++)
-    //    platform_memory_set(game->players[i].cards, 0, sizeof(u32) * HAND_SIZE);
-    //game->active_player = 0;
-}
-
-internal float32
-get_draw_radius(u32 num_of_players, float32 hand_width, float32 card_height) {
-    if (num_of_players == 2) {
-        return 2.0f * card_height;
-    } 
-
-    float32 angle = (360.0f / float32(num_of_players)) / 2.0f;
-    float32 radius = (hand_width / 2.0f) / tanf(angle * DEG2RAD);
-    radius += card_height + 0.1f;
-
-    if (num_of_players == 3) {
-        radius += 1.0f;
-    }
-
-    return radius;
-}
-
-internal Game
-get_test_game() {
-    Game game = {};
-    game.num_of_players = 6;
-    game.holes_played = 4;
-    game.round_type = HOLE_OVER;
-
-    for (u32 i = 0; i < game.num_of_players; i++) {
-        default_player_name_string(game.players[i].name, i);
-        game.players[i].scores[0] = i;
-    }
-
-    game.players[0].scores[0] = -10;
-
-    return game;
-}
-
+#include "play_nine_init.cpp"
 #include "play_nine_bitmaps.cpp"
 #include "play_nine_online.cpp"
 #include "play_nine_menus.cpp"
 #include "play_nine_draw.cpp"
-
-//
-// Scoring
-// 
-
-struct Card_Pair {
-    bool8 matching;
-    s32 score;
-    s32 number;
-};
-
-inline Card_Pair
-create_pair(u32 top, u32 bottom) {
-    Card_Pair result = {};
-    s32 top_card = deck[top];
-    s32 bottom_card = deck[bottom];
-
-    if (top_card == bottom_card) {
-        result.matching = true;
-        result.number = top_card; // matching so top and bottom same number
-    }
-
-    if (!result.matching || (top_card == -5))
-        result.score += top_card + bottom_card;
-
-    return result;
-} 
-
-struct Card_Pair_Match {
-    s32 number;
-    s32 pairs;
-};
-
-internal s32
-get_score(u32 *cards) {
-    s32 score = 0;
-
-    Card_Pair pairs[4] = {
-        create_pair(cards[0], cards[4]),
-        create_pair(cards[1], cards[5]),
-        create_pair(cards[2], cards[6]),
-        create_pair(cards[3], cards[7])
-    };
-
-    for (u32 i = 0; i < 4; i++) {
-        score += pairs[i].score;
-    }
-
-    u32 match_index = 0;
-    Card_Pair_Match matches[4];
-    for (u32 i = 0; i < 4; i++) {
-        if (pairs[i].matching) {
-            bool8 found_match = false;
-            for (u32 j = 0; j < match_index; j++) {
-                if (matches[j].number == pairs[i].number) {
-                    matches[j].pairs++;
-                    found_match = true;
-                }
-            }
-            if (found_match)
-                continue;
-            matches[match_index++] = { pairs[i].number, 1 };
-        }
-    }
-
-    for (u32 i = 0; i < match_index; i++) {
-        Card_Pair_Match match = matches[i];
-        switch(match.pairs) {
-            case 2: score -= 10; break;
-            case 3: score -= 15; break;
-            case 4: score -= 20; break;
-        }
-    }
-
-    return score;
-}
-
-internal void
-update_scores(Game *game) {
-    for (u32 i = 0; i < game->num_of_players; i++) {
-        Player *player = &game->players[i];
-        u32 *cards = player->cards;            
-        s32 score = get_score(cards);
-        //print("Player %d: %d\n", i, score);
-        player->scores[game->holes_played] = score;
-    }
-}
+#include "play_nine_score.cpp"
+#include "play_nine_bot.cpp"
 
 //
 // game logic
@@ -389,7 +76,7 @@ next_player(Game *game) {
     }
 
     if (game->active_player == game->starting_player && game->round_type == FLIP_ROUND) {
-            game->round_type = REGULAR_ROUND;
+        game->round_type = REGULAR_ROUND;
     }
 
     if (game->round_type == FLIP_ROUND) {
@@ -402,48 +89,8 @@ next_player(Game *game) {
     add_draw_signal(draw_signals, SIGNAL_NEXT_PLAYER_ROTATION);
 }
 
-internal u32
-get_number_flipped(bool8 *flipped) {
-    u32 number_flipped = 0;
-    for (u32 i = 0; i < HAND_SIZE; i++) {
-        if (flipped[i]) {
-            number_flipped++;
-        }
-    }
-    return number_flipped;
-}
-
 internal void
-flip_card_model(Game_Draw *draw, u32 player_index, u32 card_index) {
-    Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
-    float32 degrees = (draw->degrees_between_players * player_index) - 90.0f;
-    float32 rad = degrees * DEG2RAD; 
-    Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, player_index);
-    Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
-    rotate_coords(&card_pos, rad);
-    card_pos += position;
-    draw->hand_models[player_index][card_index] = load_card_model(true, card_pos, rad, card_scale);    
-}
-
-internal void
-flip_round_update(Game *game, bool8 selected[SELECTED_SIZE]) {
-    Player *active_player = &game->players[game->active_player];
-    for (u32 i = 0; i < HAND_SIZE; i++) {
-        if (selected[i]) {
-            add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
-            active_player->flipped[i] = true;
-
-            // check if player turn over
-            if (get_number_flipped(active_player->flipped) == 2) {
-                next_player(game);
-                return;
-            }
-        }
-    }
-}
-
-internal void
-regular_round_update(Game *game, bool8 selected[SELECTED_SIZE]) {
+do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
     Player *active_player = &game->players[game->active_player];
     switch(game->turn_stage) {
         case SELECT_PILE: {
@@ -490,15 +137,23 @@ regular_round_update(Game *game, bool8 selected[SELECTED_SIZE]) {
 
         case FLIP_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
-                if (selected[i] && !active_player->flipped[i]) {                    
+                if (selected[i] && !active_player->flipped[i]) {    
                     add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
                     active_player->flipped[i] = true;
-                    if (get_number_flipped(active_player->flipped) == HAND_SIZE && game->round_type != FINAL_ROUND) {
-                        game->round_type = FINAL_ROUND; 
-                        game->last_turn = 0;
+                    if (game->round_type == FLIP_ROUND) {
+                        // check if player turn over
+                        if (get_number_flipped(active_player->flipped) == 2) {
+                            next_player(game);
+                            return;
+                        }
+                    } else {                
+                        if (get_number_flipped(active_player->flipped) == HAND_SIZE && game->round_type != FINAL_ROUND) {
+                            game->round_type = FINAL_ROUND; 
+                            game->last_turn = 0;
+                        }
+                        next_player(game);
+                        return;
                     }
-                    next_player(game);
-                    return;
                 }
 
                 if (selected[PASS_BUTTON] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
@@ -564,37 +219,6 @@ all_false(bool8 selected[SELECTED_SIZE]) {
             return false;
     }
     return true;
-}
-
-#include "play_nine_bot.cpp"
-
-internal void
-do_draw_update(Game *game, Game_Draw *draw, Draw_Signal draw_signal) {    
-    switch(draw_signal.type) {
-        case SIGNAL_ALL_PLAYER_CARDS: load_player_card_models(game, draw); break;
-        case SIGNAL_ACTIVE_PLAYER_CARDS: flip_card_model(draw, draw_signal.player_index, draw_signal.card_index); break;
-        case SIGNAL_NEXT_PLAYER_ROTATION: {
-            draw->camera_rotation = {
-                true,
-                true,
-                draw->degrees_between_players,
-                0.0f,
-                -draw->rotation_speed
-            };
-
-        } break;
-        case SIGNAL_NAME_PLATES: load_name_plates(game, draw); break;
-    }
-}
-
-internal void
-do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {     
-    for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
-        if (signals[i].in_use) {
-            do_draw_update(game, draw, signals[i]);
-            signals[i].in_use = false;
-        }
-    }
 }
 
 bool8 update_game(State *state, App *app) {
@@ -683,14 +307,11 @@ bool8 update_game(State *state, App *app) {
                 do_bot_selected_update(selected, game, &game->bot_thinking_time, app->time.frame_time_s);
             }
 
-            if (state->is_client || all_false(selected)) break; // client doesn't do any game updated         
+            if (state->is_client || all_false(selected))
+                 break; // client doesn't do any game updated         
 
             // Game logic
-            switch(game->round_type) {
-                case FLIP_ROUND:    flip_round_update(game, selected); break;
-                case FINAL_ROUND:
-                case REGULAR_ROUND: regular_round_update(game, selected); break;
-            }
+            do_update_with_input(game, selected);
 
             if (state->is_server)
                 server_send_game(game);

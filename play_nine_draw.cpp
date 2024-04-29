@@ -77,6 +77,18 @@ get_pile_y_scale(u32 cards) {
 }
 
 internal void
+flip_card_model(Game_Draw *draw, u32 player_index, u32 card_index) {
+    Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
+    float32 degrees = (draw->degrees_between_players * player_index) - 90.0f;
+    float32 rad = degrees * DEG2RAD; 
+    Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, player_index);
+    Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
+    rotate_coords(&card_pos, rad);
+    card_pos += position;
+    draw->hand_models[player_index][card_index] = load_card_model(true, card_pos, rad, card_scale);    
+}
+
+internal void
 load_player_card_models(Game *game, Game_Draw *draw) {
     Quaternion flip = get_rotation(180.0f * DEG2RAD, {0, 0, 1});
 
@@ -386,4 +398,57 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     draw_cards(game, &state->game_draw, card_model, highlight, indices);
 
     render_depth_test(false);
+}
+
+//
+// Draw_Signals
+//
+
+internal void
+add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_player_index) {
+    for (u32 i = 0 ; i < DRAW_SIGNALS_AMOUNT; i++) {
+        if (!signals[i].in_use) {
+            signals[i] = Draw_Signal(in_type, in_card_index, in_player_index);
+            if (*global_is_server)
+                server_add_draw_signal(signals[i]);
+            return;
+        }
+    }
+
+    logprint("add_draw_signal()", "ran out of signal places\n");
+}
+
+internal void
+add_draw_signal(Draw_Signal *signals, u32 in_type) {
+    add_draw_signal(signals, in_type, 0, 0);
+}
+
+internal void
+add_draw_signal(Draw_Signal *signals, Draw_Signal s) {
+    add_draw_signal(signals, s.type, s.card_index, s.player_index);
+}
+
+internal void
+do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {     
+    for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
+        if (!signals[i].in_use)
+            continue;
+        
+        switch(signals[i].type) {
+            case SIGNAL_ALL_PLAYER_CARDS: load_player_card_models(game, draw); break;
+            case SIGNAL_ACTIVE_PLAYER_CARDS: flip_card_model(draw, signals[i].player_index, signals[i].card_index); break;
+            case SIGNAL_NEXT_PLAYER_ROTATION: {
+                draw->camera_rotation = {
+                    true,
+                    true,
+                    draw->degrees_between_players,
+                    0.0f,
+                    -draw->rotation_speed
+                };
+
+            } break;
+            case SIGNAL_NAME_PLATES: load_name_plates(game, draw); break;
+        }
+        signals[i].in_use = false;    
+    }
 }
