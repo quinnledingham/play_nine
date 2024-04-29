@@ -266,8 +266,6 @@ vulkan_pick_physical_device(Vulkan_Info *info) {
 	}
 
 	vkGetPhysicalDeviceProperties(vulkan_info.physical_device, &vulkan_info.physical_device_properties);
-	//info->msaa_samples = vulkan_get_max_usable_sample_count();
-	info->msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 	info->indices = vulkan_find_queue_families(vulkan_info.physical_device, info->surface);
 	
 	return 0;
@@ -462,7 +460,7 @@ vulkan_find_depth_format(VkPhysicalDevice physical_device) {
 }
 
 internal bool8
-vulkan_create_render_pass(Vulkan_Info *info, bool8 anti_aliasing) {
+vulkan_create_render_pass(Vulkan_Info *info) {
 	VkAttachmentDescription color_attachment = {};
 	color_attachment.format         = info->swap_chain_image_format;
 	color_attachment.samples        = info->msaa_samples;
@@ -471,7 +469,7 @@ vulkan_create_render_pass(Vulkan_Info *info, bool8 anti_aliasing) {
 	color_attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	color_attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-	if (anti_aliasing)
+	if (render_context.anti_aliasing)
 		color_attachment.finalLayout  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	else
 		color_attachment.finalLayout  = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -513,7 +511,7 @@ vulkan_create_render_pass(Vulkan_Info *info, bool8 anti_aliasing) {
 	subpass.colorAttachmentCount    = 1;
 	subpass.pColorAttachments       = &color_attachment_ref;
 	subpass.pDepthStencilAttachment = &depth_attachment_ref;
-	if (anti_aliasing)
+	if (render_context.anti_aliasing)
   	subpass.pResolveAttachments     = &color_attachment_resolve_ref;
 	
 	// Subpass dependencies
@@ -529,7 +527,7 @@ vulkan_create_render_pass(Vulkan_Info *info, bool8 anti_aliasing) {
 
 	VkRenderPassCreateInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	if (anti_aliasing)
+	if (render_context.anti_aliasing)
 		render_pass_info.attachmentCount = ARRAY_COUNT(attachments);
 	else
 		render_pass_info.attachmentCount = 2;
@@ -550,18 +548,24 @@ vulkan_create_render_pass(Vulkan_Info *info, bool8 anti_aliasing) {
 internal bool8
 vulkan_create_frame_buffers(Vulkan_Info *info) {
 	info->swap_chain_framebuffers.resize(info->swap_chain_image_views.get_size());
-	
+	u32 attachments_count = 3;
 	for (u32 i = 0; i < info->swap_chain_image_views.get_size(); i++) {	
-		VkImageView attachments[] = {
+		VkImageView attachments[3];
+		if (render_context.anti_aliasing) {
+				attachments[0] = info->color_texture.image_view;
+				attachments[1] = info->depth_texture.image_view;
+				attachments[2] = info->swap_chain_image_views[i];
+		} else {
 			//info->color_image_view,
-			info->swap_chain_image_views[i],
-			info->depth_texture.image_view,
-		};
+			attachments_count = 2;
+			attachments[0] = info->swap_chain_image_views[i];
+			attachments[1] = info->depth_texture.image_view;
+		}
 
 		VkFramebufferCreateInfo framebuffer_info = {};
 		framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebuffer_info.renderPass      = info->render_pass;
-    framebuffer_info.attachmentCount = ARRAY_COUNT(attachments);
+    framebuffer_info.attachmentCount = attachments_count;
     framebuffer_info.pAttachments    = attachments;
     framebuffer_info.width           = info->swap_chain_extent.width;
     framebuffer_info.height          = info->swap_chain_extent.height;
@@ -1677,12 +1681,16 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	if (vulkan_pick_physical_device(info)) return 1;
 	
 	info->uniform_buffer_min_alignment = info->physical_device_properties.limits.minUniformBufferOffsetAlignment;
+	if (render_context.anti_aliasing)
+		info->msaa_samples = vulkan_get_max_usable_sample_count();
+	else
+		info->msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 	
 	vulkan_create_logical_device(info);
 	
 	vulkan_create_swap_chain(info);
 	vulkan_create_swap_chain_image_views(info);
-	if (vulkan_create_render_pass(info, false)) return 1;
+	if (vulkan_create_render_pass(info)) return 1;
 	
 	vulkan_create_sync_objects(info);
 	vulkan_create_command_pool(info);
@@ -2230,4 +2238,16 @@ vulkan_set_storage_buffer(Descriptor desc, u32 size) {
     write_set.pBufferInfo = &buffer_info;
 	
 	vkUpdateDescriptorSets(vulkan_info.device, 1, &write_set, 0, nullptr);
+}
+
+internal void
+vulkan_update_for_anti_aliasing() {
+	if (render_context.anti_aliasing)
+		vulkan_info.msaa_samples = vulkan_get_max_usable_sample_count();
+	else
+		vulkan_info.msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+
+	vkDestroyRenderPass(vulkan_info.device, vulkan_info.render_pass, nullptr);
+	vulkan_create_render_pass(&vulkan_info);
+	vulkan_create_frame_buffers(&vulkan_info);
 }

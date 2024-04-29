@@ -15,7 +15,6 @@ struct Render_Pipeline {
     bool8 wireframe;
 
 #ifdef VULKAN
-    //VkRenderPass render_pass;
     VkPipelineLayout pipeline_layout;
     VkPipeline graphics_pipeline;
 #endif
@@ -36,16 +35,17 @@ struct Compute_Pipeline {
 struct Render {
     bool8 vsync;
     bool8 depth_test;
-    bool8 anti_aliasing;
+    bool8 anti_aliasing = FALSE;
 };
 
-global Render render_info = {};
+global Render render_context = {};
+
 Descriptor light_set;
 Descriptor light_set_2;
 Layout layouts[10];
 
-#define TEXTURE_ARRAY_SIZE 64
-#define MAX_FRAMES_IN_FLIGHT 2
+#define TEXTURE_ARRAY_SIZE   64
+#define MAX_FRAMES_IN_FLIGHT  2
 
 struct Light {
     Vector4 position;
