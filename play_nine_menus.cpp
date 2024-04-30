@@ -106,10 +106,11 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         Vector2_s32 draw_dim = section_dim;
         
         if (menu_row == game->num_of_players - 1) {
-            if (full_menu)
-                section_dim = { 2, 7 - (s32)game->num_of_players };
-            else
-                section_dim = { 2, 9 - (s32)game->num_of_players };
+            section_dim = { 2, 7 - (s32)game->num_of_players };
+            if (state->is_client)
+                section_dim.y += 2;
+            else if (state->is_server)
+                section_dim.y += 1;
         }
         
         if (menu_textbox(menu, game->players[menu_row].name, *input, section_coords, section_dim, draw_dim) && menu_row == state->client_game_index) {
@@ -152,16 +153,17 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     menu_row = 6;
 
     if (full_menu) {
-        if (menu_button(menu, "+ Player", *input, { 0, menu_row }, { 1, 1 })) {
-            add_player(game, false);
-        }
-        if (menu_button(menu, "- Player", *input, { 1, menu_row }, { 1, 1 })) {
-            remove_player(game, false);
-        }
+        if (!state->is_server) {
+            if (menu_button(menu, "+ Player", *input, { 0, menu_row }, { 1, 1 })) {
+                add_player(game, false);
+            }
+            if (menu_button(menu, "- Player", *input, { 1, menu_row }, { 1, 1 })) {
+                remove_player(game, false);
+            }
+        } 
 
         if (menu_button(menu, "+ Bot", *input, { 0, menu_row + 1 }, { 1, 1 })) {
             add_player(game, true);
-            
         }
         if (menu_button(menu, "- Bot", *input, { 1, menu_row + 1 }, { 1, 1 })) {
             remove_player(game, true);
