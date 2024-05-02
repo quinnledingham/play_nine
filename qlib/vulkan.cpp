@@ -289,8 +289,6 @@ vulkan_create_logical_device(Vulkan_Info *info) {
 		if (unique) unique_queue_families[unique_queue_families_index++] = info->indices.queue_families[i].index;
 	}
 	
-	//u32 unique_queue_families[indices.unique_families] = { indices.graphics_and_compute_family, indices.present_family };
-
 	float32 queue_priority = 1.0f;
 	for (u32 queue_index = 0; queue_index < unique_queue_families_index; queue_index++) {
 		VkDeviceQueueCreateInfo queue_create_info = {};
@@ -1853,19 +1851,20 @@ void vulkan_end_compute() {
 	//vkWaitForFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
 };
 
-void vulkan_start_frame() {
+bool8 vulkan_start_frame() {
 	// Waiting for the previous frame
 	vkWaitForFences(vulkan_info.device, 1, &vulkan_info.in_flight_fence[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
 	VkResult result = vkAcquireNextImageKHR(vulkan_info.device,
-                                            vulkan_info.swap_chains[0],
-                                            UINT64_MAX,
-                                            vulkan_info.image_available_semaphore[vulkan_info.current_frame],
-                                            VK_NULL_HANDLE,
-                                            &vulkan_info.image_index);
+                                          vulkan_info.swap_chains[0],
+                                          UINT64_MAX,
+                                          vulkan_info.image_available_semaphore[vulkan_info.current_frame],
+	                                        VK_NULL_HANDLE,
+                                          &vulkan_info.image_index);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-         vulkan_recreate_swap_chain(&vulkan_info);
-		return;
+    vulkan_recreate_swap_chain(&vulkan_info);
+		vulkan_info.render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
+		return 1;
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 		logprint("vulkan_draw_frame()", "failed to acquire swap chain");
 	}
@@ -1881,6 +1880,8 @@ void vulkan_start_frame() {
 	}	
 
 	vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+	return 0;
 }
 
 void vulkan_end_frame() {
@@ -1910,7 +1911,6 @@ void vulkan_end_frame() {
 		vulkan_info.framebuffer_resized = false;
 		vulkan_recreate_swap_chain(&vulkan_info);
 		vulkan_info.render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
-		return;
 	} else if (result != VK_SUCCESS) {
 		logprint("vulkan_draw_frame()", "failed to acquire swap chain");
 	}

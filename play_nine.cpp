@@ -320,9 +320,9 @@ bool8 update_game(State *state, App *app) {
 
     // update card models
     do_draw_signals(draw_signals, game, draw);
+    float32 rotation_degrees = process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
     
     // Update camera and card models after what happened in game update
-    float32 rotation_degrees = process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
     load_pile_card_models(game, draw, rotation_degrees);
 
     // Update Camera (uses rotation_degrees)
@@ -458,7 +458,9 @@ bool8 update(App *app) {
     for (u32 i = 0; i < 10; i++) {
         layouts[i].reset();
     }
-    render_start_frame();
+    
+    if (render_start_frame())
+        goto AFTER_DRAW;
 
     texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
@@ -597,6 +599,7 @@ bool8 update(App *app) {
 //#endif // DEBUG
 
     render_end_frame();
+    AFTER_DRAW:
 
     //if (state->is_client )//&& state->previous_menu != IN_GAME)
     os_release_mutex(state->mutex);
@@ -642,7 +645,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))

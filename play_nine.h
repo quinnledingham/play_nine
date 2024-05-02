@@ -4,15 +4,21 @@ TODO
 - Show keyboard controls
 - see all cards in larger lobby's in online (@SOLUTION Move Camera?)
 
+Bot
+- Add look ahead, so the bot doesnt give pairs to next plaeyr
+- Replace highest card, not just first card higher than threshold
+
 Slight Problems
 - Improve face cards
 - Improve game hud
-- Improve bot (add look ahead at cards)
 
 Render.cpp
 - Clean up light sources in shaders
 - Add wireframe and vsync toggle
 - Fix "skybox" shading
+
+- Fix weird tearing on vulkan
+- Fix resizing on vulkan
 */
 
 #define PICKUP_PILE    8
