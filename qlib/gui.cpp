@@ -47,11 +47,16 @@ draw_button(const Draw_Button button) {
 }
 
 internal float32
-draw_textbox(const Draw_Textbox textbox) {
-    float32 pixel_height = textbox.dim.y;
-    if (textbox.dim.x < textbox.dim.y) 
-        pixel_height = textbox.dim.x;
-    pixel_height *= 0.8f;
+draw_textbox(Draw_Textbox textbox) {
+    float32 padding = textbox.dim.y * 0.05f;
+    Vector2 label_coords = textbox.coords + Vector2{ padding, padding };
+    float32 label_height = textbox.dim.y * 0.5f;
+    Vector2 label_dim = { textbox.dim.x, label_height };
+    if (textbox.label != 0) {
+        //textbox.dim.y *= 0.7f;
+        //textbox.coords.y += label_height;
+    }
+    float32 pixel_height = textbox.dim.y * 0.8f;
 
     Vector4 back_color = textbox.style.E[textbox.state][0];
     Vector4 text_color = textbox.style.E[textbox.state][1];
@@ -79,12 +84,24 @@ draw_textbox(const Draw_Textbox textbox) {
     if (string_info.dim.x < textbox.dim.x)
         shift = 0.0f;
 
+    // Back
     draw_rect(textbox.coords, 0, textbox.dim, back_color);
 
+    // Label
+    if (textbox.label != 0) {
+        Vector4 label_text_color = text_color;
+        label_text_color.a = 0.8f;
+        String_Draw_Info label_info = get_string_draw_info(textbox.font, textbox.label, -1, label_height);
+        label_coords.y += label_info.baseline.y;
+        draw_string(textbox.font, textbox.label, label_coords, label_height, label_text_color);
+    }
+
+    // Text
     render_set_scissor((s32)floor(textbox.coords.x), (s32)floor(textbox.coords.y), (u32)ceil(textbox.dim.x), (u32)ceil(textbox.dim.y) );
     draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
     render_set_scissor(0, 0, window_dim.x, window_dim.y);
 
+    // Cursor
     if (textbox.state == GUI_ACTIVE) // clicked on
         draw_rect(cursor_coords, 0.0f, { textbox.cursor_width, textbox.dim.y }, textbox.cursor_color); // cursor
 
@@ -246,7 +263,7 @@ update_textbox(char *buffer, u32 max_length, u32 *cursor_position, s32 input) {
 }
 
 internal bool8
-gui_textbox(GUI *gui, Draw_Style style, const char *dest, Vector2 coords, Vector2 dim) {
+gui_textbox(GUI *gui, Draw_Style style, const char *label, const char *dest, Vector2 coords, Vector2 dim) {
     Draw_Textbox box = {
         style,
         GUI_DEFAULT,
@@ -261,7 +278,9 @@ gui_textbox(GUI *gui, Draw_Style style, const char *dest, Vector2 coords, Vector
 
         gui->font,
         dest,
-        gui->text_align
+        gui->text_align,
+
+        label
     };
 
     box.state = gui_update(gui, coords, dim);
@@ -421,7 +440,7 @@ menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_
 }
 
 internal bool8
-menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
+menu_textbox(Menu *menu, const char *label, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
     Vector2 coords = get_screen_coords(menu, section_coords);
     Vector2 dim = get_screen_dim(menu, draw_dim);
 
@@ -433,12 +452,25 @@ menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section
         *input.hot_ptr = section_coords;
     }
     
-    return gui_textbox(&menu->gui, menu->style, dest, coords, dim);
+    return gui_textbox(&menu->gui, menu->style, label, dest, coords, dim);
 }
 
+// no label and no draw dim
 internal bool8
-menu_textbox(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
-    return menu_textbox(menu, text, input, section_coords, section_dim, section_dim);
+menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    return menu_textbox(menu, 0, dest, input, section_coords, section_dim, section_dim);
+}
+
+// no draw dim 
+internal bool8
+menu_textbox(Menu *menu, const char * label, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    return menu_textbox(menu, label, dest, input, section_coords, section_dim, section_dim);
+}
+
+// no label
+internal bool8
+menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
+    return menu_textbox(menu, 0, dest, input, section_coords, section_dim, draw_dim);
 }
 
 //

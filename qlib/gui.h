@@ -61,7 +61,10 @@ struct Draw_Textbox {
 
     Font *font;
     const char *text;
-    u32 text_align;
+    u32 text_align; // inside textbox
+
+    const char *label;
+    Vector4 label_color;
 };
 
 #define TEXTBOX_SIZE 20

@@ -380,9 +380,9 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     if (!menu->initialized) {
         menu->initialized = true;
     
-        menu->sections = { 2, 3 };
-        menu->interact_region[0] = { 0, 1 };
-        menu->interact_region[1] = { 2, 3 };
+        menu->sections = { 2, 2 };
+        menu->interact_region[0] = { 0, 0 };
+        menu->interact_region[1] = { 2, 2 };
         menu->hot_section = menu->interact_region[0];
     }
 
@@ -391,17 +391,17 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
 
-    menu_text(menu, "Enter Port:", { 231, 213, 36,  1 }, { 0, 0 }, { 2, 1 }); 
+    //menu_text(menu, "Enter Port:", { 231, 213, 36,  1 }, { 0, 0 }, { 2, 1 }); 
     
-    if (menu_textbox(menu, state->port, *input, { 0, 1 }, { 2, 1 })) {
+    if (menu_textbox(menu, "Port:", state->port, *input, { 0, 0 }, { 2, 1 })) {
 
     }
 
-    if (menu_button(menu, "Host", *input, { 0, 2 }, { 1, 1 })) {
+    if (menu_button(menu, "Host", *input, { 0, 1 }, { 1, 1 })) {
         state->client_game_index = 0;
         online.server_handle = os_create_thread(play_nine_server, (void*)state);
     }
-    if (menu_button(menu, "Back", *input, { 1, 2 }, { 1, 1 })) {
+    if (menu_button(menu, "Back", *input, { 1, 1 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;
     }
 }
@@ -415,9 +415,9 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     if (!menu->initialized) {
         menu->initialized = true;
-        menu->sections = { 2, 5 };
-        menu->interact_region[0] = { 1, 0 };
-        menu->interact_region[1] = { 2, 5 };
+        menu->sections = { 2, 4 };
+        menu->interact_region[0] = { 0, 0 };
+        menu->interact_region[1] = { 2, 4 };
         menu->hot_section = menu->interact_region[0];
     }
 
@@ -428,19 +428,13 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     Vector4 text_color = play_nine_yellow;
 
-    menu->gui.text_align = ALIGN_LEFT;
-    menu->section_width = 0.5f;
-    menu_text(menu, "Name:", text_color, { 0, 0 }, { 1, 1 }); 
-    menu_text(menu, "Ip:",   text_color, { 0, 1 }, { 1, 1 }); 
-    menu_text(menu, "Port:", text_color, { 0, 2 }, { 1, 1 }); 
+//    menu->gui.text_align = ALIGN_LEFT;
+    menu_textbox(menu, "Name:", state->name, *input, { 0, 0 }, { 2, 1 });
+    menu_textbox(menu, "IP:",   state->ip,   *input, { 0, 1 }, { 2, 1 });
+    menu_textbox(menu, "Port:", state->port, *input, { 0, 2 }, { 2, 1 });
 
     menu->gui.text_align = ALIGN_CENTER;
-    menu->section_width = 1.5f;
-    menu_textbox(menu, state->name, *input, { 1, 0 }, { 1, 1 });
-    menu_textbox(menu, state->ip,   *input, { 1, 1 }, { 1, 1 });
-    menu_textbox(menu, state->port, *input, { 1, 2 }, { 1, 1 });
-
-    if (menu_button(menu, "Join", *input, { 1, 3 }, { 1, 1 })) {
+    if (menu_button(menu, "Join", *input, { 0, 3 }, { 1, 1 })) {
         if (qsock_client(&state->client, state->ip, state->port, TCP)) {
             online.client_handle = os_create_thread(play_nine_client_recv, (void*)state);
             state->is_client = true;            
@@ -449,7 +443,7 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
             add_onscreen_notification(&state->notifications, "Unable to join");
         }
     }
-    if (menu_button(menu, "Back", *input, { 1, 4 }, { 1, 1 })) {
+    if (menu_button(menu, "Back", *input, { 1, 3 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;
     }
 }
