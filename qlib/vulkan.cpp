@@ -217,9 +217,8 @@ vulkan_is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface, const c
 	vkGetPhysicalDeviceProperties(device, &device_properties);
 	vkGetPhysicalDeviceFeatures(device, &device_features);
 
-	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device:\nApi Version: %d\nDriver Version: %d\nDevice Name: %s\n", device_properties.apiVersion, device_properties.driverVersion, device_properties.deviceName);
 	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device Limits:\nMax Descriptor Set Samplers: %d\nMax Descriptor Set Uniform Buffers: %d\nMax Uniform Buffer Range %d\n", device_properties.limits.maxDescriptorSetSamplers, device_properties.limits.maxDescriptorSetUniformBuffers, device_properties.limits.maxUniformBufferRange); 
-	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy && device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy;// && device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 }
 
 internal VkSampleCountFlagBits
@@ -248,12 +247,24 @@ vulkan_pick_physical_device(Vulkan_Info *info) {
 		return 1;
 	}
 
+	logprint("vulkan_pick_physical_deivce()", "Number of Physical Devies = %d\n", device_count);
+	
 	VkPhysicalDevice *devices = ARRAY_MALLOC(VkPhysicalDevice, device_count);
 	vkEnumeratePhysicalDevices(info->instance, &device_count, devices);
 
+	// print all available devies
+	print("\nvulkan_pick_physical_device(): Avaiable Physical Devies:\n\n");
+	for (u32 device_index = 0; device_index < device_count; device_index++) {
+		VkPhysicalDeviceProperties device_properties;
+		vkGetPhysicalDeviceProperties(devices[device_index], &device_properties);
+		print("Vulkan Physical Device %d:\nApi Version: %d\nDriver Version: %d\nDevice Name: %s\n\n", device_index, device_properties.apiVersion, device_properties.driverVersion, device_properties.deviceName);
+	}
+
+	// pick suitable device
 	for (u32 device_index = 0; device_index < device_count; device_index++) {
 		if (vulkan_is_device_suitable(devices[device_index], info->surface, info->device_extensions, ARRAY_COUNT(info->device_extensions))) {
 			info->physical_device = devices[device_index];
+			print("Picking device %d\n", device_index);
 			break;
 		}
 	}
@@ -292,11 +303,11 @@ vulkan_create_logical_device(Vulkan_Info *info) {
 	float32 queue_priority = 1.0f;
 	for (u32 queue_index = 0; queue_index < unique_queue_families_index; queue_index++) {
 		VkDeviceQueueCreateInfo queue_create_info = {};
-	    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	    queue_create_info.queueFamilyIndex = unique_queue_families[queue_index];
-	    queue_create_info.queueCount = 1;
-	    queue_create_info.pQueuePriorities = &queue_priority;
-	    queue_create_infos[queue_index] = queue_create_info;
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_create_info.queueFamilyIndex = unique_queue_families[queue_index];
+    queue_create_info.queueCount = 1;
+    queue_create_info.pQueuePriorities = &queue_priority;
+    queue_create_infos[queue_index] = queue_create_info;
 	}
 
 	// Features requested

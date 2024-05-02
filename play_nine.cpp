@@ -380,7 +380,6 @@ bool8 update_game(State *state, App *app) {
     }
 
     state->scene.view = get_view(state->camera);
-    render_update_ubo(state->scene_set, (void *)&state->scene);
     
     return 0;
 }
