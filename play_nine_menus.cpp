@@ -116,6 +116,8 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         if (menu_textbox(menu, game->players[menu_row].name, *input, section_coords, section_dim, draw_dim) && menu_row == state->client_game_index) {
             if (state->is_client)
                 client_set_name(state->client, game->players[menu_row].name);
+            else if (state->is_server)
+                server_send_game(&state->game);            
         }
 
         if (game->players[menu_row].is_bot) {
@@ -164,17 +166,21 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
 
         if (menu_button(menu, "+ Bot", *input, { 0, menu_row + 1 }, { 1, 1 })) {
             add_player(game, true);
+            server_send_game(&state->game);
         }
         if (menu_button(menu, "- Bot", *input, { 1, menu_row + 1 }, { 1, 1 })) {
             remove_player(game, true);
+            server_send_game(&state->game);
         }
 
         if (menu_button(menu, "Start", *input, { 0, menu_row + 2 }, { 1, 1 })) {
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 start_game(&state->game, game->num_of_players);
-                server_send_menu_mode(state->menu_list.mode);
-                server_send_game(&state->game);
+                if (state->is_server) {
+                    server_send_menu_mode(state->menu_list.mode);
+                    server_send_game(&state->game);
+                }
                 add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);
                 add_draw_signal(draw_signals, SIGNAL_NAME_PLATES);
             } else {
@@ -258,7 +264,8 @@ get_hole_text(char *buffer, u32 hole) {
 2 quit game
 */ 
 internal s32
-draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_dim) {
+draw_scoreboard(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_dim) {
+    Game *game = &state->game;
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
     window_rect.dim    = cv2(window_dim);
@@ -346,15 +353,24 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
             play_button_text = "Play Again";
 
         if (menu_button(menu, play_button_text, *input, { 0, scroll_length + 2 }, { (s32)game->num_of_players - 1, 1 })) {
+            state->menu_list.mode = IN_GAME;
             if (!game->game_over)
                 start_hole(game);
             else
                 start_game(game, game->num_of_players);
-            add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);            
-            return 1;
+            add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);    
+
+            if (state->is_server) {
+                server_send_menu_mode(state->menu_list.mode);
+                server_send_game(&state->game);
+            }
         }
         if (menu_button(menu, "Back", *input, { (s32)game->num_of_players - 1, scroll_length + 2 }, { 1, 1 })) {
-            return 1;
+            state->menu_list.mode = IN_GAME;
+
+            if (state->is_server) {
+                server_send_menu_mode(state->menu_list.mode);
+            }
         }
     }
 
@@ -367,7 +383,7 @@ draw_scoreboard(Menu *menu, Game *game, Menu_Input *input, Vector2_s32 window_di
     }
 
     if (menu_button(menu, "Quit", *input, quit_coords, { quit_width, 1 })) {
-        return 2;   
+        quit_to_main_menu(state, &state->menu_list.scoreboard);
     }
 
     return 0;

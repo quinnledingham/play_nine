@@ -486,6 +486,7 @@ add_onscreen_notification(Onscreen_Notifications *n, const char *noti) {
 
     n->times[n->lines] = 2.0f;
     n->colors[n->lines] = n->text_color;
+    platform_memory_set(n->memory[n->lines], 0, sizeof(n->memory[n->lines]));
 
     u32 not_length = get_length(noti);
     for (u32 ch = 0; ch < not_length; ch++) {

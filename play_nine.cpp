@@ -496,12 +496,7 @@ bool8 update(App *app) {
         } break;
 
         case SCOREBOARD_MENU: {
-            s32 sb_result = draw_scoreboard(&state->menu_list.scoreboard, &state->game, &menu_input, app->window.dim);
-            if (sb_result == 1) {
-                state->menu_list.mode = IN_GAME;
-            } else if (sb_result == 2) {
-                quit_to_main_menu(state, &state->menu_list.scoreboard);
-            }
+            draw_scoreboard(&state->menu_list.scoreboard, state, &menu_input, app->window.dim);
         } break;
 
         case HOST_MENU: {
