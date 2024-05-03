@@ -153,13 +153,14 @@ parse_asset_file(Assets *assets, File *file, void (action)(void *data, void *arg
 
 internal void
 load_asset(Asset *asset, Asset_Parse_Info *info) {
+    *asset = {};
     asset->type = info->type;
     asset->tag = info->tag;
     asset->tag_length = get_length(asset->tag);
     //log("loading: %s", asset->tag);
 
     const char *filename = char_array_concat(asset_folders[asset->type], info->filename);
-
+    
     // how to load the various assets
     switch(asset->type) {
         case ASSET_TYPE_FONT:   asset->font   = load_font(filename);   break;
@@ -368,7 +369,9 @@ save_assets(Assets *assets, FILE *file)
             
             case ASSET_TYPE_SHADER: {
                 for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
-                    fwrite(asset->shader.spirv_files[i].memory, asset->shader.spirv_files[i].size, 1, file);
+                    if (asset->shader.spirv_files[i].size) {
+                        fwrite(asset->shader.spirv_files[i].memory, asset->shader.spirv_files[i].size, 1, file);
+                    }
                 }
             } break;
             

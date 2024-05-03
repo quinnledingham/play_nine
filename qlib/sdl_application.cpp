@@ -112,11 +112,15 @@ using namespace Microsoft::WRL;
 void *platform_malloc(u32 size) { 
     return SDL_malloc(size); 
 }
-void platform_free(void *ptr)   { SDL_free(ptr); }
+void platform_free(void *ptr)   { 
+    SDL_free(ptr); 
+}
 void platform_memory_copy(void *dest, void *src, u32 num_of_bytes) { 
     SDL_memcpy(dest, src, num_of_bytes); 
 }
-void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { SDL_memset(dest, value, num_of_bytes); }
+void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { 
+    SDL_memset(dest, value, num_of_bytes); 
+}
 
 void * array_malloc(u32 size, u32 n) {
     return platform_malloc(n * size);

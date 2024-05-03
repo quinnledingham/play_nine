@@ -331,6 +331,7 @@ init_font(Font *font) {
     
     font->cache = (Font_Cache *)platform_malloc(sizeof(Font_Cache));
     platform_memory_set(font->cache, 0, sizeof(Font_Cache));
+    platform_memory_set(font->cache->bitmaps, 0, sizeof(Font_Char_Bitmap) * ARRAY_COUNT(font->cache->bitmaps));
 
     stbtt_InitFont(info, (u8*)font->file.memory, stbtt_GetFontOffsetForIndex((u8*)font->file.memory, 0));
     stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
@@ -387,7 +388,7 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     // free bitmap if one is being overwritten
     if (char_bitmap->scale != 0) { 
         stbtt_FreeBitmap(char_bitmap->bitmap.memory, info->userdata);
-        //free_bitmap_gpu_handle(&char_bitmap->bitmap);
+        render_delete_texture(&char_bitmap->bitmap);
         char_bitmap->bitmap.memory = 0;
     }
 
@@ -403,7 +404,6 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 
     if (char_bitmap->bitmap.width != 0) {
         render_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
-        //stbtt_FreeBitmap(char_bitmap->bitmap.memory, info->userdata);
     }
 
     return char_bitmap;
@@ -416,6 +416,7 @@ clear_font_bitmap_cache(Font *font) {
         stbtt_FreeBitmap(font->cache->bitmaps[i].bitmap.memory, info->userdata);
         font->cache->bitmaps[i].bitmap.memory = 0;
         render_delete_texture(&font->cache->bitmaps[i].bitmap);
+        platform_memory_set(&font->cache->bitmaps[i], 0, sizeof(Font_Char_Bitmap));
     }
 
     font->cache->bitmaps_cached = 0;

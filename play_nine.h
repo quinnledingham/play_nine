@@ -16,9 +16,6 @@ Render.cpp
 - Clean up light sources in shaders
 - Add wireframe and vsync toggle
 - Fix "skybox" shading
-
-- Fix weird tearing on vulkan
-- Fix resizing on vulkan
 */
 
 #define PICKUP_PILE    8

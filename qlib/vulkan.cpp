@@ -218,7 +218,7 @@ vulkan_is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface, const c
 	vkGetPhysicalDeviceFeatures(device, &device_features);
 
 	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device Limits:\nMax Descriptor Set Samplers: %d\nMax Descriptor Set Uniform Buffers: %d\nMax Uniform Buffer Range %d\n", device_properties.limits.maxDescriptorSetSamplers, device_properties.limits.maxDescriptorSetUniformBuffers, device_properties.limits.maxUniformBufferRange); 
-	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy;// && device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy; //&& device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 }
 
 internal VkSampleCountFlagBits
@@ -1450,15 +1450,14 @@ void vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
     }   
 
 	vulkan_create_texture_image(bitmap);
-    vulkan_create_texture_image_view((Vulkan_Texture *)bitmap->gpu_info, bitmap->mip_levels);
-    vulkan_create_texture_sampler((Vulkan_Texture *)bitmap->gpu_info, texture_parameters, bitmap->mip_levels);
+  vulkan_create_texture_image_view((Vulkan_Texture *)bitmap->gpu_info, bitmap->mip_levels);
+  vulkan_create_texture_sampler((Vulkan_Texture *)bitmap->gpu_info, texture_parameters, bitmap->mip_levels);
 }
 
 void vulkan_destroy_texture(Vulkan_Texture *texture) {
-		vkDestroyImageView(vulkan_info.device, texture->image_view, nullptr);
-		vkDestroyImage(vulkan_info.device, texture->image, nullptr);
-    vkFreeMemory(vulkan_info.device, texture->image_memory, nullptr);
-	
+	vkDestroyImageView(vulkan_info.device, texture->image_view, nullptr);
+	vkDestroyImage(vulkan_info.device, texture->image, nullptr);
+  vkFreeMemory(vulkan_info.device, texture->image_memory, nullptr);
 }
 
 void vulkan_delete_texture(Bitmap *bitmap) {
@@ -1526,31 +1525,31 @@ void vulkan_compute_pipeline_cleanup(Compute_Pipeline *pipe) {
 
 void vulkan_assets_cleanup(Assets *assets) {
 	for (u32 i = 0; i < assets->num_of_assets; i++) {
-        Asset *asset = &assets->data[i];
-        switch(asset->type) {
-            case ASSET_TYPE_FONT: {
-				Font *font = (Font *)&asset->font;
-				for (s32 j = 0; j < font->cache->bitmaps_cached; j++) {
-            		vulkan_delete_texture(&font->cache->bitmaps[j].bitmap);
-        		}
-			} break;
+		Asset *asset = &assets->data[i];
+		switch(asset->type) {
+		    case ASSET_TYPE_FONT: {
+					Font *font = (Font *)&asset->font;
+					for (s32 j = 0; j < ARRAY_COUNT(font->cache->bitmaps); j++) {
+		    		vulkan_delete_texture(&font->cache->bitmaps[j].bitmap);
+		  		}
+				} break;
 
-            case ASSET_TYPE_BITMAP: {
-				Bitmap *bitmap = (Bitmap *)&asset->bitmap;
-        		vulkan_delete_texture(bitmap);
-			} break;
+		    case ASSET_TYPE_BITMAP: {
+					Bitmap *bitmap = (Bitmap *)&asset->bitmap;
+		  		vulkan_delete_texture(bitmap);
+				} break;
 
-            case ASSET_TYPE_SHADER: break;
-            case ASSET_TYPE_AUDIO: break;
-            case ASSET_TYPE_MODEL: {
-				 Model *model = (Model *)&asset->model;
+		    case ASSET_TYPE_SHADER: break;
+		    case ASSET_TYPE_AUDIO: break;
+		    case ASSET_TYPE_MODEL: {
+					Model *model = (Model *)&asset->model;
 
-		        for (u32 j = 0; j < model->meshes_count; j++) {
-		            vulkan_delete_texture(&model->meshes[j].material.diffuse_map);
-		        }
-			} break;
-        }
-    }
+		      for (u32 j = 0; j < model->meshes_count; j++) {
+						vulkan_delete_texture(&model->meshes[j].material.diffuse_map);
+		      }
+				} break;
+		}
+	}
 }
 
 void vulkan_wait_frame() {
@@ -1668,7 +1667,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 		return 1;
 	}
 
-	const char **instance_extensions = ARRAY_MALLOC(const char *, instance_extensions_count + ARRAY_COUNT(info->extra_instance_extensions));
+	const char **instance_extensions = ARRAY_MALLOC(const char *, (instance_extensions_count + ARRAY_COUNT(info->extra_instance_extensions)));
 	if (SDL_Vulkan_GetInstanceExtensions(sdl_window, &instance_extensions_count, instance_extensions) == SDL_FALSE) {
 		logprint("main", "failed to get instance extensions\n");
 		return 1;

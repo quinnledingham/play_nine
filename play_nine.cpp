@@ -870,6 +870,7 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
         } break;
 
         case APP_EXIT: {
+            print("APP_EXIT\n");
             if (state->is_client)
                 client_close_connection(state->client);
             if (state->is_server)
