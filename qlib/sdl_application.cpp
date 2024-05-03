@@ -191,8 +191,17 @@ sdl_update_time(App_Time *time) {
     time->frames_per_s = 1.0 / time->frame_time_s;
 }
 
+internal void
+sdl_set_fullscreen(SDL_Window *sdl_window, enum Display_Modes display_mode) {
+    switch(display_mode) {
+        case DISPLAY_MODE_WINDOWED: SDL_SetWindowFullscreen(sdl_window, 0); break;
+        case DISPLAY_MODE_FULLSCREEN: SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN); break;
+        case DISPLAY_MODE_WINDOWED_FULLSCREEN: SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP); break;
+    }
+}
+
 internal bool8
-sdl_process_input(App *app, App_Window *window, App_Input *input) {
+sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sdl_window) {
     window->resized = false;
 
     //input->mouse = {};
@@ -285,6 +294,10 @@ sdl_process_input(App *app, App_Window *window, App_Input *input) {
             case SDL_KEYUP: {
                 SDL_KeyboardEvent *keyboard_event = &event.key;
                 u32 key_id = keyboard_event->keysym.sym;
+                if (key_id == SDLK_F11) {
+                    app_toggle_fullscreen(window);
+                   break;
+                }
                 event_handler(app, APP_KEYUP, key_id);
             } break;    
 		}
@@ -343,13 +356,12 @@ int main(int argc, char *argv[]) {
         logprint("main()", "Failed to init renderer\n");
         return 1;
     }
-
-    render_clear_color(Vector4{ 0.0f, 0.2f, 0.4f, 1.0f });
+    
     if (event_handler(&app, APP_INIT, 0) == 1)
         return 1;
 
     sdl_set_icon(app.icon, sdl_window);
-
+    
     srand(SDL_GetTicks());
 
     while (1) {
@@ -358,9 +370,9 @@ int main(int argc, char *argv[]) {
         else 
             SDL_SetRelativeMouseMode(SDL_FALSE);
 
-    	if (sdl_process_input(&app, &app.window, &app.input)) 
+        if (sdl_process_input(&app, &app.window, &app.input, sdl_window)) 
             break;
-        
+        sdl_set_fullscreen(sdl_window, app.window.display_mode);
 
         sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);

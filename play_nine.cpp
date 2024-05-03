@@ -644,7 +644,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))
@@ -862,6 +862,12 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
 
     switch(event) {
         case APP_INIT: {
+            render_clear_color(Vector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
+            // draw loading screen
+            render_start_frame();
+            render_end_frame();
+
             app->update = &update;
             if (init_data(app))
                 return 1;

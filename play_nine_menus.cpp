@@ -230,6 +230,9 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         if (menu_button(menu, "Lobby", *input, { 0, 0 }, { 1, 1 })) {
             state->menu_list.mode = LOCAL_MENU;
             menu->hot_section = menu->interact_region[0];
+
+            if (state->is_server)
+                server_send_menu_mode(state->menu_list.mode);
         }
     }
 

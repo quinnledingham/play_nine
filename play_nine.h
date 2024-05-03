@@ -3,6 +3,7 @@ TODO
 - Flip "animation"
 - Show keyboard controls
 - see all cards in larger lobby's in online (@SOLUTION Move Camera?)
+- Fix updating in lobby (send that bots were added)
 
 Bot
 - Add look ahead, so the bot doesnt give pairs to next plaeyr

@@ -1,6 +1,12 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
+enum Display_Modes {
+	DISPLAY_MODE_WINDOWED,
+	DISPLAY_MODE_FULLSCREEN,
+	DISPLAY_MODE_WINDOWED_FULLSCREEN,
+};
+
 struct App_Window {
 	union {
 		struct {
@@ -12,7 +18,17 @@ struct App_Window {
 	float32 aspect_ratio;
 	bool8 resized;
 	bool8 minimized;
+	enum Display_Modes display_mode;
 };
+
+internal void
+app_toggle_fullscreen(App_Window *window) {
+	switch(window->display_mode) {
+	    case DISPLAY_MODE_WINDOWED: window->display_mode = DISPLAY_MODE_FULLSCREEN; break;
+	    case DISPLAY_MODE_WINDOWED_FULLSCREEN:
+	    case DISPLAY_MODE_FULLSCREEN: window->display_mode = DISPLAY_MODE_WINDOWED; break;
+	}
+}
 
 global Vector2_s32 window_dim;
 
