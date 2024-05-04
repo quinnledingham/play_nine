@@ -394,7 +394,7 @@ draw_host_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
     Rect window_rect = {};
     window_rect.coords = { 0, 0 };
     window_rect.dim    = cv2(window_dim);
-    menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
+    menu->rect = get_centered_rect(window_rect, 0.5f, 0.4f);
 
     if (!menu->initialized) {
         menu->initialized = true;

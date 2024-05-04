@@ -3,9 +3,10 @@ TODO
 - Flip "animation"
 - Show keyboard controls
 - see all cards in larger lobby's in online (@SOLUTION Move Camera?)
+- add settings menu
 
 Bot
-- Add look ahead, so the bot doesnt give pairs to next plaeyr
+- Add look ahead, so the bot doesnt give pairs to next player
 - Replace highest card, not just first card higher than threshold
 
 Slight Problems
