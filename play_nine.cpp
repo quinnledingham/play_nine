@@ -507,11 +507,18 @@ bool8 update(App *app) {
             draw_join_menu(&state->menu_list.join, state, &menu_input, app->window.dim);
         } break;
 
+        case SETTINGS_MENU: {
+            draw_settings_menu(&state->menu_list.settings, state, &menu_input, app->window.dim);
+        } break;
+
+        case VIDEO_SETTINGS_MENU: {
+            draw_video_settings_menu(&state->menu_list.video_settings, state, &menu_input, app->window.dim);
+        } break;
+
         case PAUSE_MENU:
         case IN_GAME: {
-
+                
             draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
-
 
             // depth test already off from draw_game()
             render_bind_descriptor_set(state->scene_ortho_set);
@@ -599,7 +606,7 @@ bool8 update(App *app) {
     os_release_mutex(state->mutex);
     prepare_controller_for_input(&state->controller);
     
-	return 0;
+    return 0;
 }
 
 internal void

@@ -17,6 +17,7 @@ Render.cpp
 - Clean up light sources in shaders
 - Add wireframe and vsync toggle
 - Fix "skybox" shading
+- Clean up global pipelines
 */
 
 #define PICKUP_PILE    8
@@ -176,17 +177,21 @@ enum Menu_Mode {
     HOST_MENU,
     JOIN_MENU,
 
+    SETTINGS_MENU,
+    VIDEO_SETTINGS_MENU,
+
     IN_GAME
 };
 
 struct Menu_List {
     enum Menu_Mode mode = MAIN_MENU;
+    enum Menu_Mode previous_mode;
 
     union {
         struct {
-            Menu main, local, pause, scoreboard, host, join;
+            Menu main, local, pause, scoreboard, host, join, settings, video_settings;
         };
-        Menu menus[6];
+        Menu menus[8];
     };
 };
 

@@ -34,8 +34,6 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
 
     if (!menu->initialized) {
         menu->initialized = true;
-    
-        u32 buttons_count = 3;    
         menu->sections = { 1, 7 };
         menu->interact_region[0] = { 0, 2 };
         menu->interact_region[1] = menu->sections;
@@ -54,15 +52,15 @@ draw_main_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_d
         state->game.num_of_players = 1;
         default_player_name_string(state->game.players[0].name, 1);
     }
-    if (menu_button(menu, "Test", *input, { 0, 3 }, { 1, 1 })) {
-        state->game = get_test_game();
-        state->menu_list.mode = SCOREBOARD_MENU;    
-    }
-    if (menu_button(menu, "Host Online", *input, { 0, 4 }, { 1, 1 })) {
+    if (menu_button(menu, "Host Online", *input, { 0, 3 }, { 1, 1 })) {
         state->menu_list.mode = HOST_MENU;
     }
-    if (menu_button(menu, "Join Online", *input, { 0, 5 }, { 1, 1 })) {
+    if (menu_button(menu, "Join Online", *input, { 0, 4 }, { 1, 1 })) {
         state->menu_list.mode = JOIN_MENU;
+    }
+    if (menu_button(menu, "Settings", *input, { 0, 5 }, { 1, 1 })) {
+        state->menu_list.previous_mode = MAIN_MENU;
+        state->menu_list.mode = SETTINGS_MENU;
     }
     if (menu_button(menu, "Quit", *input, { 0, 6 }, { 1, 1 })) 
         return true;
@@ -130,14 +128,15 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
             coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
 
             render_bind_pipeline(&shapes.text_pipeline);
+            
             Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
             render_update_ubo(v_color_set, (void *)&play_nine_green);
             render_bind_descriptor_set(v_color_set);
 
             Object object = {};
+            
             Descriptor desc = render_get_descriptor_set(&layouts[2]);
             object.index = render_set_bitmap(&desc, find_bitmap(&state->assets, "BOT"));
-
             render_bind_descriptor_set(desc);
             
             coords += bot_dim / 2.0f;
@@ -197,7 +196,7 @@ draw_local_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
         back_width = 2;
     }
     
-    if (menu_button(menu, "Quit", *input, back_coords, { back_width, 1 })) {
+    if (menu_button(menu, "Back", *input, back_coords, { back_width, 1 })) {
         quit_to_main_menu(state, menu);
     }
 
@@ -216,13 +215,13 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
     if (!menu->initialized) {
         menu->initialized = true;
 
-        menu->sections = { 1, 2 };
+        menu->sections = { 1, 3 };
         if (input->full_menu) {
             menu->interact_region[0] = { 0, 0 };
-            menu->interact_region[1] = { 1, 2 };
+            menu->interact_region[1] = { 1, 3 };
         } else {
             menu->interact_region[0] = { 0, 1 };
-            menu->interact_region[1] = { 1, 2 };
+            menu->interact_region[1] = { 1, 3 };
         }
         menu->hot_section = menu->interact_region[0];
     }
@@ -241,8 +240,12 @@ draw_pause_menu(State *state, Menu *menu, Menu_Input *input, Vector2_s32 window_
                 server_send_menu_mode(state->menu_list.mode);
         }
     }
+    if (menu_button(menu, "Settings", *input, { 0, 1 }, { 1, 1 })) {
+        state->menu_list.previous_mode = PAUSE_MENU;
+        state->menu_list.mode = SETTINGS_MENU;
+    }
 
-    if (menu_button(menu, "Quit Game", *input, { 0, 1 }, { 1, 1 })) {
+    if (menu_button(menu, "Quit Game", *input, { 0, 2 }, { 1, 1 })) {
         quit_to_main_menu(state, menu);
     }
 
@@ -447,12 +450,10 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
 
     Vector4 text_color = play_nine_yellow;
 
-//    menu->gui.text_align = ALIGN_LEFT;
     menu_textbox(menu, "Name:", state->name, *input, { 0, 0 }, { 2, 1 });
     menu_textbox(menu, "IP:",   state->ip,   *input, { 0, 1 }, { 2, 1 });
     menu_textbox(menu, "Port:", state->port, *input, { 0, 2 }, { 2, 1 });
 
-    menu->gui.text_align = ALIGN_CENTER;
     if (menu_button(menu, "Join", *input, { 0, 3 }, { 1, 1 })) {
         if (qsock_client(&state->client, state->ip, state->port, TCP)) {
             online.client_handle = os_create_thread(play_nine_client_recv, (void*)state);
@@ -463,6 +464,73 @@ draw_join_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_d
         }
     }
     if (menu_button(menu, "Back", *input, { 1, 3 }, { 1, 1 })) {
+        menu->hot_section = menu->interact_region[0];
         state->menu_list.mode = MAIN_MENU;
     }
+}
+
+internal void
+draw_settings_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_dim) {
+    Rect window_rect = {};
+    window_rect.coords = { 0, 0 };
+    window_rect.dim    = cv2(window_dim);
+    menu->rect = get_centered_rect(window_rect, 0.5f, 0.5f);
+
+    if (!menu->initialized) {
+        menu->initialized = true;
+        menu->sections = { 1, 4 };
+        menu->interact_region[0] = { 0, 1 };
+        menu->interact_region[1] = { 1, 4 };
+        menu->hot_section = menu->interact_region[0];
+    }
+
+    menu_set_input(menu, input);
+    menu->gui.start();
+
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
+
+    menu_text(menu, "Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
+    if (menu_button(menu, "Video Settings", *input, { 0, 1 }, { 1, 1 })) {
+        state->menu_list.mode = VIDEO_SETTINGS_MENU;
+    }
+    if (menu_button(menu, "Test Menu", *input, { 0, 2, }, { 1, 1 })) {
+        state->game = get_test_game();
+        state->menu_list.mode = SCOREBOARD_MENU;    
+    }
+    if (menu_button(menu, "Back", *input, { 0, 3 }, { 1, 1 })) {
+        menu->hot_section = menu->interact_region[0];
+        state->menu_list.mode = state->menu_list.previous_mode;
+    }
+}
+
+internal void
+draw_video_settings_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_dim) {
+    if (!menu->initialized) {
+        menu->initialized = true;
+        menu->sections = { 1, 4 };
+        menu->interact_region[0] = { 0, 1 };
+        menu->interact_region[1] = { 1, 3 };
+        menu->hot_section = menu->interact_region[0];
+    }
+    
+    menu->rect = get_centered_rect({ 0, 0 }, cv2(window_dim), 0.5f, 0.5f);
+    menu_set_input(menu, input);
+    menu->gui.start();
+
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
+
+    if (on_up(state->controller.pause)) {
+        menu->hot_section = menu->interact_region[0];
+        state->menu_list.mode = SETTINGS_MENU;
+    }
+
+    menu_text(menu, "Video Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
+    if (menu_button(menu, "Fullscreen", *input, { 0, 1 }, { 1, 1 })) {
+        
+    }
+    if (menu_button(menu, "Back", *input, { 0, 2 }, { 1, 1 })) {
+        menu->hot_section = menu->interact_region[0];
+        state->menu_list.mode = SETTINGS_MENU;
+    }
+
 }

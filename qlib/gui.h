@@ -73,7 +73,6 @@ struct Textbox {
     u32 cursor_position;
     float32 shift;
     char text[TEXTBOX_SIZE];
-    //Vector2_s32 section;
     u32 index; // what GUI index is active
 };
 
@@ -91,6 +90,12 @@ struct Button_Input {
     s32 *buffer;
     s32 *buffer_index;
     
+};
+
+enum GUI_Align {
+    ALIGN_CENTER,
+    ALIGN_LEFT,    
+    ALIGN_RIGHT,
 };
 
 struct GUI {
@@ -152,12 +157,6 @@ struct Menu_Input {
     s32 buffer_index;
 
     bool8 full_menu; // if false so a smaller version of the menu
-};
-
-enum GUI_Align {
-    ALIGN_CENTER,
-    ALIGN_LEFT,    
-    ALIGN_RIGHT,
 };
 
 struct Menu {

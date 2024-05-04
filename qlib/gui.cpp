@@ -197,6 +197,11 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2
     return button_pressed;
 } 
 
+internal bool8
+gui_checkbox(GUI *gui, Draw_Style style, const char *label, Vector2 coords, Vector2 dim) {
+    
+}
+
 // move cursor to mouse based on how the textbox will be drawn
 internal u32
 get_textbox_cursor_position(const Draw_Textbox *box, Vector2_s32 mouse_coords) {
@@ -437,6 +442,11 @@ menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_
 internal bool8
 menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
     return menu_button(menu, text, input, section_coords, section_dim, section_dim);
+}
+
+internal bool8
+menu_checkbox(Menu *menu, const char *label, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    
 }
 
 internal bool8
