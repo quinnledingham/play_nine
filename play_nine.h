@@ -180,19 +180,16 @@ enum Menu_Mode {
     SETTINGS_MENU,
     VIDEO_SETTINGS_MENU,
 
-    IN_GAME
+    IN_GAME,
+
+    MENU_MODES_COUNT
 };
 
 struct Menu_List {
     enum Menu_Mode mode = MAIN_MENU;
     enum Menu_Mode previous_mode;
 
-    union {
-        struct {
-            Menu main, local, pause, scoreboard, host, join, settings, video_settings;
-        };
-        Menu menus[8];
-    };
+    Menu menus[MENU_MODES_COUNT];
 };
 
 enum Camera_Mode {

@@ -29,17 +29,18 @@ get_centered_text_coords(Font *font, const char *text, float32 pixel_height, Vec
 internal void
 draw_button(const Draw_Button button) {
     Vector4 back_color = button.style.E[button.state][0];
-    Vector4 text_color = button.style.E[button.state][1];
-
-    float32 pixel_height = button.dim.y;
-    if (button.dim.x < button.dim.y) 
-        pixel_height = button.dim.x;
-    pixel_height *= 0.8f;
-
-    Vector2 text_coords = button.coords + get_centered_text_coords(button.font, button.text, pixel_height, button.dim, button.text_align);
-
     draw_rect(button.coords, 0, button.dim, back_color); // back
+    
     if (button.text) {
+        Vector4 text_color = button.style.E[button.state][1];
+
+        float32 pixel_height = button.dim.y;
+        if (button.dim.x < button.dim.y) 
+            pixel_height = button.dim.x;
+        pixel_height *= 0.8f;
+
+        Vector2 text_coords = button.coords + get_centered_text_coords(button.font, button.text, pixel_height, button.dim, button.text_align);
+        
         render_set_scissor((s32)floor(button.coords.x), (s32)floor(button.coords.y), (u32)ceil(button.dim.x), (u32)ceil(button.dim.y) );
         draw_string(button.font, button.text, text_coords, pixel_height, text_color); // text
         render_set_scissor(0, 0, window_dim.x, window_dim.y);
@@ -52,10 +53,6 @@ draw_textbox(Draw_Textbox textbox) {
     Vector2 label_coords = textbox.coords + Vector2{ padding, padding };
     float32 label_height = textbox.dim.y * 0.5f;
     Vector2 label_dim = { textbox.dim.x, label_height };
-    if (textbox.label != 0) {
-        //textbox.dim.y *= 0.7f;
-        //textbox.coords.y += label_height;
-    }
     float32 pixel_height = textbox.dim.y * 0.8f;
 
     Vector4 back_color = textbox.style.E[textbox.state][0];

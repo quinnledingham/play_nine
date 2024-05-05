@@ -386,7 +386,7 @@ draw_scoreboard(Menu *menu, State *state, Menu_Input *input, Vector2_s32 window_
     }
 
     if (menu_button(menu, "Quit", *input, quit_coords, { quit_width, 1 })) {
-        quit_to_main_menu(state, &state->menu_list.scoreboard);
+        quit_to_main_menu(state, &state->menu_list.menus[SCOREBOARD_MENU]);
     }
 
     return 0;
@@ -487,6 +487,11 @@ draw_settings_menu(Menu *menu, State *state, Menu_Input *input, Vector2_s32 wind
     menu_set_input(menu, input);
     menu->gui.start();
 
+    if (on_up(state->controller.pause)) {
+        menu->hot_section = menu->interact_region[0];
+        state->menu_list.mode = state->menu_list.previous_mode;
+    }
+    
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     menu_text(menu, "Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 

@@ -487,33 +487,16 @@ bool8 update(App *app) {
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {
-            if (draw_main_menu(state, &state->menu_list.main, &menu_input, app->window.dim))
+            if (draw_main_menu(state, &state->menu_list.menus[MAIN_MENU], &menu_input, app->window.dim))
                 return 1;
         } break;
 
-        case LOCAL_MENU: {
-            draw_local_menu(state, &state->menu_list.local, &menu_input, app->window.dim);
-        } break;
-
-        case SCOREBOARD_MENU: {
-            draw_scoreboard(&state->menu_list.scoreboard, state, &menu_input, app->window.dim);
-        } break;
-
-        case HOST_MENU: {
-            draw_host_menu(&state->menu_list.host, state, &menu_input, app->window.dim);
-        } break;
-
-        case JOIN_MENU: {
-            draw_join_menu(&state->menu_list.join, state, &menu_input, app->window.dim);
-        } break;
-
-        case SETTINGS_MENU: {
-            draw_settings_menu(&state->menu_list.settings, state, &menu_input, app->window.dim);
-        } break;
-
-        case VIDEO_SETTINGS_MENU: {
-            draw_video_settings_menu(&state->menu_list.video_settings, state, &menu_input, app->window.dim);
-        } break;
+        case LOCAL_MENU: draw_local_menu(state, &state->menu_list.menus[LOCAL_MENU], &menu_input, app->window.dim); break;
+        case SCOREBOARD_MENU: draw_scoreboard(&state->menu_list.menus[SCOREBOARD_MENU], state, &menu_input, app->window.dim); break;
+        case HOST_MENU: draw_host_menu(&state->menu_list.menus[HOST_MENU], state, &menu_input, app->window.dim); break;
+        case JOIN_MENU: draw_join_menu(&state->menu_list.menus[JOIN_MENU], state, &menu_input, app->window.dim); break;
+        case SETTINGS_MENU: draw_settings_menu(&state->menu_list.menus[SETTINGS_MENU], state, &menu_input, app->window.dim); break;
+        case VIDEO_SETTINGS_MENU: draw_video_settings_menu(&state->menu_list.menus[VIDEO_SETTINGS_MENU], state, &menu_input, app->window.dim); break;
 
         case PAUSE_MENU:
         case IN_GAME: {
@@ -560,7 +543,7 @@ bool8 update(App *app) {
 
             if (state->menu_list.mode == PAUSE_MENU) {
 
-                draw_pause_menu(state, &state->menu_list.pause, &menu_input, app->window.dim);
+                draw_pause_menu(state, &state->menu_list.menus[PAUSE_MENU], &menu_input, app->window.dim);
 
             } else if (state->game.round_type == HOLE_OVER) {
 
@@ -569,7 +552,7 @@ bool8 update(App *app) {
                     Vector2 coords = { gui.dim.x - dim.x - padding, gui.dim.y - dim.y - padding };
                     if (gui_button(&gui, default_style, "Proceed", coords, dim)) {
                         state->menu_list.mode = SCOREBOARD_MENU;
-                        state->menu_list.scoreboard.initialized = false;
+                        state->menu_list.menus[SCOREBOARD_MENU].initialized = false;
                         if (state->is_server)
                             server_send_menu_mode(state->menu_list.mode);
                     }
@@ -808,7 +791,6 @@ bool8 init_data(App *app) {
     
     default_menu.active_section = { -1, - 1 };
     default_menu.pressed_section = { -1, -1 };
-    //default_menu.hot_section = default_menu.interact_region[0];
     default_menu.gui.edit.index = 0;
     
     default_menu.gui.font = default_font;
