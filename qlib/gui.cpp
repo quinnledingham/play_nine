@@ -27,25 +27,26 @@ get_centered_text_coords(Font *font, const char *text, float32 pixel_height, Vec
 }
 
 internal void
-draw_button(const Draw_Button button) {
-    Vector4 back_color = button.style.E[button.state][0];
-    draw_rect(button.coords, 0, button.dim, back_color); // back
+draw_button(const Draw_Style style, const u32 state, Rect rect, const char *label, Font *font, const u32 text_align) {
+    Vector4 back_color = style.background_colors[state];
+    draw_rect(rect.coords, 0, rect.dim, back_color); // back
     
-    if (button.text) {
-        Vector4 text_color = button.style.E[button.state][1];
+    if (label) {
+        float32 pixel_height = rect.dim.y * 0.8f;
 
-        float32 pixel_height = button.dim.y;
-        if (button.dim.x < button.dim.y) 
-            pixel_height = button.dim.x;
-        pixel_height *= 0.8f;
+        Vector2 text_coords = rect.coords + get_centered_text_coords(font, label, pixel_height, rect.dim, text_align);
+        Vector4 text_color = style.text_colors[state];
 
-        Vector2 text_coords = button.coords + get_centered_text_coords(button.font, button.text, pixel_height, button.dim, button.text_align);
-        
-        render_set_scissor((s32)floor(button.coords.x), (s32)floor(button.coords.y), (u32)ceil(button.dim.x), (u32)ceil(button.dim.y) );
-        draw_string(button.font, button.text, text_coords, pixel_height, text_color); // text
+        render_set_scissor((s32)floor(rect.coords.x), (s32)floor(rect.coords.y), (u32)ceil(rect.dim.x), (u32)ceil(rect.dim.y));
+        draw_string(font, label, text_coords, pixel_height, text_color); // text
         render_set_scissor(0, 0, window_dim.x, window_dim.y);
     }
 }
+/*
+internal void
+draw_checkbox(const Draw_Checkbox checkbox) {
+
+}*/
 
 internal float32
 draw_textbox(Draw_Textbox textbox) {
@@ -55,8 +56,8 @@ draw_textbox(Draw_Textbox textbox) {
     Vector2 label_dim = { textbox.dim.x, label_height };
     float32 pixel_height = textbox.dim.y * 0.8f;
 
-    Vector4 back_color = textbox.style.E[textbox.state][0];
-    Vector4 text_color = textbox.style.E[textbox.state][1];
+    Vector4 back_color = textbox.style.background_colors[textbox.state];
+    Vector4 text_color = textbox.style.text_colors[textbox.state];
 
     String_Draw_Info string_info = get_string_draw_info(textbox.font, textbox.text, -1, pixel_height);
     Vector2 text_coords = textbox.coords + get_centered_text_coords(textbox.font, textbox.text, pixel_height, textbox.dim, textbox.text_align);
@@ -167,20 +168,11 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
 
 internal bool8
 gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2 dim) {
-    Draw_Button button = {
-        style,
-        GUI_DEFAULT,
-
-        coords,
-        dim,
-
-        gui->font,
-        text,
-        gui->text_align
-    };
-
-    button.state = gui_update(gui, coords, dim);
-    draw_button(button);
+    u32 state = gui_update(gui, coords, dim);
+    Rect rect = {};
+    rect.coords = coords;
+    rect.dim = dim;
+    draw_button(style, state, rect, text, gui->font, gui->text_align);
 
     bool8 button_pressed = false;
     if (gui->index == gui->active) {
@@ -196,7 +188,8 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2
 
 internal bool8
 gui_checkbox(GUI *gui, Draw_Style style, const char *label, Vector2 coords, Vector2 dim) {
-    
+    bool8 checkbox_pressed = false;
+    return checkbox_pressed;
 }
 
 // move cursor to mouse based on how the textbox will be drawn
@@ -349,8 +342,8 @@ gui_textbox(GUI *gui, Draw_Style style, const char *label, const char *dest, Vec
 inline Vector2
 get_screen_coords(Menu *menu, Vector2_s32 section_coords) {
     Vector2 coords = {
-        (menu->rect.dim.x / menu->sections.x) * section_coords.x + menu->rect.coords.x,
-        (menu->rect.dim.y / menu->sections.y) * section_coords.y + menu->rect.coords.y
+        (menu->gui.rect.dim.x / menu->sections.x) * section_coords.x + menu->gui.rect.coords.x,
+        (menu->gui.rect.dim.y / menu->sections.y) * section_coords.y + menu->gui.rect.coords.y
     };
     return coords;
 }
@@ -358,8 +351,8 @@ get_screen_coords(Menu *menu, Vector2_s32 section_coords) {
 inline Vector2
 get_screen_dim(Menu *menu, Vector2_s32 draw_dim) {
     Vector2 dim = {
-        (menu->rect.dim.x / menu->sections.x) * draw_dim.x,
-        (menu->rect.dim.y / menu->sections.y) * draw_dim.y
+        (menu->gui.rect.dim.x / menu->sections.x) * draw_dim.x,
+        (menu->gui.rect.dim.y / menu->sections.y) * draw_dim.y
     };
     return dim;
 }
@@ -382,25 +375,42 @@ menu_in_dim(Vector2_s32 coords, Vector2_s32 dim, Vector2_s32 target) {
     return false;
 }
 
-// e is the coordniates of the menu that can be active
+// e is the coordniates of the menu that can be active (interact_region)
 internal void
-menu_update_hot(Menu_Input input, Vector2_s32 coords, Vector2_s32 section_dim, Vector2_s32 e[2]) {
-    Vector2_s32 sub_value = *input.hot_ptr - coords;
+menu_update_hot(GUI_Input *input, Vector2_s32 *hover_updated, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 e[2]) {
+    Vector2_s32 sub_value = *hover_updated - section_coords;
     Vector2_s32 add_value = section_dim - sub_value;
     sub_value.x += 1;
     sub_value.y += 1;
 
-    if (on_down(input.up)    && input.hot_ptr->y - sub_value.y >= e[0].y) {
-        input.hot_ptr->y -= sub_value.y;
+    if (on_down(*input->up)    && hover_updated->y - sub_value.y >= e[0].y) {
+        hover_updated->y -= sub_value.y;
     }
-    if (on_down(input.down)  && input.hot_ptr->y + add_value.y < e[1].y) {
-        input.hot_ptr->y += add_value.y;
+    if (on_down(*input->down)  && hover_updated->y + add_value.y < e[1].y) {
+        hover_updated->y += add_value.y;
     }
-    if (on_down(input.left)  && input.hot_ptr->x - sub_value.x >= e[0].x) {
-        input.hot_ptr->x -= sub_value.x;
+    if (on_down(*input->left)  && hover_updated->x - sub_value.x >= e[0].x) {
+        hover_updated->x -= sub_value.x;
     }
-    if (on_down(input.right) && input.hot_ptr->x + add_value.x < e[1].x) {
-        input.hot_ptr->x += add_value.x;
+    if (on_down(*input->right) && hover_updated->x + add_value.x < e[1].x) {
+        hover_updated->x += add_value.x;
+    }
+}
+
+internal void
+do_menu_update(Menu *menu, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    switch(*menu->gui.input.active_input_type) {
+        case KEYBOARD_INPUT: {
+            if (menu_in_dim(section_coords, section_dim, menu->hover_section)) {
+                menu_update_hot(&menu->gui.input, &menu->hover_section_updated, section_coords, section_dim, menu->interact_region);
+                menu->gui.hover = menu->gui.index;
+            }
+        } break;
+
+        case MOUSE_INPUT: {
+            menu->gui.hover = menu->gui.index;
+            menu->hover_section_updated = section_coords;
+        } break;
     }
 }
 
@@ -414,70 +424,53 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
         pixel_height = dim.x;
     pixel_height *= 0.8f;
 
-    Vector2 text_coords = coords + get_centered_text_coords(menu->font, text, pixel_height, dim, menu->gui.text_align);
+    Vector2 text_coords = coords + get_centered_text_coords(menu->gui.font, text, pixel_height, dim, menu->gui.text_align);
     render_set_scissor((s32)floor(coords.x), (s32)floor(coords.y), (u32)ceil(dim.x), (u32)ceil(dim.y) );
-    draw_string(menu->font, text, text_coords, pixel_height, color);
+    draw_string(menu->gui.font, text, text_coords, pixel_height, color);
     render_set_scissor(0, 0, window_dim.x, window_dim.y);
 }
 
 internal bool8
-menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
+menu_button(Menu *menu, const char *text, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
     Vector2 coords = get_screen_coords(menu, section_coords);
     Vector2 dim = get_screen_dim(menu, draw_dim);
 
-    if (input.active_input_type == KEYBOARD_INPUT && menu_in_dim(section_coords, section_dim, input.hot)) {
-        menu_update_hot(input, section_coords, section_dim, menu->interact_region);
-        menu->gui.hover = menu->gui.index;
-    }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
-        menu->gui.hover = menu->gui.index;
-        *input.hot_ptr = section_coords;
-    }
+    do_menu_update(menu, section_coords, section_dim);
     
-    return gui_button(&menu->gui, menu->style, text, coords, dim);
+    return gui_button(&menu->gui, menu->gui.style, text, coords, dim);
  }
 
 internal bool8
-menu_button(Menu *menu, const char *text, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
-    return menu_button(menu, text, input, section_coords, section_dim, section_dim);
+menu_button(Menu *menu, const char *text, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    return menu_button(menu, text, section_coords, section_dim, section_dim);
 }
 
 internal bool8
-menu_checkbox(Menu *menu, const char *label, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
-    
-}
-
-internal bool8
-menu_textbox(Menu *menu, const char *label, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
+menu_textbox(Menu *menu, const char *label, const char *dest, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
     Vector2 coords = get_screen_coords(menu, section_coords);
     Vector2 dim = get_screen_dim(menu, draw_dim);
 
-    if (input.active_input_type == KEYBOARD_INPUT && menu_in_dim(section_coords, section_dim, input.hot)) {
-        menu_update_hot(input, section_coords, section_dim, menu->interact_region);
-        menu->gui.hover = menu->gui.index;
-    }  else if (input.active_input_type == MOUSE_INPUT && coords_in_rect(input.mouse, coords, dim)) {
-        menu->gui.hover = menu->gui.index;
-        *input.hot_ptr = section_coords;
-    }
+    do_menu_update(menu, section_coords, section_dim);
     
-    return gui_textbox(&menu->gui, menu->style, label, dest, coords, dim);
+    return gui_textbox(&menu->gui, menu->gui.style, label, dest, coords, dim);
 }
 
 // no label and no draw dim
 internal bool8
-menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
-    return menu_textbox(menu, 0, dest, input, section_coords, section_dim, section_dim);
+menu_textbox(Menu *menu, const char *dest, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    return menu_textbox(menu, 0, dest, section_coords, section_dim, section_dim);
 }
 
 // no draw dim 
 internal bool8
-menu_textbox(Menu *menu, const char * label, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim) {
-    return menu_textbox(menu, label, dest, input, section_coords, section_dim, section_dim);
+menu_textbox(Menu *menu, const char * label, const char *dest, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    return menu_textbox(menu, label, dest, section_coords, section_dim, section_dim);
 }
 
 // no label
 internal bool8
-menu_textbox(Menu *menu, const char *dest, Menu_Input input, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
-    return menu_textbox(menu, 0, dest, input, section_coords, section_dim, draw_dim);
+menu_textbox(Menu *menu, const char *dest, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
+    return menu_textbox(menu, 0, dest, section_coords, section_dim, draw_dim);
 }
 
 //

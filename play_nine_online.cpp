@@ -59,7 +59,7 @@ THREAD_RETURN play_nine_server_com(void *parameters) {
                 // @SPECIAL case
                 if (state->menu_list.mode == SCOREBOARD_MENU) {
                     state->menu_list.mode = LOCAL_MENU;
-                    state->menu_list.menus[SCOREBOARD_MENU].hot_section = { 0, 0 };
+                    state->menu_list.menus[SCOREBOARD_MENU].hover_section = { 0, 0 };
                 }
 
                 if (state->game.num_of_players - 1 == player->game_index) {

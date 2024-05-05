@@ -405,29 +405,6 @@ bool8 update(App *app) {
     Assets *assets = &state->assets;
 
     bool8 full_menu = (!state->is_client && !state->is_server) || state->is_server;
-    bool8 select = on_up(state->controller.select) || on_up(state->controller.mouse_left);
-    bool8 pressed = on_down(state->controller.select) || on_down(state->controller.mouse_left);
-    Menu_Input menu_input = {
-        select,
-        pressed,
-        app->input.active,
-
-        state->controller.forward,
-        state->controller.backward,
-        state->controller.left,
-        state->controller.right,
-
-        { 0, 0 },
-        0,
-
-        app->input.mouse,
-
-        app->input.buffer,
-        app->input.buffer_index,
-
-        full_menu
-    };
-
     state->is_active = (state->client_game_index == state->game.active_player || (!state->is_client && !state->is_server)) && !state->game.players[state->game.active_player].is_bot;
     
     // Update
@@ -487,17 +464,18 @@ bool8 update(App *app) {
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {
-            if (draw_main_menu(state, &state->menu_list.menus[MAIN_MENU], &menu_input, app->window.dim))
+            if (draw_main_menu(state, &state->menu_list.menus[MAIN_MENU], app->window.dim))
                 return 1;
         } break;
 
-        case LOCAL_MENU: draw_local_menu(state, &state->menu_list.menus[LOCAL_MENU], &menu_input, app->window.dim); break;
+/*
+        case LOCAL_MENU: draw_local_menu(state, &state->menu_list.menus[LOCAL_MENU], &menu_input, app->window.dim); break;     
         case SCOREBOARD_MENU: draw_scoreboard(&state->menu_list.menus[SCOREBOARD_MENU], state, &menu_input, app->window.dim); break;
         case HOST_MENU: draw_host_menu(&state->menu_list.menus[HOST_MENU], state, &menu_input, app->window.dim); break;
         case JOIN_MENU: draw_join_menu(&state->menu_list.menus[JOIN_MENU], state, &menu_input, app->window.dim); break;
         case SETTINGS_MENU: draw_settings_menu(&state->menu_list.menus[SETTINGS_MENU], state, &menu_input, app->window.dim); break;
         case VIDEO_SETTINGS_MENU: draw_video_settings_menu(&state->menu_list.menus[VIDEO_SETTINGS_MENU], state, &menu_input, app->window.dim); break;
-
+        */
         case PAUSE_MENU:
         case IN_GAME: {
                 
@@ -533,7 +511,13 @@ bool8 update(App *app) {
             gui.dim = cv2(app->window.dim);
             gui.input = {
                 &app->input.active,
+                
                 &state->controller.select,
+                &state->controller.left,
+                &state->controller.up,
+                &state->controller.right,
+                &state->controller.down,
+                
                 &app->input.mouse,
                 &state->controller.mouse_left
             };
@@ -543,7 +527,7 @@ bool8 update(App *app) {
 
             if (state->menu_list.mode == PAUSE_MENU) {
 
-                draw_pause_menu(state, &state->menu_list.menus[PAUSE_MENU], &menu_input, app->window.dim);
+//                draw_pause_menu(state, &state->menu_list.menus[PAUSE_MENU], &menu_input, app->window.dim);
 
             } else if (state->game.round_type == HOLE_OVER) {
 
@@ -552,7 +536,6 @@ bool8 update(App *app) {
                     Vector2 coords = { gui.dim.x - dim.x - padding, gui.dim.y - dim.y - padding };
                     if (gui_button(&gui, default_style, "Proceed", coords, dim)) {
                         state->menu_list.mode = SCOREBOARD_MENU;
-                        state->menu_list.menus[SCOREBOARD_MENU].initialized = false;
                         if (state->is_server)
                             server_send_menu_mode(state->menu_list.mode);
                     }
@@ -777,26 +760,26 @@ bool8 init_data(App *app) {
 
     // Setting default Menus
     Menu default_menu = {};
-    default_menu.font = default_font;
-
-    default_menu.style.default_back = play_nine_yellow;
-    default_menu.style.default_text = play_nine_green;
-    default_menu.style.hover_back   = play_nine_light_yellow;
-    default_menu.style.hover_text   = play_nine_green;
-
-    default_menu.style.pressed_back = play_nine_dark_yellow;
-    default_menu.style.pressed_text = play_nine_green;
-    default_menu.style.active_back  = play_nine_yellow;
-    default_menu.style.active_text  = play_nine_green;
+    default_menu.gui.style.background_color = play_nine_yellow;
+    default_menu.gui.style.background_color_hover = play_nine_light_yellow;
+    default_menu.gui.style.background_color_pressed = play_nine_dark_yellow;
     
-    default_menu.active_section = { -1, - 1 };
-    default_menu.pressed_section = { -1, -1 };
+    default_menu.gui.style.text_color = play_nine_green;
+    default_menu.gui.style.text_color_hover = play_nine_green;
+    default_menu.gui.style.text_color_pressed = play_nine_green;
+    
     default_menu.gui.edit.index = 0;
     
     default_menu.gui.font = default_font;
     default_menu.gui.input = {
         &app->input.active,
+        
         &state->controller.select,
+        &state->controller.left,
+        &state->controller.forward,
+        &state->controller.right,
+        &state->controller.backward,
+        
         &app->input.mouse,
         &state->controller.mouse_left,
 
@@ -804,7 +787,7 @@ bool8 init_data(App *app) {
         &app->input.buffer_index
     };
 
-    default_style = default_menu.style;
+    default_style = default_menu.gui.style;
 
     for (u32 i = 0; i < IN_GAME; i++) {
         state->menu_list.menus[i] = default_menu;

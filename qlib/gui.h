@@ -15,19 +15,20 @@ enum GUI_States {
 struct Draw_Style {
     union {
         struct {
-            Vector4 default_back;
-            Vector4 default_text;
-    
-            Vector4 hover_back;
-            Vector4 hover_text;
-
-            Vector4 pressed_back;
-            Vector4 pressed_text;
-
-            Vector4 active_back; 
-            Vector4 active_text;
+            Vector4 background_color;
+            Vector4 background_color_hover;
+            Vector4 background_color_pressed;
         };
-        Vector4 E[4][2];
+        Vector4 background_colors[3];
+    };
+
+    union {
+        struct {
+            Vector4 text_color;
+            Vector4 text_color_hover;
+            Vector4 text_color_pressed;
+        };
+        Vector4 text_colors[3];
     };
 };
 
@@ -80,16 +81,23 @@ struct Textbox {
 // GUI
 //
 
-struct Button_Input {
+struct GUI_Input {
     enum Input_Type *active_input_type;
+
+    // Controller Input
     Button *select;
+    Button *left;
+    Button *up;
+    Button *right;
+    Button *down;
+
+    // Mouse Input
     Vector2_s32 *mouse;
     Button *mouse_left;
 
-    // textbox typing input
+    // Keyboard Input (Textbox)
     s32 *buffer;
-    s32 *buffer_index;
-    
+    s32 *buffer_index;  
 };
 
 enum GUI_Align {
@@ -103,10 +111,11 @@ struct GUI {
     u32 hover;
     u32 pressed;
     u32 active;
-    Button_Input input;
+    GUI_Input input;
 
     Textbox edit;
 
+    Rect rect;
     Vector2 coords;
     Vector2 dim;
 
@@ -115,6 +124,27 @@ struct GUI {
     Draw_Style style;
 
     void start() { index = 1; };
+/*
+    bool8 is_hover(Rect rect) {
+        bool8 hover = false;
+        
+        if (input.active_input_type == KEYBOARD_INPUT) {
+
+            if (gui->hover == 0)
+                gui->hover = 1;
+        } else if (input.active_input_type == MOUSE_INPUT) {
+            gui_select = *gui->input.mouse_left;
+
+            if (coords_in_rect(*gui->input.mouse, coords, dim)) {
+                gui->hover = gui->index;
+            } else if (gui->hover == gui->index) {
+                gui->hover = 0;
+            }
+        }
+
+        return hover;
+    }
+    */
 };
 
 GUI gui = {};
@@ -123,64 +153,30 @@ GUI gui = {};
 // Menu
 //
 
-struct Menu_Button_Style {
-    Vector2 dim;
-    
-    Vector4 default_back_color;
-    Vector4 active_back_color;
-    Vector4 default_text_color;
-    Vector4 active_text_color;
-};
-
-struct Menu_Input {
-    // Both
-    bool8 select;
-    bool8 pressed;
-    enum Input_Type active_input_type;
-
-    // Keyboard
-    Button up;
-    Button down;
-    Button left;
-    Button right;
-
-    // Because I have to remember what is selected unlike with the mouse where you can
-    // always check where the mouse is.
-    Vector2_s32 hot;      // what was hot after last round
-    Vector2_s32 *hot_ptr; // change this to new hot if needed
-
-    // Mouse
-    Vector2_s32 mouse;
-
-    // textbox typing inptu
-    s32 *buffer;
-    s32 buffer_index;
-
-    bool8 full_menu; // if false so a smaller version of the menu
-};
-
-struct Menu {
-    Draw_Style style;
-
-    Font *font;
-    Vector2 padding;
-
-    float32 section_width;
-
+struct Menu {    
     Vector2_s32 sections;
     Vector2_s32 interact_region[2]; // sections that can be included
-
-    Vector2_s32 hot_section; // section that is hot
-    Vector2_s32 pressed_section;
-    Vector2_s32 active_section;
+    
+    Vector2_s32 hover_section; // saves where the controller is hovering
+    Vector2_s32 hover_section_updated;
 
     Vector2_s32 scroll; // sections that are visible in the scroll
 
-    Rect rect; // coords and dim of entire menu
-
     GUI gui;
 
-    bool8 initialized;
+    void start() {
+        if (hover_section.y < interact_region[0].y)
+            hover_section_updated = interact_region[0];
+        else
+            hover_section_updated = hover_section;
+
+
+        gui.start();
+    }
+
+    void end() {
+        hover_section = hover_section_updated;
+    }
 };
 
 //

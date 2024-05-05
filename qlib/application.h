@@ -67,8 +67,8 @@ struct App_Input {
 	Vector2_s32 mouse_rel;
 	bool8 relative_mouse_mode = false;
 
-    s32 buffer[10];
-    s32 buffer_index;
+  s32 buffer[10];
+  s32 buffer_index;
 
 	enum Input_Type active; // what was the last type of input used
 };
