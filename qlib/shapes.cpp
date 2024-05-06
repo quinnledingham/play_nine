@@ -151,6 +151,10 @@ void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Vector4 color) {
     draw_shape(shape);
 }
 
+void draw_rect(Rect rect, Vector4 color) {
+    draw_rect(rect.coords, rect.rotation, rect.dim, color);
+};
+
 void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Bitmap *bitmap) {
     Vector3 coords_v3 = { coords.x, coords.y, 0 };
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });

@@ -468,14 +468,13 @@ bool8 update(App *app) {
                 return 1;
         } break;
 
-/*
-        case LOCAL_MENU: draw_local_menu(state, &state->menu_list.menus[LOCAL_MENU], &menu_input, app->window.dim); break;     
-        case SCOREBOARD_MENU: draw_scoreboard(&state->menu_list.menus[SCOREBOARD_MENU], state, &menu_input, app->window.dim); break;
-        case HOST_MENU: draw_host_menu(&state->menu_list.menus[HOST_MENU], state, &menu_input, app->window.dim); break;
-        case JOIN_MENU: draw_join_menu(&state->menu_list.menus[JOIN_MENU], state, &menu_input, app->window.dim); break;
-        case SETTINGS_MENU: draw_settings_menu(&state->menu_list.menus[SETTINGS_MENU], state, &menu_input, app->window.dim); break;
-        case VIDEO_SETTINGS_MENU: draw_video_settings_menu(&state->menu_list.menus[VIDEO_SETTINGS_MENU], state, &menu_input, app->window.dim); break;
-        */
+        case LOCAL_MENU: draw_local_menu(state, &state->menu_list.menus[LOCAL_MENU], full_menu, app->window.dim); break;     
+        case SCOREBOARD_MENU: draw_scoreboard(&state->menu_list.menus[SCOREBOARD_MENU], state, full_menu, app->window.dim); break;
+        case HOST_MENU: draw_host_menu(&state->menu_list.menus[HOST_MENU], state, app->window.dim); break;
+        case JOIN_MENU: draw_join_menu(&state->menu_list.menus[JOIN_MENU], state, app->window.dim); break;
+        case SETTINGS_MENU: draw_settings_menu(&state->menu_list.menus[SETTINGS_MENU], state, app->window.dim); break;
+        case VIDEO_SETTINGS_MENU: draw_video_settings_menu(&state->menu_list.menus[VIDEO_SETTINGS_MENU], state, &app->window); break;
+        
         case PAUSE_MENU:
         case IN_GAME: {
                 
@@ -527,7 +526,7 @@ bool8 update(App *app) {
 
             if (state->menu_list.mode == PAUSE_MENU) {
 
-//                draw_pause_menu(state, &state->menu_list.menus[PAUSE_MENU], &menu_input, app->window.dim);
+                draw_pause_menu(state, &state->menu_list.menus[PAUSE_MENU], full_menu, app->window.dim);
 
             } else if (state->game.round_type == HOLE_OVER) {
 
@@ -763,10 +762,12 @@ bool8 init_data(App *app) {
     default_menu.gui.style.background_color = play_nine_yellow;
     default_menu.gui.style.background_color_hover = play_nine_light_yellow;
     default_menu.gui.style.background_color_pressed = play_nine_dark_yellow;
+    default_menu.gui.style.background_color_active = play_nine_yellow;
     
     default_menu.gui.style.text_color = play_nine_green;
     default_menu.gui.style.text_color_hover = play_nine_green;
     default_menu.gui.style.text_color_pressed = play_nine_green;
+    default_menu.gui.style.text_color_active = play_nine_green;
     
     default_menu.gui.edit.index = 0;
     

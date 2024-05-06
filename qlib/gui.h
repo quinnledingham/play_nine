@@ -18,8 +18,9 @@ struct Draw_Style {
             Vector4 background_color;
             Vector4 background_color_hover;
             Vector4 background_color_pressed;
+            Vector4 background_color_active; // mostly for textboxs right now
         };
-        Vector4 background_colors[3];
+        Vector4 background_colors[4];
     };
 
     union {
@@ -27,8 +28,9 @@ struct Draw_Style {
             Vector4 text_color;
             Vector4 text_color_hover;
             Vector4 text_color_pressed;
+            Vector4 text_color_active;
         };
-        Vector4 text_colors[3];
+        Vector4 text_colors[4];
     };
 };
 
@@ -159,8 +161,6 @@ struct Menu {
     
     Vector2_s32 hover_section; // saves where the controller is hovering
     Vector2_s32 hover_section_updated;
-
-    Vector2_s32 scroll; // sections that are visible in the scroll
 
     GUI gui;
 

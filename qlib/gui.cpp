@@ -42,11 +42,37 @@ draw_button(const Draw_Style style, const u32 state, Rect rect, const char *labe
         render_set_scissor(0, 0, window_dim.x, window_dim.y);
     }
 }
-/*
-internal void
-draw_checkbox(const Draw_Checkbox checkbox) {
 
-}*/
+// state = active, hover, pressed
+// value = on or off
+internal void
+draw_checkbox(const Draw_Style style, const u32 state, bool8 value, Rect rect, const char *label, Font *font) {
+    Vector4 back_color = style.background_colors[state];
+    Vector4 text_color = style.text_colors[state];
+    draw_rect(rect, back_color); // back
+
+    render_set_scissor((s32)floor(rect.coords.x), (s32)floor(rect.coords.y), (u32)ceil(rect.dim.x), (u32)ceil(rect.dim.y));
+    Rect checkbox = {};
+    checkbox.coords = rect.coords;
+    checkbox.dim.x = rect.dim.y;
+    checkbox.dim.y = rect.dim.y;
+    Rect checkbox_in = get_centered_rect(checkbox, 0.8f, 0.8f);
+
+    draw_rect(checkbox_in, text_color);
+    if (value) {
+        draw_rect(get_centered_rect(checkbox_in, 0.7f, 0.7f), back_color);
+    } 
+
+    if (label) {
+        float32 pixel_height = rect.dim.y * 0.8f;
+
+        Vector2 text_coords = rect.coords + get_centered_text_coords(font, label, pixel_height, rect.dim, ALIGN_LEFT);
+        text_coords.x += checkbox.dim.x;
+        draw_string(font, label, text_coords, pixel_height, text_color); // text
+    };
+    
+    render_set_scissor(0, 0, window_dim.x, window_dim.y);
+}
 
 internal float32
 draw_textbox(Draw_Textbox textbox) {
@@ -117,6 +143,9 @@ ui_button(UI *ui, Vector2 coords, Vector2 dim, const char *text) {
 }
 */
 
+// does mouse by default but for keyboard input to work
+// gui->hover has to be set before. It does the logic of when keyboard is clicked
+// but it does not know which one is being hovered.
 internal u32
 gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
     u32 state = GUI_DEFAULT; // the state of the calling gui component
@@ -125,7 +154,7 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
     if (*gui->input.active_input_type == KEYBOARD_INPUT) {
         gui_select = *gui->input.select;
 
-        if (gui->hover == 0)
+        if (gui->hover == 0) // if nothing it hovered to begin with set it to first
             gui->hover = 1;
     } else if (*gui->input.active_input_type == MOUSE_INPUT) {
         gui_select = *gui->input.mouse_left;
@@ -187,8 +216,22 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2
 } 
 
 internal bool8
-gui_checkbox(GUI *gui, Draw_Style style, const char *label, Vector2 coords, Vector2 dim) {
+gui_checkbox(GUI *gui, Draw_Style style, bool8 *value, const char *label, Vector2 coords, Vector2 dim) {
+    u32 state = gui_update(gui, coords, dim);
+    Rect rect = {};
+    rect.coords = coords;
+    rect.dim = dim;
+    draw_checkbox(style, state, *value, rect, label, gui->font);
+
     bool8 checkbox_pressed = false;
+    if (gui->index == gui->active) {
+        *value = !*value;
+        checkbox_pressed = true;
+        gui->pressed = 0;
+        gui->active = 0;
+    }
+
+    gui->index++;
     return checkbox_pressed;
 }
 
@@ -398,7 +441,7 @@ menu_update_hot(GUI_Input *input, Vector2_s32 *hover_updated, Vector2_s32 sectio
 }
 
 internal void
-do_menu_update(Menu *menu, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+do_menu_update(Menu *menu, Vector2 coords, Vector2 dim, Vector2_s32 section_coords, Vector2_s32 section_dim) {
     switch(*menu->gui.input.active_input_type) {
         case KEYBOARD_INPUT: {
             if (menu_in_dim(section_coords, section_dim, menu->hover_section)) {
@@ -408,8 +451,10 @@ do_menu_update(Menu *menu, Vector2_s32 section_coords, Vector2_s32 section_dim) 
         } break;
 
         case MOUSE_INPUT: {
-            menu->gui.hover = menu->gui.index;
-            menu->hover_section_updated = section_coords;
+            if (coords_in_rect(*menu->gui.input.mouse, coords, dim)) {
+                menu->hover_section_updated = section_coords;
+                menu->gui.hover = menu->gui.index;
+            }
         } break;
     }
 }
@@ -435,7 +480,7 @@ menu_button(Menu *menu, const char *text, Vector2_s32 section_coords, Vector2_s3
     Vector2 coords = get_screen_coords(menu, section_coords);
     Vector2 dim = get_screen_dim(menu, draw_dim);
 
-    do_menu_update(menu, section_coords, section_dim);
+    do_menu_update(menu, coords, dim, section_coords, section_dim);
     
     return gui_button(&menu->gui, menu->gui.style, text, coords, dim);
  }
@@ -446,31 +491,29 @@ menu_button(Menu *menu, const char *text, Vector2_s32 section_coords, Vector2_s3
 }
 
 internal bool8
+menu_checkbox(Menu *menu, const char *label, bool8 *value, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    Vector2 coords = get_screen_coords(menu, section_coords);
+    Vector2 dim = get_screen_dim(menu, section_dim);
+
+    do_menu_update(menu, coords, dim, section_coords, section_dim);
+
+    return gui_checkbox(&menu->gui, menu->gui.style, value, label, coords, dim);
+}
+ 
+internal bool8
 menu_textbox(Menu *menu, const char *label, const char *dest, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
     Vector2 coords = get_screen_coords(menu, section_coords);
     Vector2 dim = get_screen_dim(menu, draw_dim);
 
-    do_menu_update(menu, section_coords, section_dim);
+    do_menu_update(menu, coords, dim, section_coords, section_dim);
     
     return gui_textbox(&menu->gui, menu->gui.style, label, dest, coords, dim);
-}
-
-// no label and no draw dim
-internal bool8
-menu_textbox(Menu *menu, const char *dest, Vector2_s32 section_coords, Vector2_s32 section_dim) {
-    return menu_textbox(menu, 0, dest, section_coords, section_dim, section_dim);
 }
 
 // no draw dim 
 internal bool8
 menu_textbox(Menu *menu, const char * label, const char *dest, Vector2_s32 section_coords, Vector2_s32 section_dim) {
     return menu_textbox(menu, label, dest, section_coords, section_dim, section_dim);
-}
-
-// no label
-internal bool8
-menu_textbox(Menu *menu, const char *dest, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector2_s32 draw_dim) {
-    return menu_textbox(menu, 0, dest, section_coords, section_dim, draw_dim);
 }
 
 //
