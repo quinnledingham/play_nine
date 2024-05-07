@@ -140,8 +140,8 @@ void * array_malloc(u32 size, u32 n) {
 #include "linux_thread.h"
 #endif // OS
 
-#include "render.h"
 #include "shapes.h"
+#include "render.h"
 #include "play_nine_raytrace.h"
 #include "play_nine_shaders.h"
 #include "application.h"
@@ -224,6 +224,7 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
                         window->width  = window_event->data1;
                         window->height = window_event->data2;
                         window->resized = true;
+                        render_context.window_dim = window->dim;
                         
 						        #ifdef OPENGL
                         //opengl_update_window(window);
@@ -264,7 +265,7 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
 
             case SDL_MOUSEBUTTONUP: {
                 SDL_MouseButtonEvent *mouse_event = &event.button;
-                input->mouse = { mouse_event->x, mouse_event->y };
+                //input->mouse = { mouse_event->x, mouse_event->y };
                 event_handler(app, APP_MOUSEUP, mouse_event->button);
             } break;
 
@@ -352,6 +353,8 @@ int main(int argc, char *argv[]) {
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
     SDL_SetRelativeMouseMode(SDL_FALSE);
 
+    render_context.window_dim = app.window.dim;
+    render_context.resolution = app.window.dim;
     if (render_sdl_init(sdl_window)) {
         logprint("main()", "Failed to init renderer\n");
         return 1;
@@ -377,8 +380,6 @@ int main(int argc, char *argv[]) {
         sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
         //print("%f\n", app.time.run_time_s);
-
-        window_dim = app.window.dim;
 
         if (app.window.minimized)
             continue;

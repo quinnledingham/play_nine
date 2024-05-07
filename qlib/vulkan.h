@@ -77,8 +77,8 @@ struct Vulkan_Info {
 	VkDevice device;
 	VkSurfaceKHR surface;
 
-	VkRenderPass render_pass; // general render pass for a pipeline (also pipeline layout)
-	VkRenderPass final_render_pass;
+	VkRenderPass draw_render_pass;
+	VkRenderPass present_render_pass;
 	
 	VkDeviceSize uniform_buffer_min_alignment;
 	VkSampleCountFlagBits msaa_samples;
@@ -95,21 +95,21 @@ struct Vulkan_Info {
 	u32 active_command_buffer_index;
 	VkPipelineLayout pipeline_layout; // set this to the currently bounded layout
 
+	Arr<Vulkan_Texture> draw_textures; // where the frame gets drawn before swap chain buffer
+	
 	// swap_chain
 	VkSwapchainKHR swap_chains[1];
 	
-	VkExtent2D swap_chain_extent;
+	VkExtent2D swap_chain_extent; // size of window, size of swap_chain_images
 	VkFormat swap_chain_image_format;
 	Arr<VkImage> swap_chain_images;
 	Arr<VkImageView> swap_chain_image_views;
 
-	Arr<Vulkan_Texture> final_textures;
-	
 	// Set at the start of the frame for the current frame.
  	// What frame buffer that should be used for that frame.
 	u32 image_index; 
-	Arr<VkFramebuffer> swap_chain_framebuffers;
-	Arr<VkFramebuffer> final_framebuffers;
+	Arr<VkFramebuffer> draw_framebuffers;
+	Arr<VkFramebuffer> swap_chain_framebuffers; // framebuffers for the swap_chain
 
 	// sync
 	VkSemaphore image_available_semaphore[MAX_FRAMES_IN_FLIGHT];
@@ -135,8 +135,8 @@ struct Vulkan_Info {
 	VkClearValue clear_values[2];
 
 	VkPipelineStageFlags wait_stages[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkRenderPassBeginInfo render_pass_info;
-	VkRenderPassBeginInfo final_render_pass_info;
+	VkRenderPassBeginInfo draw_render_pass_info;
+	VkRenderPassBeginInfo present_render_pass_info;
 	VkSubmitInfo submit_info;
 	VkSubmitInfo compute_submit_info;
 	VkPresentInfoKHR present_info;

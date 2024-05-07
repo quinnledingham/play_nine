@@ -37,9 +37,9 @@ draw_button(const Draw_Style style, const u32 state, Rect rect, const char *labe
         Vector2 text_coords = rect.coords + get_centered_text_coords(font, label, pixel_height, rect.dim, text_align);
         Vector4 text_color = style.text_colors[state];
 
-        render_set_scissor((s32)floor(rect.coords.x), (s32)floor(rect.coords.y), (u32)ceil(rect.dim.x), (u32)ceil(rect.dim.y));
+        render_context.scissor_push(rect.coords, rect.dim);
         draw_string(font, label, text_coords, pixel_height, text_color); // text
-        render_set_scissor(0, 0, window_dim.x, window_dim.y);
+        render_context.scissor_pop();
     }
 }
 
@@ -51,7 +51,7 @@ draw_checkbox(const Draw_Style style, const u32 state, bool8 value, Rect rect, c
     Vector4 text_color = style.text_colors[state];
     draw_rect(rect, back_color); // back
 
-    render_set_scissor((s32)floor(rect.coords.x), (s32)floor(rect.coords.y), (u32)ceil(rect.dim.x), (u32)ceil(rect.dim.y));
+    render_context.scissor_push(rect.coords, rect.dim);
     Rect checkbox = {};
     checkbox.coords = rect.coords;
     checkbox.dim.x = rect.dim.y;
@@ -71,7 +71,7 @@ draw_checkbox(const Draw_Style style, const u32 state, bool8 value, Rect rect, c
         draw_string(font, label, text_coords, pixel_height, text_color); // text
     };
     
-    render_set_scissor(0, 0, window_dim.x, window_dim.y);
+    render_context.scissor_pop();
 }
 
 internal float32
@@ -121,9 +121,9 @@ draw_textbox(Draw_Textbox textbox) {
     }
 
     // Text
-    render_set_scissor((s32)floor(textbox.coords.x), (s32)floor(textbox.coords.y), (u32)ceil(textbox.dim.x), (u32)ceil(textbox.dim.y) );
+    render_context.scissor_push(textbox.coords, textbox.dim);
     draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
-    render_set_scissor(0, 0, window_dim.x, window_dim.y);
+    render_context.scissor_pop();
 
     // Cursor
     if (textbox.state == GUI_ACTIVE) // clicked on
@@ -506,9 +506,11 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
     pixel_height *= 0.8f;
 
     Vector2 text_coords = coords + get_centered_text_coords(menu->gui.font, text, pixel_height, dim, menu->gui.text_align);
-    render_set_scissor((s32)floor(coords.x), (s32)floor(coords.y), (u32)ceil(dim.x), (u32)ceil(dim.y) );
+    //render_set_scissor((s32)floor(coords.x), (s32)floor(coords.y), (u32)ceil(dim.x), (u32)ceil(dim.y) );
+    render_context.scissor_push(coords, dim);
     draw_string(menu->gui.font, text, text_coords, pixel_height, color);
-    render_set_scissor(0, 0, window_dim.x, window_dim.y);
+    render_context.scissor_pop();
+    //render_set_scissor(0, 0, window_dim.x, window_dim.y);
 }
 
 internal bool8

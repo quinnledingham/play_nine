@@ -32,16 +32,6 @@ struct Compute_Pipeline {
 
 };
 
-struct Render {
-    Vector2_s32 resolution;
-    bool8 vsync;
-    bool8 anti_aliasing = FALSE;
-    
-    bool8 depth_test;
-};
-
-global Render render_context = {};
-
 Descriptor light_set;
 Descriptor light_set_2;
 Layout layouts[10];
@@ -109,7 +99,7 @@ enum Texture_Parameters {
 RENDER_FUNC(bool8, sdl_init, SDL_Window *sdl_window);
 RENDER_FUNC(void, clear_color, Vector4 color);
 RENDER_FUNC(bool8, start_frame, );
-RENDER_FUNC(void, end_frame, );
+RENDER_FUNC(void, end_frame, Assets *assets);
 RENDER_FUNC(void, cleanup);
 RENDER_FUNC(void, create_graphics_pipeline, Render_Pipeline *pipeline, Vertex_Info vertex_info);
 RENDER_FUNC(void, create_compute_pipeline, Compute_Pipeline *pipeline);
@@ -138,3 +128,37 @@ RENDER_FUNC(Descriptor, get_descriptor_set, Layout *layout);
 RENDER_FUNC(Descriptor, get_descriptor_set_index, Layout *layout, u32 return_index);
 
 void render_init_model(Model *model);
+
+struct Render {
+    Vector2_s32 window_dim;
+    Vector2_s32 resolution;
+    bool8 vsync;
+    bool8 anti_aliasing = FALSE;
+    
+    bool8 depth_test;
+
+    u32 scissor_stack_index = 0;
+    Rect scissor_stack[10];
+
+    void scissor_push(Vector2 coords, Vector2 dim) {
+        Vector2 factor = {
+            (float32)resolution.x / (float32)window_dim.x,
+            (float32)resolution.y / (float32)window_dim.y
+        };
+        
+        Rect rect = {};
+        rect.coords = coords * factor;
+        rect.dim = dim * factor;
+        scissor_stack[scissor_stack_index++] = rect;
+        render_set_scissor(rect.coords.x, rect.coords.y, rect.dim.x, rect.dim.y);
+    }
+
+    void scissor_pop() {
+        scissor_stack_index--;
+        Rect rect = scissor_stack[scissor_stack_index - 1];
+        render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);
+    }
+};
+
+global Render render_context = {};
+

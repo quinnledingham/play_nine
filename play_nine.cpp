@@ -440,10 +440,9 @@ bool8 update(App *app) {
 
     texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
-    render_set_viewport(app->window.width, app->window.height);
-    //render_set_viewport(render_context.resolution.width, render_context.resolution.height);
-    render_set_scissor(0, 0, app->window.width, app->window.height);
-    //render_set_scissor(0, 0, render_context.resolution.width, render_context.resolution.height);
+    render_set_viewport(render_context.resolution.width, render_context.resolution.height);
+    render_context.scissor_stack_index = 0;
+    render_context.scissor_push({ 0, 0 }, cv2(app->window.dim));
 
     state->scene_set = render_get_descriptor_set(&layouts[0]);
     render_update_ubo(state->scene_set, (void*)&state->scene);
@@ -508,8 +507,6 @@ bool8 update(App *app) {
             draw_string_tl(font, round_types[state->game.round_type], round_coords, pixel_height, { 255, 255, 255, 1 });
 
             gui.start();
-            gui.coords = { 0, 0 };
-            gui.dim = cv2(app->window.dim);
             gui.input = {
                 &app->input.active,
                 
@@ -534,7 +531,7 @@ bool8 update(App *app) {
 
                 if (!state->is_client) {
                     Vector2 dim = { button_width, pixel_height };
-                    Vector2 coords = { gui.dim.x - dim.x - padding, gui.dim.y - dim.y - padding };
+                    Vector2 coords = { gui.rect.dim.x - dim.x - padding, gui.rect.dim.y - dim.y - padding };
                     if (gui_button(&gui, default_style, "Proceed", coords, dim)) {
                         state->menu_list.mode = SCOREBOARD_MENU;
                         if (state->is_server)
@@ -566,7 +563,7 @@ bool8 update(App *app) {
     draw_string_tl(default_font, buffer, { 10, (float32)app->window.dim.height - 40 }, 40.0f, { 255, 50, 50, 1 });
 //#endif // DEBUG
 
-    render_end_frame();
+    render_end_frame(&state->assets);
     AFTER_DRAW:
 
     //if (state->is_client )//&& state->previous_menu != IN_GAME)
@@ -832,7 +829,6 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
 
     switch(event) {
         case APP_INIT: {
-            render_context.resolution = app->window.dim;
             render_clear_color(Vector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
             // draw loading screen

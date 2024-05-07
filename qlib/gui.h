@@ -118,8 +118,6 @@ struct GUI {
     Textbox edit;
 
     Rect rect;
-    Vector2 coords;
-    Vector2 dim;
 
     Font *font;
     u32 text_align;

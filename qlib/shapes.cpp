@@ -38,6 +38,7 @@ struct Shapes {
 };
 
 Shapes shapes = {};
+Render_Pipeline color_pipeline;
 
 void init_shapes(Shader *color, Shader *texture, Shader *text);
 void draw_shape(Shape shape);

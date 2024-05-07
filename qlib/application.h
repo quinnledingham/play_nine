@@ -30,8 +30,6 @@ app_toggle_fullscreen(App_Window *window) {
 	}
 }
 
-global Vector2_s32 window_dim;
-
 struct App_Time {
 	s64 start_ticks;
 	s64 last_frame_ticks;
