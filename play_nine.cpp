@@ -441,7 +441,9 @@ bool8 update(App *app) {
     texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
     render_set_viewport(app->window.width, app->window.height);
+    //render_set_viewport(render_context.resolution.width, render_context.resolution.height);
     render_set_scissor(0, 0, app->window.width, app->window.height);
+    //render_set_scissor(0, 0, render_context.resolution.width, render_context.resolution.height);
 
     state->scene_set = render_get_descriptor_set(&layouts[0]);
     render_update_ubo(state->scene_set, (void*)&state->scene);
@@ -830,11 +832,12 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
 
     switch(event) {
         case APP_INIT: {
+            render_context.resolution = app->window.dim;
             render_clear_color(Vector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
             // draw loading screen
-            render_start_frame();
-            render_end_frame();
+            //render_start_frame();
+            //render_end_frame();
 
             app->update = &update;
             if (init_data(app))

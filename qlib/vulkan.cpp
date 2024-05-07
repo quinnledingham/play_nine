@@ -359,7 +359,7 @@ vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
 
 // VSYNC SETTINGS AREA
 // VK_PRESENT_MODE_IMMEDIATE_KHR 
-// VK_PRESENT_MODE_MAILBOX_KHR
+// VK_PRESENT_MODE_MAILBOX_KHR   (VSYNC)
 // VK_PRESENT_MODE_FIFO_KHR      (VSYNC)
 internal VkPresentModeKHR
 vulkan_choose_swap_present_mode(VkPresentModeKHR *modes, u32 count) {
@@ -396,6 +396,7 @@ vulkan_create_swap_chain(Vulkan_Info *info) {
 	VkSurfaceFormatKHR surface_format = vulkan_choose_swap_surface_format(swap_chain_support.formats, swap_chain_support.formats_count);
 	VkPresentModeKHR present_mode = vulkan_choose_swap_present_mode(swap_chain_support.present_modes, swap_chain_support.present_modes_count);
 	VkExtent2D extent = vulkan_choose_swap_extent(swap_chain_support.capabilities, info->window_width, info->window_height);
+	print("extent_w: %d, extent_h: %d\n", extent.width, extent.height);
 
 	u32 image_count = swap_chain_support.capabilities.minImageCount + 1;
 	if (swap_chain_support.capabilities.maxImageCount > 0 && image_count > swap_chain_support.capabilities.maxImageCount) {
@@ -484,7 +485,8 @@ vulkan_create_render_pass(Vulkan_Info *info) {
 	if (render_context.anti_aliasing)
 		color_attachment.finalLayout  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	else
-		color_attachment.finalLayout  = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		color_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		//color_attachment.finalLayout  = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
  
 	VkAttachmentReference color_attachment_ref = {};
 	color_attachment_ref.attachment = 0;
@@ -558,7 +560,44 @@ vulkan_create_render_pass(Vulkan_Info *info) {
 }
 
 internal bool8
-vulkan_create_frame_buffers(Vulkan_Info *info) {
+vulkan_create_final_render_pass() {
+	VkAttachmentDescription color_attachment = {};
+	color_attachment.format         = vulkan_info.swap_chain_image_format;
+	color_attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+	color_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	color_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+	color_attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	color_attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+	color_attachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	
+	VkAttachmentReference color_attachment_resolve_ref = {};
+	color_attachment_resolve_ref.attachment = 0;
+	color_attachment_resolve_ref.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount    = 1;
+	subpass.pColorAttachments       = &color_attachment_resolve_ref;
+	
+	VkRenderPassCreateInfo render_pass_create_info = {};
+	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	render_pass_create_info.attachmentCount = 1;
+	render_pass_create_info.pAttachments = &color_attachment;
+	render_pass_create_info.subpassCount = 1;
+	render_pass_create_info.pSubpasses = &subpass;
+
+	if (vkCreateRenderPass(vulkan_info.device, &render_pass_create_info, nullptr, &vulkan_info.final_render_pass) != VK_SUCCESS) {
+		logprint("vulkan_create_render_pass()", "failed to create render pass\n");
+		return 1;
+	}
+
+	return 0;
+	
+}
+
+internal bool8
+vulkan_create_frame_buffers(Vulkan_Info *info) {	
 	info->swap_chain_framebuffers.resize(info->swap_chain_image_views.get_size());
 	u32 attachments_count = 3;
 	for (u32 i = 0; i < info->swap_chain_image_views.get_size(); i++) {	
@@ -566,11 +605,11 @@ vulkan_create_frame_buffers(Vulkan_Info *info) {
 		if (render_context.anti_aliasing) {
 				attachments[0] = info->color_texture.image_view;
 				attachments[1] = info->depth_texture.image_view;
-				attachments[2] = info->swap_chain_image_views[i];
+				attachments[2] = info->final_textures[i].image_view;
 		} else {
 			//info->color_image_view,
 			attachments_count = 2;
-			attachments[0] = info->swap_chain_image_views[i];
+			attachments[0] = info->final_textures[i].image_view;
 			attachments[1] = info->depth_texture.image_view;
 		}
 
@@ -590,6 +629,33 @@ vulkan_create_frame_buffers(Vulkan_Info *info) {
 	}
 
 	return 0;
+}
+
+internal bool8
+vulkan_create_final_frame_buffers(Vulkan_Info *info) {	
+	info->final_framebuffers.resize(info->final_textures.get_size());
+	u32 attachments_count = 1;
+	for (u32 i = 0; i < info->final_textures.get_size(); i++) {
+		VkImageView attachments[1];
+		attachments[0] = info->swap_chain_image_views[i];
+
+		VkFramebufferCreateInfo framebuffer_info = {};
+		framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebuffer_info.renderPass      = info->final_render_pass;
+    framebuffer_info.attachmentCount = attachments_count;
+    framebuffer_info.pAttachments    = attachments;
+    framebuffer_info.width           = info->swap_chain_extent.width;
+    framebuffer_info.height          = info->swap_chain_extent.height;
+    framebuffer_info.layers          = 1;
+
+		if (vkCreateFramebuffer(info->device, &framebuffer_info, nullptr, &info->final_framebuffers[i]) != VK_SUCCESS) {
+			logprint("vulkan_create_frame_buffers()", "failed to create framebuffer\n");
+			return 1;
+		}
+	}
+
+	return 0;
+	
 }
 
 internal void
@@ -1375,12 +1441,12 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 		texture->image_format = VK_FORMAT_R8_UNORM;
 	}
 
-    VkDeviceSize image_size = bitmap->width * bitmap->height * bitmap->channels;
+  VkDeviceSize image_size = bitmap->width * bitmap->height * bitmap->channels;
 
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
-	
-    vulkan_create_buffer(info->device, info->physical_device, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
+
+  vulkan_create_buffer(info->device, info->physical_device, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
 
 	void *data;
 	vkMapMemory(info->device, staging_buffer_memory, 0, image_size, 0, &data);
@@ -1390,12 +1456,12 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 	vulkan_create_image(info->device, info->physical_device, bitmap->width, bitmap->height, bitmap->mip_levels, VK_SAMPLE_COUNT_1_BIT, texture->image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image, texture->image_memory);
 
 	vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bitmap->mip_levels);
-    vulkan_copy_buffer_to_image(info, staging_buffer, texture->image, (u32)bitmap->width, (u32)bitmap->height);
-    //vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, bitmap->mip_levels);
+  vulkan_copy_buffer_to_image(info, staging_buffer, texture->image, (u32)bitmap->width, (u32)bitmap->height);
+  //vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, bitmap->mip_levels);
 	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
-    vkDestroyBuffer(info->device, staging_buffer, nullptr);
-    vkFreeMemory(info->device, staging_buffer_memory, nullptr);
+  vkDestroyBuffer(info->device, staging_buffer, nullptr);
+  vkFreeMemory(info->device, staging_buffer_memory, nullptr);
 
 	vulkan_generate_mipmaps(texture->image, texture->image_format, bitmap->width, bitmap->height, bitmap->mip_levels);
 }
@@ -1482,8 +1548,15 @@ void vulkan_delete_texture(Bitmap *bitmap) {
 internal void
 vulkan_create_swap_chain_image_views(Vulkan_Info *info) {
 	info->swap_chain_image_views.resize(info->swap_chain_images.get_size());
+	info->final_textures.resize(info->swap_chain_image_views.get_size());
 	for (u32 i = 0; i < info->swap_chain_images.get_size(); i++) {
 		info->swap_chain_image_views[i] = vulkan_create_image_view(info->device, info->swap_chain_images[i], info->swap_chain_image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+
+		info->final_textures[i].image_format = VK_FORMAT_B8G8R8A8_SRGB;
+		vulkan_create_image(info->device, info->physical_device, info->swap_chain_extent.width, info->swap_chain_extent.height, 1, VK_SAMPLE_COUNT_1_BIT, info->final_textures[i].image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, info->final_textures[i].image, info->final_textures[i].image_memory);
+		info->final_textures[i].image_view = vulkan_create_image_view(info->device, info->final_textures[i].image, info->final_textures[i].image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+		vulkan_create_texture_sampler(&info->final_textures[i], TEXTURE_PARAMETERS_DEFAULT, 1);
+		
 	}
 }
 
@@ -1625,6 +1698,14 @@ vulkan_init_presentation_settings(Vulkan_Info *info) {
 	info->render_pass_info.renderArea.extent = info->swap_chain_extent;
 	info->render_pass_info.clearValueCount = ARRAY_COUNT(info->clear_values);
 	info->render_pass_info.pClearValues = info->clear_values;
+	
+	info->final_render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	info->final_render_pass_info.renderPass = info->final_render_pass;
+	info->final_render_pass_info.framebuffer = info->final_framebuffers[info->image_index];
+	info->final_render_pass_info.renderArea.offset = {0, 0};
+	info->final_render_pass_info.renderArea.extent = info->swap_chain_extent;
+	info->final_render_pass_info.clearValueCount = ARRAY_COUNT(info->clear_values);
+	info->final_render_pass_info.pClearValues = info->clear_values;
 /*
 	info->scissor.offset = {0, 0};
 	info->scissor.extent = info->swap_chain_extent;
@@ -1701,6 +1782,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	vulkan_create_swap_chain(info);
 	vulkan_create_swap_chain_image_views(info);
 	if (vulkan_create_render_pass(info)) return 1;
+	if (vulkan_create_final_render_pass()) return 1;
 	
 	vulkan_create_sync_objects(info);
 	vulkan_create_command_pool(info);
@@ -1710,7 +1792,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	vulkan_create_depth_resources(info);
 	vulkan_create_color_resources();
 	if (vulkan_create_frame_buffers(info)) return 1;
-	
+	if (vulkan_create_final_frame_buffers(info)) return 1;
 	
 	vulkan_create_buffer(info->device, 
                          info->physical_device,
@@ -1882,6 +1964,7 @@ bool8 vulkan_start_frame() {
 		logprint("vulkan_draw_frame()", "failed to acquire swap chain");
 	}
 
+	vulkan_info.final_render_pass_info.framebuffer = vulkan_info.final_framebuffers[vulkan_info.image_index];
 	vulkan_info.render_pass_info.framebuffer = vulkan_info.swap_chain_framebuffers[vulkan_info.image_index];
 
 	vkResetFences(vulkan_info.device, 1, &vulkan_info.in_flight_fence[vulkan_info.current_frame]);
@@ -1900,6 +1983,14 @@ bool8 vulkan_start_frame() {
 void vulkan_end_frame() {
 	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
 
+	vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.final_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+	Bitmap bitmap = {};
+	bitmap.gpu_info = &vulkan_info.final_textures[vulkan_info.image_index];
+	//draw_rect({0, 0}, 0, { float32(vulkan_info.window_width), float32(vulkan_info.window_height) }, &bitmap);
+	
+	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
+	
 	if (vkEndCommandBuffer(vulkan_active_cmd_buffer(&vulkan_info)) != VK_SUCCESS) {
 		logprint("vulkan_record_command_buffer()", "failed to record command buffer\n");
 	}

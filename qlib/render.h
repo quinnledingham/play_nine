@@ -33,9 +33,11 @@ struct Compute_Pipeline {
 };
 
 struct Render {
+    Vector2_s32 resolution;
     bool8 vsync;
-    bool8 depth_test;
     bool8 anti_aliasing = FALSE;
+    
+    bool8 depth_test;
 };
 
 global Render render_context = {};

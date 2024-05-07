@@ -493,6 +493,9 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     };
     if (menu_dropdown(menu, fullscreen_modes, 3, (u32*)&window->display_mode, { 0, 1 }, { 1, 1 })) {
         //app_toggle_fullscreen(window);
+        if (window->display_mode == DISPLAY_MODE_WINDOWED_FULLSCREEN) {
+            render_context.resolution = { 1280, 720 };
+        }
     }
     menu->end();
 }

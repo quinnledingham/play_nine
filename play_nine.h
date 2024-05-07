@@ -18,6 +18,14 @@ Render.cpp
 - Add wireframe and vsync toggle
 - Fix "skybox" shading
 - Clean up global pipelines
+
+vulkan.h
+- pass thru shader to map bitmap to screen
+- make a basic pipeline to show one bitmap on screen (the output of drawing)
+- make it so that when the resolution = window resolution it does not do the extra step
+- investigate samplers - it doesnt actually require a image view to make (Just need 2
+to be used in init bitmaps?)
+- put all descriptors and buffers in vulkan info in a way that is easy to clean up
 */
 
 #define PICKUP_PILE    8

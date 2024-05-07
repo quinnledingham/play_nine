@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
     
 #endif // OPENGL / DX12
 
-    SDL_Window *sdl_window = SDL_CreateWindow("play_nine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 900, 800, sdl_window_flags);
+    SDL_Window *sdl_window = SDL_CreateWindow("play_nine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 720, 480, sdl_window_flags);
     if (sdl_window == NULL) {
     	print(SDL_GetError());
     	return 1;
