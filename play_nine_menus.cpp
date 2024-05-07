@@ -468,13 +468,19 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     draw_rect({ 0, 0 }, 0, cv2(window->dim), play_nine_green);
 
     if (on_up(state->controller.pause)) {
-        menu->hover_section = menu->interact_region[0];
-        state->menu_list.mode = SETTINGS_MENU;
+        if (menu->gui.active == 0) {
+            menu->hover_section = menu->interact_region[0];
+            state->menu_list.mode = SETTINGS_MENU;
+        } else {
+            menu->gui.pressed = 0;
+            menu->gui.active = 0;
+        }
     }
 
     menu_text(menu, "Video Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
     
     if (menu_checkbox(menu, "VSync", &render_context.vsync, { 0, 2 }, { 1, 1 })) {
+        vulkan_info.framebuffer_resized = true;
     }
     if (menu_button(menu, "Back", { 0, 3 }, { 1, 1 })) {
         menu->hover_section = menu->interact_region[0];

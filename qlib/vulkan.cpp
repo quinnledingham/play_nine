@@ -363,6 +363,9 @@ vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
 // VK_PRESENT_MODE_FIFO_KHR      (VSYNC)
 internal VkPresentModeKHR
 vulkan_choose_swap_present_mode(VkPresentModeKHR *modes, u32 count) {
+	if (render_context.vsync)
+		return VK_PRESENT_MODE_FIFO_KHR;
+	
 	for (u32 i = 0; i < count; i++) {
 		if (modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
 			return modes[i];
