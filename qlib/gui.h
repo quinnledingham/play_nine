@@ -125,7 +125,19 @@ struct GUI {
     u32 text_align;
     Draw_Style style;
 
-    void start() { index = 1; };
+    // dropdown
+    bool8 enabled; // when true in gui_update the check if something else is active is disabled
+    
+    u32 dropdown_index;
+    const char **dropdown_options;
+    u32 dropdown_options_count;
+    u32 *dropdown_options_selected;
+    Rect dropdown_rect;
+
+    void start() { 
+        index = 1; 
+    };
+    
 /*
     bool8 is_hover(Rect rect) {
         bool8 hover = false;

@@ -473,15 +473,20 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     }
 
     menu_text(menu, "Video Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
-    if (menu_checkbox(menu, "Fullscreen", (bool8*)&window->display_mode, { 0, 1 }, { 1, 1 })) {
-        app_toggle_fullscreen(window);
-    }
+    
     if (menu_checkbox(menu, "VSync", &render_context.vsync, { 0, 2 }, { 1, 1 })) {
     }
     if (menu_button(menu, "Back", { 0, 3 }, { 1, 1 })) {
         menu->hover_section = menu->interact_region[0];
         state->menu_list.mode = SETTINGS_MENU;
     }
+    const char *fullscreen_modes[3] = {
+        "Windowed",
+        "Fullscreen",
+        "Windowed Fullscreen"
+    };
+    if (menu_dropdown(menu, fullscreen_modes, 3, (u32*)&window->display_mode, { 0, 1 }, { 1, 1 })) {
+        //app_toggle_fullscreen(window);
+    }
     menu->end();
 }
-

@@ -148,7 +148,7 @@ ui_button(UI *ui, Vector2 coords, Vector2 dim, const char *text) {
 // but it does not know which one is being hovered.
 internal u32
 gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
-    u32 state = GUI_DEFAULT; // the state of the calling gui component
+    u32 state = GUI_DEFAULT; // the state of the calling gui component        
 
     Button gui_select = {};
     if (*gui->input.active_input_type == KEYBOARD_INPUT) {
@@ -161,6 +161,10 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
 
         if (coords_in_rect(*gui->input.mouse, coords, dim)) {
             gui->hover = gui->index;
+
+            // don't hover anyways
+            if (gui->active != 0 && !gui->enabled)
+                gui->hover = 0;
         } else if (gui->hover == gui->index) {
             gui->hover = 0;
         }
@@ -233,6 +237,36 @@ gui_checkbox(GUI *gui, Draw_Style style, bool8 *value, const char *label, Vector
 
     gui->index++;
     return checkbox_pressed;
+}
+
+internal bool8
+gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count, u32 *option_selected, Vector2 coords, Vector2 dim) {
+    u32 state = gui_update(gui, coords, dim);
+    Rect rect = {};
+    rect.coords = coords;
+    rect.dim = dim;
+    draw_button(style, state, rect, options[*option_selected], gui->font, ALIGN_LEFT);
+    
+    if (gui->index == gui->active) {
+        Rect dropdown_rect = rect;
+        dropdown_rect.coords.y += rect.dim.y;
+        dropdown_rect.dim.y /= 2.0f;
+
+        gui->enabled = true;
+        gui->index++;
+        for(u32 i = 0; i < options_count; i++) {
+            if (gui_button(gui, style, options[i], dropdown_rect.coords, dropdown_rect.dim)) {
+                *option_selected = i;
+                gui->pressed = 0;
+                gui->active = 0;
+            }
+            dropdown_rect.coords.y += dropdown_rect.dim.y;
+        } 
+        gui->enabled = false;
+    } else { 
+        gui->index += options_count;
+    }
+    return true;
 }
 
 // move cursor to mouse based on how the textbox will be drawn
@@ -367,6 +401,8 @@ gui_textbox(GUI *gui, Draw_Style style, const char *label, const char *dest, Vec
                 } break;
             }
         } 
+    } else {
+        gui->edit.index = 0;
     }
     
     gui->edit.shift = draw_textbox(box);
@@ -498,6 +534,30 @@ menu_checkbox(Menu *menu, const char *label, bool8 *value, Vector2_s32 section_c
     do_menu_update(menu, coords, dim, section_coords, section_dim);
 
     return gui_checkbox(&menu->gui, menu->gui.style, value, label, coords, dim);
+}
+
+internal bool8
+menu_dropdown(Menu *menu, const char **options, u32 options_count, u32 *option_selected, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    Vector2 coords = get_screen_coords(menu, section_coords);
+    Vector2 dim = get_screen_dim(menu, section_dim);
+
+    if (menu->gui.active != menu->gui.index)
+        do_menu_update(menu, coords, dim, section_coords, section_dim);
+    else {
+        if (on_down(*menu->gui.input.down) || on_down(*menu->gui.input.right)) {
+            menu->gui.hover++;
+        }
+        if (on_down(*menu->gui.input.up) || on_down(*menu->gui.input.left)) {
+            menu->gui.hover--;
+        }
+
+        if (menu->gui.hover <= menu->gui.index)
+            menu->gui.hover = menu->gui.index + 1;
+        else if (menu->gui.hover > menu->gui.index + options_count)
+            menu->gui.hover = menu->gui.index + options_count;
+    }
+    
+    return gui_dropdown(&menu->gui, menu->gui.style, options, options_count, option_selected, coords, dim);
 }
  
 internal bool8
