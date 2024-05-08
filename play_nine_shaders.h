@@ -72,6 +72,4 @@ init_ray_comp_layout(Layout_Set *set, Layout layouts[10]) {
     set->add_layout(&layouts[7]);
     set->add_layout(&layouts[8]);
     set->add_layout(&layouts[9]);
-
-    //set->add_push(SHADER_STAGE_COMPUTE, sizeof(Object));
 }

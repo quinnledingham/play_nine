@@ -59,10 +59,6 @@ struct Vulkan_Info {
 		VK_EXT_DEBUG_UTILS_EXTENSION_NAME
 	};
 
-	u32 current_frame; // which frame to fill ie. MAX_FRAMES_IN_FLIGHT = 2 either 0 or 1
-
-	s32 window_width;
-	s32 window_height;
 	bool8 framebuffer_resized = false;
 	bool8 minimized;
 
@@ -105,6 +101,7 @@ struct Vulkan_Info {
 	Arr<VkImage> swap_chain_images;
 	Arr<VkImageView> swap_chain_image_views;
 
+	u32 current_frame; // which frame to fill ie. MAX_FRAMES_IN_FLIGHT = 2 either 0 or 1
 	// Set at the start of the frame for the current frame.
  	// What frame buffer that should be used for that frame.
 	u32 image_index; 
@@ -131,10 +128,9 @@ struct Vulkan_Info {
 	Vulkan_Texture color_texture; // MSAA
 
 	// Presentation
-	VkCommandBufferBeginInfo begin_info;
 	VkClearValue clear_values[2];
-
 	VkPipelineStageFlags wait_stages[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkCommandBufferBeginInfo begin_info;
 	VkRenderPassBeginInfo draw_render_pass_info;
 	VkRenderPassBeginInfo present_render_pass_info;
 	VkSubmitInfo submit_info;
@@ -142,8 +138,6 @@ struct Vulkan_Info {
 	VkPresentInfoKHR present_info;
 
 	// Shaders
-	u32 shader_handles[10];
-	u32 shader_count;
 	Shader *active_shader;
 
 	// Descriptor_Sets

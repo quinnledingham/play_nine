@@ -181,7 +181,7 @@ struct Descriptor {
 
 struct Layout {
     static const u32 max_bindings = 10;
-    static const u32 max_sets = 256;
+    static const u32 max_sets = 64;
 
     Layout_Binding bindings[max_bindings];
     u32 binding_count;
@@ -230,6 +230,17 @@ struct Layout_Set {
         push.size = size;
         push_constants[push_constants_count++] = push;
     }
+};
+
+struct Descriptor_v2 {
+
+};
+
+// Descriptors that get updated at the same time can be put in a a set
+struct Descriptor_Set {
+    u32 number; // set number in shader (i.e. set = 1)
+
+    Descriptor_v2 descriptors;
 };
 
 struct Shader {

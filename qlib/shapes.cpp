@@ -570,7 +570,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
 
             coords_v3.x += dim_v3.x / 2.0f;
             coords_v3.y += dim_v3.y / 2.0f; // coords = top left corner
-    		object.model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
+        		object.model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
             object.index = indices[i];
             render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));   
             

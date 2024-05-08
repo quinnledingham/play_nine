@@ -229,8 +229,6 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
 						        #ifdef OPENGL
                         //opengl_update_window(window);
                     #elif VULKAN
-                        vulkan_info.window_width = window->width;
-                        vulkan_info.window_height = window->height;
                         vulkan_info.framebuffer_resized = true;
 						        #elif DX12
 						            dx12_resize_window(&dx12_renderer, window);
@@ -316,11 +314,11 @@ sdl_set_icon(Bitmap *icon, SDL_Window *sdl_window) {
 }
 
 int main(int argc, char *argv[]) {
-	print("starting application...\n");
+    print("starting application...\n");
 
-	App app = {};
+    App app = {};
 
-	app.time.performance_frequency = SDL_GetPerformanceFrequency();
+    app.time.performance_frequency = SDL_GetPerformanceFrequency();
     app.time.start_ticks           = SDL_GetPerformanceCounter();
     app.time.last_frame_ticks      = app.time.start_ticks;
     
@@ -341,7 +339,7 @@ int main(int argc, char *argv[]) {
     
 #endif // OPENGL / DX12
 
-    SDL_Window *sdl_window = SDL_CreateWindow("play_nine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 720, 480, sdl_window_flags);
+    SDL_Window *sdl_window = SDL_CreateWindow("play_nine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1080, 720, sdl_window_flags);
     if (sdl_window == NULL) {
     	print(SDL_GetError());
     	return 1;

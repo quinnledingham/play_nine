@@ -390,12 +390,12 @@ vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR &capabilities, u32 wind
 }
 
 internal void
-vulkan_create_swap_chain(Vulkan_Info *info) {
+vulkan_create_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	Vulkan_Swap_Chain_Support_Details swap_chain_support = vulkan_query_swap_chain_support(info->physical_device, info->surface);
 
 	VkSurfaceFormatKHR surface_format = vulkan_choose_swap_surface_format(swap_chain_support.formats, swap_chain_support.formats_count);
 	VkPresentModeKHR present_mode = vulkan_choose_swap_present_mode(swap_chain_support.present_modes, swap_chain_support.present_modes_count);
-	VkExtent2D extent = vulkan_choose_swap_extent(swap_chain_support.capabilities, info->window_width, info->window_height);
+	VkExtent2D extent = vulkan_choose_swap_extent(swap_chain_support.capabilities, window_dim.width, window_dim.height);
 	print("extent_w: %d, extent_h: %d\n", extent.width, extent.height);
 
 	u32 image_count = swap_chain_support.capabilities.minImageCount + 1;
@@ -599,28 +599,31 @@ vulkan_create_present_render_pass() {
 internal bool8
 vulkan_create_draw_framebuffers(Vulkan_Info *info) {	
 	info->draw_framebuffers.resize(info->swap_chain_image_views.get_size());
-	u32 attachments_count = 3;
+	
+	VkImageView attachments[3];
+	VkFramebufferCreateInfo framebuffer_info = {};
+	framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+  framebuffer_info.renderPass      = info->draw_render_pass;
+  framebuffer_info.pAttachments    = attachments;
+  framebuffer_info.attachmentCount = 3;
+  framebuffer_info.width           = render_context.resolution.width;
+  framebuffer_info.height          = render_context.resolution.height;
+  framebuffer_info.layers          = 1;
+  
+	if (render_context.anti_aliasing) {
+		attachments[0] = info->color_texture.image_view;
+		attachments[1] = info->depth_texture.image_view;
+	} else {
+		framebuffer_info.attachmentCount = 2;
+		attachments[1] = info->depth_texture.image_view;
+	}
+  
 	for (u32 i = 0; i < info->draw_framebuffers.get_size(); i++) {	
-		VkImageView attachments[3];
 		if (render_context.anti_aliasing) {
-				attachments[0] = info->color_texture.image_view;
-				attachments[1] = info->depth_texture.image_view;
-				attachments[2] = info->draw_textures[i].image_view;
+			attachments[2] = info->draw_textures[i].image_view;
 		} else {
-			//info->color_image_view,
-			attachments_count = 2;
 			attachments[0] = info->draw_textures[i].image_view;
-			attachments[1] = info->depth_texture.image_view;
 		}
-
-		VkFramebufferCreateInfo framebuffer_info = {};
-		framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebuffer_info.renderPass      = info->draw_render_pass;
-    framebuffer_info.attachmentCount = attachments_count;
-    framebuffer_info.pAttachments    = attachments;
-    framebuffer_info.width           = render_context.resolution.width;
-    framebuffer_info.height          = render_context.resolution.height;
-    framebuffer_info.layers          = 1;
 
 		if (vkCreateFramebuffer(info->device, &framebuffer_info, nullptr, &info->draw_framebuffers[i]) != VK_SUCCESS) {
 			logprint("vulkan_create_frame_buffers()", "failed to create framebuffer\n");
@@ -634,19 +637,17 @@ vulkan_create_draw_framebuffers(Vulkan_Info *info) {
 internal bool8
 vulkan_create_swap_chain_framebuffers(Vulkan_Info *info) {	
 	info->swap_chain_framebuffers.resize(info->swap_chain_image_views.get_size());
-	u32 attachments_count = 1;
-	for (u32 i = 0; i < info->swap_chain_framebuffers.get_size(); i++) {
-		VkImageView attachments[1];
-		attachments[0] = info->swap_chain_image_views[i];
 
-		VkFramebufferCreateInfo framebuffer_info = {};
-		framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebuffer_info.renderPass      = info->present_render_pass;
-    framebuffer_info.attachmentCount = attachments_count;
-    framebuffer_info.pAttachments    = attachments;
-    framebuffer_info.width           = info->swap_chain_extent.width;
-    framebuffer_info.height          = info->swap_chain_extent.height;
-    framebuffer_info.layers          = 1;
+	VkFramebufferCreateInfo framebuffer_info = {};
+	framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebuffer_info.renderPass      = info->present_render_pass;
+	framebuffer_info.attachmentCount = 1;
+	framebuffer_info.width           = info->swap_chain_extent.width;
+	framebuffer_info.height          = info->swap_chain_extent.height;
+	framebuffer_info.layers          = 1;
+	
+	for (u32 i = 0; i < info->swap_chain_framebuffers.get_size(); i++) {
+		framebuffer_info.pAttachments = &info->swap_chain_image_views[i];
 
 		if (vkCreateFramebuffer(info->device, &framebuffer_info, nullptr, &info->swap_chain_framebuffers[i]) != VK_SUCCESS) {
 			logprint("vulkan_create_frame_buffers()", "failed to create framebuffer\n");
@@ -1605,7 +1606,7 @@ vulkan_cleanup_swap_chain(Vulkan_Info *info) {
 }
 
 internal void
-vulkan_recreate_swap_chain(Vulkan_Info *info) {
+vulkan_recreate_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	vkDeviceWaitIdle(info->device);
 
 	vulkan_cleanup_swap_chain(info);
@@ -1613,7 +1614,7 @@ vulkan_recreate_swap_chain(Vulkan_Info *info) {
 	vulkan_destroy_texture(&info->color_texture);
 	vulkan_destroy_texture(&info->depth_texture);
 
-	vulkan_create_swap_chain(info);
+	vulkan_create_swap_chain(info, window_dim);
 	vulkan_create_swap_chain_image_views(info);
 	vulkan_create_color_resources();
 	vulkan_create_depth_resources(info);
@@ -1775,8 +1776,6 @@ vulkan_init_presentation_settings(Vulkan_Info *info) {
 bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	Vulkan_Info *info = &vulkan_info;
 
-	SDL_GetWindowSize(sdl_window, &info->window_width, &info->window_height);
-
 	if (info->validation_layers.enable && !vulkan_check_validation_layer_support(info->validation_layers)) {
 		logprint("vulkan_init()", "validation layers requested, but not avaiable\n");
 	}
@@ -1815,7 +1814,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	
 	vulkan_create_logical_device(info);
 	
-	vulkan_create_swap_chain(info);
+	vulkan_create_swap_chain(info, render_context.window_dim);
 	vulkan_create_swap_chain_image_views(info);
 	if (vulkan_create_draw_render_pass(info)) return 1;
 	if (vulkan_create_present_render_pass()) return 1;
@@ -1829,18 +1828,22 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	vulkan_create_color_resources();
 	if (vulkan_create_draw_framebuffers(info)) return 1;
 	if (vulkan_create_swap_chain_framebuffers(info)) return 1;
+
+	//
+	// Buffers
+	//
 	
 	vulkan_create_buffer(info->device, 
-                         info->physical_device,
-                         VULKAN_STATIC_BUFFER_SIZE, 
-                         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                         info->static_buffer.handle,
-                         info->static_buffer.memory);
+                       info->physical_device,
+                       VULKAN_STATIC_BUFFER_SIZE, 
+                       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                       info->static_buffer.handle,
+                       info->static_buffer.memory);
 
 
 	vulkan_create_buffer(info->device, 
-            			 info->physical_device,
+		            			 info->physical_device,
                      	 VULKAN_STATIC_UNIFORM_BUFFER_SIZE, 
                      	 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      	 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -1855,7 +1858,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
                      	 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                      	 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      	 info->dynamic_uniform_buffer.handle,
-                      	 info->dynamic_uniform_buffer.memory);
+                    	 info->dynamic_uniform_buffer.memory);
 	
 	vkMapMemory(info->device, info->dynamic_uniform_buffer.memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.dynamic_uniform_buffer.data);
 
@@ -1865,7 +1868,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
                      	 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
                      	 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                      	 info->storage_buffer.handle,
-                      	 info->storage_buffer.memory);
+                    	 info->storage_buffer.memory);
 	vkMapMemory(info->device, info->storage_buffer.memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.storage_buffer.data);
 
 	vulkan_create_buffer(info->device, 
@@ -1874,7 +1877,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
                      	 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
                      	 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                      	 info->triangle_buffer.handle,
-                      	 info->triangle_buffer.memory);
+                    	 info->triangle_buffer.memory);
 	vkMapMemory(info->device, info->triangle_buffer.memory, 0, VK_WHOLE_SIZE, 0, &vulkan_info.triangle_buffer.data);
 
 	vulkan_init_presentation_settings(info);
@@ -1885,9 +1888,9 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	VkDescriptorPoolSize pool_sizes[3] = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = 10000;
+	pool_sizes[0].descriptorCount = 1000;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[1].descriptorCount = 10000;
+	pool_sizes[1].descriptorCount = 1000;
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	pool_sizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT * 2;
 
@@ -1993,7 +1996,7 @@ bool8 vulkan_start_frame() {
                                           &vulkan_info.image_index);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    vulkan_recreate_swap_chain(&vulkan_info);
+    vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
 		VkExtent2D resolution = {};
 		resolution.width = render_context.resolution.width;
 		resolution.height = render_context.resolution.height;
@@ -2047,7 +2050,7 @@ void vulkan_end_frame(Assets *assets) {
   object.index = render_set_bitmap(&desc, &bitmap);
   render_bind_descriptor_set(desc);
 
-  object.model = create_transform_m4x4({ float32(vulkan_info.window_width) / 2.0f, float32(vulkan_info.window_height) / 2.0f }, get_rotation(0, {0, 1, 0}), { float32(vulkan_info.window_width), float32(vulkan_info.window_height) });
+  object.model = create_transform_m4x4({ float32(vulkan_info.swap_chain_extent.width) / 2.0f, float32(vulkan_info.swap_chain_extent.height) / 2.0f }, get_rotation(0, {0, 1, 0}), { float32(vulkan_info.swap_chain_extent.width), float32(vulkan_info.swap_chain_extent.height) });
   render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
   render_draw_mesh(&shapes.rect_mesh);
   
@@ -2075,7 +2078,7 @@ void vulkan_end_frame(Assets *assets) {
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkan_info.framebuffer_resized) {
 		vulkan_info.framebuffer_resized = false;
-		vulkan_recreate_swap_chain(&vulkan_info);
+		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
 		VkExtent2D resolution = {};
 		resolution.width = render_context.resolution.width;
 		resolution.height = render_context.resolution.height;
@@ -2213,25 +2216,25 @@ vulkan_init_bitmaps(VkDescriptorSet *sets, u32 num_of_sets, Bitmap *bitmap, Layo
 
 	VkDescriptorImageInfo image_info[TEXTURE_ARRAY_SIZE] = {};
 	for (u32 i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
-    	image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    	image_info[i].imageView = texture->image_view;
-    	image_info[i].sampler = texture->sampler;
+		image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_info[i].imageView = texture->image_view;
+		image_info[i].sampler = texture->sampler;
 	}
 
-    VkWriteDescriptorSet write_set = {};
-    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_set.dstBinding = layout_binding->binding;
-    write_set.dstArrayElement = 0;
-    write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write_set.descriptorCount = TEXTURE_ARRAY_SIZE;
-    write_set.pImageInfo = image_info;
+	VkWriteDescriptorSet write_set = {};
+	write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write_set.dstBinding = layout_binding->binding;
+	write_set.dstArrayElement = 0;
+	write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	write_set.descriptorCount = TEXTURE_ARRAY_SIZE;
+	write_set.pImageInfo = image_info;
 
 	for (u32 i = 0; i < num_of_sets; i++) {
 		write_sets[i] = write_set;
-    	write_sets[i].dstSet = sets[i];
+		write_sets[i].dstSet = sets[i];
 	}
 
-    vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
+  vkUpdateDescriptorSets(vulkan_info.device, num_of_sets, write_sets, 0, nullptr);
 
 	platform_free(write_sets);
 }
@@ -2273,12 +2276,12 @@ void vulkan_create_set_layout(Layout *layout) {
 // Descriptor Set Usage
 
 Descriptor vulkan_get_descriptor_set(Layout *layout) {
-    if (layout->sets_in_use + 1 > layout->max_sets)
-        ASSERT(0);
+  if (layout->sets_in_use + 1 > layout->max_sets)
+      ASSERT(0);
 
-    u32 return_index = layout->sets_in_use++;
-    if (vulkan_info.current_frame == 1)
-        return_index += layout->max_sets / 2;
+  u32 return_index = layout->sets_in_use++;
+  if (vulkan_info.current_frame == 1)
+      return_index += layout->max_sets / 2;
 
 	Descriptor desc = {};
 	desc.binding = layout->bindings[0];
@@ -2286,7 +2289,7 @@ Descriptor vulkan_get_descriptor_set(Layout *layout) {
 	desc.set_number = layout->set_number;
 	desc.vulkan_set = &layout->descriptor_sets[return_index];
 
-    return desc;
+  return desc;
 }
 
 Descriptor vulkan_get_descriptor_set_index(Layout *layout, u32 return_index) {
