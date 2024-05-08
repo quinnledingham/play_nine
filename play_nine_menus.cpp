@@ -459,9 +459,9 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
 
 internal void
 draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
-    menu->sections = { 1, 4 };
+    menu->sections = { 1, 5 };
     menu->interact_region[0] = { 0, 1 };
-    menu->interact_region[1] = { 1, 4 };
+    menu->interact_region[1] = { 1, 5 };
     
     menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window->dim), 0.5f, 0.5f);
     menu->start();
@@ -482,9 +482,25 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     if (menu_checkbox(menu, "VSync", &render_context.vsync, { 0, 2 }, { 1, 1 })) {
         vulkan_info.framebuffer_resized = true;
     }
-    if (menu_button(menu, "Back", { 0, 3 }, { 1, 1 })) {
+    if (menu_button(menu, "Back", { 0, 4 }, { 1, 1 })) {
         menu->hover_section = menu->interact_region[0];
         state->menu_list.mode = SETTINGS_MENU;
+    }
+    const char *resolution_modes[4] = {
+        " 720 x  480",
+        "1280 x  720",
+        "1920 x 1080",
+        "3840 x 2160"
+    };
+    if (menu_dropdown(menu, resolution_modes, 4, &render_context.resolution_mode, { 0, 3 }, { 1, 1 })) {
+        vulkan_info.framebuffer_resized = true;
+
+        switch(render_context.resolution_mode) {
+            case RESOLUTION_480P:  render_context.resolution = {  720, 480  }; break;
+            case RESOLUTION_720P:  render_context.resolution = { 1280, 720  }; break;
+            case RESOLUTION_1080P: render_context.resolution = { 1920, 1080 }; break;
+            case RESOLUTION_2160P: render_context.resolution = { 3840, 2160 }; break;
+        }
     }
     const char *fullscreen_modes[3] = {
         "Windowed",
@@ -492,10 +508,8 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         "Windowed Fullscreen"
     };
     if (menu_dropdown(menu, fullscreen_modes, 3, (u32*)&window->display_mode, { 0, 1 }, { 1, 1 })) {
-        //app_toggle_fullscreen(window);
-        if (window->display_mode == DISPLAY_MODE_WINDOWED_FULLSCREEN) {
-            render_context.resolution = { 1280, 720 };
-        }
+        window->new_display_mode = true;
+        vulkan_info.framebuffer_resized = true;
     }
     menu->end();
 }

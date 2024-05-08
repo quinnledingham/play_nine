@@ -1435,7 +1435,7 @@ vulkan_create_image_view(VkDevice device, VkImage image, VkFormat format, VkImag
 internal void
 vulkan_create_depth_resources(Vulkan_Info *info) {
 	info->depth_texture.image_format = vulkan_find_depth_format(info->physical_device);
-	vulkan_create_image(info->device, info->physical_device, info->swap_chain_extent.width, info->swap_chain_extent.height, 1, info->msaa_samples, info->depth_texture.image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, info->depth_texture.image, info->depth_texture.image_memory);
+	vulkan_create_image(info->device, info->physical_device, render_context.resolution.width, render_context.resolution.height, 1, info->msaa_samples, info->depth_texture.image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, info->depth_texture.image, info->depth_texture.image_memory);
 	info->depth_texture.image_view = vulkan_create_image_view(info->device, info->depth_texture.image, info->depth_texture.image_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 	vulkan_transition_image_layout(info, info->depth_texture.image, info->depth_texture.image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);	
 }
@@ -1444,7 +1444,7 @@ internal void
 vulkan_create_color_resources() {
 	vulkan_info.color_texture.image_format = vulkan_info.swap_chain_image_format;
 
-  vulkan_create_image(vulkan_info.device, vulkan_info.physical_device, vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height, 1, vulkan_info.msaa_samples, vulkan_info.color_texture.image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vulkan_info.color_texture.image, vulkan_info.color_texture.image_memory);
+  vulkan_create_image(vulkan_info.device, vulkan_info.physical_device, render_context.resolution.width, render_context.resolution.height, 1, vulkan_info.msaa_samples, vulkan_info.color_texture.image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vulkan_info.color_texture.image, vulkan_info.color_texture.image_memory);
   vulkan_info.color_texture.image_view = vulkan_create_image_view(vulkan_info.device, vulkan_info.color_texture.image, vulkan_info.color_texture.image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 }
 
@@ -1591,8 +1591,14 @@ vulkan_cleanup_swap_chain(Vulkan_Info *info) {
 		vkDestroyFramebuffer(info->device, info->swap_chain_framebuffers[i], nullptr);
 	}
 
+	for (u32 i = 0; i < info->draw_framebuffers.get_size(); i++) {
+		vkDestroyFramebuffer(info->device, info->draw_framebuffers[i], nullptr);
+	}
+
 	for (u32 i = 0; i < info->swap_chain_image_views.get_size(); i++) {
 		vkDestroyImageView(info->device, info->swap_chain_image_views[i], nullptr);
+		vulkan_destroy_texture(&info->draw_textures[i]);
+		vkDestroySampler(vulkan_info.device, info->draw_textures[i].sampler, nullptr);
 	}
 
 	vkDestroySwapchainKHR(info->device, info->swap_chains[0], nullptr);
@@ -1988,7 +1994,10 @@ bool8 vulkan_start_frame() {
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     vulkan_recreate_swap_chain(&vulkan_info);
-		//vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
+		VkExtent2D resolution = {};
+		resolution.width = render_context.resolution.width;
+		resolution.height = render_context.resolution.height;
+		vulkan_info.draw_render_pass_info.renderArea.extent = resolution;
 		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
 		return 1;
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -2067,7 +2076,10 @@ void vulkan_end_frame(Assets *assets) {
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkan_info.framebuffer_resized) {
 		vulkan_info.framebuffer_resized = false;
 		vulkan_recreate_swap_chain(&vulkan_info);
-		//vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
+		VkExtent2D resolution = {};
+		resolution.width = render_context.resolution.width;
+		resolution.height = render_context.resolution.height;
+		vulkan_info.draw_render_pass_info.renderArea.extent = resolution;
 		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
 	} else if (result != VK_SUCCESS) {
 		logprint("vulkan_draw_frame()", "failed to acquire swap chain");
@@ -2092,7 +2104,7 @@ void vulkan_init_mesh(Mesh *mesh) {
     memcpy(memory, (void*)mesh->vertices, vertices_size);
     memcpy((char*)memory + vertices_size, (void*)mesh->indices, indices_size);
 
-	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.static_buffer.offset, buffer_size, VULKAN_STATIC_BUFFER_SIZE, false);
+		vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_info.static_buffer.offset, buffer_size, VULKAN_STATIC_BUFFER_SIZE, false);
 
     vulkan_update_buffer(&vulkan_info, &vulkan_info.static_buffer.handle, &vulkan_info.static_buffer.memory, memory, buffer_size, vulkan_mesh->vertices_offset);
     vulkan_mesh->indices_offset = vulkan_mesh->vertices_offset + vertices_size;

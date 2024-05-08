@@ -129,8 +129,16 @@ RENDER_FUNC(Descriptor, get_descriptor_set_index, Layout *layout, u32 return_ind
 
 void render_init_model(Model *model);
 
+enum Resolution_Modes {
+    RESOLUTION_480P,
+    RESOLUTION_720P,
+    RESOLUTION_1080P,
+    RESOLUTION_2160P
+};
+
 struct Render {
     Vector2_s32 window_dim;
+    u32 resolution_mode;
     Vector2_s32 resolution;
     bool8 vsync;
     bool8 anti_aliasing = FALSE;

@@ -246,7 +246,8 @@ gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count
     rect.coords = coords;
     rect.dim = dim;
     draw_button(style, state, rect, options[*option_selected], gui->font, ALIGN_LEFT);
-    
+
+    bool8 value_selected = false;
     if (gui->index == gui->active) {
         Rect dropdown_rect = rect;
         dropdown_rect.coords.y += rect.dim.y;
@@ -259,6 +260,7 @@ gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count
                 *option_selected = i;
                 gui->pressed = 0;
                 gui->active = 0;
+                value_selected = true;
             }
             dropdown_rect.coords.y += dropdown_rect.dim.y;
         } 
@@ -266,7 +268,7 @@ gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count
     } else { 
         gui->index += options_count;
     }
-    return true;
+    return value_selected;
 }
 
 // move cursor to mouse based on how the textbox will be drawn

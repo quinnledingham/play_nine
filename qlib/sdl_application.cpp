@@ -375,12 +375,15 @@ int main(int argc, char *argv[]) {
 
         if (sdl_process_input(&app, &app.window, &app.input, sdl_window)) 
             break;
-        sdl_set_fullscreen(sdl_window, app.window.display_mode);
 
         sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
         //print("%f\n", app.time.run_time_s);
 
+        if (app.window.new_display_mode) {
+            app.window.new_display_mode = false;
+            sdl_set_fullscreen(sdl_window, app.window.display_mode);
+        }
         if (app.window.minimized)
             continue;
 

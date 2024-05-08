@@ -18,6 +18,8 @@ struct App_Window {
 	float32 aspect_ratio;
 	bool8 resized;
 	bool8 minimized;
+
+	bool8 new_display_mode;
 	enum Display_Modes display_mode;
 };
 
