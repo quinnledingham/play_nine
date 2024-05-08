@@ -242,6 +242,7 @@ bool8 update_game(State *state, App *app) {
         case PLAYER_CAMERA: {
             if (on_down(state->controller.pause)) {
                 state->menu_list.mode = PAUSE_MENU;
+                state->menu_list.menus[PAUSE_MENU].gui.close_at_end = true;
             }
             
             if (on_down(state->controller.camera_toggle)) {
@@ -507,6 +508,8 @@ bool8 update(App *app) {
             draw_string_tl(font, round_types[state->game.round_type], round_coords, pixel_height, { 255, 255, 255, 1 });
 
             gui.start();
+            gui.rect.coords = { 0, 0 };
+            gui.rect.dim = cv2(app->window.dim);
             gui.input = {
                 &app->input.active,
                 

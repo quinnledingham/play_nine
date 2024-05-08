@@ -241,14 +241,21 @@ gui_checkbox(GUI *gui, Draw_Style style, bool8 *value, const char *label, Vector
 
 internal bool8
 gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count, u32 *option_selected, Vector2 coords, Vector2 dim) {
+    bool8 previous_active = gui->active;
+    
     u32 state = gui_update(gui, coords, dim);
     Rect rect = {};
     rect.coords = coords;
     rect.dim = dim;
     draw_button(style, state, rect, options[*option_selected], gui->font, ALIGN_LEFT);
-
+        
     bool8 value_selected = false;
     if (gui->index == gui->active) {
+        // set the first active to be the selected option
+        if (previous_active != gui->active) {
+            gui->hover = gui->index + *option_selected + 1;
+        }
+        
         Rect dropdown_rect = rect;
         dropdown_rect.coords.y += rect.dim.y;
         dropdown_rect.dim.y /= 2.0f;

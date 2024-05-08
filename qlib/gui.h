@@ -125,16 +125,19 @@ struct GUI {
 
     // dropdown
     bool8 enabled; // when true in gui_update the check if something else is active is disabled
-    
-    u32 dropdown_index;
-    const char **dropdown_options;
-    u32 dropdown_options_count;
-    u32 *dropdown_options_selected;
-    Rect dropdown_rect;
+
+    bool8 close_at_end;
 
     void start() { 
         index = 1; 
     };
+
+    void close() {
+        hover = 0;
+        pressed = 0;
+        active = 0;
+        edit.index = 0;
+    }
     
 /*
     bool8 is_hover(Rect rect) {
@@ -186,6 +189,12 @@ struct Menu {
 
     void end() {
         hover_section = hover_section_updated;
+
+        if (gui.close_at_end) {
+            gui.close_at_end = false;
+            hover_section = interact_region[0];
+            gui.close();
+        }
     }
 };
 

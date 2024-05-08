@@ -4,7 +4,7 @@ quit_to_main_menu(State *state, Menu *menu) {
 
     state->menu_list.mode = MAIN_MENU;
     state->game.num_of_players = 1;
-    menu->hover_section = { 0, 0 };
+    menu->gui.close_at_end = true;
 
     if (state->is_server) {
         state->is_server = false;
@@ -390,6 +390,7 @@ draw_host_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     }
     if (menu_button(menu, "Back", { 1, 1 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;
+        menu->gui.close_at_end = true;
     }
     menu->end();
 }
@@ -419,8 +420,8 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
         }
     }
     if (menu_button(menu, "Back", { 1, 3 }, { 1, 1 })) {
-        menu->hover_section = menu->interact_region[0];
         state->menu_list.mode = MAIN_MENU;
+        menu->gui.close_at_end = true;
     }
     menu->end();
 }
@@ -438,6 +439,7 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     if (on_up(state->controller.pause)) {
         menu->hover_section = menu->interact_region[0];
         state->menu_list.mode = state->menu_list.previous_mode;
+        return;
     }
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
@@ -451,8 +453,8 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
         state->menu_list.mode = SCOREBOARD_MENU;    
     }
     if (menu_button(menu, "Back", { 0, 3 }, { 1, 1 })) {
-        menu->hover_section = menu->interact_region[0];
         state->menu_list.mode = state->menu_list.previous_mode;
+        menu->gui.close_at_end = true;
     }
     menu->end();
 }
@@ -469,8 +471,8 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
 
     if (on_up(state->controller.pause)) {
         if (menu->gui.active == 0) {
-            menu->hover_section = menu->interact_region[0];
             state->menu_list.mode = SETTINGS_MENU;
+            menu->gui.close_at_end = true;
         } else {
             menu->gui.pressed = 0;
             menu->gui.active = 0;
@@ -483,8 +485,8 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         vulkan_info.framebuffer_resized = true;
     }
     if (menu_button(menu, "Back", { 0, 4 }, { 1, 1 })) {
-        menu->hover_section = menu->interact_region[0];
         state->menu_list.mode = SETTINGS_MENU;
+        menu->gui.close_at_end = true;
     }
     const char *resolution_modes[4] = {
         " 720 x  480",
