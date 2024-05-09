@@ -261,10 +261,12 @@ gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count
         dropdown_rect.dim.y /= 2.0f;
 
         gui->enabled = true;
+        u32 dropdown_menu_index = gui->index;
         gui->index++;
         for(u32 i = 0; i < options_count; i++) {
             if (gui_button(gui, style, options[i], dropdown_rect.coords, dropdown_rect.dim)) {
                 *option_selected = i;
+                gui->hover = dropdown_menu_index;
                 gui->pressed = 0;
                 gui->active = 0;
                 value_selected = true;

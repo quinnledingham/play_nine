@@ -435,14 +435,14 @@ bool8 update(App *app) {
     for (u32 i = 0; i < 10; i++) {
         layouts[i].reset();
     }
+
     
     if (render_start_frame())
         goto AFTER_DRAW;
 
     texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
-    //render_set_viewport(render_context.resolution.width, render_context.resolution.height);
-    render_set_viewport(app->window.dim.width, app->window.dim.height);
+    render_set_viewport(render_context.resolution.width, render_context.resolution.height);
     render_context.scissor_stack_index = 0;
     render_context.scissor_push({ 0, 0 }, cv2(app->window.dim));
 
@@ -558,6 +558,9 @@ bool8 update(App *app) {
         } break;
     }
 
+    if (on_up(state->controller.discard)) {
+        app->window.new_display_mode = true;
+    }
     draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
 
 //#ifdef DEBUG

@@ -509,9 +509,15 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         "Fullscreen",
         "Windowed Fullscreen"
     };
-    if (menu_dropdown(menu, fullscreen_modes, 3, (u32*)&window->display_mode, { 0, 1 }, { 1, 1 })) {
+    u32 test = 0;
+    if (menu_dropdown(menu, fullscreen_modes, 3, &test, { 0, 1 }, { 1, 1 })) {
         window->new_display_mode = true;
-        window->resized = true;
+        //window->resized = true;
+        //app_toggle_fullscreen(window);
+    }
+    if (on_up(state->controller.pile)) {
+        window->new_display_mode = true;
     }
     menu->end();
+    
 }
