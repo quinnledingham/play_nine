@@ -59,7 +59,6 @@ struct Vulkan_Info {
 		VK_EXT_DEBUG_UTILS_EXTENSION_NAME
 	};
 
-	bool8 framebuffer_resized = false;
 	bool8 minimized;
 
 	Vulkan_Validation_Layers validation_layers;

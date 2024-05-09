@@ -141,10 +141,10 @@ void * array_malloc(u32 size, u32 n) {
 #endif // OS
 
 #include "shapes.h"
+#include "application.h"
 #include "render.h"
 #include "play_nine_raytrace.h"
 #include "play_nine_shaders.h"
-#include "application.h"
 #include "input.h"
 #include "gui.h"
 #include "qsock.h"
@@ -194,8 +194,11 @@ sdl_update_time(App_Time *time) {
 internal void
 sdl_set_fullscreen(SDL_Window *sdl_window, enum Display_Modes display_mode) {
     switch(display_mode) {
-        case DISPLAY_MODE_WINDOWED: SDL_SetWindowFullscreen(sdl_window, 0); break;
-        case DISPLAY_MODE_FULLSCREEN: SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN); break;
+        case DISPLAY_MODE_WINDOWED: 
+            if (SDL_SetWindowFullscreen(sdl_window, 0) < 0)
+                print(SDL_GetError());      
+        break;
+        //case DISPLAY_MODE_FULLSCREEN: SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN); break;
         case DISPLAY_MODE_WINDOWED_FULLSCREEN: SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP); break;
     }
 }
@@ -210,14 +213,14 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
     
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
-		switch(event.type) {
-			case SDL_QUIT: {
+    		switch(event.type) {
+            case SDL_QUIT: {
                 return true;
             } break;
 
-			case SDL_WINDOWEVENT: {
+            case SDL_WINDOWEVENT: {
                 SDL_WindowEvent *window_event = &event.window;
-                
+
                 switch(window_event->event) {
                     case SDL_WINDOWEVENT_RESIZED:
                     case SDL_WINDOWEVENT_SIZE_CHANGED: {
@@ -225,14 +228,14 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
                         window->height = window_event->data2;
                         window->resized = true;
                         render_context.window_dim = window->dim;
-                        
-						        #ifdef OPENGL
+        
+                    #ifdef OPENGL
                         //opengl_update_window(window);
+                        render_context.resolution = window->dim;
                     #elif VULKAN
-                        vulkan_info.framebuffer_resized = true;
-						        #elif DX12
-						            dx12_resize_window(&dx12_renderer, window);
-						        #endif // OPENGL / DX12
+                    #elif DX12
+                        dx12_resize_window(&dx12_renderer, window);
+                    #endif // OPENGL / DX12
                         event_handler(app, APP_RESIZED, 0);
                     } break;
 
@@ -295,15 +298,16 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
                 u32 key_id = keyboard_event->keysym.sym;
                 if (key_id == SDLK_F11) {
                     app_toggle_fullscreen(window);
-                   break;
+                    sdl_set_fullscreen(sdl_window, window->display_mode);
+                    break;
                 }
                 event_handler(app, APP_KEYUP, key_id);
             } break;    
-		}
-	}
+		    }
+    }
 
     app_input_buffer = false;
-	return false;
+    return false;
 }
 
 internal void
@@ -322,7 +326,7 @@ int main(int argc, char *argv[]) {
     app.time.start_ticks           = SDL_GetPerformanceCounter();
     app.time.last_frame_ticks      = app.time.start_ticks;
     
-	u32 sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO;
+    u32 sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO;
     if (SDL_Init(sdl_init_flags)) {
     	print(SDL_GetError());
     	return 1;
@@ -373,17 +377,17 @@ int main(int argc, char *argv[]) {
 
         if (sdl_process_input(&app, &app.window, &app.input, sdl_window)) 
             break;
-
+        
         sdl_update_time(&app.time);
         //print("%f\n", app.time.frames_per_s);
         //print("%f\n", app.time.run_time_s);
 
-        if (app.window.new_display_mode) {
-            app.window.new_display_mode = false;
-            sdl_set_fullscreen(sdl_window, app.window.display_mode);
-        }
         if (app.window.minimized)
             continue;
+        //if (app.window.new_display_mode) {
+        //    app.window.new_display_mode = false;
+            sdl_set_fullscreen(sdl_window, app.window.display_mode);
+        //}
 
         if (app.update(&app))
             break;

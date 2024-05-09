@@ -441,7 +441,8 @@ bool8 update(App *app) {
 
     texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
-    render_set_viewport(render_context.resolution.width, render_context.resolution.height);
+    //render_set_viewport(render_context.resolution.width, render_context.resolution.height);
+    render_set_viewport(app->window.dim.width, app->window.dim.height);
     render_context.scissor_stack_index = 0;
     render_context.scissor_push({ 0, 0 }, cv2(app->window.dim));
 
@@ -566,7 +567,7 @@ bool8 update(App *app) {
     draw_string_tl(default_font, buffer, { 10, (float32)app->window.dim.height - 40 }, 40.0f, { 255, 50, 50, 1 });
 //#endif // DEBUG
 
-    render_end_frame(&state->assets);
+    render_end_frame(&state->assets, &app->window);
     AFTER_DRAW:
 
     //if (state->is_client )//&& state->previous_menu != IN_GAME)
@@ -613,7 +614,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))

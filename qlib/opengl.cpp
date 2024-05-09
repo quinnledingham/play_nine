@@ -50,16 +50,18 @@ void opengl_clear_color(Vector4 color) {
     glClearColor(color.r, color.g, color.b, color.a);
 }
 
-void opengl_start_frame() {
+bool8 opengl_start_frame() {
     u32 gl_clear_flags = 
             GL_COLOR_BUFFER_BIT  | 
             GL_DEPTH_BUFFER_BIT  | 
             GL_STENCIL_BUFFER_BIT;
 
     glClear(gl_clear_flags);
+
+    return 0;
 }
 
-void opengl_end_frame() {
+void opengl_end_frame(Assets *assets, App_Window *window) {
     SDL_GL_SwapWindow(opengl_info.sdl_window);
 }
 

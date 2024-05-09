@@ -99,7 +99,7 @@ enum Texture_Parameters {
 RENDER_FUNC(bool8, sdl_init, SDL_Window *sdl_window);
 RENDER_FUNC(void, clear_color, Vector4 color);
 RENDER_FUNC(bool8, start_frame, );
-RENDER_FUNC(void, end_frame, Assets *assets);
+RENDER_FUNC(void, end_frame, Assets *assets, App_Window *window);
 RENDER_FUNC(void, cleanup);
 RENDER_FUNC(void, create_graphics_pipeline, Render_Pipeline *pipeline, Vertex_Info vertex_info);
 RENDER_FUNC(void, create_compute_pipeline, Compute_Pipeline *pipeline);

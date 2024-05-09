@@ -482,7 +482,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     menu_text(menu, "Video Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
     
     if (menu_checkbox(menu, "VSync", &render_context.vsync, { 0, 2 }, { 1, 1 })) {
-        vulkan_info.framebuffer_resized = true;
+        window->resized = true;
     }
     if (menu_button(menu, "Back", { 0, 4 }, { 1, 1 })) {
         state->menu_list.mode = SETTINGS_MENU;
@@ -495,7 +495,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         "3840 x 2160"
     };
     if (menu_dropdown(menu, resolution_modes, 4, &render_context.resolution_mode, { 0, 3 }, { 1, 1 })) {
-        vulkan_info.framebuffer_resized = true;
+        window->resized = true;
 
         switch(render_context.resolution_mode) {
             case RESOLUTION_480P:  render_context.resolution = {  720, 480  }; break;
@@ -511,7 +511,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     };
     if (menu_dropdown(menu, fullscreen_modes, 3, (u32*)&window->display_mode, { 0, 1 }, { 1, 1 })) {
         window->new_display_mode = true;
-        vulkan_info.framebuffer_resized = true;
+        window->resized = true;
     }
     menu->end();
 }

@@ -2025,7 +2025,7 @@ bool8 vulkan_start_frame() {
 
 Render_Pipeline present_pipeline;
 
-void vulkan_end_frame(Assets *assets) {
+void vulkan_end_frame(Assets *assets, App_Window *window) {
 	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
 
 	vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.present_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
@@ -2076,8 +2076,7 @@ void vulkan_end_frame(Assets *assets) {
 	
 	VkResult result = vkQueuePresentKHR(vulkan_info.present_queue, &vulkan_info.present_info);
 
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkan_info.framebuffer_resized) {
-		vulkan_info.framebuffer_resized = false;
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || window->resized) {
 		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
 		VkExtent2D resolution = {};
 		resolution.width = render_context.resolution.width;
