@@ -242,6 +242,7 @@ gui_checkbox(GUI *gui, Draw_Style style, bool8 *value, const char *label, Vector
 internal bool8
 gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count, u32 *option_selected, Vector2 coords, Vector2 dim) {
     bool8 previous_active = gui->active;
+    u32 dropdown_menu_index = gui->index;
     
     u32 state = gui_update(gui, coords, dim);
     Rect rect = {};
@@ -261,22 +262,24 @@ gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count
         dropdown_rect.dim.y /= 2.0f;
 
         gui->enabled = true;
-        u32 dropdown_menu_index = gui->index;
         gui->index++;
         for(u32 i = 0; i < options_count; i++) {
             if (gui_button(gui, style, options[i], dropdown_rect.coords, dropdown_rect.dim)) {
+                if (*option_selected != i) // only trigger when a new value is picked
+                    value_selected = true;
+            
                 *option_selected = i;
                 gui->hover = dropdown_menu_index;
                 gui->pressed = 0;
                 gui->active = 0;
-                value_selected = true;
             }
             dropdown_rect.coords.y += dropdown_rect.dim.y;
         } 
         gui->enabled = false;
-    } else { 
-        gui->index += options_count;
     }
+    
+    gui->index = dropdown_menu_index + options_count + 1;
+
     return value_selected;
 }
 

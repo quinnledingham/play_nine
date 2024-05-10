@@ -162,3 +162,4 @@ struct Vulkan_Mesh {
 #define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000
 
 global Vulkan_Info vulkan_info = {};
+Render_Pipeline present_pipeline;

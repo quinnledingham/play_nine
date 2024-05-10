@@ -439,7 +439,6 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     if (on_up(state->controller.pause)) {
         menu->hover_section = menu->interact_region[0];
         state->menu_list.mode = state->menu_list.previous_mode;
-        return;
     }
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );

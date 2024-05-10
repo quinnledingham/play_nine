@@ -1581,7 +1581,7 @@ vulkan_create_swap_chain_image_views(Vulkan_Info *info) {
 		info->draw_textures[i].image_format = VK_FORMAT_B8G8R8A8_SRGB;
 		vulkan_create_image(info->device, info->physical_device, render_context.resolution.width, render_context.resolution.height, 1, VK_SAMPLE_COUNT_1_BIT, info->draw_textures[i].image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, info->draw_textures[i].image, info->draw_textures[i].image_memory);
 		info->draw_textures[i].image_view = vulkan_create_image_view(info->device, info->draw_textures[i].image, info->draw_textures[i].image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-		vulkan_create_texture_sampler(&info->draw_textures[i], TEXTURE_PARAMETERS_DEFAULT, 1);
+		vulkan_create_texture_sampler(&info->draw_textures[i], TEXTURE_PARAMETERS_CHAR, 1);
 		
 	}
 }
@@ -1691,6 +1691,8 @@ void vulkan_cleanup() {
 	vulkan_cleanup_buffer(info->storage_buffer);
 	vulkan_cleanup_buffer(info->triangle_buffer);
 		
+	vulkan_graphics_pipeline_cleanup(&present_pipeline);
+	
 	vkDestroyRenderPass(info->device, info->draw_render_pass, nullptr);
 	vkDestroyRenderPass(info->device, info->present_render_pass, nullptr);
 
@@ -2022,8 +2024,6 @@ bool8 vulkan_start_frame() {
 
 	return 0;
 }
-
-Render_Pipeline present_pipeline;
 
 void vulkan_end_frame(Assets *assets, App_Window *window) {
 	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));

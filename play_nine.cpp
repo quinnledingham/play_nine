@@ -434,7 +434,6 @@ bool8 update(App *app) {
     for (u32 i = 0; i < 10; i++) {
         layouts[i].reset();
     }
-
     
     if (render_start_frame())
         goto AFTER_DRAW;
