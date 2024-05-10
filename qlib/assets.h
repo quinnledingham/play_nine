@@ -181,7 +181,7 @@ struct Descriptor {
 
 struct Layout {
     static const u32 max_bindings = 10;
-    static const u32 max_sets = 64;
+    static const u32 max_sets = 128;
 
     Layout_Binding bindings[max_bindings];
     u32 binding_count;

@@ -260,7 +260,7 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
     s32 scroll_length = 8;
     menu->sections = { (s32)game->num_of_players + 1, scroll_length + 3 };
     menu->interact_region[0] = { 0, scroll_length + 2 };
-    menu->interact_region[1] = { (s32)game->num_of_players + 2, scroll_length + 2 };
+    menu->interact_region[1] = { (s32)game->num_of_players + 1, scroll_length + 2 };
 
     if ((s32)game->holes_played <= scroll_length)
         scroll = { 1, (s32)game->holes_played };
@@ -509,14 +509,9 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         "Fullscreen",
         "Windowed Fullscreen"
     };
-    u32 test = 0;
-    if (menu_dropdown(menu, fullscreen_modes, 3, &test, { 0, 1 }, { 1, 1 })) {
+    if (menu_dropdown(menu, fullscreen_modes, 3, (u32*)&window->display_mode, { 0, 1 }, { 1, 1 })) {
         window->new_display_mode = true;
-        //window->resized = true;
-        //app_toggle_fullscreen(window);
-    }
-    if (on_up(state->controller.pile)) {
-        window->new_display_mode = true;
+        window->resized = true;
     }
     menu->end();
     

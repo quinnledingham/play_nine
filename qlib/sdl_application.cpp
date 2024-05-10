@@ -297,9 +297,8 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
                 SDL_KeyboardEvent *keyboard_event = &event.key;
                 u32 key_id = keyboard_event->keysym.sym;
                 if (key_id == SDLK_F11) {
-                    //app_toggle_fullscreen(window);
+                    app_toggle_fullscreen(window);
                     window->new_display_mode = true;
-                    //sdl_set_fullscreen(sdl_window, window->display_mode);
                     break;
                 }
                 event_handler(app, APP_KEYUP, key_id);
@@ -307,12 +306,6 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
 		    }
     }
 
-    if (window->new_display_mode) {
-        window->new_display_mode = false;
-        app_toggle_fullscreen(window);
-    }
-
-    sdl_set_fullscreen(sdl_window, window->display_mode);
     app_input_buffer = false;
     return false;
 }
@@ -377,6 +370,11 @@ int main(int argc, char *argv[]) {
     srand(SDL_GetTicks());
 
     while (1) {
+        if (app.window.new_display_mode) {
+            app.window.new_display_mode = false;
+            sdl_set_fullscreen(sdl_window, app.window.display_mode);
+        }
+        
         if (app.input.relative_mouse_mode) 
             SDL_SetRelativeMouseMode(SDL_TRUE);
         else 

@@ -334,10 +334,9 @@ bool8 update_game(State *state, App *app) {
                 //float64 mouse_move_speed = mouse_m_per_s * app->time.frame_time_s;
                 float64 mouse_move_speed = 0.1f;
                 //print("%d %d == %d %d\n", mouse.x, mouse.y, app->input.mouse_rel.x, app->input.mouse_rel.y);
+       
                 update_camera_with_mouse(&state->camera, app->input.mouse_rel, mouse_move_speed, mouse_move_speed);
-                update_camera_target(&state->camera);    
-    
-                // I want target to be updated before I do this because it uses it
+                update_camera_target(&state->camera); // I want target to be updated before I do this because it uses it
                 float32 m_per_s = 6.0f; 
                 float32 m_moved = m_per_s * (float32)app->time.frame_time_s;
                 Vector3 move_vector = {m_moved, m_moved, m_moved};
@@ -558,9 +557,6 @@ bool8 update(App *app) {
         } break;
     }
 
-    if (on_up(state->controller.discard)) {
-        app->window.new_display_mode = true;
-    }
     draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
 
 //#ifdef DEBUG
@@ -617,7 +613,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))

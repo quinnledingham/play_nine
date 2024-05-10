@@ -1,5 +1,6 @@
 typedef enum {
     SHAPE_RECT,
+    SHAPE_TRIANGLE,
     SHAPE_CIRCLE,
     SHAPE_CUBE,
     SHAPE_SPHERE,
@@ -25,6 +26,7 @@ struct Shape {
 struct Shapes {
     Mesh rect_mesh;
     Mesh rect_3D_mesh;
+    Mesh triangle_3D_mesh;
     Mesh sphere_mesh;
     Mesh cube_mesh;
 
@@ -62,29 +64,29 @@ init_rect_indices(u32 *indices,
 
 internal Mesh
 get_rect_mesh() {
-	Mesh mesh = {};
-	mesh.vertices_count = 4;
-    
-	mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+    Mesh mesh = {};
+    mesh.vertices_count = 4;
+
+    mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
     Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
 
-	vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
+    vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
     vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
     vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
     vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
-/*
+    /*
     vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, -1}, {0, 0} };
     vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, -1}, {0, 1} };
     vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, -1}, {1, 0} };
     vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, -1}, {1, 1} };
-*/
+    */
     mesh.indices_count = 6;
     mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
 
     // vertex locations
     u32 top_left = 0, top_right = 2, bottom_left = 1, bottom_right = 3;
-  /* 
-	mesh.indices[0] = top_left;
+    /* 
+    mesh.indices[0] = top_left;
     mesh.indices[1] = bottom_left;
     mesh.indices[2] = bottom_right;
     mesh.indices[3] = top_left;
@@ -169,6 +171,55 @@ void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Bitmap *bitmap) {
     shape.draw_type = Shape_Draw_Type::TEXTURE;
     shape.bitmap = bitmap;
     draw_shape(shape);
+}
+
+//
+// Triangle
+//
+
+internal Mesh
+init_triangle_mesh() {
+    Mesh mesh = {};
+    mesh.vertices_count = 3;
+    
+    mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+    Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
+
+    vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
+    vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
+    vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
+    
+    mesh.indices_count = 3;
+    mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+
+    mesh.indices[0] = 1;
+    mesh.indices[1] = 0;
+    mesh.indices[2] = 2;
+
+    mesh.vertex_info = get_vertex_xnu_info();
+    render_init_mesh(&mesh);
+
+    return mesh;
+}
+ 
+void draw_triangle(Vector3 coords, Vector3 rotation, Vector3 dim, Vector4 color) {
+    Quaternion rotation_quat_x = get_rotation(rotation.x, { 1, 0, 0 });
+    Quaternion rotation_quat_y = get_rotation(rotation.y, { 0, 1, 0 });
+    Quaternion rotation_quat_z = get_rotation(rotation.z, { 0, 0, 1 });
+    Quaternion rotation_quat = rotation_quat_x * rotation_quat_y * rotation_quat_z;
+    
+    render_bind_pipeline(&color_pipeline);
+    render_bind_descriptor_set(light_set);
+    
+    Descriptor color_desc = render_get_descriptor_set(&layouts[5]);
+    render_update_ubo(color_desc, (void *)&color);
+    render_bind_descriptor_set(color_desc);
+
+    Object object = {};
+    object.model = create_transform_m4x4(coords, rotation_quat, dim);
+    render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));  
+
+    render_draw_mesh(&shapes.triangle_3D_mesh);    
 }
 
 //
@@ -325,6 +376,8 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 */
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
     render_bind_pipeline(&color_pipeline);
+    render_bind_descriptor_set(light_set);
+
     Descriptor object_desc = render_get_descriptor_set(&layouts[5]);
     render_update_ubo(object_desc, (void *)&color);
     render_bind_descriptor_set(object_desc);
@@ -434,8 +487,9 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 
 void init_shapes(Assets *assets) {
     // Meshes
-	shapes.rect_mesh = get_rect_mesh_2D();
+    shapes.rect_mesh = get_rect_mesh_2D();
     shapes.rect_3D_mesh = get_rect_mesh();
+    shapes.triangle_3D_mesh = init_triangle_mesh();
     shapes.sphere_mesh = get_sphere_mesh(0.025f, 10, 10);
     shapes.cube_mesh = get_cube_mesh(true);
 

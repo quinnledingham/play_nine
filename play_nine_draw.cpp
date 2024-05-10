@@ -124,9 +124,9 @@ load_player_card_models(Game *game, Game_Draw *draw) {
 
 internal void
 load_pile_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
-    Vector3 selected_card_coords = {0.0f, 1.0f, -2.7f};
-    Vector3 pile_coords          = { -1.1f, 0.0f, -2.0f };
-    Vector3 discard_pile_coords  = {  1.1f, 0.0f, 0 };
+    Vector3 selected_card_coords = {  0.0f, 1.0f, -2.7f };
+    Vector3 pile_coords          = { -1.1f, 0.0f,  0    };
+    Vector3 discard_pile_coords  = {  1.1f, 0.0f,  0    };
     
     // move piles closer to player
     float32 center_of_piles_z = -draw->x_hand_position + 5.7f;
@@ -384,7 +384,18 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     // Name Plate
     draw_name_plates(game, &state->game_draw);
 
+    render_depth_test(true);
+    // Indicator Triangle
+    Vector3 triangle_coords = {};
+    triangle_coords.z = -state->game_draw.x_hand_position + 5.7 - 2.4f;
+    float32 degrees = (state->game_draw.degrees_between_players * game->active_player) - 90.0f;
+    float32 rads = (degrees - state->game_draw.camera_rotation.degrees) * DEG2RAD;
+    rotate_coords(&triangle_coords, rads);
+    rads -= 135.0f * DEG2RAD;
+    draw_triangle({ triangle_coords.x, 0.5f, triangle_coords.z }, { -90.0f * DEG2RAD, rads, 0 }, { 0.5f, 0.5f, 1 }, { 255, 255, 255, 1 });
+
     // Cards
+    render_bind_pipeline(&basic_pipeline);
     render_bind_descriptor_set(texture_desc);
 
     Model *card_model = find_model(assets, "CARD");
