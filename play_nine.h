@@ -205,6 +205,12 @@ enum Camera_Mode {
     PLAYER_CAMERA,
 };
 
+enum Online_Mode {
+    MODE_LOCAL,
+    MODE_CLIENT,
+    MODE_SERVER
+};
+
 struct State {
     MUTEX mutex;
 
@@ -223,17 +229,17 @@ struct State {
     char ip[TEXTBOX_SIZE] = "127.0.0.1";
     char port[TEXTBOX_SIZE] = "4444";
 
-    bool8 is_server;
-    bool8 is_client;
-    QSock_Socket client;
+    enum Online_Mode mode;    
     u32 client_game_index; // what player index in game for the local player
 
     bool8 is_active; // is currently taking inputs (local game, active player online client, not a bot)
 
+    // online selected received from client
     bool8 selected[SELECTED_SIZE];
     MUTEX selected_mutex;
 
     bool8 pass_selected;
+    bool8 paused_earlier_in_frame;    
     
     // Drawing
     Scene scene;
@@ -247,7 +253,7 @@ struct State {
     Assets assets;
 };
 
-bool8 *global_is_server;
+enum Online_Mode *global_mode;
 
 //
 // Card Designs

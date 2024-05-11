@@ -5,7 +5,7 @@ struct Button {
     u32 num_of_ids;
     
     bool8 current_state; 
-    bool8 previous_state;
+    bool8 previous_state;    
 };
 
 inline void 

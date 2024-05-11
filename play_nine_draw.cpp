@@ -420,7 +420,7 @@ add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_pla
     for (u32 i = 0 ; i < DRAW_SIGNALS_AMOUNT; i++) {
         if (!signals[i].in_use) {
             signals[i] = Draw_Signal(in_type, in_card_index, in_player_index);
-            if (*global_is_server)
+            if (*global_mode == MODE_SERVER)
                 server_add_draw_signal(signals[i]);
             return;
         }

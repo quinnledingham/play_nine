@@ -3,16 +3,19 @@ quit_to_main_menu(State *state, Menu *menu) {
     os_wait_mutex(state->mutex);
 
     state->menu_list.mode = MAIN_MENU;
+    state->mode = MODE_LOCAL;
     state->game.num_of_players = 1;
     menu->gui.close_at_end = true;
 
-    if (state->is_server) {
-        state->is_server = false;
-        os_release_mutex(state->mutex);
-        close_server();
-    } else if (state->is_client) {
-        state->is_client = false;
-        client_close_connection(state->client);
+    switch(state->mode) {
+        case MODE_CLIENT: {
+            client_close_connection(online.sock);
+        } break;
+
+        case MODE_SERVER: {
+            os_release_mutex(state->mutex);
+            close_server();
+        } break;
     }
 
     os_release_mutex(state->mutex);
@@ -89,16 +92,17 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
         
         if (menu_row == game->num_of_players - 1) {
             section_dim = { 2, 7 - (s32)game->num_of_players };
-            if (state->is_client)
+
+            if (state->mode == MODE_CLIENT)
                 section_dim.y += 2;
-            else if (state->is_server)
+            else if (state->mode == MODE_SERVER)
                 section_dim.y += 1;
         }
         
         if (menu_textbox(menu, NULL, game->players[menu_row].name, section_coords, section_dim, draw_dim) && menu_row == state->client_game_index) {
-            if (state->is_client)
-                client_set_name(state->client, game->players[menu_row].name);
-            else if (state->is_server)
+            if (state->mode == MODE_CLIENT)
+                client_set_name(online.sock, game->players[menu_row].name);
+            else if (state->mode == MODE_SERVER)
                 server_send_game(&state->game);            
         }
 
@@ -138,7 +142,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     menu_row = 6;
 
     if (full_menu) {
-        if (!state->is_server) {
+        if (state->mode != MODE_SERVER) {
             if (menu_button(menu, "+ Player", { 0, menu_row }, { 1, 1 })) {
                 add_player(game, false);
             }
@@ -160,7 +164,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 start_game(&state->game, game->num_of_players);
-                if (state->is_server) {
+                if (state->mode == MODE_SERVER) {
                     server_send_menu_mode(state->menu_list.mode);
                     server_send_game(&state->game);
                 }
@@ -208,6 +212,12 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     }
 
     menu->start();
+
+    if (on_up(state->controller.pause) && !state->paused_earlier_in_frame) {
+        state->menu_list.mode = IN_GAME;
+        menu->gui.close_at_end = true;
+    }
+
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
 
     if (full_menu) {
@@ -215,7 +225,7 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
             state->menu_list.mode = LOCAL_MENU;
             menu->hover_section = menu->interact_region[0];
 
-            if (state->is_server)
+            if (state->mode == MODE_SERVER)
                 server_send_menu_mode(state->menu_list.mode);
         }
     }
@@ -338,7 +348,7 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
                 start_game(game, game->num_of_players);
             add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);    
 
-            if (state->is_server) {
+            if (state->mode == MODE_SERVER) {
                 server_send_menu_mode(state->menu_list.mode);
                 server_send_game(&state->game);
             }
@@ -346,7 +356,7 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
         if (menu_button(menu, "Back", { (s32)game->num_of_players - 1, scroll_length + 2 }, { 1, 1 })) {
             state->menu_list.mode = IN_GAME;
 
-            if (state->is_server) {
+            if (state->mode == MODE_SERVER) {
                 server_send_menu_mode(state->menu_list.mode);
             }
         }
@@ -378,6 +388,12 @@ draw_host_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->interact_region[1] = { 2, 2 };
     
     menu->start();
+    
+    if (on_up(state->controller.pause)) {
+        state->menu_list.mode = MAIN_MENU;
+        menu->gui.close_at_end = true;
+    }
+    
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green);
     
     if (menu_textbox(menu, "Port:", state->port, { 0, 0 }, { 2, 1 })) {
@@ -404,6 +420,12 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->interact_region[1] = { 2, 4 };
     
     menu->start();
+    
+    if (on_up(state->controller.pause)) {
+        state->menu_list.mode = MAIN_MENU;
+        menu->gui.close_at_end = true;
+    }
+    
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     menu_textbox(menu, "Name:", state->name, { 0, 0 }, { 2, 1 });
@@ -411,10 +433,10 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu_textbox(menu, "Port:", state->port, { 0, 2 }, { 2, 1 });
 
     if (menu_button(menu, "Join", { 0, 3 }, { 1, 1 })) {
-        if (qsock_client(&state->client, state->ip, state->port, TCP)) {
+        if (qsock_client(&online.sock, state->ip, state->port, TCP)) {
             online.client_handle = os_create_thread(play_nine_client_recv, (void*)state);
-            state->is_client = true;            
-            client_set_name(state->client, state->name);
+            state->mode = MODE_CLIENT;            
+            client_set_name(online.sock, state->name);
         } else {
             add_onscreen_notification(&state->notifications, "Unable to join");
         }
@@ -437,8 +459,8 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->start();
 
     if (on_up(state->controller.pause)) {
-        menu->hover_section = menu->interact_region[0];
         state->menu_list.mode = state->menu_list.previous_mode;
+        menu->gui.close_at_end = true;
     }
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );

@@ -9,7 +9,6 @@ server_disconnect_client(Online_Player *player) {
     os_terminate_thread(player->thread_handle);
 }
 
-
 internal void
 close_server() {
     os_terminate_thread(online.server_handle);
@@ -99,7 +98,7 @@ THREAD_RETURN play_nine_server(void *parameters) {
 
     if (qsock_server(&online.sock, state->port, TCP)) {
         state->menu_list.mode = LOCAL_MENU;
-        state->is_server = true;
+        state->mode = MODE_SERVER;
         state->game.num_of_players = 1;
         default_player_name_string(state->game.players[0].name, 0);
     } else {
@@ -182,7 +181,7 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
 
     while(1) {
         char buffer[sizeof(Play_Nine_Packet)];
-        s32 bytes = qsock_recv(state->client, NULL, buffer, sizeof(Play_Nine_Packet));
+        s32 bytes = qsock_recv(online.sock, NULL, buffer, sizeof(Play_Nine_Packet));
         if (bytes > 0) {
             Play_Nine_Packet *recv_packet = (Play_Nine_Packet *)&buffer;
             os_wait_mutex(state->mutex);
@@ -201,8 +200,8 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
                 } break;
 
                 case CLOSE_CONNECTION: {
-                    qsock_free_socket(state->client);
-                    state->is_client = false;
+                    qsock_free_socket(online.sock);
+                    state->mode = MODE_LOCAL;
                     state->menu_list.mode = MAIN_MENU;
                     add_onscreen_notification(&state->notifications, "Connection Closed");
                     return 0;

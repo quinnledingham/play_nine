@@ -231,6 +231,7 @@ bool8 update_game(State *state, App *app) {
             if (on_down(state->controller.pause)) {
                 state->menu_list.mode = PAUSE_MENU;
                 app->input.relative_mouse_mode = false;
+                state->paused_earlier_in_frame = true;
             }
     
             if (on_down(state->controller.camera_toggle)) {
@@ -240,15 +241,14 @@ bool8 update_game(State *state, App *app) {
         } break;
 
         case PLAYER_CAMERA: {
-            if (on_down(state->controller.pause)) {
+            if (on_up(state->controller.pause)) {
                 state->menu_list.mode = PAUSE_MENU;
-                state->menu_list.menus[PAUSE_MENU].gui.close_at_end = true;
+                state->paused_earlier_in_frame = true;
             }
             
             if (on_down(state->controller.camera_toggle)) {
                 state->camera_mode = FREE_CAMERA;
                 app->input.relative_mouse_mode = true;
-                break;
             }
         } break;
     }
@@ -283,6 +283,7 @@ bool8 update_game(State *state, App *app) {
             } 
     
             bool8 selected[SELECTED_SIZE] = {};
+            
             if (state->is_active) {
                 //if (app->input.active == MOUSE_INPUT)
                     do_mouse_selected_update(state, app, selected);
@@ -294,10 +295,10 @@ bool8 update_game(State *state, App *app) {
                     state->pass_selected = false;
                 }
 
-                if (state->is_client && !all_false(selected)) {
-                    client_set_selected(state->client, selected, state->client_game_index);
+                if (state->mode == MODE_CLIENT && !all_false(selected)) {
+                    client_set_selected(online.sock, selected, state->client_game_index);
                 }
-            } else if (state->is_server && !game->players[game->active_player].is_bot) {
+            } else if (state->mode == MODE_SERVER && !game->players[game->active_player].is_bot) {
                 os_wait_mutex(state->selected_mutex);
                 if (!all_false(state->selected)) {
                     platform_memory_copy(selected, state->selected, sizeof(selected[0]) * SELECTED_SIZE);
@@ -308,13 +309,13 @@ bool8 update_game(State *state, App *app) {
                 do_bot_selected_update(selected, game, &game->bot_thinking_time, app->time.frame_time_s);
             }
 
-            if (state->is_client || all_false(selected))
+            if (state->mode == MODE_CLIENT || all_false(selected))
                  break; // client doesn't do any game updated         
 
             // Game logic
             do_update_with_input(game, selected);
 
-            if (state->is_server)
+            if (state->mode == MODE_SERVER)
                 server_send_game(game);
         } break;
     }
@@ -355,7 +356,7 @@ bool8 update_game(State *state, App *app) {
 
             if (game->round_type == HOLE_OVER) {
                 deg = draw->rotation; // draw->rotation is set above
-            } else if (!state->is_server && !state->is_client) {
+            } else if (state->mode == MODE_LOCAL) {
                 draw->rotation = -draw->degrees_between_players * game->active_player;
 
                 deg = -draw->degrees_between_players * game->active_player;
@@ -386,8 +387,9 @@ bool8 update_game(State *state, App *app) {
 
 internal void
 prepare_controller_for_input(Controller *controller) {
-    for (u32 j = 0; j < ARRAY_COUNT(controller->buttons); j++)
+    for (u32 j = 0; j < ARRAY_COUNT(controller->buttons); j++) {
         controller->buttons[j].previous_state = controller->buttons[j].current_state;
+    }
 }
 
 internal void
@@ -395,7 +397,8 @@ controller_process_input(Controller *controller, s32 id, bool8 state) {
     for (u32 i = 0; i < ARRAY_COUNT(controller->buttons); i++) {
         // loop through all ids associated with button
         for (u32 j = 0; j < controller->buttons[i].num_of_ids; j++) {
-            if (id == controller->buttons[i].ids[j]) controller->buttons[i].current_state = state;
+            if (id == controller->buttons[i].ids[j]) 
+                controller->buttons[i].current_state = state;
         }
     }
 }
@@ -404,29 +407,25 @@ bool8 update(App *app) {
     State *state = (State *)app->data;
     Assets *assets = &state->assets;
 
-    bool8 full_menu = (!state->is_client && !state->is_server) || state->is_server;
-    state->is_active = (state->client_game_index == state->game.active_player || (!state->is_client && !state->is_server)) && !state->game.players[state->game.active_player].is_bot;
+    bool8 full_menu = state->mode != MODE_CLIENT;
+    state->is_active = (state->client_game_index == state->game.active_player || state->mode == MODE_LOCAL) && !state->game.players[state->game.active_player].is_bot;
+    state->paused_earlier_in_frame = false;
     
     // Update
     if (state->menu_list.mode == IN_GAME) {
-        if (state->is_client)
+        if (state->mode == MODE_CLIENT)
             os_wait_mutex(state->mutex);
         
         update_game(state, app);
                     
-        if (state->is_client)
+        if (state->mode == MODE_CLIENT)
             os_release_mutex(state->mutex);
-    } else if (state->menu_list.mode == PAUSE_MENU) {
-        if (on_down(state->controller.pause)) {
-            state->menu_list.mode = IN_GAME;
-        }
     } else {
         state->game_draw.name_plates_loaded = false;
         platform_memory_set(draw_signals, 0, sizeof(Draw_Signal) * DRAW_SIGNALS_AMOUNT);
     }
 
     // Draw
-    //if (state->is_client )//&& state->previous_menu != IN_GAME)
     os_wait_mutex(state->mutex);
     Shader *basic_3D = find_shader(assets, "BASIC3D");
     Shader *color_3D = find_shader(assets, "COLOR3D");
@@ -531,12 +530,12 @@ bool8 update(App *app) {
 
             } else if (state->game.round_type == HOLE_OVER) {
 
-                if (!state->is_client) {
+                if (state->mode != MODE_CLIENT) {
                     Vector2 dim = { button_width, pixel_height };
                     Vector2 coords = { gui.rect.dim.x - dim.x - padding, gui.rect.dim.y - dim.y - padding };
                     if (gui_button(&gui, default_style, "Proceed", coords, dim)) {
                         state->menu_list.mode = SCOREBOARD_MENU;
-                        if (state->is_server)
+                        if (state->mode == MODE_SERVER)
                             server_send_menu_mode(state->menu_list.mode);
                     }
                 }
@@ -568,7 +567,6 @@ bool8 update(App *app) {
     render_end_frame(&state->assets, &app->window);
     AFTER_DRAW:
 
-    //if (state->is_client )//&& state->previous_menu != IN_GAME)
     os_release_mutex(state->mutex);
     prepare_controller_for_input(&state->controller);
     
@@ -821,7 +819,7 @@ bool8 init_data(App *app) {
     state->notifications.font = default_font;
     state->notifications.text_color = { 255, 255, 255, 1 };
 
-    global_is_server = &state->is_server;
+    global_mode = &state->mode;
 
     return false;
 }
@@ -846,10 +844,11 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
 
         case APP_EXIT: {
             print("APP_EXIT\n");
-            if (state->is_client)
-                client_close_connection(state->client);
-            if (state->is_server)
+            if (state->mode == MODE_CLIENT) {
+                client_close_connection(online.sock);
+            } else if (state->mode == MODE_SERVER) {
                 close_server();
+            }
 
             cleanup_shapes();
             render_assets_cleanup(&state->assets);

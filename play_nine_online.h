@@ -12,7 +12,7 @@ struct Online_Player {
 
 struct Play_Nine_Online {
     QSock_Socket sock = {};
-    THREAD server_handle; // thread handle
+    THREAD server_handle;
     THREAD client_handle;
 
     Online_Player players[5];
