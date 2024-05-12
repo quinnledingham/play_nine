@@ -49,6 +49,34 @@ struct Vulkan_Texture {
 	VkSampler sampler;      // allows the shader to sample the image
 };
 
+struct Vulkan_Frame {
+	union {
+		struct {
+			VkCommandBuffer command_buffer;
+			VkCommandBuffer compute_command_buffer;
+		};
+		VkCommandBuffer command_buffers[2];
+	};
+	
+	// sync
+	union {
+		struct {
+			VkSemaphore image_available_semaphore;
+			VkSemaphore render_finished_semaphore;
+			VkSemaphore compute_finished_semaphore;
+		};
+		VkSemaphore semaphores[3];
+	};
+
+	union {
+		struct {
+			VkFence in_flight_fence;
+			VkFence compute_in_flight_fence;
+		};
+		VkFence fences[2];
+	};
+};
+
 struct Vulkan_Info {
 	const char *device_extensions[1] = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -83,23 +111,22 @@ struct Vulkan_Info {
 	VkQueue present_queue;
 	VkQueue compute_queue;
 
+	VkDescriptorPool descriptor_pool;
 	VkCommandPool command_pool;
-	VkCommandBuffer *active_command_buffer;
-	VkCommandBuffer command_buffers[MAX_FRAMES_IN_FLIGHT];
-	VkCommandBuffer compute_command_buffers[MAX_FRAMES_IN_FLIGHT];
-	u32 active_command_buffer_index;
-	VkPipelineLayout pipeline_layout; // set this to the currently bounded layout
-
-	Arr<Vulkan_Texture> draw_textures; // where the frame gets drawn before swap chain buffer
 	
+	VkCommandBuffer *active_command_buffer;
+	VkPipelineLayout pipeline_layout; // set this to the currently bounded layout
+	Shader *active_shader;
+		
 	// swap_chain
 	VkSwapchainKHR swap_chains[1];
 	
+	Arr<Vulkan_Texture> draw_textures; // where the frame gets drawn before swap chain buffer
+	Arr<Vulkan_Texture> swap_chain_textures;
+	
 	VkExtent2D swap_chain_extent; // size of window, size of swap_chain_images
 	VkFormat swap_chain_image_format;
-	Arr<VkImage> swap_chain_images;
-	Arr<VkImageView> swap_chain_image_views;
-
+	
 	u32 current_frame; // which frame to fill ie. MAX_FRAMES_IN_FLIGHT = 2 either 0 or 1
 	// Set at the start of the frame for the current frame.
  	// What frame buffer that should be used for that frame.
@@ -107,22 +134,21 @@ struct Vulkan_Info {
 	Arr<VkFramebuffer> draw_framebuffers;
 	Arr<VkFramebuffer> swap_chain_framebuffers; // framebuffers for the swap_chain
 
-	// sync
-	VkSemaphore image_available_semaphore[MAX_FRAMES_IN_FLIGHT];
-	VkSemaphore render_finished_semaphore[MAX_FRAMES_IN_FLIGHT];
-	VkSemaphore compute_finished_semaphore[MAX_FRAMES_IN_FLIGHT];
-
-	VkFence in_flight_fence[MAX_FRAMES_IN_FLIGHT];
-	VkFence compute_in_flight_fences[MAX_FRAMES_IN_FLIGHT];
+	Vulkan_Frame frames[MAX_FRAMES_IN_FLIGHT];
 
 	// Buffers	
-	Vulkan_Buffer static_buffer;
-	Vulkan_Buffer static_uniform_buffer;
-	Vulkan_Buffer dynamic_uniform_buffer;
+	union {
+		struct {
+			Vulkan_Buffer static_buffer;
+			Vulkan_Buffer static_uniform_buffer;
+			Vulkan_Buffer dynamic_uniform_buffer;
 
-	Vulkan_Buffer storage_buffer;
-	Vulkan_Buffer triangle_buffer;
-
+			Vulkan_Buffer storage_buffer;
+			Vulkan_Buffer triangle_buffer;
+		};
+		Vulkan_Buffer buffers[5];
+	};
+	
 	Vulkan_Texture depth_texture; // Depth Buffer
 	Vulkan_Texture color_texture; // MSAA
 
@@ -135,17 +161,10 @@ struct Vulkan_Info {
 	VkSubmitInfo submit_info;
 	VkSubmitInfo compute_submit_info;
 	VkPresentInfoKHR present_info;
-
-	// Shaders
-	Shader *active_shader;
-
-	// Descriptor_Sets
-	VkDescriptorPool descriptor_pool;
 };
 
 inline VkCommandBuffer
 vulkan_active_cmd_buffer(Vulkan_Info *info) {
-	//return info->command_buffers[info->current_frame];
 	return *info->active_command_buffer;
 }
 

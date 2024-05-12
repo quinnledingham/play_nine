@@ -3,7 +3,6 @@ TODO
 - Flip "animation"
 - Show keyboard controls
 - see all cards in larger lobby's in online (@SOLUTION Move Camera?)
-- add settings menu
 
 Bot
 - Add look ahead, so the bot doesnt give pairs to next player
@@ -23,8 +22,6 @@ vulkan.h
 - pass thru shader to map bitmap to screen
 - make a basic pipeline to show one bitmap on screen (the output of drawing)
 - make it so that when the resolution = window resolution it does not do the extra step
-- investigate samplers - it doesnt actually require a image view to make (Just need 2
-to be used in init bitmaps?)
 - put all descriptors and buffers in vulkan info in a way that is easy to clean up
 */
 
@@ -48,10 +45,10 @@ global float32 hand_width;
 global Font *default_font;
 Draw_Style default_style = {};
 
-global const Vector4 play_nine_green  = {  39,  77,  20, 1 };
-global const Vector4 play_nine_yellow = { 231, 213,  36, 1 };
+global const Vector4 play_nine_green        = {  39,  77,  20, 1 };
+global const Vector4 play_nine_yellow       = { 231, 213,  36, 1 };
 global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
-global const Vector4 play_nine_dark_yellow = { 197, 180, 22, 1 };
+global const Vector4 play_nine_dark_yellow  = { 197, 180,  22, 1 };
 
 const Vector4 highlight_colors[3] = { play_nine_yellow, play_nine_light_yellow, play_nine_dark_yellow };
 

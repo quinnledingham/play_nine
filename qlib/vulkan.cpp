@@ -434,14 +434,21 @@ vulkan_create_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	if (vkCreateSwapchainKHR(info->device, &create_info, nullptr, &info->swap_chains[0])) {
 		logprint("vulkan_create_swap_chain()", "failed to create swap chain\n");
 	}
-	
+
+	Arr<VkImage> swap_chain_images;
 	u32 swap_chain_images_count = 0;
 	vkGetSwapchainImagesKHR(info->device, info->swap_chains[0], &swap_chain_images_count, nullptr);
-	info->swap_chain_images.resize(swap_chain_images_count);
-	vkGetSwapchainImagesKHR(info->device, info->swap_chains[0], &swap_chain_images_count, info->swap_chain_images.get_data());
+	swap_chain_images.resize(swap_chain_images_count);
+	vkGetSwapchainImagesKHR(info->device, info->swap_chains[0], &swap_chain_images_count, swap_chain_images.get_data());
 
 	info->swap_chain_image_format = surface_format.format;
 	info->swap_chain_extent = extent;
+	
+	info->swap_chain_textures.resize(swap_chain_images_count);
+	for (u32 i = 0; i < info->swap_chain_textures.get_size(); i++) {
+		info->swap_chain_textures[i].image_format = info->swap_chain_image_format;
+		info->swap_chain_textures[i].image = swap_chain_images[i];
+	}
 
 	platform_free(swap_chain_support.formats);
 	platform_free(swap_chain_support.present_modes);
@@ -598,7 +605,7 @@ vulkan_create_present_render_pass() {
 
 internal bool8
 vulkan_create_draw_framebuffers(Vulkan_Info *info) {	
-	info->draw_framebuffers.resize(info->swap_chain_image_views.get_size());
+	info->draw_framebuffers.resize(info->swap_chain_textures.get_size());
 	
 	VkImageView attachments[3];
 	VkFramebufferCreateInfo framebuffer_info = {};
@@ -636,7 +643,7 @@ vulkan_create_draw_framebuffers(Vulkan_Info *info) {
 
 internal bool8
 vulkan_create_swap_chain_framebuffers(Vulkan_Info *info) {	
-	info->swap_chain_framebuffers.resize(info->swap_chain_image_views.get_size());
+	info->swap_chain_framebuffers.resize(info->swap_chain_textures.get_size());
 
 	VkFramebufferCreateInfo framebuffer_info = {};
 	framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -647,7 +654,7 @@ vulkan_create_swap_chain_framebuffers(Vulkan_Info *info) {
 	framebuffer_info.layers          = 1;
 	
 	for (u32 i = 0; i < info->swap_chain_framebuffers.get_size(); i++) {
-		framebuffer_info.pAttachments = &info->swap_chain_image_views[i];
+		framebuffer_info.pAttachments = &info->swap_chain_textures[i].image_view;
 
 		if (vkCreateFramebuffer(info->device, &framebuffer_info, nullptr, &info->swap_chain_framebuffers[i]) != VK_SUCCESS) {
 			logprint("vulkan_create_frame_buffers()", "failed to create framebuffer\n");
@@ -685,7 +692,7 @@ vulkan_create_command_buffers(VkCommandBuffer *command_buffers, u32 num_of_buffe
 }
 
 internal void
-vulkan_create_sync_objects(Vulkan_Info *info) {
+vulkan_create_sync_objects(VkDevice device, Vulkan_Frame frames[MAX_FRAMES_IN_FLIGHT]) {
 	VkSemaphoreCreateInfo semaphore_info = {};
 	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -693,14 +700,19 @@ vulkan_create_sync_objects(Vulkan_Info *info) {
 	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		if (vkCreateSemaphore(info->device, &semaphore_info, nullptr, &info->image_available_semaphore[i])  != VK_SUCCESS ||
-	    	vkCreateSemaphore(info->device, &semaphore_info, nullptr, &info->render_finished_semaphore[i])  != VK_SUCCESS ||
-				vkCreateSemaphore(info->device, &semaphore_info, nullptr, &info->compute_finished_semaphore[i]) != VK_SUCCESS ||
-	    	vkCreateFence    (info->device, &fence_info,     nullptr, &info->in_flight_fence[i])            != VK_SUCCESS ||
-				vkCreateFence    (info->device, &fence_info,     nullptr, &info->compute_in_flight_fences[i])   != VK_SUCCESS
-		   ) {
-	    	logprint("vulkan_create_sync_objects()", "failed to create semaphores\n");
+	for (u32 frame_index = 0; frame_index < MAX_FRAMES_IN_FLIGHT; frame_index++) {
+		Vulkan_Frame *frame = &frames[frame_index];
+
+		for (u32 semaphore_index = 0; semaphore_index < ARRAY_COUNT(frame->semaphores); semaphore_index++) {			
+			if (vkCreateSemaphore(device, &semaphore_info, nullptr, &frame->semaphores[semaphore_index]) != VK_SUCCESS) {
+	    	logprint("vulkan_create_sync_objects()", "failed to create semaphores\n");				
+			}
+		}
+
+		for (u32 fence_index = 0; fence_index < ARRAY_COUNT(frame->fences); fence_index++) {			
+			if (vkCreateFence(device, &fence_info, nullptr, &frame->fences[fence_index]) != VK_SUCCESS) {
+	    	logprint("vulkan_create_sync_objects()", "failed to create fences\n");				
+			}
 		}
 	}
 }
@@ -1234,15 +1246,15 @@ vulkan_generate_mipmaps(VkImage image, VkFormat image_format, u32 tex_width, u32
 
 	VkCommandBuffer command_buffer = vulkan_begin_single_time_commands(vulkan_info.device, vulkan_info.command_pool);
 
-    VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.image = image;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-    barrier.subresourceRange.levelCount = 1;
+	VkImageMemoryBarrier barrier{};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.image = image;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+	barrier.subresourceRange.levelCount = 1;
 
 	s32 mip_width = tex_width;
 	s32 mip_height = tex_height;
@@ -1279,18 +1291,18 @@ vulkan_generate_mipmaps(VkImage image, VkFormat image_format, u32 tex_width, u32
 		vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
 		if (mip_width > 1)  mip_width  /= 2;
-    	if (mip_height > 1) mip_height /= 2;
+  	if (mip_height > 1) mip_height /= 2;
 	}
 
 	barrier.subresourceRange.baseMipLevel = mip_levels - 1;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
 	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-    vulkan_end_single_time_commands(command_buffer, vulkan_info.device, vulkan_info.command_pool, vulkan_info.graphics_queue);
+	vulkan_end_single_time_commands(command_buffer, vulkan_info.device, vulkan_info.command_pool, vulkan_info.graphics_queue);
 }
 
 
@@ -1299,18 +1311,18 @@ internal void
 vulkan_create_image(VkDevice device, VkPhysicalDevice physical_device, u32 width, u32 height, u32 mip_levels, VkSampleCountFlagBits num_samples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &image_memory) {
 	VkImageCreateInfo image_info = {};
 	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.extent.width = width;
-    image_info.extent.height = height;
-    image_info.extent.depth = 1;
-    image_info.mipLevels = mip_levels;
-    image_info.arrayLayers = 1;
-    image_info.format = format;
-    image_info.tiling = tiling;
-    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_info.usage = usage;
-    image_info.samples = num_samples;
-    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  image_info.imageType = VK_IMAGE_TYPE_2D;
+  image_info.extent.width = width;
+  image_info.extent.height = height;
+  image_info.extent.depth = 1;
+  image_info.mipLevels = mip_levels;
+  image_info.arrayLayers = 1;
+  image_info.format = format;
+  image_info.tiling = tiling;
+  image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  image_info.usage = usage;
+  image_info.samples = num_samples;
+  image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 	if (vkCreateImage(device, &image_info, nullptr, &image) != VK_SUCCESS) {
 		logprint("vulkan_create_image()", "failed to create image\n");
@@ -1493,12 +1505,7 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 }
 
 internal void
-vulkan_create_texture_image_view(Vulkan_Texture *texture, u32 mip_levels) {
-	texture->image_view = vulkan_create_image_view(vulkan_info.device, texture->image, texture->image_format, VK_IMAGE_ASPECT_COLOR_BIT, mip_levels);
-}
-
-internal void
-vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters, u32 mip_levels) {
+vulkan_create_sampler(VkSampler *sampler, u32 texture_parameters, u32 mip_levels) {
 	VkPhysicalDeviceProperties properties = {};
 	vkGetPhysicalDeviceProperties(vulkan_info.physical_device, &properties);
 	
@@ -1534,19 +1541,20 @@ vulkan_create_texture_sampler(Vulkan_Texture *texture, u32 texture_parameters, u
 	sampler_info.minLod = 0.0f;
 	sampler_info.maxLod = (float32)mip_levels;
 
-	if (vkCreateSampler(vulkan_info.device, &sampler_info, nullptr, &texture->sampler) != VK_SUCCESS) {
-        logprint("vulkan_create_texture_sampler()", "failed to create texture sampler\n");
+	if (vkCreateSampler(vulkan_info.device, &sampler_info, nullptr, sampler) != VK_SUCCESS) {
+        logprint("vulkan_create_sampler()", "failed to create sampler\n");
     }
 }
 
 void vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
 	if (bitmap->mip_levels == 0) {
-        bitmap->mip_levels = (u32)floor(log2f((float32)max(bitmap->width, bitmap->height))) + 1;
-    }   
+		bitmap->mip_levels = (u32)floor(log2f((float32)max(bitmap->width, bitmap->height))) + 1;
+	}   
 
 	vulkan_create_texture_image(bitmap);
-  vulkan_create_texture_image_view((Vulkan_Texture *)bitmap->gpu_info, bitmap->mip_levels);
-  vulkan_create_texture_sampler((Vulkan_Texture *)bitmap->gpu_info, texture_parameters, bitmap->mip_levels);
+	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
+  texture->image_view = vulkan_create_image_view(vulkan_info.device, texture->image, texture->image_format, VK_IMAGE_ASPECT_COLOR_BIT, bitmap->mip_levels);
+  vulkan_create_sampler(&texture->sampler, texture_parameters, bitmap->mip_levels);
 }
 
 void vulkan_destroy_texture(Vulkan_Texture *texture) {
@@ -1572,17 +1580,17 @@ void vulkan_delete_texture(Bitmap *bitmap) {
 //
 
 internal void
-vulkan_create_swap_chain_image_views(Vulkan_Info *info) {
-	info->swap_chain_image_views.resize(info->swap_chain_images.get_size());
-	info->draw_textures.resize(info->swap_chain_image_views.get_size());
-	for (u32 i = 0; i < info->swap_chain_images.get_size(); i++) {
-		info->swap_chain_image_views[i] = vulkan_create_image_view(info->device, info->swap_chain_images[i], info->swap_chain_image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+vulkan_create_render_image_views(Vulkan_Info *info) {
+	//info->swap_chain_image_views.resize(info->swap_chain_images.get_size());
+	info->draw_textures.resize(info->swap_chain_textures.get_size());
 
-		info->draw_textures[i].image_format = VK_FORMAT_B8G8R8A8_SRGB;
+	for (u32 i = 0; i < info->swap_chain_textures.get_size(); i++) {
+		info->swap_chain_textures[i].image_view = vulkan_create_image_view(info->device, info->swap_chain_textures[i].image, info->swap_chain_image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+
+		info->draw_textures[i].image_format = info->swap_chain_image_format;
 		vulkan_create_image(info->device, info->physical_device, render_context.resolution.width, render_context.resolution.height, 1, VK_SAMPLE_COUNT_1_BIT, info->draw_textures[i].image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, info->draw_textures[i].image, info->draw_textures[i].image_memory);
 		info->draw_textures[i].image_view = vulkan_create_image_view(info->device, info->draw_textures[i].image, info->draw_textures[i].image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-		vulkan_create_texture_sampler(&info->draw_textures[i], TEXTURE_PARAMETERS_CHAR, 1);
-		
+		vulkan_create_sampler(&info->draw_textures[i].sampler, TEXTURE_PARAMETERS_CHAR, 1);
 	}
 }
 
@@ -1596,8 +1604,8 @@ vulkan_cleanup_swap_chain(Vulkan_Info *info) {
 		vkDestroyFramebuffer(info->device, info->draw_framebuffers[i], nullptr);
 	}
 
-	for (u32 i = 0; i < info->swap_chain_image_views.get_size(); i++) {
-		vkDestroyImageView(info->device, info->swap_chain_image_views[i], nullptr);
+	for (u32 i = 0; i < info->swap_chain_textures.get_size(); i++) {
+		vkDestroyImageView(info->device, info->swap_chain_textures[i].image_view, nullptr);
 		vulkan_destroy_texture(&info->draw_textures[i]);
 		vkDestroySampler(vulkan_info.device, info->draw_textures[i].sampler, nullptr);
 	}
@@ -1615,7 +1623,7 @@ vulkan_recreate_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	vulkan_destroy_texture(&info->depth_texture);
 
 	vulkan_create_swap_chain(info, window_dim);
-	vulkan_create_swap_chain_image_views(info);
+	vulkan_create_render_image_views(info);
 	vulkan_create_color_resources();
 	vulkan_create_depth_resources(info);
 	vulkan_create_draw_framebuffers(info);
@@ -1671,6 +1679,16 @@ vulkan_cleanup_buffer(Vulkan_Buffer buffer) {
 	vkFreeMemory(vulkan_info.device, buffer.memory, nullptr);
 }
 
+void vulkan_cleanup_frame(VkDevice device, Vulkan_Frame *frame) {
+		for (u32 semaphore_index = 0; semaphore_index < ARRAY_COUNT(frame->semaphores); semaphore_index++) {			
+			vkDestroySemaphore(device, frame->semaphores[semaphore_index], nullptr);
+		}
+
+		for (u32 fence_index = 0; fence_index < ARRAY_COUNT(frame->fences); fence_index++) {			
+	    vkDestroyFence(device, frame->fences[fence_index], nullptr);
+		}
+}
+
 void vulkan_cleanup() {
 	Vulkan_Info *info = &vulkan_info;
 	vulkan_cleanup_swap_chain(info);
@@ -1685,11 +1703,9 @@ void vulkan_cleanup() {
 			vkDestroyDescriptorSetLayout(vulkan_info.device, layouts[i].descriptor_set_layout, nullptr);
 	}
 
-	vulkan_cleanup_buffer(info->static_buffer);
-	vulkan_cleanup_buffer(info->static_uniform_buffer);
-	vulkan_cleanup_buffer(info->dynamic_uniform_buffer);
-	vulkan_cleanup_buffer(info->storage_buffer);
-	vulkan_cleanup_buffer(info->triangle_buffer);
+	for (u32 i = 0; i < ARRAY_COUNT(info->buffers); i++) {
+		vulkan_cleanup_buffer(info->buffers[i]);
+	}
 		
 	vulkan_graphics_pipeline_cleanup(&present_pipeline);
 	
@@ -1697,17 +1713,11 @@ void vulkan_cleanup() {
 	vkDestroyRenderPass(info->device, info->present_render_pass, nullptr);
 
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		vkDestroySemaphore(info->device, info->image_available_semaphore[i], nullptr);
-    vkDestroySemaphore(info->device, info->render_finished_semaphore[i], nullptr);
-    vkDestroySemaphore(info->device, info->compute_finished_semaphore[i], nullptr);
-    vkDestroyFence(info->device, info->in_flight_fence[i], nullptr);
-    vkDestroyFence(info->device, info->compute_in_flight_fences[i], nullptr);
+		vulkan_cleanup_frame(info->device, &info->frames[i]);
 	}
 	
 	vkDestroyCommandPool(info->device, info->command_pool, nullptr);
-
 	vkDestroyDevice(info->device, nullptr);
-
 	vkDestroySurfaceKHR(info->instance, info->surface, nullptr);
 	
 	if (info->validation_layers.enable)
@@ -1718,6 +1728,8 @@ void vulkan_cleanup() {
 
 internal void
 vulkan_init_presentation_settings(Vulkan_Info *info) {
+	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
+
 	// Start frame
 	info->begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	info->begin_info.flags = 0;				   // Optional
@@ -1759,16 +1771,16 @@ vulkan_init_presentation_settings(Vulkan_Info *info) {
 	// End of frame
 	info->submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	info->submit_info.waitSemaphoreCount = 1;
-	info->submit_info.pWaitSemaphores = &info->image_available_semaphore[info->current_frame];
+	info->submit_info.pWaitSemaphores = &frame->image_available_semaphore;
 	info->submit_info.pWaitDstStageMask = info->wait_stages;
 	info->submit_info.commandBufferCount = 1;
-	info->submit_info.pCommandBuffers = &info->command_buffers[info->current_frame];	
+	info->submit_info.pCommandBuffers = &frame->command_buffer;	
 	info->submit_info.signalSemaphoreCount = 1;
-	info->submit_info.pSignalSemaphores = &info->render_finished_semaphore[info->current_frame];
+	info->submit_info.pSignalSemaphores = &frame->render_finished_semaphore;
 
 	info->present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	info->present_info.waitSemaphoreCount = 1;
-	info->present_info.pWaitSemaphores = &info->render_finished_semaphore[info->current_frame];
+	info->present_info.pWaitSemaphores = &frame->render_finished_semaphore;
 	info->present_info.swapchainCount = ARRAY_COUNT(info->swap_chains);
 	info->present_info.pSwapchains = info->swap_chains;
 	info->present_info.pImageIndices = &info->image_index;
@@ -1817,14 +1829,15 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	vulkan_create_logical_device(info);
 	
 	vulkan_create_swap_chain(info, render_context.window_dim);
-	vulkan_create_swap_chain_image_views(info);
+	vulkan_create_render_image_views(info);
 	if (vulkan_create_draw_render_pass(info)) return 1;
 	if (vulkan_create_present_render_pass()) return 1;
 	
-	vulkan_create_sync_objects(info);
+	vulkan_create_sync_objects(info->device, info->frames);
 	vulkan_create_command_pool(info);
-  vulkan_create_command_buffers(info->command_buffers, MAX_FRAMES_IN_FLIGHT);
-	vulkan_create_command_buffers(info->compute_command_buffers, MAX_FRAMES_IN_FLIGHT);
+
+  vulkan_create_command_buffers(info->frames[0].command_buffers, 2);
+	vulkan_create_command_buffers(info->frames[1].command_buffers, 2);
 
 	vulkan_create_depth_resources(info);
 	vulkan_create_color_resources();
@@ -1957,30 +1970,34 @@ void vulkan_bind_pipeline(Compute_Pipeline *pipeline) {
 }
 
 void vulkan_start_compute() {
-	// Compute submission
-	vkWaitForFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
+	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
 	
-	vkResetFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame]);
-	vulkan_info.active_command_buffer = &vulkan_info.compute_command_buffers[vulkan_info.current_frame];
-	vkResetCommandBuffer(vulkan_info.compute_command_buffers[vulkan_info.current_frame], 0);
+	// Compute submission
+	vkWaitForFences(vulkan_info.device, 1, &frame->compute_in_flight_fence, VK_TRUE, UINT64_MAX);
+	
+	vkResetFences(vulkan_info.device, 1, &frame->compute_in_flight_fence);
+	vulkan_info.active_command_buffer = &frame->compute_command_buffer;
+	vkResetCommandBuffer(frame->compute_command_buffer, 0);
 
-	if (vkBeginCommandBuffer(vulkan_info.compute_command_buffers[vulkan_info.current_frame], &vulkan_info.begin_info) != VK_SUCCESS) {
+	if (vkBeginCommandBuffer(frame->compute_command_buffer, &vulkan_info.begin_info) != VK_SUCCESS) {
 		logprint("vulkan_record_command_buffer()", "failed to begin recording command buffer\n");
 	}	
 }
 
 void vulkan_end_compute() {
+	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
+
 	if (vkEndCommandBuffer(vulkan_active_cmd_buffer(&vulkan_info)) != VK_SUCCESS) {
 		logprint("vulkan_record_command_buffer()", "failed to record command buffer\n");
 	}
 
 	vulkan_info.compute_submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	vulkan_info.compute_submit_info.commandBufferCount = 1;
-	vulkan_info.compute_submit_info.pCommandBuffers = &vulkan_info.compute_command_buffers[vulkan_info.current_frame];
+	vulkan_info.compute_submit_info.pCommandBuffers = &frame->compute_command_buffer;
 	vulkan_info.compute_submit_info.signalSemaphoreCount = 0;
-	vulkan_info.compute_submit_info.pSignalSemaphores = &vulkan_info.compute_finished_semaphore[vulkan_info.current_frame];
+	vulkan_info.compute_submit_info.pSignalSemaphores = &frame->compute_finished_semaphore;
 
-	if (vkQueueSubmit(vulkan_info.compute_queue, 1, &vulkan_info.compute_submit_info, vulkan_info.compute_in_flight_fences[vulkan_info.current_frame]) != VK_SUCCESS) {
+	if (vkQueueSubmit(vulkan_info.compute_queue, 1, &vulkan_info.compute_submit_info, frame->compute_in_flight_fence) != VK_SUCCESS) {
 	    logprint("vulkan_end_compute()", "failed to submit compute command buffer!\n");
 	};
 
@@ -1988,12 +2005,14 @@ void vulkan_end_compute() {
 };
 
 bool8 vulkan_start_frame() {
+	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
+
 	// Waiting for the previous frame
-	vkWaitForFences(vulkan_info.device, 1, &vulkan_info.in_flight_fence[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
+	vkWaitForFences(vulkan_info.device, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
 	VkResult result = vkAcquireNextImageKHR(vulkan_info.device,
                                           vulkan_info.swap_chains[0],
                                           UINT64_MAX,
-                                          vulkan_info.image_available_semaphore[vulkan_info.current_frame],
+                                          frame->image_available_semaphore,
 	                                        VK_NULL_HANDLE,
                                           &vulkan_info.image_index);
 
@@ -2012,8 +2031,8 @@ bool8 vulkan_start_frame() {
 	vulkan_info.draw_render_pass_info.framebuffer = vulkan_info.draw_framebuffers[vulkan_info.image_index];
 	vulkan_info.present_render_pass_info.framebuffer = vulkan_info.swap_chain_framebuffers[vulkan_info.image_index];
 
-	vkResetFences(vulkan_info.device, 1, &vulkan_info.in_flight_fence[vulkan_info.current_frame]);
-	vulkan_info.active_command_buffer = &vulkan_info.command_buffers[vulkan_info.current_frame];
+	vkResetFences(vulkan_info.device, 1, &frame->in_flight_fence);
+	vulkan_info.active_command_buffer = &frame->command_buffer;
 	vkResetCommandBuffer(vulkan_active_cmd_buffer(&vulkan_info), 0);
 	
 	if (vkBeginCommandBuffer(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.begin_info) != VK_SUCCESS) {
@@ -2026,8 +2045,9 @@ bool8 vulkan_start_frame() {
 }
 
 void vulkan_end_frame(Assets *assets, App_Window *window) {
+	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
+	
 	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
-
 	vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.present_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	if (present_pipeline.shader == 0) {
@@ -2061,17 +2081,17 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 	}
 
 	VkSemaphore wait_semaphores[] = {
-		vulkan_info.image_available_semaphore[vulkan_info.current_frame]
+		frame->image_available_semaphore
 	};
 	vulkan_info.submit_info.pWaitSemaphores = wait_semaphores;
-	vulkan_info.submit_info.pCommandBuffers = &vulkan_info.command_buffers[vulkan_info.current_frame];	
-	vulkan_info.submit_info.pSignalSemaphores = &vulkan_info.render_finished_semaphore[vulkan_info.current_frame];
+	vulkan_info.submit_info.pCommandBuffers = &frame->command_buffer;	
+	vulkan_info.submit_info.pSignalSemaphores = &frame->render_finished_semaphore;
 
-	if (vkQueueSubmit(vulkan_info.graphics_queue, 1, &vulkan_info.submit_info, vulkan_info.in_flight_fence[vulkan_info.current_frame]) != VK_SUCCESS) {
+	if (vkQueueSubmit(vulkan_info.graphics_queue, 1, &vulkan_info.submit_info, frame->in_flight_fence) != VK_SUCCESS) {
 		logprint("vulkan_draw_frame()", "failed to submit draw command buffer\n");
 	}
 
-	vulkan_info.present_info.pWaitSemaphores = &vulkan_info.render_finished_semaphore[vulkan_info.current_frame];
+	vulkan_info.present_info.pWaitSemaphores = &frame->render_finished_semaphore;
 	vulkan_info.present_info.pImageIndices = &vulkan_info.image_index;
 	
 	VkResult result = vkQueuePresentKHR(vulkan_info.present_queue, &vulkan_info.present_info);
