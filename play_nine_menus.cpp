@@ -2,21 +2,20 @@ internal void
 quit_to_main_menu(State *state, Menu *menu) {
     os_wait_mutex(state->mutex);
 
-    state->menu_list.mode = MAIN_MENU;
-    state->mode = MODE_LOCAL;
-    state->game.num_of_players = 1;
-    menu->gui.close_at_end = true;
-
     switch(state->mode) {
         case MODE_CLIENT: {
             client_close_connection(online.sock);
         } break;
 
         case MODE_SERVER: {
-            os_release_mutex(state->mutex);
             close_server();
         } break;
     }
+
+    state->menu_list.mode = MAIN_MENU;
+    state->game.num_of_players = 1;
+    menu->gui.close_at_end = true;
+    state->mode = MODE_LOCAL;
 
     os_release_mutex(state->mutex);
 }
