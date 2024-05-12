@@ -15,8 +15,23 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #include "char_array.h"
 #include "assets.h"
 
+#define PICKUP_PILE    8
+#define DISCARD_PILE   9
+#define PASS_BUTTON   10
+#define SELECTED_SIZE 11
+
+#define MAX_NAME_SIZE  20
+#define MAX_PLAYERS     6
+#define HAND_SIZE       8
+#define DECK_SIZE     108
+#define MAX_HOLES      20 // max holes that can be played in one gamed
+#define GAME_LENGTH     2 // play NINE
+
+#define DRAW_SIGNALS_AMOUNT 6
+
 #include "application.h"
 #include "play_nine_input.h"
+#include "play_nine_draw.h"
 #include "play_nine.h"
 #include "play_nine_online.h"
 
