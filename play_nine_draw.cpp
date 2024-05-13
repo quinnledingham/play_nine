@@ -78,14 +78,13 @@ get_pile_y_scale(u32 cards) {
 
 internal void
 flip_card_model(Game_Draw *draw, u32 player_index, u32 card_index) {
-    Vector3 card_scale           = {1.0f, 0.5f, 1.0f};
     float32 degrees = (draw->degrees_between_players * player_index) - 90.0f;
     float32 rad = degrees * DEG2RAD; 
     Vector3 position = get_hand_position(draw->radius, draw->degrees_between_players, player_index);
     Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
     rotate_coords(&card_pos, rad);
     card_pos += position;
-    draw->hand_models[player_index][card_index] = load_card_model(true, card_pos, rad, card_scale);    
+    draw->hand_models[player_index][card_index] = load_card_model(true, card_pos, rad, draw->card_scale);    
 }
 
 internal void
@@ -110,7 +109,7 @@ load_player_card_models(Game *game, Game_Draw *draw) {
             Vector3 card_pos = { hand_coords[card_index].x, 0.0f, hand_coords[card_index].y };
             rotate_coords(&card_pos, rad);
             card_pos += position;
-            //draw->hand_models[i][card_index] = load_card_model(game->players[i].flipped[card_index], card_pos, rad, card_scale);
+
             if (game->players[i].flipped[card_index]) {
                 draw->hand_models[i][card_index] = m4x4_set_position(default_matrix, card_pos);
             } else {
@@ -124,15 +123,20 @@ load_player_card_models(Game *game, Game_Draw *draw) {
 
 internal void
 load_pile_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees) {
-    Vector3 selected_card_coords = {  0.0f, 1.0f, -2.7f };
-    Vector3 pile_coords          = { -1.1f, 0.0f,  0    };
-    Vector3 discard_pile_coords  = {  1.1f, 0.0f,  0    };
-    
     // move piles closer to player
-    float32 center_of_piles_z = -draw->x_hand_position + 5.7f;
+    float32 center_of_piles_z = -draw->x_hand_position + draw->pile_distance_from_hand;
+
+    Vector3 pile_coords = {};
+    pile_coords.x = -1.1f;
     pile_coords.z = center_of_piles_z;
+
+    Vector3 discard_pile_coords = {};
+    discard_pile_coords.x = 1.1f;
     discard_pile_coords.z = center_of_piles_z;
-    selected_card_coords.z = center_of_piles_z + selected_card_coords.z;
+
+    Vector3 selected_card_coords = {};
+    selected_card_coords.y = 1.0f;
+    selected_card_coords.z = center_of_piles_z + -2.7f;
 
     // draw card selected from pile
     float32 degrees = (draw->degrees_between_players * game->active_player) - 90.0f;
@@ -350,6 +354,20 @@ draw_name_plates(Game *game, Game_Draw *draw) {
     }
 }
 
+internal void
+draw_triangle_indicator(Game *game, Game_Draw *draw) {    
+    float32 indicator_distance_from_pile = -1.9f;
+    
+    Vector3 triangle_coords = {};
+    triangle_coords.y = 0.01f;
+    triangle_coords.z = -draw->x_hand_position + draw->pile_distance_from_hand + indicator_distance_from_pile;
+    float32 degrees = (draw->degrees_between_players * game->active_player) - 90.0f;
+    float32 rads = (degrees - draw->camera_rotation.degrees) * DEG2RAD;
+    rotate_coords(&triangle_coords, rads);
+    rads -= 135.0f * DEG2RAD; // to align the triangle mesh the way it is set up (bottom left corner)
+    draw_triangle(triangle_coords, { -90.0f * DEG2RAD, rads, 0 }, { 0.5f, 0.5f, 1 }, { 255, 255, 255, 1 });
+}
+
 //      180
 // 270        90
 //       0
@@ -385,14 +403,8 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     draw_name_plates(game, &state->game_draw);
 
     render_depth_test(true);
-    // Indicator Triangle
-    Vector3 triangle_coords = {};
-    triangle_coords.z = -state->game_draw.x_hand_position + 5.7 - 2.4f;
-    float32 degrees = (state->game_draw.degrees_between_players * game->active_player) - 90.0f;
-    float32 rads = (degrees - state->game_draw.camera_rotation.degrees) * DEG2RAD;
-    rotate_coords(&triangle_coords, rads);
-    rads -= 135.0f * DEG2RAD;
-    draw_triangle({ triangle_coords.x, 0.5f, triangle_coords.z }, { -90.0f * DEG2RAD, rads, 0 }, { 0.5f, 0.5f, 1 }, { 255, 255, 255, 1 });
+
+    draw_triangle_indicator(&state->game, &state->game_draw);
 
     // Cards
     render_bind_pipeline(&basic_pipeline);

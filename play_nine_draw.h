@@ -36,7 +36,7 @@ struct Rotation {
 struct Game_Draw {
     Rotation camera_rotation; // rotation when switching players, also controls pile rotation
 
-    float32 rotation_speed;
+    float32 rotation_speed = 150.0f;
     float32 rotation; // for in HOLE_OVER state
     Vector2_s32 mouse_down;
 
@@ -62,6 +62,8 @@ struct Game_Draw {
 
     // How the card looks
     Vector3 card_scale = {1.0f, 0.5f, 1.0f};
+
+    float32 pile_distance_from_hand = 5.7f;
 };
 
 //

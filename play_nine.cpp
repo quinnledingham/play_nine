@@ -682,8 +682,6 @@ bool8 init_data(App *app) {
     global_assets = &state->assets;
     init_layouts(layouts, find_bitmap(&state->assets, "BACK"));
 
-    u32 test = sizeof(Layout_Set);
-
     Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
     init_basic_vert_layout(&basic_3D->set, layouts);
     init_basic_frag_layout(basic_3D, layouts);
@@ -829,7 +827,6 @@ bool8 init_data(App *app) {
     init_deck();
 
     state->game_draw.bot_bitmap = find_bitmap(&state->assets, "BOT");
-    state->game_draw.rotation_speed = 150.0f;
 
     state->notifications.font = default_font;
     state->notifications.text_color = { 255, 255, 255, 1 };
