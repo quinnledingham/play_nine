@@ -85,6 +85,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
 
     s32 menu_row = 0;
     for (menu_row; menu_row < (s32)game->num_of_players; menu_row++) {
+        Player *player = &game->players[menu_row];
         Vector2_s32 section_coords = { 0, menu_row };
         Vector2_s32 section_dim = { 2, 1 };
         Vector2_s32 draw_dim = section_dim;
@@ -98,22 +99,26 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
                 section_dim.y += 1;
         }
         
-        if (menu_textbox(menu, NULL, game->players[menu_row].name, section_coords, section_dim, draw_dim) && menu_row == state->client_game_index) {
+        if (menu_textbox(menu, "Name:", player->name, section_coords, section_dim, draw_dim) && menu_row == state->client_game_index) {
             if (state->mode == MODE_CLIENT)
-                client_set_name(online.sock, game->players[menu_row].name);
+                client_set_name(online.sock, player->name);
             else if (state->mode == MODE_SERVER)
                 server_send_game(&state->game);            
         }
 
-        if (game->players[menu_row].is_bot) {
+        if (player->is_bot) {
             // Draw bot icon
             Vector2 coords = get_screen_coords(menu, section_coords);
             Vector2 dim = get_screen_dim(menu, draw_dim);
             Vector2 bot_dim = dim * 0.6f;
             bot_dim.x = bot_dim.y;
-            coords.x += (bot_dim.y / 2.0f);
+            coords.x += dim.x;
+            coords.x -= (bot_dim.y / 2.0f);
+            coords.x -= bot_dim.x / 2.0f;
+            
             coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
-
+            coords.y += bot_dim.y / 2.0f;
+            
             render_bind_pipeline(&shapes.text_pipeline);
             
             Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
@@ -126,7 +131,6 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
             object.index = render_set_bitmap(&desc, find_bitmap(&state->assets, "BOT"));
             render_bind_descriptor_set(desc);
             
-            coords += bot_dim / 2.0f;
             Vector3 coords_v3 = { coords.x, coords.y, 0 };
             Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
             Vector3 dim_v3 = { bot_dim.width, bot_dim.height, 1 };

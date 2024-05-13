@@ -400,29 +400,17 @@ Mesh get_cube_mesh(bool32 out) {
     Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
     
     // back
-    vertices[0] = { {-0.5, -0.5, -0.5}, {1, 0, 1}, {0, 0} }; // bottom left
-    vertices[1] = { {-0.5,  0.5, -0.5}, {1, 0, 1}, {0, 1} }; // top left
-    vertices[2] = { { 0.5, -0.5, -0.5}, {1, 0, 1}, {1, 0} }; // bottom right
-    vertices[3] = { { 0.5,  0.5, -0.5}, {1, 0, 1}, {1, 1} }; // top right
+    vertices[0] = { {-0.5, -0.5, -0.5}, { 1,  1, 1}, {0, 0} }; // bottom left
+    vertices[1] = { {-0.5,  0.5, -0.5}, { 1, -1, 1}, {0, 1} }; // top left
+    vertices[2] = { { 0.5, -0.5, -0.5}, {-1,  1, 1}, {1, 0} }; // bottom right
+    vertices[3] = { { 0.5,  0.5, -0.5}, {-1, -1, 1}, {1, 1} }; // top right
     
     // forward
-    vertices[4] = { {-0.5, -0.5, 0.5}, {0, 0, -1}, {0, 0} }; // bottom left
-    vertices[5] = { {-0.5,  0.5, 0.5}, {0, 0, -1}, {0, 1} }; // top left
-    vertices[6] = { { 0.5, -0.5, 0.5}, {0, 0, -1}, {1, 0} }; // bottom right
-    vertices[7] = { { 0.5,  0.5, 0.5}, {0, 0, -1}, {1, 1} }; // top right
-    /*
-    // back
-    mesh.vertices[0] = { {-1.0, -1.0, -1.0}, {0, 0, 1}, {0, 0} }; // bottom left
-    mesh.vertices[1] = { {-1.0,  1.0, -1.0}, {0, 0, 1}, {0, 1} }; // top left
-    mesh.vertices[2] = { { 1.0, -1.0, -1.0}, {0, 0, 1}, {1, 0} }; // bottom right
-    mesh.vertices[3] = { { 1.0,  1.0, -1.0}, {0, 0, 1}, {1, 1} }; // top right
-    
-    // forward
-    mesh.vertices[4] = { {-1.0, -1.0, 1.0}, {0, 0, 1}, {0, 0} }; // bottom left
-    mesh.vertices[5] = { {-1.0,  1.0, 1.0}, {0, 0, 1}, {0, 1} }; // top left
-    mesh.vertices[6] = { { 1.0, -1.0, 1.0}, {0, 0, 1}, {1, 0} }; // bottom right
-    mesh.vertices[7] = { { 1.0,  1.0, 1.0}, {0, 0, 1}, {1, 1} }; // top right
-    */
+    vertices[4] = { {-0.5, -0.5, 0.5}, { 1,  1, -1}, {0, 0} }; // bottom left
+    vertices[5] = { {-0.5,  0.5, 0.5}, { 1, -1, -1}, {0, 1} }; // top left
+    vertices[6] = { { 0.5, -0.5, 0.5}, {-1,  1, -1}, {1, 0} }; // bottom right
+    vertices[7] = { { 0.5,  0.5, 0.5}, {-1, -1, -1}, {1, 1} }; // top right
+
     mesh.indices_count = 6 * 6; // 6 indices per side (rects), 6 sides
     mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
     

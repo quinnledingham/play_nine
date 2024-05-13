@@ -739,7 +739,9 @@ bool8 init_data(App *app) {
     set(&state->controller.pause,  SDLK_ESCAPE);
     set(&state->controller.pass,   SDLK_p); 
 
+#ifdef DEBUG
     set(&state->controller.camera_toggle, SDLK_c);
+#endif // DEBUG
 
     set(&state->controller.one,   SDLK_u);
     set(&state->controller.two,   SDLK_i);

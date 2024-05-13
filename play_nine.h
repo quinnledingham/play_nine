@@ -4,7 +4,7 @@ TODO
 - Show keyboard controls
 - see all cards in larger lobby's in online (@SOLUTION Move Camera?)
 - Make lobby menu go back to pause from menu (change play to start new game)
-- Add labels to player textboxes
+- Add audio/audio settings
 
 Bot
 - Add look ahead, so the bot doesnt give pairs to next player
@@ -16,15 +16,13 @@ Slight Problems
 
 Render.cpp
 - Clean up light sources in shaders
-- Add wireframe and vsync toggle
-- Fix "skybox" shading
+- Add wireframe toggle
 - Clean up global pipelines
 
 vulkan.h
 - pass thru shader to map bitmap to screen
 - make a basic pipeline to show one bitmap on screen (the output of drawing)
 - make it so that when the resolution = window resolution it does not do the extra step
-- put all descriptors and buffers in vulkan info in a way that is easy to clean up
 */
 
 global s8 deck[DECK_SIZE];
