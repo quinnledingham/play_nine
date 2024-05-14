@@ -393,6 +393,17 @@ int main(int argc, char *argv[]) {
         if (app.update(&app))
             break;
 
+
+        // Audio
+        /*
+        mix_audio(&app.player, app.time.frame_time_s);
+        if (app.player.length > 0) {
+            if (SDL_QueueAudio(app.player.device_id, app.player.buffer, app.player.length))
+                print("%s\n", SDL_GetError());
+            print("audio: %d\n",  app.player.length);
+            platform_memory_set(app.player.buffer, 0, app.player.max_length); 
+        }
+        */
         //SDL_Delay(5);
     }
 

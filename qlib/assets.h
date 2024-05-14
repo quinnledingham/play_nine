@@ -7,7 +7,7 @@
 #include <stb_image.h>
 #include <stb_image_resize.h>
 #include <stb_truetype.h>
-
+#include <stb_vorbis.c>
 /*
 ../assets/bitmaps/test.png
 
@@ -84,8 +84,43 @@ struct Font {
     Font_Cache *cache;
 };
 
-struct Audio {
+//
+// Audio
+//
 
+enum Audio_Types {
+    AUDIO_TYPE_SOUND_EFFECT,
+    AUDIO_TYPE_MUSIC
+};
+
+struct Audio {
+    u8 *buffer;
+    u32 length; // in bytes
+
+    s32 channels;
+    s32 sample_rate; // frequency (22050 Hz)
+    s32 samples;
+};
+
+struct Playing_Audio {
+    u8 *position;
+    u32 length_remaining;
+    u32 type;
+};
+
+struct Audio_Player {
+    bool8 playing;
+    Playing_Audio playing_audios[10];
+    u32 playing_audios_count;
+
+    u8 *buffer;
+    u32 length;     // in bytes largest amount copied
+    u32 max_length; // in bytes amount availabe
+
+    SDL_AudioDeviceID device_id;
+
+    float32 music_volume;
+    float32 sound_effects_volume;
 };
 
 //
@@ -414,5 +449,6 @@ inline Bitmap* find_bitmap(Assets *assets, const char *tag) { return (Bitmap*) f
 inline Font*   find_font  (Assets *assets, const char *tag) { return (Font*)   find_asset(assets, ASSET_TYPE_FONT,   tag); }
 inline Shader* find_shader(Assets *assets, const char *tag) { return (Shader*) find_asset(assets, ASSET_TYPE_SHADER, tag); }
 inline Model*  find_model (Assets *assets, const char *tag) { return (Model*)  find_asset(assets, ASSET_TYPE_MODEL,  tag); }
+inline Audio*  find_audio (Assets *assets, const char *tag) { return (Audio*)  find_asset(assets, ASSET_TYPE_AUDIO,  tag); }
 
 #endif // ASSETS_H

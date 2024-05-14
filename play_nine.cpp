@@ -259,6 +259,9 @@ bool8 update_game(State *state, App *app) {
             if (on_up(state->controller.pause)) {
                 state->menu_list.mode = PAUSE_MENU;
                 state->paused_earlier_in_frame = true;
+                
+                Audio *audio = find_audio(global_assets, "WOOSH");
+                play_audio(&app->player, audio, AUDIO_TYPE_SOUND_EFFECT);
             }
             
             if (on_down(state->controller.camera_toggle)) {
@@ -449,6 +452,13 @@ bool8 update(App *app) {
         layouts[i].reset();
     }
     
+    mix_audio(&app->player, app->time.frame_time_s);
+    if (app->player.length > 0) {
+        if (SDL_QueueAudio(app->player.device_id, app->player.buffer, app->player.length))
+            print("%s\n", SDL_GetError());
+        platform_memory_set(app->player.buffer, 0, app->player.max_length); 
+    }
+    
     if (render_start_frame())
         goto AFTER_DRAW;
 
@@ -625,7 +635,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))
@@ -848,6 +858,8 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             // draw loading screen
             //render_start_frame();
             //render_end_frame();
+
+            init_audio_player(&app->player);
 
             app->update = &update;
             if (init_data(app))

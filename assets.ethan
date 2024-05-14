@@ -34,3 +34,6 @@ CASLON, LibreCaslonCondensed-Regular.ttf
 MODELS:
 CARD, /card/card.obj
 TABLE, /table/table.obj
+
+AUDIOS:
+WOOSH, woosh.ogg

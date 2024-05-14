@@ -529,3 +529,170 @@ clean_model(Model *model) {
             free_bitmap(mesh->material.diffuse_map);
     }
 }
+
+//
+// Audio
+//
+
+internal void
+print_audio(Audio audio) {
+    print("Loaded Audio:\nChannels: %d\nSamples: %d\nSample Rate: %d\nLength: %d\n", audio.channels, audio.samples, audio.sample_rate, audio.length);
+}
+
+internal Audio
+load_ogg(const char *file_name) {
+    Audio audio = {};
+
+    audio.samples = stb_vorbis_decode_filename(file_name, &audio.channels, &audio.sample_rate, (short **)&audio.buffer);
+    if (audio.samples < 0) {
+        logprint("load_ogg()", "failed to load audio (%s)\n", file_name);
+        return audio;
+    }
+    
+    audio.length = audio.samples * 4; // 2 bytes (s16) * 2 channels
+
+    print_audio(audio);
+    
+    return audio;
+}
+
+#ifdef SDL
+
+internal Audio
+load_wav(const char *file_name) {
+    Audio audio = {};
+
+    SDL_AudioSpec spec = {};
+    SDL_LoadWAV(file_name, &spec, &audio.buffer, &audio.length);
+    audio.samples = spec.samples;
+    audio.channels = spec.channels;
+    audio.sample_rate = spec.freq;
+   
+    print_audio(audio);
+    
+    return audio;
+}
+
+internal bool8
+init_audio_player(Audio_Player *player) {
+    for (s32 i = 0; i < SDL_GetNumAudioDrivers(); i++) {
+        print("Audio driver %d: %s\n", i, SDL_GetAudioDriver(i));
+    }
+
+    const char *driver_name = SDL_GetCurrentAudioDriver();
+    if (driver_name) {
+        print("Audio subsystem initialized: %s.\n", driver_name);
+    } else {
+        logprint("init_audio_player()", "Audio subsystem not initialized.\n");   
+        return true;
+    }
+
+    u32 num_audio_devices = SDL_GetNumAudioDevices(0);
+    for (u32 i = 0; i < num_audio_devices; i++) {
+        print("Audio device %d: %s\n", i, SDL_GetAudioDeviceName(i, 0));
+    }
+
+    SDL_AudioSpec desired;
+    desired.freq = 22050;
+    desired.samples = 1024;
+    desired.format = AUDIO_S16;
+    desired.callback = 0;
+    
+    SDL_AudioSpec obtained;
+
+    SDL_AudioSpec device_spec;
+    char *device_name = 0;
+    //SDL_GetDefaultAudioInfo(&device_name, &device_spec, 0);
+    player->device_id = SDL_OpenAudioDevice(device_name, 0, &desired, &obtained, 0);
+/*
+    if (device_name) {
+        print("Audio device selected: %s\n", device_name);
+    } else {
+        logprint("init_audio_player()", "Audio device not selected.\n");
+        return true;
+    }
+*/
+    SDL_PauseAudioDevice(player->device_id, 0);
+
+    player->max_length = 10000;
+    player->buffer = (u8*)platform_malloc(player->max_length);
+    platform_memory_set(player->buffer, 0, player->max_length);
+
+    player->music_volume = 0.5f;
+    player->sound_effects_volume = 0.5f;
+
+    platform_memory_set(player->playing_audios, 0, 10 * sizeof(Playing_Audio)); 
+
+    return false;
+}
+
+#endif // SDL
+
+internal s32
+play_audio(Audio_Player *player, Audio *audio, u32 type) {
+    Playing_Audio *playing_audio;
+    s32 index = -1;
+    for (u32 i = 0; i < ARRAY_COUNT(player->playing_audios); i++) {
+        if (player->playing_audios[i].length_remaining <= 0) {
+            playing_audio = &player->playing_audios[i];
+            index = i;
+            break;
+        }
+    }
+
+    if (!playing_audio) {
+        logprint("play_audio()", "Too many audios playing\n");
+        return index;
+    }
+
+    playing_audio->position = audio->buffer;
+    playing_audio->length_remaining = audio->length;
+    playing_audio->type = type;
+
+    return index;
+}
+
+internal void
+mix_audio(Audio_Player *player, float32 frame_time_s) {
+    float32 samples_per_second = 22050.0f; // frequency
+    u32 bytes_padding = 100;
+    u32 sample_count = (u32)floor(frame_time_s * samples_per_second);
+    u32 bytes_to_copy = sample_count * 4 + bytes_padding; // 2 bytes per 2 channels for each sample
+
+    player->length = 0;
+    for (u32 i = 0; i < ARRAY_COUNT(player->playing_audios); i++) {
+        Playing_Audio *playing = &player->playing_audios[i];
+        if (playing->length_remaining <= 0)
+            continue;
+        
+        if (playing->length_remaining < bytes_to_copy)
+            bytes_to_copy = playing->length_remaining;
+        
+        if (bytes_to_copy > player->max_length) {
+            logprint("mix_audio()", "Buffer not big enough for %d bytes\n", bytes_to_copy);
+            return;
+        }
+
+        // Set volume
+        float32 volume = 0.5f;
+        switch(playing->type) {
+            case AUDIO_TYPE_SOUND_EFFECT: volume = player->sound_effects_volume; break;
+            case AUDIO_TYPE_MUSIC:        volume = player->music_volume;         break;
+        }
+
+        // Mix into buffer
+        u32 buffer_index = 0;
+        while(buffer_index < bytes_to_copy) {
+            s16 *buffer = (s16*)&player->buffer[buffer_index];
+            s16 *source = (s16*)&playing->position[buffer_index];
+            *buffer += s16((float32)*source * volume);
+            buffer_index += 2; // move two bytes
+        }
+
+        // Update playing to after what was mixed
+        playing->position += bytes_to_copy;
+        playing->length_remaining -= bytes_to_copy;
+        if (player->length < bytes_to_copy)
+            player->length = bytes_to_copy;
+    }
+}

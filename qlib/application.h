@@ -90,6 +90,7 @@ struct App {
 	App_Time time;
 	App_Input input;
 	Bitmap *icon;
+	Audio_Player player;
 
 	bool8 (*update)(App *app);
 
