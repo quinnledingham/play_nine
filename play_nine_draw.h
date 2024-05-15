@@ -16,7 +16,6 @@ const Vector4 highlight_colors[3] = { play_nine_yellow, play_nine_light_yellow, 
 global Font *default_font;
 Draw_Style default_style = {};
 
-Assets *global_assets;
 Descriptor texture_desc = {}; // card textures
 
 Render_Pipeline basic_pipeline;

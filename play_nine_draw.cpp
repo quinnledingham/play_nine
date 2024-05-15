@@ -117,8 +117,7 @@ load_player_card_models(Game *game, Game_Draw *draw) {
                 draw->hand_models[i][card_index] = m4x4_set_position(not_flipped_matrix, card_pos);
             }
         }
-    }
-  
+    }  
 }
 
 internal void
@@ -459,7 +458,12 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
         
         switch(signals[i].type) {
             case SIGNAL_ALL_PLAYER_CARDS: load_player_card_models(game, draw); break;
-            case SIGNAL_ACTIVE_PLAYER_CARDS: flip_card_model(draw, signals[i].player_index, signals[i].card_index); break;
+            
+            case SIGNAL_ACTIVE_PLAYER_CARDS: {
+                flip_card_model(draw, signals[i].player_index, signals[i].card_index);
+                play_sound("TAP");
+            } break;
+            
             case SIGNAL_NEXT_PLAYER_ROTATION: {
                 draw->camera_rotation = {
                     true,
@@ -468,8 +472,10 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
                     0.0f,
                     -draw->rotation_speed
                 };
+                play_sound("WOOSH");
 
             } break;
+            
             case SIGNAL_NAME_PLATES: load_name_plates(game, draw); break;
         }
         signals[i].in_use = false;    

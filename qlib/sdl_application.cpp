@@ -320,8 +320,6 @@ sdl_set_icon(Bitmap *icon, SDL_Window *sdl_window) {
 int main(int argc, char *argv[]) {
     print("starting application...\n");
 
-    App app = {};
-
     app.time.performance_frequency = SDL_GetPerformanceFrequency();
     app.time.start_ticks           = SDL_GetPerformanceCounter();
     app.time.last_frame_ticks      = app.time.start_ticks;

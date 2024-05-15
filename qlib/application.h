@@ -94,9 +94,11 @@ struct App {
 
 	bool8 (*update)(App *app);
 
-	void *data;
+	void *data; // State
 };
 
 s32 event_handler(App *app, App_System_Event event, u32 arg);
+
+App app = {};
 
 #endif // APPLICATION_H

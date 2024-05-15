@@ -155,6 +155,7 @@ do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
                 if (selected[i] && !active_player->flipped[i]) {    
                     add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
                     active_player->flipped[i] = true;
+
                     if (game->round_type == FLIP_ROUND) {
                         // check if player turn over
                         if (get_number_flipped(active_player->flipped) == 2) {
@@ -258,10 +259,7 @@ bool8 update_game(State *state, App *app) {
         case PLAYER_CAMERA: {
             if (on_up(state->controller.pause)) {
                 state->menu_list.mode = PAUSE_MENU;
-                state->paused_earlier_in_frame = true;
-                
-                Audio *audio = find_audio(global_assets, "WOOSH");
-                play_audio(&app->player, audio, AUDIO_TYPE_SOUND_EFFECT);
+                state->paused_earlier_in_frame = true;                
             }
             
             if (on_down(state->controller.camera_toggle)) {
@@ -328,7 +326,7 @@ bool8 update_game(State *state, App *app) {
             }
 
             if (state->mode == MODE_CLIENT || all_false(selected))
-                 break; // client doesn't do any game updated         
+                 break; // client doesn't do any game updates       
 
             // Game logic
             do_update_with_input(game, selected);
@@ -453,11 +451,7 @@ bool8 update(App *app) {
     }
     
     mix_audio(&app->player, app->time.frame_time_s);
-    if (app->player.length > 0) {
-        if (SDL_QueueAudio(app->player.device_id, app->player.buffer, app->player.length))
-            print("%s\n", SDL_GetError());
-        platform_memory_set(app->player.buffer, 0, app->player.max_length); 
-    }
+    queue_audio(&app->player);
     
     if (render_start_frame())
         goto AFTER_DRAW;

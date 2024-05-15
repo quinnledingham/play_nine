@@ -166,6 +166,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
         if (menu_button(menu, "Start", { 0, menu_row + 2 }, { 1, 1 })) {
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
+                menu->gui.close_at_end = true;
                 start_game(&state->game, game->num_of_players);
                 if (state->mode == MODE_SERVER) {
                     server_send_menu_mode(state->menu_list.mode);

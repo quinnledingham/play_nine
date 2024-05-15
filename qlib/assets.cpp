@@ -626,6 +626,15 @@ init_audio_player(Audio_Player *player) {
     return false;
 }
 
+internal void
+queue_audio(Audio_Player *player) {
+    if (player->length > 0) {
+        if (SDL_QueueAudio(player->device_id, player->buffer, player->length))
+            print("%s\n", SDL_GetError());
+        platform_memory_set(player->buffer, 0, player->max_length); 
+    }
+}
+
 #endif // SDL
 
 internal s32
@@ -650,6 +659,18 @@ play_audio(Audio_Player *player, Audio *audio, u32 type) {
     playing_audio->type = type;
 
     return index;
+}
+
+internal void
+play_sound(const char *tag) {
+    Audio *audio = find_audio(global_assets, tag);
+    play_audio(&app.player, audio, AUDIO_TYPE_SOUND_EFFECT); 
+}
+
+internal void
+play_music(const char *tag) {
+    Audio *audio = find_audio(global_assets, tag);
+    play_audio(&app.player, audio, AUDIO_TYPE_MUSIC); 
 }
 
 internal void

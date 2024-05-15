@@ -128,6 +128,10 @@ struct GUI {
 
     bool8 close_at_end;
 
+    // Audio
+    Audio hovered;
+    Audio activated;
+
     void start() { 
         index = 1; 
     };

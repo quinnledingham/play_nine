@@ -212,6 +212,8 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2
         button_pressed = true;
         gui->pressed = 0;
         gui->active = 0;
+
+        play_sound("TAP");
     }
 
     gui->index++;
