@@ -43,6 +43,36 @@ draw_button(const Draw_Style style, const u32 state, Rect rect, const char *labe
     }
 }
 
+internal void
+draw_slider(const Draw_Style style, const u32 state, Rect rect, float32 value, const char *label, Font *font) {
+    Vector4 back_color = style.background_colors[state];
+    draw_rect(rect.coords, 0, rect.dim, back_color); // back
+
+    Rect text_rect = rect;
+    text_rect.dim.y *= (1.0f / 2.0f);
+    
+    float32 pixel_height = text_rect.dim.y * 0.8f;
+
+    Vector2 text_coords = text_rect.coords + get_centered_text_coords(font, label, pixel_height, text_rect.dim, ALIGN_CENTER);
+    Vector4 text_color = style.text_colors[state];
+
+    render_context.scissor_push(text_rect.coords, text_rect.dim);
+    draw_string(font, label, text_coords, pixel_height, text_color); // text
+    render_context.scissor_pop();
+
+    Rect slide_rect = rect;
+    slide_rect.coords.y += text_rect.dim.y;
+    slide_rect.dim.y *= (1.0f / 2.0f);
+
+    Rect slide_bar_rect = get_centered_rect(slide_rect, 1.0f, 1.0f / 3.0f);
+    draw_rect(slide_bar_rect, text_color);
+
+    Rect slide_node_rect = slide_rect;
+    slide_node_rect.dim.x = slide_node_rect.dim.y;
+    slide_node_rect.coords.x += value * slide_rect.dim.x - (slide_node_rect.dim.x / 2.0f);
+    draw_rect(slide_node_rect, text_color);
+}
+
 // state = active, hover, pressed
 // value = on or off
 internal void
@@ -239,6 +269,47 @@ gui_checkbox(GUI *gui, Draw_Style style, bool8 *value, const char *label, Vector
 
     gui->index++;
     return checkbox_pressed;
+}
+
+internal bool8
+gui_slider(GUI *gui, Draw_Style style, float32 *value, u32 increments, const char *label, Vector2 coords, Vector2 dim) {
+    u32 state = gui_update(gui, coords, dim);
+    Rect rect = {};
+    rect.coords = coords;
+    rect.dim = dim;
+    draw_slider(style, state, rect, *value, label, gui->font);
+
+    if (gui->index == gui->active) {
+        if (gui->index != gui->hover) {
+            gui->pressed = 0;
+            gui->active = 0;
+        }
+    }
+
+    bool8 new_value = false;
+
+    if (gui->index == gui->hover) {
+        if (on_up(*gui->input.left)) {
+            *value -= 1.0f / float32(increments);
+            
+            if (*value < 0.0f)
+                *value = 0.0f;
+
+            new_value = true;
+        }
+        if (on_up(*gui->input.right)) {
+            *value += 1.0f / float32(increments);
+
+            if (*value > 1.0f)
+                *value = 1.0f;
+            
+            new_value = true;
+        }
+    }
+    
+    gui->index++;
+
+    return new_value;
 }
 
 internal bool8
@@ -535,13 +606,23 @@ menu_button(Menu *menu, const char *text, Vector2_s32 section_coords, Vector2_s3
     Vector2 dim = get_screen_dim(menu, draw_dim);
 
     do_menu_update(menu, coords, dim, section_coords, section_dim);
-    
+
     return gui_button(&menu->gui, menu->gui.style, text, coords, dim);
- }
+}
 
 internal bool8
 menu_button(Menu *menu, const char *text, Vector2_s32 section_coords, Vector2_s32 section_dim) {
     return menu_button(menu, text, section_coords, section_dim, section_dim);
+}
+
+internal bool8
+menu_slider(Menu *menu, float32 *value, u32 increments, const char *label, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    Vector2 coords = get_screen_coords(menu, section_coords);
+    Vector2 dim = get_screen_dim(menu, section_dim);
+
+    do_menu_update(menu, coords, dim, section_coords, section_dim);
+
+    return gui_slider(&menu->gui, menu->gui.style, value, increments, label, coords, dim);
 }
 
 internal bool8

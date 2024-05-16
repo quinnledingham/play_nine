@@ -456,9 +456,9 @@ internal void
 draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window_dim), 0.5f, 0.5f);
 
-    menu->sections = { 1, 4 };
+    menu->sections = { 1, 5 };
     menu->interact_region[0] = { 0, 1 };
-    menu->interact_region[1] = { 1, 4 };
+    menu->interact_region[1] = { 1, 5 };
 
     menu->start();
 
@@ -470,14 +470,17 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     menu_text(menu, "Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
-    if (menu_button(menu, "Video Settings", { 0, 1 }, { 1, 1 })) {
+    if (menu_button(menu, "Video", { 0, 1 }, { 1, 1 })) {
         state->menu_list.mode = VIDEO_SETTINGS_MENU;
     }
-    if (menu_button(menu, "Test Menu", { 0, 2, }, { 1, 1 })) {
+    if (menu_button(menu, "Audio", { 0, 2 }, { 1, 1 })) {
+        state->menu_list.mode = AUDIO_SETTINGS_MENU;
+    }
+    if (menu_button(menu, "Test Menu", { 0, 3 }, { 1, 1 })) {
         state->game = get_test_game();
         state->menu_list.mode = SCOREBOARD_MENU;    
     }
-    if (menu_button(menu, "Back", { 0, 3 }, { 1, 1 })) {
+    if (menu_button(menu, "Back", { 0, 4 }, { 1, 1 })) {
         state->menu_list.mode = state->menu_list.previous_mode;
         menu->gui.close_at_end = true;
     }
@@ -499,6 +502,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
             state->menu_list.mode = SETTINGS_MENU;
             menu->gui.close_at_end = true;
         } else {
+            // break out of dropdown menu
             menu->gui.pressed = 0;
             menu->gui.active = 0;
         }
@@ -540,4 +544,37 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     }
     menu->end();
     
+}
+
+internal void
+draw_audio_settings_menu(Menu *menu, State *state, Audio_Player *player, App_Window *window) {
+    menu->sections = { 1, 4 };
+    menu->interact_region[0] = { 0, 1 };
+    menu->interact_region[1] = { 1, 4 };
+    
+    menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window->dim), 0.5f, 0.5f);
+    menu->start();
+    draw_rect({ 0, 0 }, 0, cv2(window->dim), play_nine_green);
+
+    if (on_up(state->controller.pause)) {
+        if (menu->gui.active == 0) {
+            state->menu_list.mode = SETTINGS_MENU;
+            menu->gui.close_at_end = true;
+        } 
+    }
+    
+    menu_text(menu, "Audio", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
+
+    menu_slider(menu, &player->music_volume, 6, "Music", { 0, 1 }, { 1, 1 });
+    if (menu_slider(menu, &player->sound_effects_volume, 6, "Sound Effects", { 0, 2 }, { 1, 1 })) {
+        play_sound("TAP");
+    }
+
+    if (menu_button(menu, "Back", { 0, 3 }, { 1, 1 })) {
+        state->menu_list.mode = SETTINGS_MENU;
+        menu->gui.close_at_end = true;
+    }
+    
+    menu->end();
+
 }

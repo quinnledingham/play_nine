@@ -107,6 +107,7 @@ enum Menu_Mode {
 
     SETTINGS_MENU,
     VIDEO_SETTINGS_MENU,
+    AUDIO_SETTINGS_MENU,
 
     IN_GAME,
 

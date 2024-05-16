@@ -493,6 +493,7 @@ bool8 update(App *app) {
         case JOIN_MENU: draw_join_menu(&state->menu_list.menus[JOIN_MENU], state, app->window.dim); break;
         case SETTINGS_MENU: draw_settings_menu(&state->menu_list.menus[SETTINGS_MENU], state, app->window.dim); break;
         case VIDEO_SETTINGS_MENU: draw_video_settings_menu(&state->menu_list.menus[VIDEO_SETTINGS_MENU], state, &app->window); break;
+        case AUDIO_SETTINGS_MENU: draw_audio_settings_menu(&state->menu_list.menus[AUDIO_SETTINGS_MENU], state, &app->player, &app->window); break;
         
         case PAUSE_MENU:
         case IN_GAME: {
@@ -629,7 +630,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))
