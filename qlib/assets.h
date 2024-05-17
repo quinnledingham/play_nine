@@ -27,7 +27,6 @@ struct File {
 };
 
 struct Bitmap {
-    File file; // png
     u8 *memory; // loaded pixels
     union {
         struct {
@@ -78,7 +77,6 @@ struct Font_Cache {
 };
 
 struct Font {
-    File file;
     void *info; // stbtt_fontinfo
     
     Vector2_s32 bb_0; // font bounding box coord 0
@@ -420,6 +418,7 @@ struct Asset {
     u32 type;
     const char *tag;
     u32 tag_length;
+    File file;
     union {
         Bitmap bitmap;
         Font font;

@@ -633,7 +633,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))
@@ -671,8 +671,7 @@ bool8 init_data(App *app) {
             const char *tag = "card";
             platform_memory_copy((void*)asset->tag, (void*)tag, 4);
 
-            write_bitmap(&asset->bitmap, asset->tag);
-            asset->bitmap.file = load_file(asset->tag);
+            write_bitmap(&asset->bitmap, &asset->file);
         };
         add_assets(&state->assets, card_assets, 14);
         print_assets(&state->assets);
