@@ -4,8 +4,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #define STB_TRUETYPE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image.h>
 #include <stb_image_resize.h>
+#include <stb_image_write.h>
 #include <stb_truetype.h>
 #include <stb_vorbis.c>
 /*
@@ -17,15 +19,16 @@ folder_path = ../assets/bitmaps/
 */
 
 struct File {
-	const char *filepath;
+    const char *filepath;
     const char *path;
     char *ch; // for functions like file_get_char()
-	u32 size;
-	void *memory;
+    u32 size;
+    void *memory;
 };
 
 struct Bitmap {
-	u8 *memory;
+    File file; // png
+    u8 *memory; // loaded pixels
     union {
         struct {
             s32 width;
@@ -36,7 +39,7 @@ struct Bitmap {
     s32 pitch;
     s32 channels;
     u32 mip_levels;
-    
+
     void *gpu_info;
 };
 

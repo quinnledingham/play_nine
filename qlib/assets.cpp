@@ -122,33 +122,32 @@ read_file_terminated(const char *filepath) {
 // Bitmap
 //
 
-internal Bitmap
-load_bitmap(const char *filename, bool8 flip_on_load) {
+internal void
+load_bitmap(Bitmap *bitmap, bool8 flip_on_load) {
     if (flip_on_load) stbi_set_flip_vertically_on_load(true);
     else              stbi_set_flip_vertically_on_load(false);
-    Bitmap bitmap = {};
-    bitmap.channels = 4;
+
+    bitmap->channels = 4;
     
     // 4 arg always get filled in with the original amount of channels the image had.
     // Currently forcing it to have 4 channels.
-    unsigned char *data = stbi_load(filename, &bitmap.width, &bitmap.height, 0, bitmap.channels);
-    u32 data_size = bitmap.width * bitmap.height * bitmap.channels;
-    bitmap.memory = (u8 *)platform_malloc(data_size);
-    platform_memory_copy(bitmap.memory, data, data_size);
+    unsigned char *data = stbi_load_from_memory((stbi_uc const *)bitmap->file.memory, bitmap->file.size, &bitmap->width, &bitmap->height, 0, bitmap->channels);
+    //unsigned char *data = stbi_load(filename, &bitmap->width, &bitmap->height, 0, bitmap->channels);
+    u32 data_size = bitmap->width * bitmap->height * bitmap->channels;
+    bitmap->memory = (u8 *)platform_malloc(data_size);
+    platform_memory_copy(bitmap->memory, data, data_size);
     stbi_image_free(data);
 
-    if (bitmap.memory == 0) 
-        logprint("load_bitmap()", "could not load bitmap %s\n", filename);
+    if (bitmap->memory == 0) 
+        logprint("load_bitmap()", "could not load bitmap %s\n", bitmap->file.path);
 
-    bitmap.pitch = bitmap.width * bitmap.channels;
-    bitmap.mip_levels = (u32)floor(log2f((float32)max(bitmap.width, bitmap.height))) + 1;
-
-    return bitmap;
+    bitmap->pitch = bitmap->width * bitmap->channels;
+    bitmap->mip_levels = (u32)floor(log2f((float32)max(bitmap->width, bitmap->height))) + 1;
 }
 
-internal Bitmap
-load_bitmap(const char *filename) {
-    return load_bitmap(filename, false);
+internal void
+write_bitmap(Bitmap *bitmap, const char *file_path) {
+    stbi_write_png(file_path, bitmap->width, bitmap->height, bitmap->channels, bitmap->memory, bitmap->pitch);
 }
 
 internal void
@@ -318,17 +317,17 @@ clean_shader(Shader *shader) {
 
 internal Font
 load_font(const char *filepath) {
-	Font font = {};
+    Font font = {};
     font.file = load_file(filepath);
     return font;
 }
 
 internal void
 init_font(Font *font) {
-	font->info = platform_malloc(sizeof(stbtt_fontinfo));
+    font->info = platform_malloc(sizeof(stbtt_fontinfo));
     stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
     *info = {};
-    
+
     font->cache = (Font_Cache *)platform_malloc(sizeof(Font_Cache));
     platform_memory_set(font->cache, 0, sizeof(Font_Cache));
     platform_memory_set(font->cache->bitmaps, 0, sizeof(Font_Char_Bitmap) * ARRAY_COUNT(font->cache->bitmaps));

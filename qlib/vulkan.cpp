@@ -1551,6 +1551,11 @@ void vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
 		bitmap->mip_levels = (u32)floor(log2f((float32)max(bitmap->width, bitmap->height))) + 1;
 	}   
 
+	if (bitmap->width == 0) {
+		logprint("vulkan_create_texture()", "bitmap not loaded\n");
+		return;
+	}
+
 	vulkan_create_texture_image(bitmap);
 	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
   texture->image_view = vulkan_create_image_view(vulkan_info.device, texture->image, texture->image_format, VK_IMAGE_ASPECT_COLOR_BIT, bitmap->mip_levels);

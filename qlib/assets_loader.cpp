@@ -164,7 +164,7 @@ load_asset(Asset *asset, Asset_Parse_Info *info) {
     // how to load the various assets
     switch(asset->type) {
         case ASSET_TYPE_FONT:   asset->font   = load_font(filename);   break;
-        case ASSET_TYPE_BITMAP: asset->bitmap = load_bitmap(filename); break;
+        case ASSET_TYPE_BITMAP: asset->bitmap.file = load_file(filename); break;
         case ASSET_TYPE_AUDIO:  asset->audio  = load_ogg(filename);  break;
         case ASSET_TYPE_MODEL:  asset->model  = load_obj(filename);    break;
         case ASSET_TYPE_SHADER: {
@@ -365,7 +365,8 @@ save_assets(Assets *assets, FILE *file)
         switch(asset->type)
         {
             case ASSET_TYPE_FONT: fwrite(asset->font.file.memory, asset->font.file.size, 1, file); break;
-            case ASSET_TYPE_BITMAP: save_bitmap_memory(asset->bitmap, file); break;
+            //case ASSET_TYPE_BITMAP: save_bitmap_memory(asset->bitmap, file); break;
+            case ASSET_TYPE_BITMAP: fwrite(asset->bitmap.file.memory, asset->bitmap.file.size, 1, file); break;
             
             case ASSET_TYPE_SHADER: {
                 for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
@@ -406,8 +407,7 @@ load_saved_assets(Assets *assets, const char *filename, u32 offset) // returns 0
 
     init_types_array(assets->data, assets->types);
     
-    for (u32 i = 0; i < assets->num_of_assets; i++)
-    {
+    for (u32 i = 0; i < assets->num_of_assets; i++) {
         Asset *asset = &assets->data[i];
 
         asset->tag = (const char*)platform_malloc(asset->tag_length + 1);
@@ -419,7 +419,10 @@ load_saved_assets(Assets *assets, const char *filename, u32 offset) // returns 0
                 fread(asset->font.file.memory, asset->font.file.size, 1, file);
             } break;
 
-            case ASSET_TYPE_BITMAP: load_bitmap_memory(&asset->bitmap, file); break;
+            case ASSET_TYPE_BITMAP: {
+                asset->bitmap.file.memory = platform_malloc(asset->bitmap.file.size);
+                fread(asset->bitmap.file.memory, asset->bitmap.file.size, 1, file);
+            } break;
 
             case ASSET_TYPE_SHADER: {
                 for (u32 i = 0; i < SHADER_STAGES_AMOUNT; i++) {
@@ -465,7 +468,10 @@ init_assets(Assets *assets) {
         Asset *asset = &assets->data[i];
         switch(asset->type) {
             case ASSET_TYPE_FONT:   init_font(&asset->font);               break;
-            case ASSET_TYPE_BITMAP: render_create_texture(&asset->bitmap, TEXTURE_PARAMETERS_CHAR); break;
+            case ASSET_TYPE_BITMAP: {
+                load_bitmap(&asset->bitmap, false); 
+                render_create_texture(&asset->bitmap, TEXTURE_PARAMETERS_CHAR);
+            } break;
             case ASSET_TYPE_SHADER: render_compile_shader(&asset->shader); break;
             case ASSET_TYPE_AUDIO:                                         break;
             case ASSET_TYPE_MODEL:  init_model(&asset->model);             break;

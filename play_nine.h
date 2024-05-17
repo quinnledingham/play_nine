@@ -4,7 +4,7 @@ TODO
 - Show keyboard controls
 - see all cards in larger lobby's in online (@SOLUTION Move Camera?)
 - Make lobby menu go back to pause from menu (change play to start new game)
-- Add audio/audio settings
+- Create a way to save the compressed versions of assets
 
 Bot
 - Add look ahead, so the bot doesnt give pairs to next player
