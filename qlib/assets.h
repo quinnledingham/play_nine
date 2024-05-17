@@ -115,6 +115,10 @@ struct Audio_Player {
 
     u8 *buffer;
     u32 length;     // in bytes largest amount copied
+
+    u32 bytes_queued_last_frame;
+    s32 bytes_queued;
+    
     u32 max_length; // in bytes amount availabe
 
     SDL_AudioDeviceID device_id;

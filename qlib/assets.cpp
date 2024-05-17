@@ -615,6 +615,7 @@ init_audio_player(Audio_Player *player) {
     SDL_PauseAudioDevice(player->device_id, 0);
 
     player->max_length = 10000;
+    player->bytes_queued = 0;
     player->buffer = (u8*)platform_malloc(player->max_length);
     platform_memory_set(player->buffer, 0, player->max_length);
 
@@ -629,6 +630,7 @@ init_audio_player(Audio_Player *player) {
 internal void
 queue_audio(Audio_Player *player) {
     if (player->length > 0) {
+        //print("queueing: %d\n", player->length);
         if (SDL_QueueAudio(player->device_id, player->buffer, player->length))
             print("%s\n", SDL_GetError());
         platform_memory_set(player->buffer, 0, player->max_length); 
@@ -677,23 +679,38 @@ internal void
 mix_audio(Audio_Player *player, float32 frame_time_s) {
     float32 samples_per_second = 22050.0f; // frequency
     u32 bytes_padding = 100;
-    u32 sample_count = (u32)floor(frame_time_s * samples_per_second);
-    u32 bytes_to_copy = sample_count * 4 + bytes_padding; // 2 bytes per 2 channels for each sample
-
+    u32 sample_count = (u32)floor(frame_time_s * samples_per_second); // samples played last frame
+    u32 bytes_per_sample = 4;
+    u32 bytes_played_last_frame = sample_count * bytes_per_sample; // 2 bytes per 2 channels for each sample
+    
     player->length = 0;
+
+    player->bytes_queued += (player->bytes_queued_last_frame - bytes_played_last_frame);
+    if (player->bytes_queued < 0)
+        player->bytes_queued = 0;
+    player->bytes_queued_last_frame = 0;
+
+    u32 queued = SDL_GetQueuedAudioSize(player->device_id); 
+    //print("queued: %d, sdl: %d, sample_count %d\n", player->bytes_queued, queued, bytes_played_last_frame);
+    if (queued > 5000) // don't queue more than 5000 bytes
+        return;
+    
+    if (bytes_played_last_frame > player->max_length) {
+        logprint("mix_audio()", "Buffer not big enough for %d bytes\n", bytes_played_last_frame);
+        bytes_played_last_frame = player->max_length;
+        return;
+    }
+    
     for (u32 i = 0; i < ARRAY_COUNT(player->playing_audios); i++) {
         Playing_Audio *playing = &player->playing_audios[i];
         if (playing->length_remaining <= 0)
             continue;
+
+        u32 bytes_to_copy = bytes_played_last_frame + bytes_padding;
         
         if (playing->length_remaining < bytes_to_copy)
             bytes_to_copy = playing->length_remaining;
         
-        if (bytes_to_copy > player->max_length) {
-            logprint("mix_audio()", "Buffer not big enough for %d bytes\n", bytes_to_copy);
-            return;
-        }
-
         // Set volume
         float32 volume = 0.5f;
         switch(playing->type) {
@@ -713,7 +730,26 @@ mix_audio(Audio_Player *player, float32 frame_time_s) {
         // Update playing to after what was mixed
         playing->position += bytes_to_copy;
         playing->length_remaining -= bytes_to_copy;
+
         if (player->length < bytes_to_copy)
             player->length = bytes_to_copy;
+    }    
+
+    player->bytes_queued_last_frame = player->length;
+}
+
+internal bool8
+no_music_playing(Audio_Player *player) {
+    bool8 no_music_playing = true;
+
+    for (u32 i = 0; i < ARRAY_COUNT(player->playing_audios); i++) {
+        Playing_Audio *playing = &player->playing_audios[i];
+        if (playing->length_remaining <= 0)
+            continue;
+
+        if (playing->type == AUDIO_TYPE_MUSIC)
+            no_music_playing = false;
     }
+    
+    return no_music_playing;
 }

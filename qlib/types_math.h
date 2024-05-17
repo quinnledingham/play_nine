@@ -104,11 +104,21 @@ normalized(const Vector2_s32 &v)
     return n;
 }
 
+// qlib_math.h
+
 inline s32
 clamp(s32 value, s32 low, s32 high) {
     if (value < low)       return low;
     else if (value > high) return high;
     else                   return value;
+}
+
+internal void
+clamp(float32 *value, float32 low, float32 high) {
+    if (*value < low)
+        *value = low;
+    if (*value > high)
+        *value = high;
 }
 
 //

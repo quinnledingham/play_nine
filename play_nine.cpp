@@ -449,6 +449,9 @@ bool8 update(App *app) {
     for (u32 i = 0; i < 10; i++) {
         layouts[i].reset();
     }
+
+    if (no_music_playing(&app->player))
+        play_music("MORNING");
     
     mix_audio(&app->player, app->time.frame_time_s);
     queue_audio(&app->player);
@@ -630,7 +633,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))

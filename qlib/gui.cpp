@@ -279,37 +279,31 @@ gui_slider(GUI *gui, Draw_Style style, float32 *value, u32 increments, const cha
     rect.dim = dim;
     draw_slider(style, state, rect, *value, label, gui->font);
 
-    if (gui->index == gui->active) {
-        if (gui->index != gui->hover) {
-            gui->pressed = 0;
-            gui->active = 0;
-        }
+    // Don't need to press or activate a slider
+    if (gui->index == gui->pressed) {
+        gui->pressed = 0;
     }
 
-    bool8 new_value = false;
+    if (gui->index == gui->active) {
+        gui->active = 0;
+    }
+
+    float32 old_value = *value;
 
     if (gui->index == gui->hover) {
         if (on_up(*gui->input.left)) {
             *value -= 1.0f / float32(increments);
-            
-            if (*value < 0.0f)
-                *value = 0.0f;
-
-            new_value = true;
         }
         if (on_up(*gui->input.right)) {
             *value += 1.0f / float32(increments);
-
-            if (*value > 1.0f)
-                *value = 1.0f;
-            
-            new_value = true;
         }
     }
+
+    clamp(value, 0.0f, 1.0f);
     
     gui->index++;
 
-    return new_value;
+    return (old_value != *value);
 }
 
 internal bool8
