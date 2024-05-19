@@ -521,7 +521,7 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
   color_attachment_resolve.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
   color_attachment_resolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
   color_attachment_resolve.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-  color_attachment_resolve.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+  color_attachment_resolve.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkAttachmentReference color_attachment_resolve_ref = {};
 	color_attachment_resolve_ref.attachment = 2;
@@ -990,7 +990,7 @@ void vulkan_create_pass_pipeline(VkPipeline *pipeline) {
 	shader_stages[0] = shader_stage_info;
 }
 
-void vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info, VkRenderPass render_pass) {
+bool8 vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info, VkRenderPass render_pass) {
 	Shader *shader = pipeline->shader;
 
 	u32 shader_stages_index = 0;
@@ -1169,6 +1169,8 @@ void vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vert
 		if (shader_modules[i] != 0)
 			vkDestroyShaderModule(vulkan_info.device, shader_modules[i], nullptr);
 	}
+
+	return false;
 }
 void vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
 	vulkan_create_graphics_pipeline(pipeline, vertex_info, vulkan_info.draw_render_pass);
@@ -1762,18 +1764,8 @@ vulkan_init_presentation_settings(Vulkan_Info *info) {
 	info->present_render_pass_info.renderArea.extent = info->swap_chain_extent;
 	info->present_render_pass_info.clearValueCount = ARRAY_COUNT(info->clear_values);
 	info->present_render_pass_info.pClearValues = info->clear_values;
-/*
-	info->scissor.offset = {0, 0};
-	info->scissor.extent = info->swap_chain_extent;
 
-	info->viewport.x = 0.0f;
-	info->viewport.y = 0.0f;
-	info->viewport.width = static_cast<float>(info->swap_chain_extent.width);
-	info->viewport.height = static_cast<float>(info->swap_chain_extent.height);
-	info->viewport.minDepth = 0.0f;
-	info->viewport.maxDepth = 1.0f;
-*/
-	// End of frame
+		// End of frame
 	info->submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	info->submit_info.waitSemaphoreCount = 1;
 	info->submit_info.pWaitSemaphores = &frame->image_available_semaphore;
@@ -2058,6 +2050,8 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 	if (present_pipeline.shader == 0) {
     present_pipeline.shader = find_shader(assets, "TEXTURE");
     present_pipeline.depth_test = false;
+
+		vulkan_info.msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 
     vulkan_create_graphics_pipeline(&present_pipeline, get_vertex_xu_info(), vulkan_info.present_render_pass);
 	}

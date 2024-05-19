@@ -489,9 +489,9 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
 
 internal void
 draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
-    menu->sections = { 1, 5 };
+    menu->sections = { 1, 6 };
     menu->interact_region[0] = { 0, 1 };
-    menu->interact_region[1] = { 1, 5 };
+    menu->interact_region[1] = { 1, 6 };
     
     menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window->dim), 0.5f, 0.5f);
     menu->start();
@@ -513,7 +513,10 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     if (menu_checkbox(menu, "VSync", &render_context.vsync, { 0, 2 }, { 1, 1 })) {
         window->resized = true;
     }
-    if (menu_button(menu, "Back", { 0, 4 }, { 1, 1 })) {
+    if (menu_checkbox(menu, "Anti-aliasing", &render_context.anti_aliasing, { 0, 3 }, { 1, 1 })) {
+        window->resized = true;
+    }
+    if (menu_button(menu, "Back", { 0, 5 }, { 1, 1 })) {
         state->menu_list.mode = SETTINGS_MENU;
         menu->gui.close_at_end = true;
     }
@@ -523,7 +526,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         "1920 x 1080",
         "3840 x 2160"
     };
-    if (menu_dropdown(menu, resolution_modes, 4, &render_context.resolution_mode, { 0, 3 }, { 1, 1 })) {
+    if (menu_dropdown(menu, resolution_modes, 4, &render_context.resolution_mode, { 0, 4 }, { 1, 1 })) {
         window->resized = true;
 
         switch(render_context.resolution_mode) {

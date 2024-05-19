@@ -150,7 +150,10 @@ load_bitmap(File file, bool8 flip_on_load) {
 
 void write_bitmap_func(void *context, void *data, int size) {
     File *file = (File *)context;
-    file->memory = data;
+
+    file->memory = platform_malloc(size);
+    platform_memory_copy(file->memory, data, size);
+    
     file->size = size;
 }
 
