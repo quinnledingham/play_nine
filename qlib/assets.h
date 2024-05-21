@@ -414,6 +414,11 @@ enum Asset_Types {
     ASSET_TYPE_AMOUNT
 };
 
+struct Asset_Files {
+    u32 num_of_files;
+    File files[5];
+};
+
 struct Asset {
     u32 type;
     const char *tag;
@@ -425,6 +430,7 @@ struct Asset {
         Shader shader;
         Audio audio;
         Model model;
+
         void *memory;
     };  
 };

@@ -160,12 +160,21 @@ load_asset(Asset *asset, Asset_Parse_Info *info) {
     //log("loading: %s", asset->tag);
 
     const char *filename = char_array_concat(asset_folders[asset->type], info->filename);
+
+    Asset_Files asset_files = {};
     
     // how to load the various assets
     switch(asset->type) {
         case ASSET_TYPE_FONT: 
-        case ASSET_TYPE_BITMAP: 
-            asset->file = load_file(filename); 
+            asset_files.num_of_files = 1;
+            //asset_files.files[0] = load_file(filename);
+            asset->file = load_file(filename);
+        break;
+        case ASSET_TYPE_BITMAP:
+            asset_files.num_of_files = 1;
+            asset_files.files[0] = load_file(filename);
+            asset->bitmap = load_bitmap(asset_files.files[0], false); 
+            // asset->file = load_file(filename); 
         break;
         case ASSET_TYPE_AUDIO:  asset->audio  = load_ogg(filename);  break;
         case ASSET_TYPE_MODEL:  asset->model  = load_obj(filename);    break;
@@ -468,7 +477,6 @@ init_assets(Assets *assets) {
         switch(asset->type) {
             case ASSET_TYPE_FONT:   init_font(&asset->font, asset->file);  break;
             case ASSET_TYPE_BITMAP: {
-                asset->bitmap = load_bitmap(asset->file, false); 
                 render_create_texture(&asset->bitmap, TEXTURE_PARAMETERS_CHAR);
             } break;
             case ASSET_TYPE_SHADER: render_compile_shader(&asset->shader); break;
