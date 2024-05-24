@@ -358,12 +358,10 @@ model_create_meshes(Model *model, OBJ obj, MTL mtl) {
     }
 }
 
-Model load_obj(const char *filename) {
+Model load_obj(File file) {
     Model model = {};
     OBJ obj = {};
     
-    File file = load_file(filename);
-
     if (!file.size) { 
         logprint("load_obj()", "could not read object file\n"); 
         return model; 
@@ -386,10 +384,8 @@ Model load_obj(const char *filename) {
     file_reset_char(&file);
     
     obj_fill_arrays(&obj, file, &model);
-    
-    free_file(&file);
-    
-    const char *filepath = get_path(filename);
+        
+    const char *filepath = get_path(file.filepath);
     MTL mtl = load_mtl(filepath, obj.material_filename);
     platform_free((void*)filepath);
     

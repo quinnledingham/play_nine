@@ -416,14 +416,14 @@ enum Asset_Types {
 
 struct Asset_Files {
     u32 num_of_files;
-    File files[5];
+    File data[6];
 };
 
 struct Asset {
     u32 type;
     const char *tag;
     u32 tag_length;
-    File file;
+
     union {
         Bitmap bitmap;
         Font font;
@@ -442,6 +442,8 @@ struct Asset_Array {
 
 struct Assets {
     u32 num_of_assets;
+
+    Asset_Files *files;
 
     Asset *data;
     Asset_Array types[ASSET_TYPE_AMOUNT];

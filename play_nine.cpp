@@ -671,7 +671,7 @@ bool8 init_data(App *app) {
             const char *tag = "card";
             platform_memory_copy((void*)asset->tag, (void*)tag, 4);
 
-            write_bitmap(&asset->bitmap, &asset->file);
+            //write_bitmap(&asset->bitmap, &asset->file);
         };
         add_assets(&state->assets, card_assets, 14);
         print_assets(&state->assets);

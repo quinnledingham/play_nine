@@ -42,7 +42,6 @@ struct Asset_Token {
 
 struct Asset_Parse_Info {
     s32 type;
-    s32 indexes[ASSET_TYPE_AMOUNT];
 
     const char *tag; // name
     const char *filename;

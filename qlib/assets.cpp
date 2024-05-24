@@ -549,12 +549,12 @@ print_audio(Audio audio) {
 }
 
 internal Audio
-load_ogg(const char *file_name) {
+load_ogg(File file) {
     Audio audio = {};
 
-    audio.samples = stb_vorbis_decode_filename(file_name, &audio.channels, &audio.sample_rate, (short **)&audio.buffer);
+    audio.samples = stb_vorbis_decode_memory((const unsigned char *)file.memory, file.size, &audio.channels, &audio.sample_rate, (short **)&audio.buffer);
     if (audio.samples < 0) {
-        logprint("load_ogg()", "failed to load audio (%s)\n", file_name);
+        logprint("load_ogg()", "failed to load audio (%s)\n", file.filepath);
         return audio;
     }
     
