@@ -530,8 +530,8 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         window->resized = true;
 
         switch(render_context.resolution_mode) {
-            case RESOLUTION_480P:  render_context.resolution = {  720, 480  }; break;
-            case RESOLUTION_720P:  render_context.resolution = { 1280, 720  }; break;
+            case RESOLUTION_480P:  render_context.resolution = {  720,  480 }; break;
+            case RESOLUTION_720P:  render_context.resolution = { 1280,  720 }; break;
             case RESOLUTION_1080P: render_context.resolution = { 1920, 1080 }; break;
             case RESOLUTION_2160P: render_context.resolution = { 3840, 2160 }; break;
         }

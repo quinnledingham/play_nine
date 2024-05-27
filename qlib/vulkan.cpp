@@ -481,6 +481,10 @@ vulkan_find_depth_format(VkPhysicalDevice physical_device) {
 
 internal bool8
 vulkan_create_draw_render_pass(Vulkan_Info *info) {
+	VkImageLayout final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	if (render_context.resolution_scaling)
+		final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
 	VkAttachmentDescription color_attachment = {};
 	color_attachment.format         = info->swap_chain_image_format;
 	color_attachment.samples        = info->msaa_samples;
@@ -490,9 +494,9 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	color_attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
 	if (render_context.anti_aliasing)
-		color_attachment.finalLayout  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		color_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	else
-		color_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		color_attachment.finalLayout = final_layout;
 		//color_attachment.finalLayout  = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
  
 	VkAttachmentReference color_attachment_ref = {};
@@ -514,14 +518,14 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	depth_attachment_ref.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentDescription color_attachment_resolve = {};
-  color_attachment_resolve.format         = info->swap_chain_image_format;
-  color_attachment_resolve.samples        = VK_SAMPLE_COUNT_1_BIT;
-  color_attachment_resolve.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  color_attachment_resolve.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-  color_attachment_resolve.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  color_attachment_resolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  color_attachment_resolve.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-  color_attachment_resolve.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	color_attachment_resolve.format         = info->swap_chain_image_format;
+	color_attachment_resolve.samples        = VK_SAMPLE_COUNT_1_BIT;
+	color_attachment_resolve.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment_resolve.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+	color_attachment_resolve.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment_resolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	color_attachment_resolve.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+	color_attachment_resolve.finalLayout    = final_layout;
 
 	VkAttachmentReference color_attachment_resolve_ref = {};
 	color_attachment_resolve_ref.attachment = 2;
@@ -533,7 +537,7 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	subpass.pColorAttachments       = &color_attachment_ref;
 	subpass.pDepthStencilAttachment = &depth_attachment_ref;
 	if (render_context.anti_aliasing)
-  	subpass.pResolveAttachments     = &color_attachment_resolve_ref;
+  		subpass.pResolveAttachments = &color_attachment_resolve_ref;
 	
 	// Subpass dependencies
 	VkSubpassDependency dependency = {};
@@ -606,15 +610,23 @@ vulkan_create_present_render_pass() {
 internal bool8
 vulkan_create_draw_framebuffers(Vulkan_Info *info) {	
 	info->draw_framebuffers.resize(info->swap_chain_textures.get_size());
+	Arr<Vulkan_Texture> *textures;
 	
 	VkImageView attachments[3];
 	VkFramebufferCreateInfo framebuffer_info = {};
 	framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-  framebuffer_info.renderPass      = info->draw_render_pass;
+  framebuffer_info.renderPass      = vulkan_info.draw_render_pass;
   framebuffer_info.pAttachments    = attachments;
   framebuffer_info.attachmentCount = 3;
-  framebuffer_info.width           = render_context.resolution.width;
-  framebuffer_info.height          = render_context.resolution.height;
+	if (render_context.resolution_scaling) {
+  	textures = &info->draw_textures;
+	  framebuffer_info.width           = render_context.resolution.width;
+  	framebuffer_info.height          = render_context.resolution.height;
+  } else {
+  	textures = &info->swap_chain_textures;
+		framebuffer_info.width           = info->swap_chain_extent.width;
+		framebuffer_info.height          = info->swap_chain_extent.height;
+  }
   framebuffer_info.layers          = 1;
   
 	if (render_context.anti_aliasing) {
@@ -624,12 +636,12 @@ vulkan_create_draw_framebuffers(Vulkan_Info *info) {
 		framebuffer_info.attachmentCount = 2;
 		attachments[1] = info->depth_texture.image_view;
 	}
-  
+
 	for (u32 i = 0; i < info->draw_framebuffers.get_size(); i++) {	
 		if (render_context.anti_aliasing) {
-			attachments[2] = info->draw_textures[i].image_view;
+			attachments[2] = (*textures)[i].image_view;
 		} else {
-			attachments[0] = info->draw_textures[i].image_view;
+			attachments[0] = (*textures)[i].image_view;
 		}
 
 		if (vkCreateFramebuffer(info->device, &framebuffer_info, nullptr, &info->draw_framebuffers[i]) != VK_SUCCESS) {
@@ -1496,12 +1508,12 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 	vulkan_create_image(info->device, info->physical_device, bitmap->width, bitmap->height, bitmap->mip_levels, VK_SAMPLE_COUNT_1_BIT, texture->image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image, texture->image_memory);
 
 	vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bitmap->mip_levels);
-  vulkan_copy_buffer_to_image(info, staging_buffer, texture->image, (u32)bitmap->width, (u32)bitmap->height);
+  	vulkan_copy_buffer_to_image(info, staging_buffer, texture->image, (u32)bitmap->width, (u32)bitmap->height);
 	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-  //vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, bitmap->mip_levels);
+	//vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, bitmap->mip_levels);
 
-  vkDestroyBuffer(info->device, staging_buffer, nullptr);
-  vkFreeMemory(info->device, staging_buffer_memory, nullptr);
+	vkDestroyBuffer(info->device, staging_buffer, nullptr);
+	vkFreeMemory(info->device, staging_buffer_memory, nullptr);
 
 	vulkan_generate_mipmaps(texture->image, texture->image_format, bitmap->width, bitmap->height, bitmap->mip_levels);
 }
@@ -1733,6 +1745,22 @@ void vulkan_cleanup() {
 	vkDestroyInstance(info->instance, nullptr);
 }
 
+internal VkExtent2D
+vulkan_get_extent() {	
+	VkExtent2D extent;
+	
+	if (render_context.resolution_scaling) {
+		VkExtent2D resolution = {};
+		resolution.width = render_context.resolution.width;
+		resolution.height = render_context.resolution.height;
+		extent = resolution;
+	} else {
+		extent = vulkan_info.swap_chain_extent;
+	}
+
+	return extent;
+}
+
 internal void
 vulkan_init_presentation_settings(Vulkan_Info *info) {
 	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
@@ -1748,12 +1776,9 @@ vulkan_init_presentation_settings(Vulkan_Info *info) {
 
 	info->draw_render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	info->draw_render_pass_info.renderPass = info->draw_render_pass;
-	info->draw_render_pass_info.framebuffer = info->draw_framebuffers[info->image_index];
 	info->draw_render_pass_info.renderArea.offset = {0, 0};
-	VkExtent2D resolution = {};
-	resolution.width = render_context.resolution.width;
-	resolution.height = render_context.resolution.height;
-	info->draw_render_pass_info.renderArea.extent = resolution;
+	info->draw_render_pass_info.framebuffer = info->draw_framebuffers[info->image_index];
+	info->draw_render_pass_info.renderArea.extent = vulkan_get_extent();
 	info->draw_render_pass_info.clearValueCount = ARRAY_COUNT(info->clear_values);
 	info->draw_render_pass_info.pClearValues = info->clear_values;
 	
@@ -1765,7 +1790,7 @@ vulkan_init_presentation_settings(Vulkan_Info *info) {
 	info->present_render_pass_info.clearValueCount = ARRAY_COUNT(info->clear_values);
 	info->present_render_pass_info.pClearValues = info->clear_values;
 
-		// End of frame
+	// End of frame
 	info->submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	info->submit_info.waitSemaphoreCount = 1;
 	info->submit_info.pWaitSemaphores = &frame->image_available_semaphore;
@@ -1833,7 +1858,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	vulkan_create_sync_objects(info->device, info->frames);
 	vulkan_create_command_pool(info);
 
-  vulkan_create_command_buffers(info->frames[0].command_buffers, 2);
+	vulkan_create_command_buffers(info->frames[0].command_buffers, 2);
 	vulkan_create_command_buffers(info->frames[1].command_buffers, 2);
 
 	vulkan_create_depth_resources(info);
@@ -2014,11 +2039,8 @@ bool8 vulkan_start_frame() {
                                           &vulkan_info.image_index);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
-		VkExtent2D resolution = {};
-		resolution.width = render_context.resolution.width;
-		resolution.height = render_context.resolution.height;
-		vulkan_info.draw_render_pass_info.renderArea.extent = resolution;
+		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
+		vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_get_extent();
 		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
 		return 1;
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -2045,36 +2067,41 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
 	
 	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
-	vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.present_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-	if (present_pipeline.shader == 0) {
-    present_pipeline.shader = find_shader(assets, "TEXTURE");
-    present_pipeline.depth_test = false;
+	// Draw Render Pass
+	if (render_context.resolution_scaling) {
+		vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.present_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-		vulkan_info.msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+		if (present_pipeline.shader == 0) {
+			present_pipeline.shader = find_shader(assets, "TEXTURE");
+			present_pipeline.depth_test = false;
 
-    vulkan_create_graphics_pipeline(&present_pipeline, get_vertex_xu_info(), vulkan_info.present_render_pass);
+			vulkan_info.msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+
+			vulkan_create_graphics_pipeline(&present_pipeline, get_vertex_xu_info(), vulkan_info.present_render_pass);
+		}
+
+		Bitmap bitmap = {};
+		bitmap.gpu_info = &vulkan_info.draw_textures[vulkan_info.image_index];
+		
+		render_set_viewport(vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
+		render_set_scissor(0, 0, vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
+		render_bind_pipeline(&present_pipeline);
+		//render_bind_descriptor_set(state->scene_ortho_set);
+	      
+		Object object = {};
+		Descriptor desc = render_get_descriptor_set(&layouts[3]);
+		object.index = render_set_bitmap(&desc, &bitmap);
+		render_bind_descriptor_set(desc);
+
+		object.model = create_transform_m4x4({ float32(vulkan_info.swap_chain_extent.width) / 2.0f, float32(vulkan_info.swap_chain_extent.height) / 2.0f }, get_rotation(0, {0, 1, 0}), { float32(vulkan_info.swap_chain_extent.width), float32(vulkan_info.swap_chain_extent.height) });
+		render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+		render_draw_mesh(&shapes.rect_mesh);
+	  
+		vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
 	}
+	// End draw render pass
 
-	Bitmap bitmap = {};
-	bitmap.gpu_info = &vulkan_info.draw_textures[vulkan_info.image_index];
-	
-  render_set_viewport(vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
-  render_set_scissor(0, 0, vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
-  render_bind_pipeline(&present_pipeline);
-  //render_bind_descriptor_set(state->scene_ortho_set);
-      
-	Object object = {};
-  Descriptor desc = render_get_descriptor_set(&layouts[3]);
-  object.index = render_set_bitmap(&desc, &bitmap);
-  render_bind_descriptor_set(desc);
-
-  object.model = create_transform_m4x4({ float32(vulkan_info.swap_chain_extent.width) / 2.0f, float32(vulkan_info.swap_chain_extent.height) / 2.0f }, get_rotation(0, {0, 1, 0}), { float32(vulkan_info.swap_chain_extent.width), float32(vulkan_info.swap_chain_extent.height) });
-  render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
-  render_draw_mesh(&shapes.rect_mesh);
-  
-	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
-	
 	if (vkEndCommandBuffer(vulkan_active_cmd_buffer(&vulkan_info)) != VK_SUCCESS) {
 		logprint("vulkan_record_command_buffer()", "failed to record command buffer\n");
 	}
@@ -2097,10 +2124,7 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || window->resized) {
 		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
-		VkExtent2D resolution = {};
-		resolution.width = render_context.resolution.width;
-		resolution.height = render_context.resolution.height;
-		vulkan_info.draw_render_pass_info.renderArea.extent = resolution;
+		vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_get_extent();
 		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
 	} else if (result != VK_SUCCESS) {
 		logprint("vulkan_draw_frame()", "failed to acquire swap chain");

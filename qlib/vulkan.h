@@ -124,6 +124,9 @@ struct Vulkan_Info {
 	Arr<Vulkan_Texture> draw_textures; // where the frame gets drawn before swap chain buffer
 	Arr<Vulkan_Texture> swap_chain_textures;
 	
+	Arr<VkFramebuffer> draw_framebuffers;
+	Arr<VkFramebuffer> swap_chain_framebuffers; // framebuffers for the swap_chain
+	
 	VkExtent2D swap_chain_extent; // size of window, size of swap_chain_images
 	VkFormat swap_chain_image_format;
 	
@@ -131,8 +134,6 @@ struct Vulkan_Info {
 	// Set at the start of the frame for the current frame.
  	// What frame buffer that should be used for that frame.
 	u32 image_index; 
-	Arr<VkFramebuffer> draw_framebuffers;
-	Arr<VkFramebuffer> swap_chain_framebuffers; // framebuffers for the swap_chain
 
 	Vulkan_Frame frames[MAX_FRAMES_IN_FLIGHT];
 

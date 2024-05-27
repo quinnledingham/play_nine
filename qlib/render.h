@@ -142,6 +142,7 @@ struct Render {
     Vector2_s32 resolution;
     bool8 vsync;
     bool8 anti_aliasing = FALSE;
+    bool8 resolution_scaling = TRUE;
     
     //bool8 depth_test;
 
@@ -158,8 +159,7 @@ struct Render {
         rect.coords = coords * factor;
         rect.dim = dim * factor;
         scissor_stack[scissor_stack_index++] = rect;
-        //render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (s32)rect.dim.x, (s32)rect.dim.y);
-        render_set_scissor(rect.coords.x, rect.coords.y, rect.dim.x, rect.dim.y);
+        render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (s32)rect.dim.x, (s32)rect.dim.y);
     }
 
     void scissor_pop() {

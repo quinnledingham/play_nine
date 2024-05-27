@@ -332,8 +332,10 @@ clean_shader(Shader *shader) {
 // Font
 //
 
+
+
 internal void
-init_font(Font *font, File file) {
+init_font(Font *font, File file) {    
     font->info = platform_malloc(sizeof(stbtt_fontinfo));
     stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
     *info = {};
@@ -609,7 +611,7 @@ init_audio_player(Audio_Player *player) {
     
     SDL_AudioSpec obtained;
 
-    SDL_AudioSpec device_spec;
+    //SDL_AudioSpec device_spec;
     char *device_name = 0;
     //SDL_GetDefaultAudioInfo(&device_name, &device_spec, 0);
     player->device_id = SDL_OpenAudioDevice(device_name, 0, &desired, &obtained, 0);

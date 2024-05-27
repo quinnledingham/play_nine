@@ -453,7 +453,7 @@ bool8 update(App *app) {
     if (no_music_playing(&app->player))
         play_music("MORNING");
     
-    mix_audio(&app->player, app->time.frame_time_s);
+    mix_audio(&app->player, (float32)app->time.frame_time_s);
     queue_audio(&app->player);
     
     if (render_start_frame())
@@ -633,7 +633,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
         if (load_assets(&state->assets, "../assets.ethan"))

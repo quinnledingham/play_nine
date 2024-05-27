@@ -77,6 +77,7 @@ struct Font_Cache {
 };
 
 struct Font {
+    File file;
     void *info; // stbtt_fontinfo
     
     Vector2_s32 bb_0; // font bounding box coord 0
