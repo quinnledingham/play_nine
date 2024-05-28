@@ -847,6 +847,18 @@ vulkan_update_buffer(Vulkan_Info *info, VkBuffer *buffer, VkDeviceMemory *memory
 	vkFreeMemory(info->device, staging_buffer_memory, nullptr);
 }
 
+internal void*
+vulkan_get_memory(VkDeviceMemory memory, u32 size) {
+	void *return_data = platform_malloc(size);
+	
+	void *data;
+	vkMapMemory(vulkan_info.device, memory, 0, size, 0, &data);
+	memcpy(return_data, data, size);
+	vkUnmapMemory(vulkan_info.device, memory);
+
+	return return_data;
+}
+
 //
 // Helper Functions
 //
@@ -1508,7 +1520,7 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 	vulkan_create_image(info->device, info->physical_device, bitmap->width, bitmap->height, bitmap->mip_levels, VK_SAMPLE_COUNT_1_BIT, texture->image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image, texture->image_memory);
 
 	vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bitmap->mip_levels);
-  	vulkan_copy_buffer_to_image(info, staging_buffer, texture->image, (u32)bitmap->width, (u32)bitmap->height);
+	vulkan_copy_buffer_to_image(info, staging_buffer, texture->image, (u32)bitmap->width, (u32)bitmap->height);
 	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 	//vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, bitmap->mip_levels);
 
@@ -2031,6 +2043,23 @@ bool8 vulkan_start_frame() {
 
 	// Waiting for the previous frame
 	vkWaitForFences(vulkan_info.device, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
+	/*
+	local_persist bool8 test = false;
+	if (test && vulkan_info.current_frame == 0) {
+			Bitmap frame = {};
+			frame.width = render_context.resolution.width;
+			frame.height = render_context.resolution.height;
+			frame.channels = 4;
+			frame.pitch = frame.width * frame.channels;
+			u32 size = frame.width * frame.height * frame.channels;
+			u32 index = 2;
+			vulkan_transition_image_layout(&vulkan_info, vulkan_info.swap_chain_textures[index].image, vulkan_info.swap_chain_textures[index].image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+			frame.memory = (u8 *)vulkan_get_memory(vulkan_info.swap_chain_textures[index].image_memory, size);
+			//bitmap_convert(frame);
+			write_bitmap(&frame, "frame.png");
+	}
+	test = true;
+	*/
 	VkResult result = vkAcquireNextImageKHR(vulkan_info.device,
                                           vulkan_info.swap_chains[0],
                                           UINT64_MAX,
@@ -2073,6 +2102,7 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 		vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.present_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
 		if (present_pipeline.shader == 0) {
+			
 			present_pipeline.shader = find_shader(assets, "TEXTURE");
 			present_pipeline.depth_test = false;
 

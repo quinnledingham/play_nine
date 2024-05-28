@@ -140,7 +140,7 @@ struct Render {
     Vector2_s32 window_dim;
     u32 resolution_mode = RESOLUTION_720P;
     Vector2_s32 resolution;
-    bool8 vsync;
+    bool8 vsync = FALSE;
     bool8 anti_aliasing = FALSE;
     bool8 resolution_scaling = TRUE;
     

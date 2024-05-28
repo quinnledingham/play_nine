@@ -173,6 +173,23 @@ free_bitmap(Bitmap bitmap) {
 }
 
 
+internal void
+bitmap_convert(Bitmap bitmap) {
+    u8 *src_ptr = bitmap.memory;
+    
+    for (s32 y = 0; y <= bitmap.height; y++) {
+        for (s32 x = 0; x < bitmap.width; x++) { 
+            Vector4 src_color = { (float32)src_ptr[2], (float32)src_ptr[1], (float32)src_ptr[0], (float32)src_ptr[3] };
+            src_ptr[0] = (u8)src_color.r;
+            src_ptr[1] = (u8)src_color.g;
+            src_ptr[2] = (u8)src_color.b;
+            src_ptr[3] = (u8)src_color.a;
+            src_ptr += bitmap.channels;
+        }
+        src_ptr = bitmap.memory + (y * bitmap.pitch);
+    }
+}
+
 //
 // Shader
 //
