@@ -411,7 +411,7 @@ vulkan_create_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	create_info.imageColorSpace = surface_format.colorSpace;
 	create_info.imageExtent = extent;
 	create_info.imageArrayLayers = 1;
-	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 	u32 queue_family_indices[2] = { info->indices.graphics_and_compute_family.index, info->indices.present_family.index };
 
@@ -483,7 +483,8 @@ internal bool8
 vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	VkImageLayout final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	if (render_context.resolution_scaling)
-		final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		//final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		final_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
 	VkAttachmentDescription color_attachment = {};
 	color_attachment.format         = info->swap_chain_image_format;
@@ -540,14 +541,32 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
   		subpass.pResolveAttachments = &color_attachment_resolve_ref;
 	
 	// Subpass dependencies
+	/*
 	VkSubpassDependency dependency = {};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	dependency.srcAccessMask = 0;
 	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	
+	dependency.dstAccessMask = VK_ENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	*/
+	VkSubpassDependency dependencies[2];
+	dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[0].dstSubpass = 0;
+	dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	dependencies[0].srcAccessMask = VK_ACCESS_NONE_KHR;
+	dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+	dependencies[1].srcSubpass = 0;
+	dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;							
+																										
 	VkAttachmentDescription attachments[] = { color_attachment, depth_attachment, color_attachment_resolve };
 	
 	VkRenderPassCreateInfo render_pass_info = {};
@@ -559,8 +578,8 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	render_pass_info.pAttachments = attachments;
 	render_pass_info.subpassCount = 1;
 	render_pass_info.pSubpasses = &subpass;
-	render_pass_info.dependencyCount = 1;
-	render_pass_info.pDependencies = &dependency;
+	render_pass_info.dependencyCount = 2;
+	render_pass_info.pDependencies = dependencies;
 
 	if (vkCreateRenderPass(info->device, &render_pass_info, nullptr, &info->draw_render_pass) != VK_SUCCESS) {
 		logprint("vulkan_create_render_pass()", "failed to create render pass\n");
@@ -575,7 +594,7 @@ vulkan_create_present_render_pass() {
 	VkAttachmentDescription color_attachment = {};
 	color_attachment.format         = vulkan_info.swap_chain_image_format;
 	color_attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-	color_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	color_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
 	color_attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -1375,9 +1394,7 @@ vulkan_has_stencil_component(VkFormat format) {
 }
 
 internal void
-vulkan_transition_image_layout(Vulkan_Info *info, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, u32 mip_levels) {
-	VkCommandBuffer command_buffer = vulkan_begin_single_time_commands(info->device, info->command_pool);
-	
+vulkan_transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, u32 mip_levels) {
 	VkImageMemoryBarrier barrier = {};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	barrier.oldLayout = old_layout;
@@ -1410,7 +1427,9 @@ vulkan_transition_image_layout(Vulkan_Info *info, VkImage image, VkFormat format
 	    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	    source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 	    destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	} else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+	} else if ((old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) ||
+						 (old_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR      && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)     ||
+						 (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)         ) {
 	    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	    source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -1426,8 +1445,6 @@ vulkan_transition_image_layout(Vulkan_Info *info, VkImage image, VkFormat format
 	}
 
 	vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-	vulkan_end_single_time_commands(command_buffer, info->device, info->command_pool, info->graphics_queue);
 }
 
 internal void
@@ -1476,7 +1493,10 @@ vulkan_create_depth_resources(Vulkan_Info *info) {
 	info->depth_texture.image_format = vulkan_find_depth_format(info->physical_device);
 	vulkan_create_image(info->device, info->physical_device, render_context.resolution.width, render_context.resolution.height, 1, info->msaa_samples, info->depth_texture.image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, info->depth_texture.image, info->depth_texture.image_memory);
 	info->depth_texture.image_view = vulkan_create_image_view(info->device, info->depth_texture.image, info->depth_texture.image_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-	vulkan_transition_image_layout(info, info->depth_texture.image, info->depth_texture.image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);	
+	
+	VkCommandBuffer command_buffer = vulkan_begin_single_time_commands(info->device, info->command_pool);
+	vulkan_transition_image_layout(command_buffer, info->depth_texture.image, info->depth_texture.image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);	
+	vulkan_end_single_time_commands(command_buffer, info->device, info->command_pool, info->graphics_queue);
 }
 
 internal void
@@ -1519,7 +1539,10 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 
 	vulkan_create_image(info->device, info->physical_device, bitmap->width, bitmap->height, bitmap->mip_levels, VK_SAMPLE_COUNT_1_BIT, texture->image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image, texture->image_memory);
 
-	vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bitmap->mip_levels);
+	VkCommandBuffer command_buffer = vulkan_begin_single_time_commands(info->device, info->command_pool);
+	vulkan_transition_image_layout(command_buffer, texture->image, texture->image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bitmap->mip_levels);
+	vulkan_end_single_time_commands(command_buffer, info->device, info->command_pool, info->graphics_queue);
+	
 	vulkan_copy_buffer_to_image(info, staging_buffer, texture->image, (u32)bitmap->width, (u32)bitmap->height);
 	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 	//vulkan_transition_image_layout(info, texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, bitmap->mip_levels);
@@ -2109,8 +2132,9 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 	
 	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
 
-	// Draw Render Pass
+		// Draw Render Pass
 	if (render_context.resolution_scaling) {
+		/*
 		vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.present_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
 		if (present_pipeline.shader == 0) {
@@ -2127,7 +2151,6 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 		Bitmap bitmap = {};
 		bitmap.gpu_info = &vulkan_info.draw_textures[vulkan_info.image_index];
 		
-    render_depth_test(false);
 		render_set_viewport(vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
 		render_set_scissor(0, 0, vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
 		render_bind_pipeline(&present_pipeline);
@@ -2140,9 +2163,31 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 
 		object.model = create_transform_m4x4({ float32(vulkan_info.swap_chain_extent.width) / 2.0f, float32(vulkan_info.swap_chain_extent.height) / 2.0f }, get_rotation(0, {0, 1, 0}), { float32(vulkan_info.swap_chain_extent.width), float32(vulkan_info.swap_chain_extent.height) });
 		render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
-		render_draw_mesh(&shapes.rect_mesh);
-	  
+		//render_draw_mesh(&shapes.rect_mesh);
+
+		
 		vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
+	*/
+		VkImageSubresourceLayers sub = {};
+		sub.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		sub.mipLevel = 0;
+		sub.baseArrayLayer = 0;
+		sub.layerCount = 1;
+
+		VkImageBlit region = {};
+		region.srcSubresource = sub;
+		region.srcOffsets[1].x = render_context.resolution.x;
+		region.srcOffsets[1].y = render_context.resolution.y;
+		region.srcOffsets[1].z = 1;
+		region.dstSubresource = sub;
+		region.dstOffsets[1].x = vulkan_info.swap_chain_extent.width;
+		region.dstOffsets[1].y = vulkan_info.swap_chain_extent.height;
+		region.dstOffsets[1].z = 1;
+		
+		Vulkan_Texture *texture = &vulkan_info.swap_chain_textures[vulkan_info.image_index];
+		vulkan_transition_image_layout(vulkan_active_cmd_buffer(&vulkan_info), texture->image, texture->image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);	
+		vkCmdBlitImage(vulkan_active_cmd_buffer(&vulkan_info), vulkan_info.draw_textures[vulkan_info.image_index].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vulkan_info.swap_chain_textures[vulkan_info.image_index].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_LINEAR);
+		vulkan_transition_image_layout(vulkan_active_cmd_buffer(&vulkan_info), texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);	
 	}
 	// End draw render pass
 
