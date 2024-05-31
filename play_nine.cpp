@@ -480,7 +480,7 @@ bool8 update(App *app) {
     render_update_ubo(light_set_2, (void*)&global_light_2);
 
     if (state->menu_list.mode != IN_GAME && state->menu_list.mode != PAUSE_MENU) {
-        render_bind_pipeline(&shapes.color_pipeline);
+        render_bind_pipeline(shapes.color_pipeline);
         render_bind_descriptor_set(state->scene_ortho_set);
     }
 
@@ -625,6 +625,60 @@ convert_to_one_channel(Bitmap *bitmap) {
     bitmap->pitch = bitmap->width * bitmap->channels;
 };
 
+bool8 init_pipelines(Assets *assets) {
+    Render_Pipeline *pipeline;
+        
+    pipeline = &pipelines[PIPELINE_2D_TEXT];
+    pipeline->shader = find_shader(assets, "TEXT");
+    pipeline->depth_test = false;
+    init_basic_vert_layout(&pipeline->shader->set, layouts);
+    init_text_frag_layout(pipeline->shader, layouts);
+    render_create_graphics_pipeline(pipeline, get_vertex_xu_info());
+
+    pipeline = &pipelines[PIPELINE_2D_COLOR];
+    pipeline->shader = find_shader(assets, "COLOR");
+    pipeline->depth_test = false;
+    init_basic_vert_layout(&pipeline->shader->set, layouts);
+    init_color_frag_layout(pipeline->shader, layouts);
+    render_create_graphics_pipeline(pipeline, get_vertex_xu_info());
+    
+    pipeline = &pipelines[PIPELINE_2D_TEXTURE];
+    pipeline->shader = find_shader(assets, "TEXTURE");
+    pipeline->depth_test = false;
+    init_basic_vert_layout(&pipeline->shader->set, layouts);
+    init_texture_frag_layout(pipeline->shader, layouts);
+    render_create_graphics_pipeline(pipeline, get_vertex_xu_info());
+
+    pipeline = &pipelines[PIPELINE_3D_TEXTURE];
+    pipeline->shader = find_shader(assets, "BASIC3D");
+    pipeline->depth_test = true;
+    init_basic_vert_layout(&pipeline->shader->set, layouts);
+    init_basic_frag_layout(pipeline->shader, layouts);
+    render_create_graphics_pipeline(pipeline, get_vertex_xnu_info());
+    
+    pipeline = &pipelines[PIPELINE_3D_COLOR];
+    pipeline->shader = find_shader(assets, "COLOR3D");
+    pipeline->depth_test = true;
+    init_basic_vert_layout(&pipeline->shader->set, layouts);
+    init_color3D_frag_layout(pipeline->shader, layouts);
+    render_create_graphics_pipeline(pipeline, get_vertex_xnu_info());
+
+    pipeline = &pipelines[PIPELINE_3D_TEXT];
+    pipeline->shader = find_shader(assets, "TEXT3D");
+    pipeline->depth_test = true;
+    init_basic_vert_layout(&pipeline->shader->set, layouts);
+    init_text_frag_layout(pipeline->shader, layouts);
+    render_create_graphics_pipeline(pipeline, get_vertex_xnu_info());
+
+    pipeline = &pipelines[PIPELINE_RAY];
+    pipeline->shader = find_shader(assets, "RAY");
+    pipeline->compute = true;
+    init_ray_comp_layout(&pipeline->shader->set, layouts);
+    render_create_compute_pipeline(pipeline);
+    
+    return false;
+}
+
 bool8 init_data(App *app) {
     app->data = platform_malloc(sizeof(State));
     State *state = (State *)app->data;
@@ -691,32 +745,7 @@ bool8 init_data(App *app) {
     
     global_assets = &state->assets;
     init_layouts(layouts, find_bitmap(&state->assets, "BACK"));
-
-    Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
-    init_basic_vert_layout(&basic_3D->set, layouts);
-    init_basic_frag_layout(basic_3D, layouts);
-    basic_pipeline.shader = basic_3D;
-    basic_pipeline.depth_test = true;
-    render_create_graphics_pipeline(&basic_pipeline, get_vertex_xnu_info());
-	
-    Shader *color_3D = find_shader(&state->assets, "COLOR3D");
-    init_basic_vert_layout(&color_3D->set, layouts);
-    init_color3D_frag_layout(color_3D, layouts);
-    color_pipeline.shader = color_3D;
-    color_pipeline.depth_test = true;
-    render_create_graphics_pipeline(&color_pipeline, get_vertex_xnu_info());
-
-    Shader *text_3D = find_shader(&state->assets, "TEXT3D");
-    init_basic_vert_layout(&text_3D->set, layouts);
-    init_text_frag_layout(text_3D, layouts);
-    text_pipeline.shader = text_3D;
-    text_pipeline.depth_test = true;
-    render_create_graphics_pipeline(&text_pipeline, get_vertex_xnu_info());
-
-    Shader *ray_comp = find_shader(&state->assets, "RAY");
-    init_ray_comp_layout(&ray_comp->set, layouts);
-    ray_pipeline.shader = ray_comp;
-    render_create_compute_pipeline(&ray_pipeline);
+    init_pipelines(&state->assets);
 
     init_shapes(&state->assets);
     //clean_assets(&state->assets);
@@ -878,10 +907,10 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
 
             cleanup_shapes();
             render_assets_cleanup(&state->assets);
-            render_graphics_pipeline_cleanup(&basic_pipeline);
-            render_graphics_pipeline_cleanup(&color_pipeline);
-            render_graphics_pipeline_cleanup(&text_pipeline);
-            render_compute_pipeline_cleanup(&ray_pipeline);
+
+            for (u32 i = 0; i < PIPELINE_COUNT; i++) {
+                render_pipeline_cleanup(&pipelines[i]);
+            }
 
             unload_name_plates(&state->game_draw);
         } break;

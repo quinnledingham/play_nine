@@ -1200,7 +1200,7 @@ void vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vert
 	vulkan_create_graphics_pipeline(pipeline, vertex_info, vulkan_info.draw_render_pass);
 }
 
-void vulkan_create_compute_pipeline(Compute_Pipeline *pipeline) {
+void vulkan_create_compute_pipeline(Render_Pipeline *pipeline) {
 	Shader *shader = pipeline->shader;
 
 	u32 shader_stages_index = 0;
@@ -1249,7 +1249,7 @@ void vulkan_create_compute_pipeline(Compute_Pipeline *pipeline) {
 	pipeline_create_info.layout = pipeline->pipeline_layout;
 	pipeline_create_info.stage = shader_stage;
 
-	if (vkCreateComputePipelines(vulkan_info.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &pipeline->compute_pipeline) != VK_SUCCESS) {
+	if (vkCreateComputePipelines(vulkan_info.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &pipeline->graphics_pipeline) != VK_SUCCESS) {
 		logprint("vulkan_create_compute_pipeline()", "failed to create compute pipelines\n");
 	}
 
@@ -1644,6 +1644,29 @@ vulkan_cleanup_swap_chain(Vulkan_Info *info) {
 	vkDestroySwapchainKHR(info->device, info->swap_chains[0], nullptr);
 }
 
+void vulkan_pipeline_cleanup(Render_Pipeline *pipe) {
+	vkDestroyPipeline(vulkan_info.device, pipe->graphics_pipeline, nullptr);
+	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
+}
+
+internal void
+vulkan_recreate_pipelines() {
+	for (u32 i = 0; i < PIPELINE_COUNT; i++) {
+		Render_Pipeline *pipeline = &pipelines[i];
+		vulkan_pipeline_cleanup(pipeline);
+		
+		if (!pipeline->compute) {
+			if (pipeline->depth_test) {
+			  render_create_graphics_pipeline(pipeline, get_vertex_xnu_info());
+			} else {
+			  render_create_graphics_pipeline(pipeline, get_vertex_xu_info());
+			}
+		} else {
+	    render_create_compute_pipeline(pipeline);
+		}
+	}
+}
+
 internal void
 vulkan_recreate_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	vkDeviceWaitIdle(info->device);
@@ -1653,23 +1676,30 @@ vulkan_recreate_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	vulkan_destroy_texture(&info->color_texture);
 	vulkan_destroy_texture(&info->depth_texture);
 
+	vkDestroyRenderPass(info->device, info->draw_render_pass, nullptr);
+	vkDestroyRenderPass(info->device, info->present_render_pass, nullptr);
+	
+	if (render_context.anti_aliasing)
+		info->msaa_samples = vulkan_get_max_usable_sample_count();
+	else
+		info->msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+		
+	vulkan_create_draw_render_pass(info);
+	vulkan_create_present_render_pass();
+	
 	vulkan_create_swap_chain(info, window_dim);
 	vulkan_create_render_image_views(info);
 	vulkan_create_color_resources();
 	vulkan_create_depth_resources(info);
 	vulkan_create_draw_framebuffers(info);
 	vulkan_create_swap_chain_framebuffers(info);
+	
+	vulkan_info.draw_render_pass_info.renderPass = vulkan_info.draw_render_pass;
+	vulkan_info.present_render_pass_info.renderPass = vulkan_info.present_render_pass;
+
+	vulkan_recreate_pipelines();	
 }
 
-void vulkan_graphics_pipeline_cleanup(Render_Pipeline *pipe) {
-	vkDestroyPipeline(vulkan_info.device, pipe->graphics_pipeline, nullptr);
-	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
-}
-
-void vulkan_compute_pipeline_cleanup(Compute_Pipeline *pipe) {
-	vkDestroyPipeline(vulkan_info.device, pipe->compute_pipeline, nullptr);
-	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
-}
 
 void vulkan_assets_cleanup(Assets *assets) {
 	for (u32 i = 0; i < assets->num_of_assets; i++) {
@@ -1687,8 +1717,6 @@ void vulkan_assets_cleanup(Assets *assets) {
 		  		vulkan_delete_texture(bitmap);
 				} break;
 
-		    case ASSET_TYPE_SHADER: break;
-		    case ASSET_TYPE_AUDIO: break;
 		    case ASSET_TYPE_MODEL: {
 					Model *model = (Model *)&asset->model;
 
@@ -1696,6 +1724,9 @@ void vulkan_assets_cleanup(Assets *assets) {
 						vulkan_delete_texture(&model->meshes[j].material.diffuse_map);
 		      }
 				} break;
+				
+		    case ASSET_TYPE_SHADER: break;
+		    case ASSET_TYPE_AUDIO: break;
 		}
 	}
 }
@@ -1738,7 +1769,7 @@ void vulkan_cleanup() {
 		vulkan_cleanup_buffer(info->buffers[i]);
 	}
 		
-	vulkan_graphics_pipeline_cleanup(&present_pipeline);
+	vulkan_pipeline_cleanup(&present_pipeline);
 	
 	vkDestroyRenderPass(info->device, info->draw_render_pass, nullptr);
 	vkDestroyRenderPass(info->device, info->present_render_pass, nullptr);
@@ -1993,14 +2024,12 @@ void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
 	vkCmdBindPipeline(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
 	vulkan_info.active_shader = pipeline->shader;
-    //vkCmdSetDepthTestEnable(vulkan_active_cmd_buffer(&vulkan_info), vulkan_bool(pipeline->depth_test));
 }
 
-void vulkan_bind_pipeline(Compute_Pipeline *pipeline) {
+void vulkan_bind_compute_pipeline(Render_Pipeline *pipeline) {
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
-	vkCmdBindPipeline(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->compute_pipeline);
+	vkCmdBindPipeline(vulkan_active_cmd_buffer(&vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->graphics_pipeline);
 	vulkan_info.active_shader = pipeline->shader;
-	//vkCmdSetDepthTestEnable(vulkan_active_cmd_buffer(&vulkan_info), vulkan_bool(pipeline->depth_test));
 }
 
 void vulkan_start_compute() {
@@ -2043,23 +2072,6 @@ bool8 vulkan_start_frame() {
 
 	// Waiting for the previous frame
 	vkWaitForFences(vulkan_info.device, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
-	/*
-	local_persist bool8 test = false;
-	if (test && vulkan_info.current_frame == 0) {
-			Bitmap frame = {};
-			frame.width = render_context.resolution.width;
-			frame.height = render_context.resolution.height;
-			frame.channels = 4;
-			frame.pitch = frame.width * frame.channels;
-			u32 size = frame.width * frame.height * frame.channels;
-			u32 index = 2;
-			vulkan_transition_image_layout(&vulkan_info, vulkan_info.swap_chain_textures[index].image, vulkan_info.swap_chain_textures[index].image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
-			frame.memory = (u8 *)vulkan_get_memory(vulkan_info.swap_chain_textures[index].image_memory, size);
-			//bitmap_convert(frame);
-			write_bitmap(&frame, "frame.png");
-	}
-	test = true;
-	*/
 	VkResult result = vkAcquireNextImageKHR(vulkan_info.device,
                                           vulkan_info.swap_chains[0],
                                           UINT64_MAX,

@@ -182,14 +182,14 @@ void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 ba
 
         switch(draw_index) {
             case 0: 
-                render_bind_pipeline(&color_pipeline); 
+                render_bind_pipeline(&pipelines[PIPELINE_3D_COLOR]); 
                 render_bind_descriptor_set(color_set);
             break;
 
             case 1:
                 object.index = front_index;
             case 2: 
-                render_bind_pipeline(&basic_pipeline); 
+                render_bind_pipeline(&pipelines[PIPELINE_3D_TEXTURE]); 
                 render_bind_descriptor_set(texture_desc);
             break;
         }
@@ -201,7 +201,7 @@ void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 ba
 
 // drawing highlight
 void draw_highlight(Model *model, Render_Pipeline *color_pipeline, Vector4 color, Matrix_4x4 model_matrix) {
-    render_bind_pipeline(color_pipeline);
+    render_bind_pipeline(&pipelines[PIPELINE_3D_COLOR]);
 
     Descriptor color_set = render_get_descriptor_set(&layouts[5]);
     render_update_ubo(color_set, (void *)&color);
@@ -223,7 +223,7 @@ draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, 
     if (highlight) {
         Matrix_4x4 model_scale = m4x4_scale(model, { 1.06f, 1.06f, 1.06f });
         render_bind_descriptor_set(light_set_2);
-        draw_highlight(card_model, &color_pipeline, highlight_color, model_scale);
+        draw_highlight(card_model, &pipelines[PIPELINE_3D_COLOR], highlight_color, model_scale);
     }
 
     render_bind_descriptor_set(light_set);
@@ -373,16 +373,15 @@ draw_triangle_indicator(Game *game, Game_Draw *draw) {
 internal void
 draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[16]) {
     render_depth_test(true);
-
-    render_bind_pipeline(&basic_pipeline);
+    render_bind_pipeline(&pipelines[PIPELINE_3D_TEXTURE]);
     render_bind_descriptor_set(state->scene_set);
     render_bind_descriptor_set(light_set);
-
+    
     // Skybox
     draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
 
     // Table
-    render_bind_pipeline(&basic_pipeline);
+    render_bind_pipeline(&pipelines[PIPELINE_3D_TEXTURE]);
     render_bind_descriptor_set(texture_desc);
 
     Object object = {};
@@ -395,7 +394,7 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
         render_draw_mesh(&model->meshes[i]);
     }
 
-    render_bind_pipeline(&text_pipeline);
+    render_bind_pipeline(&pipelines[PIPELINE_3D_TEXT]);
     render_bind_descriptor_set(light_set);
 
     // Name Plate
@@ -406,7 +405,7 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     draw_triangle_indicator(&state->game, &state->game_draw);
 
     // Cards
-    render_bind_pipeline(&basic_pipeline);
+    render_bind_pipeline(&pipelines[PIPELINE_3D_TEXTURE]);
     render_bind_descriptor_set(texture_desc);
 
     Model *card_model = find_model(assets, "CARD");

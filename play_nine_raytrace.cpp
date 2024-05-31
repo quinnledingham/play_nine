@@ -268,7 +268,7 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
         }
     }
 
-    vulkan_bind_pipeline(&ray_pipeline);
+    vulkan_bind_compute_pipeline(&pipelines[PIPELINE_RAY]);
 
     memset((char*)vulkan_info.storage_buffer.data, 0, 10 * 48);
 

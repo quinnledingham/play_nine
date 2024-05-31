@@ -29,18 +29,13 @@ struct Shapes {
     Mesh triangle_3D_mesh;
     Mesh sphere_mesh;
     Mesh cube_mesh;
-
-    Shader *color_shader;
-    Shader *texture_shader;
-    Shader *text_shader;
     
-    Render_Pipeline color_pipeline;
-    Render_Pipeline texture_pipeline;
-    Render_Pipeline text_pipeline;
+    Render_Pipeline *color_pipeline;
+    Render_Pipeline *texture_pipeline;
+    Render_Pipeline *text_pipeline;
 };
 
 Shapes shapes = {};
-Render_Pipeline color_pipeline;
 
 void init_shapes(Shader *color, Shader *texture, Shader *text);
 void draw_shape(Shape shape);
@@ -48,7 +43,6 @@ void draw_shape(Shape shape);
 //
 // Rect
 //
-
 
 internal void
 init_rect_indices(u32 *indices, 
@@ -208,7 +202,7 @@ void draw_triangle(Vector3 coords, Vector3 rotation, Vector3 dim, Vector4 color)
     Quaternion rotation_quat_z = get_rotation(rotation.z, { 0, 0, 1 });
     Quaternion rotation_quat = rotation_quat_x * rotation_quat_y * rotation_quat_z;
     
-    render_bind_pipeline(&color_pipeline);
+    render_bind_pipeline(&pipelines[PIPELINE_3D_COLOR]);
     render_bind_descriptor_set(light_set);
     
     Descriptor color_desc = render_get_descriptor_set(&layouts[5]);
@@ -375,7 +369,7 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     draw_shape(shape);
 */
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
-    render_bind_pipeline(&color_pipeline);
+    render_bind_pipeline(&pipelines[PIPELINE_3D_COLOR]);
     render_bind_descriptor_set(light_set);
 
     Descriptor object_desc = render_get_descriptor_set(&layouts[5]);
@@ -454,7 +448,7 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     draw_shape(shape);
 */
 
-    render_bind_pipeline(&color_pipeline);
+    render_bind_pipeline(&pipelines[PIPELINE_3D_COLOR]);
     render_bind_descriptor_set(light_set);
 
     Descriptor object_set = render_get_descriptor_set(&layouts[5]);
@@ -482,41 +476,12 @@ void init_shapes(Assets *assets) {
     shapes.cube_mesh = get_cube_mesh(true);
 
     // Text Pipeline
-    shapes.text_shader = find_shader(assets, "TEXT");
-
-    Layout_Set set = {};
-    init_basic_vert_layout(&shapes.text_shader->set, layouts);
-    init_text_frag_layout(shapes.text_shader, layouts);
-
-    shapes.text_pipeline.shader = shapes.text_shader;
-    shapes.text_pipeline.depth_test = false;
-    render_create_graphics_pipeline(&shapes.text_pipeline, get_vertex_xu_info());
-
-    // Color Pipeline
-    shapes.color_shader = find_shader(assets, "COLOR");
-
-    init_basic_vert_layout(&shapes.color_shader->set, layouts);
-    init_color_frag_layout(shapes.color_shader, layouts);
-
-    shapes.color_pipeline.shader = shapes.color_shader;
-    shapes.color_pipeline.depth_test = false;
-    render_create_graphics_pipeline(&shapes.color_pipeline, get_vertex_xu_info());
-
-    // Texture Pipeline
-    shapes.texture_shader = find_shader(assets, "TEXTURE");
-
-    init_basic_vert_layout(&shapes.texture_shader->set, layouts);
-    init_texture_frag_layout(shapes.texture_shader, layouts);
-
-    shapes.texture_pipeline.shader = shapes.texture_shader;
-    shapes.texture_pipeline.depth_test = false;
-    render_create_graphics_pipeline(&shapes.texture_pipeline, get_vertex_xu_info());
+    shapes.text_pipeline = &pipelines[PIPELINE_2D_TEXT];
+    shapes.color_pipeline = &pipelines[PIPELINE_2D_COLOR];
+    shapes.texture_pipeline = &pipelines[PIPELINE_2D_TEXTURE];
 }
 
 void cleanup_shapes() {
-    render_graphics_pipeline_cleanup(&shapes.text_pipeline);
-    render_graphics_pipeline_cleanup(&shapes.color_pipeline);
-    render_graphics_pipeline_cleanup(&shapes.texture_pipeline);
 }
 
 void draw_shape(Shape shape) {
@@ -524,7 +489,7 @@ void draw_shape(Shape shape) {
 
     switch(shape.draw_type) {
         case Shape_Draw_Type::COLOR: {
-            render_bind_pipeline(&shapes.color_pipeline);
+            render_bind_pipeline(shapes.color_pipeline);
 
             Descriptor v_set = render_get_descriptor_set(&layouts[4]);
             render_update_ubo(v_set, &shape.color);
@@ -532,7 +497,7 @@ void draw_shape(Shape shape) {
         } break;
 
         case Shape_Draw_Type::TEXTURE: {
-            render_bind_pipeline(&shapes.texture_pipeline);
+            render_bind_pipeline(shapes.texture_pipeline);
 
             Descriptor desc = render_get_descriptor_set(&layouts[3]);
             object.index = render_set_bitmap(&desc, shape.bitmap);
@@ -573,7 +538,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     float32 current_point = coords.x;
     float32 baseline      = coords.y;
 
-    render_bind_pipeline(&shapes.text_pipeline);
+    render_bind_pipeline(shapes.text_pipeline);
 
     u32 i = 0;
 

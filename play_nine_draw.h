@@ -18,10 +18,6 @@ Draw_Style default_style = {};
 
 Descriptor texture_desc = {}; // card textures
 
-Render_Pipeline basic_pipeline;
-Render_Pipeline text_pipeline;
-Compute_Pipeline ray_pipeline;
-
 struct Rotation {
     bool8 signal;
     bool8 rotating;

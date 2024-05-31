@@ -73,7 +73,7 @@ struct Font_Cache {
     s32 bitmaps_cached;
     
     Font_Char font_chars[255];
-    Font_Char_Bitmap bitmaps[300];
+    Font_Char_Bitmap bitmaps[1000];
 };
 
 struct Font {

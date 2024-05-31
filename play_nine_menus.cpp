@@ -119,7 +119,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
             coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
             coords.y += bot_dim.y / 2.0f;
             
-            render_bind_pipeline(&shapes.text_pipeline);
+            render_bind_pipeline(&pipelines[PIPELINE_2D_TEXT]);
             
             Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
             render_update_ubo(v_color_set, (void *)&play_nine_green);
