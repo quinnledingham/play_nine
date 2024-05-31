@@ -141,7 +141,7 @@ struct Render {
     u32 resolution_mode = RESOLUTION_720P;
     Vector2_s32 resolution;
     bool8 vsync = FALSE;
-    bool8 anti_aliasing = FALSE;
+    bool8 anti_aliasing = TRUE;
     bool8 resolution_scaling = TRUE;
     
     //bool8 depth_test;

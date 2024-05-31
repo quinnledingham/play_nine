@@ -549,7 +549,7 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 	
 	VkAttachmentDescription attachments[] = { color_attachment, depth_attachment, color_attachment_resolve };
-
+	
 	VkRenderPassCreateInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	if (render_context.anti_aliasing)
@@ -1621,7 +1621,7 @@ vulkan_create_render_image_views(Vulkan_Info *info) {
 		info->draw_textures[i].image_format = info->swap_chain_image_format;
 		vulkan_create_image(info->device, info->physical_device, render_context.resolution.width, render_context.resolution.height, 1, VK_SAMPLE_COUNT_1_BIT, info->draw_textures[i].image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, info->draw_textures[i].image, info->draw_textures[i].image_memory);
 		info->draw_textures[i].image_view = vulkan_create_image_view(info->device, info->draw_textures[i].image, info->draw_textures[i].image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-		vulkan_create_sampler(&info->draw_textures[i].sampler, TEXTURE_PARAMETERS_CHAR, 1);
+		vulkan_create_sampler(&info->draw_textures[i].sampler, TEXTURE_PARAMETERS_DEFAULT, 1);
 	}
 }
 
@@ -2109,11 +2109,13 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 			vulkan_info.msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 
 			vulkan_create_graphics_pipeline(&present_pipeline, get_vertex_xu_info(), vulkan_info.present_render_pass);
+			vulkan_info.msaa_samples = vulkan_get_max_usable_sample_count();
 		}
 
 		Bitmap bitmap = {};
 		bitmap.gpu_info = &vulkan_info.draw_textures[vulkan_info.image_index];
 		
+    render_depth_test(false);
 		render_set_viewport(vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
 		render_set_scissor(0, 0, vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
 		render_bind_pipeline(&present_pipeline);
