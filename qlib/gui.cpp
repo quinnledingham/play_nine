@@ -70,7 +70,7 @@ draw_slider(const Draw_Style style, const u32 state, Rect rect, float32 value, c
     Rect slide_node_rect = slide_rect;
     slide_node_rect.dim.x = slide_node_rect.dim.y;
     slide_node_rect.coords.x += value * slide_rect.dim.x - (slide_node_rect.dim.x / 2.0f);
-    draw_rect(slide_node_rect, text_color);
+    draw_circle(slide_node_rect.coords, 0.0f, slide_node_rect.dim.x, text_color);
 }
 
 // state = active, hover, pressed

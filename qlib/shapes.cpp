@@ -25,6 +25,7 @@ struct Shape {
 
 struct Shapes {
     Mesh rect_mesh;
+    Mesh circle_mesh;
     Mesh rect_3D_mesh;
     Mesh triangle_3D_mesh;
     Mesh sphere_mesh;
@@ -247,7 +248,7 @@ init_circle_mesh(Mesh *mesh) {
         coords.x = radius * cosf(rad);
         coords.y = radius * sinf(rad);
         
-        // NOT CORRECT
+        // @WARNING NOT CORRECT
         texture_coords.x = coords.x;
         texture_coords.y = coords.y;
         
@@ -266,28 +267,28 @@ init_circle_mesh(Mesh *mesh) {
     mesh->indices[indices_index++] = circle_vertices;
     
     mesh->indices[indices_index++] = 0;
-    mesh->indices[indices_index++] = 1;
     mesh->indices[indices_index++] = circle_vertices;
+    mesh->indices[indices_index++] = 1;
     
+    mesh->vertex_info = get_vertex_xu_info();
     render_init_mesh(mesh);
 }
 
-/*
-void draw_circle(v2 coords, r32 rotation, r32 radius, v4 color) {
-    v3 coords_v3 = { coords.x, coords.y, 0 };
-    quat rotation_quat = get_rotation(rotation, { 0, 0, 1 });
-    v3 dim_v3 = { radius, radius, 1 };
+void draw_circle(Vector2 coords, float32 rotation, float32 radius, Vector4 color) {
+    Vector3 coords_v3 = { coords.x, coords.y, 0 };
+    Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
+    Vector3 dim_v3 = { radius, radius, 1 };
     
     Shape shape = {};
     shape.type = SHAPE_CIRCLE;
     shape.coords = coords_v3;
     shape.rotation = rotation_quat;
     shape.dim = dim_v3;
-    shape.draw_type = SHAPE_COLOR;
+    shape.draw_type = Shape_Draw_Type::COLOR;
     shape.color = color;
     draw_shape(shape);
 }
-*/
+
 //
 // Sphere
 //
@@ -470,6 +471,7 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 void init_shapes(Assets *assets) {
     // Meshes
     shapes.rect_mesh = get_rect_mesh_2D();
+    init_circle_mesh(&shapes.circle_mesh);
     shapes.rect_3D_mesh = get_rect_mesh();
     shapes.triangle_3D_mesh = init_triangle_mesh();
     shapes.sphere_mesh = get_sphere_mesh(0.025f, 10, 10);
@@ -519,6 +521,7 @@ void draw_shape(Shape shape) {
 
     switch(shape.type) {
         case SHAPE_RECT:   render_draw_mesh(&shapes.rect_mesh);   break;
+        case SHAPE_CIRCLE: render_draw_mesh(&shapes.circle_mesh); break;
         case SHAPE_SPHERE: render_draw_mesh(&shapes.sphere_mesh); break;
         default: logprint("draw_shape()", "not a valid shape type\n");
     }

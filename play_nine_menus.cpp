@@ -71,26 +71,36 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     window_rect.dim    = cv2(window_dim);
     menu->gui.rect = get_centered_rect(window_rect, 0.8f, 0.8f);
 
-    menu->sections = { 2, 9 };
-    menu->interact_region[0] = { 0, 0 };
-    menu->interact_region[1] = { 2, 9 };
+    menu->sections = { 2, 10 };
+    menu->interact_region[0] = { 0,  1 };
+    menu->interact_region[1] = { 2, 10 };
 
     state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
     state->game_draw.radius = get_draw_radius(game->num_of_players, hand_width, 3.2f);
 
     menu->start();
 
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 39,77,20, 1 } );
-    draw_rect(menu->gui.rect, { 0, 0, 0, 0.2f} );
+    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
+    float32 y_section = menu->gui.rect.dim.y / menu->sections.y;
+    draw_rect({ menu->gui.rect.coords.x, menu->gui.rect.coords.y + y_section }, 0, { menu->gui.rect.dim.x, menu->gui.rect.dim.y - y_section }, { 0, 0, 0, 0.2f} );
 
-    s32 menu_row = 0;
-    for (menu_row; menu_row < (s32)game->num_of_players; menu_row++) {
-        Player *player = &game->players[menu_row];
+    char *lobby_name;
+    if (state->mode == Online_Mode::MODE_LOCAL)
+        lobby_name = "Local Lobby";
+    else if (state->mode == Online_Mode::MODE_CLIENT || state->mode == Online_Mode::MODE_SERVER)
+        lobby_name = "Online Lobby";
+    
+    menu_text(menu, lobby_name, play_nine_yellow, { 0, 0 }, { 2, 1 });
+        
+    s32 menu_row = 1;
+    for (u32 player_index = 0; player_index < (s32)game->num_of_players; player_index++) {
+        Player *player = &game->players[player_index];
+        
         Vector2_s32 section_coords = { 0, menu_row };
         Vector2_s32 section_dim = { 2, 1 };
         Vector2_s32 draw_dim = section_dim;
         
-        if (menu_row == game->num_of_players - 1) {
+        if (player_index == game->num_of_players - 1) {
             section_dim = { 2, 7 - (s32)game->num_of_players };
 
             if (state->mode == MODE_CLIENT)
@@ -140,9 +150,11 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
 
             render_draw_mesh(&shapes.rect_mesh);
         }
+
+        menu_row++;
     }
     
-    menu_row = 6;
+    menu_row = 7;
 
     if (full_menu) {
         if (state->mode != MODE_SERVER) {
