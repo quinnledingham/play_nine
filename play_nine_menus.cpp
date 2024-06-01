@@ -551,9 +551,9 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
 
 internal void
 draw_audio_settings_menu(Menu *menu, State *state, Audio_Player *player, App_Window *window) {
-    menu->sections = { 1, 4 };
+    menu->sections = { 1, 6 };
     menu->interact_region[0] = { 0, 1 };
-    menu->interact_region[1] = { 1, 4 };
+    menu->interact_region[1] = { 1, 6 };
     
     menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window->dim), 0.5f, 0.5f);
     menu->start();
@@ -568,12 +568,12 @@ draw_audio_settings_menu(Menu *menu, State *state, Audio_Player *player, App_Win
     
     menu_text(menu, "Audio", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
 
-    menu_slider(menu, &player->music_volume, 6, "Music", { 0, 1 }, { 1, 1 });
-    if (menu_slider(menu, &player->sound_effects_volume, 6, "Sound Effects", { 0, 2 }, { 1, 1 })) {
+    menu_slider(menu, &player->music_volume, 6, "Music", { 0, 1 }, { 1, 2 });
+    if (menu_slider(menu, &player->sound_effects_volume, 6, "Sound Effects", { 0, 3 }, { 1, 2 })) {
         play_sound("TAP");
     }
 
-    if (menu_button(menu, "Back", { 0, 3 }, { 1, 1 })) {
+    if (menu_button(menu, "Back", { 0, 5 }, { 1, 1 })) {
         state->menu_list.mode = SETTINGS_MENU;
         menu->gui.close_at_end = true;
     }

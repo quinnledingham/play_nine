@@ -541,15 +541,17 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
   		subpass.pResolveAttachments = &color_attachment_resolve_ref;
 	
 	// Subpass dependencies
+	VkSubpassDependency dependencies[1];
+	dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[0].dstSubpass = 0;
+	dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	dependencies[0].srcAccessMask = 0;
+	dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	
 	/*
-	VkSubpassDependency dependency = {};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.dstAccessMask = VK_ENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	*/
+	ALLOWS FOR SECOND RENDER PASS
+	
 	VkSubpassDependency dependencies[2];
 	dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependencies[0].dstSubpass = 0;
@@ -566,7 +568,7 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 	dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
 	dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;							
-																										
+	*/																								
 	VkAttachmentDescription attachments[] = { color_attachment, depth_attachment, color_attachment_resolve };
 	
 	VkRenderPassCreateInfo render_pass_info = {};
@@ -578,7 +580,7 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	render_pass_info.pAttachments = attachments;
 	render_pass_info.subpassCount = 1;
 	render_pass_info.pSubpasses = &subpass;
-	render_pass_info.dependencyCount = 2;
+	render_pass_info.dependencyCount = ARRAY_COUNT(dependencies);
 	render_pass_info.pDependencies = dependencies;
 
 	if (vkCreateRenderPass(info->device, &render_pass_info, nullptr, &info->draw_render_pass) != VK_SUCCESS) {

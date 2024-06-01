@@ -231,11 +231,17 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
 
 internal bool8
 gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2 dim) {
+    u32 previous_pressed = gui->pressed;
     u32 state = gui_update(gui, coords, dim);
     Rect rect = {};
     rect.coords = coords;
     rect.dim = dim;
     draw_button(style, state, rect, text, gui->font, gui->text_align);
+
+    if (gui->index == gui->pressed) {
+        if (previous_pressed != gui->pressed)       
+            play_sound("TAP");
+    }
 
     bool8 button_pressed = false;
     if (gui->index == gui->active) {
@@ -243,7 +249,6 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2
         gui->pressed = 0;
         gui->active = 0;
 
-        play_sound("TAP");
     }
 
     gui->index++;
@@ -281,10 +286,11 @@ gui_slider(GUI *gui, Draw_Style style, float32 *value, u32 increments, const cha
 
     // Don't need to press or activate a slider
     if (gui->index == gui->pressed) {
-        gui->pressed = 0;
+        //gui->pressed = 0;
     }
 
     if (gui->index == gui->active) {
+        gui->pressed = 0;
         gui->active = 0;
     }
 
@@ -297,13 +303,32 @@ gui_slider(GUI *gui, Draw_Style style, float32 *value, u32 increments, const cha
         if (on_up(*gui->input.right)) {
             *value += 1.0f / float32(increments);
         }
+
+    }
+
+    if (gui->index == gui->pressed) {
+        if (is_down(*gui->input.mouse_left)) {
+            Vector2 norm_mouse_coords = cv2(*gui->input.mouse) - coords;
+        
+            float32 percent = norm_mouse_coords.x / dim.x;
+            *value = percent;
+        }
     }
 
     clamp(value, 0.0f, 1.0f);
     
     gui->index++;
 
-    return (old_value != *value);
+    float32 new_value = *value;
+    bool8 new_increment_zone = false;
+    float32 inc = 1.0f / float32(increments);
+    for (u32 i = 0; i <= increments; i++) {
+        float32 line = i * inc;
+        if ((old_value < line && new_value >= line) || (old_value > line && new_value <= line))
+            new_increment_zone = true;
+    }
+
+    return new_increment_zone;
 }
 
 internal bool8

@@ -669,7 +669,7 @@ queue_audio(Audio_Player *player) {
 
 internal s32
 play_audio(Audio_Player *player, Audio *audio, u32 type) {
-    Playing_Audio *playing_audio;
+    Playing_Audio *playing_audio = 0;
     s32 index = -1;
     for (u32 i = 0; i < ARRAY_COUNT(player->playing_audios); i++) {
         if (player->playing_audios[i].length_remaining <= 0) {
