@@ -222,6 +222,7 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
     State *state = (State *)parameters;
 
     while(1) {
+        SDL_Delay(100);
         char buffer[sizeof(Play_Nine_Packet)];
         s32 bytes = qsock_recv(online.sock, NULL, buffer, sizeof(Play_Nine_Packet));
         if (bytes > 0) {
