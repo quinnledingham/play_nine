@@ -98,14 +98,15 @@ THREAD_RETURN play_nine_server_com(void *parameters) {
                     state->menu_list.mode = LOCAL_MENU;
                     state->menu_list.menus[SCOREBOARD_MENU].hover_section = { 0, 0 };
                 }
-
+                
                 remove_player_index(&state->game, player->game_index);
                 remove_online_player(&state->game, player->game_index);
 
                 if (state->game.active_player == player->game_index) {
+                    decrement_player(&state->game.active_player, state->game.num_of_players);
                     next_player(&state->game);
                 }
-
+                
                 add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);
                 add_draw_signal(draw_signals, SIGNAL_UNLOAD_NAME_PLATE, 0, player->game_index);
 

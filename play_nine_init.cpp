@@ -66,14 +66,30 @@ remove_player_index(Game *game, u32 index) {
 }
 
 // removes last added - used on menu
-internal void
+internal s32
 remove_player(Game *game, bool8 bot) {
     for (u32 i = game->num_of_players - 1; i > 0; i--) {
         if ((!game->players[i].is_bot && !bot) || (game->players[i].is_bot && bot)) {
             remove_player_index(game, i);
-            break;
+            return i;
         }
     }
+
+    return -1;
+}
+
+internal void
+increment_player(u32 *counter, u32 num_of_players) {
+    (*counter)++;
+    if (*counter >= num_of_players)
+        (*counter) = 0;
+}
+
+internal void
+decrement_player(u32 *counter, u32 num_of_players) {
+    (*counter)--;
+    if (*counter < 0)
+        (*counter) = num_of_players - 1;
 }
 
 internal void

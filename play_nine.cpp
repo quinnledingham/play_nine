@@ -59,16 +59,13 @@ next_player(Game *game) {
     // END HOLE
     if (game->last_turn == game->num_of_players && game->round_type != HOLE_OVER) {
         update_scores(game);
-        game->holes_played++;
         game->round_type = HOLE_OVER;
-        game->starting_player++;
         game->turn_stage = FLIP_CARD;
 
-        if (game->starting_player >= game->num_of_players) {
-            game->starting_player = 0;
-        }
+        increment_player(&game->starting_player, game->num_of_players);
 
         // END GAME
+        game->holes_played++;
         if (game->holes_played == GAME_LENGTH) {
             game->game_over = true;
         }
@@ -78,12 +75,7 @@ next_player(Game *game) {
 
     game->pile_card = false;
     game->turn_stage = SELECT_PILE;
-    game->active_player++;
-
-    // end of round: loop back around if required
-    if (game->active_player >= game->num_of_players) {
-        game->active_player = 0;
-    }
+    increment_player(&game->active_player, game->num_of_players);
 
     if (game->active_player == game->starting_player && game->round_type == FLIP_ROUND) {
         game->round_type = REGULAR_ROUND;

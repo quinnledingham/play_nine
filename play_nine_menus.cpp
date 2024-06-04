@@ -171,7 +171,9 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
             server_send_game(&state->game);
         }
         if (menu_button(menu, "- Bot", { 1, menu_row + 1 }, { 1, 1 })) {
-            remove_player(game, true);
+            s32 removed_index = remove_player(game, true);
+            if (removed_index != -1 && state->mode == MODE_SERVER)
+                remove_online_player(&state->game, removed_index);
             server_send_game(&state->game);
         }
 
