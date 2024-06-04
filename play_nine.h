@@ -73,7 +73,7 @@ struct Game {
     u32 num_of_players;
     u32 active_player;
 
-    u32 starting_player;
+    u32 starting_player; // tracks who should start the hole
     u32 holes_played;
     bool8 game_over;
 

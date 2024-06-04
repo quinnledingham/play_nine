@@ -75,8 +75,8 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     menu->interact_region[0] = { 0,  1 };
     menu->interact_region[1] = { 2, 10 };
 
-    state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
-    state->game_draw.radius = get_draw_radius(game->num_of_players, hand_width, 3.2f);
+    //state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
+    //state->game_draw.radius = get_draw_radius(game->num_of_players, hand_width, 3.2f);
 
     menu->start();
 

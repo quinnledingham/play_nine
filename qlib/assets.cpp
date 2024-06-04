@@ -647,8 +647,8 @@ init_audio_player(Audio_Player *player) {
     player->buffer = (u8*)platform_malloc(player->max_length);
     platform_memory_set(player->buffer, 0, player->max_length);
 
-    player->music_volume = 0.5f;
-    player->sound_effects_volume = 0.5f;
+    //player->music_volume = 0.5f;
+    //player->sound_effects_volume = 0.5f;
 
     platform_memory_set(player->playing_audios, 0, 10 * sizeof(Playing_Audio)); 
 

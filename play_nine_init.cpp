@@ -63,10 +63,9 @@ remove_player_index(Game *game, u32 index) {
         game->players[dest_index++] = game->players[src_index];
     }
     game->num_of_players--;
-
-    remove_online_player(game, index);
 }
 
+// removes last added - used on menu
 internal void
 remove_player(Game *game, bool8 bot) {
     for (u32 i = game->num_of_players - 1; i > 0; i--) {

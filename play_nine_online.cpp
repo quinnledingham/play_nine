@@ -99,12 +99,15 @@ THREAD_RETURN play_nine_server_com(void *parameters) {
                     state->menu_list.menus[SCOREBOARD_MENU].hover_section = { 0, 0 };
                 }
 
-                if (state->game.num_of_players - 1 == player->game_index) {
-                    state->game.num_of_players--;
-                    remove_online_player(&state->game, player->game_index);
-                } else {
-                    remove_player_index(&state->game, player->game_index);
+                remove_player_index(&state->game, player->game_index);
+                remove_online_player(&state->game, player->game_index);
+
+                if (state->game.active_player == player->game_index) {
+                    next_player(&state->game);
                 }
+
+                add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);
+                add_draw_signal(draw_signals, SIGNAL_UNLOAD_NAME_PLATE, 0, player->game_index);
 
                 os_release_mutex(state->mutex);
 
@@ -237,10 +240,11 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
                     add_draw_signal(draw_signals, recv_packet->signal);
                 } break;
 
+                // if the server tells the client to disconnect
                 case CLOSE_CONNECTION: {
                     qsock_free_socket(online.sock);
                     state->mode = MODE_LOCAL;
-                    state->menu_list.mode = MAIN_MENU;
+                    state->menu_list.mode = JOIN_MENU;
                     add_onscreen_notification(&state->notifications, "Connection Closed");
                     return 0;
                 } break;

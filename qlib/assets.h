@@ -125,8 +125,8 @@ struct Audio_Player {
 
     SDL_AudioDeviceID device_id;
 
-    float32 music_volume;
-    float32 sound_effects_volume;
+    float32 music_volume = 0.0f;
+    float32 sound_effects_volume = 0.0f;
 };
 
 //

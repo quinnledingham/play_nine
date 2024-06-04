@@ -37,12 +37,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 
 #include "play_nine_raytrace.cpp"
 #include "play_nine_init.cpp"
-#include "play_nine_bitmaps.cpp"
-#include "play_nine_online.cpp"
-#include "play_nine_menus.cpp"
-#include "play_nine_draw.cpp"
 #include "play_nine_score.cpp"
-#include "play_nine_bot.cpp"
 
 //
 // game logic
@@ -103,6 +98,12 @@ next_player(Game *game) {
 
     add_draw_signal(draw_signals, SIGNAL_NEXT_PLAYER_ROTATION);
 }
+
+#include "play_nine_online.cpp"
+#include "play_nine_bitmaps.cpp"
+#include "play_nine_menus.cpp"
+#include "play_nine_draw.cpp"
+#include "play_nine_bot.cpp"
 
 internal void
 do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {

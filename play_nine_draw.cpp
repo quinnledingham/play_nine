@@ -311,6 +311,16 @@ load_name_plates(Game *game, Game_Draw *draw) {
     draw->name_plates_loaded = true;
 }
 
+internal void
+unload_name_plate(Game_Draw *draw, u32 index) {
+    render_delete_texture(&draw->name_plates[index]);
+    
+    u32 dest_index = index;
+    u32 src_index = index + 1;
+    for (src_index; src_index < MAX_PLAYERS; src_index++) {
+        draw->name_plates[dest_index++] = draw->name_plates[src_index];
+    }
+}
 
 internal void
 unload_name_plates(Game_Draw *draw) {
@@ -456,7 +466,14 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
             continue;
         
         switch(signals[i].type) {
-            case SIGNAL_ALL_PLAYER_CARDS: load_player_card_models(game, draw); break;
+            case SIGNAL_ALL_PLAYER_CARDS: {
+                u32 draw_num_of_players = game->num_of_players;
+                if (draw_num_of_players == 1)
+                    draw_num_of_players = 2;
+                draw->degrees_between_players = 360.0f / float32(draw_num_of_players);
+                draw->radius = get_draw_radius(draw_num_of_players, hand_width, 3.2f);
+                load_player_card_models(game, draw); 
+            } break;
             
             case SIGNAL_ACTIVE_PLAYER_CARDS: {
                 flip_card_model(draw, signals[i].player_index, signals[i].card_index);
@@ -476,6 +493,8 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
             } break;
             
             case SIGNAL_NAME_PLATES: load_name_plates(game, draw); break;
+
+            case SIGNAL_UNLOAD_NAME_PLATE: unload_name_plate(draw, signals[i].player_index); break;
         }
         signals[i].in_use = false;    
     }
