@@ -20,6 +20,25 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 #define PASS_BUTTON   10
 #define SELECTED_SIZE 11
 
+enum Game_Input {
+    GI_0,
+    GI_1,
+    GI_2,
+    GI_3,
+
+    GI_4,
+    GI_5,
+    GI_6,
+    GI_7,
+
+    GI_PICKUP_PILE,
+    GI_DISCARD_PILE,
+
+    GI_PASS_BUTTON,
+
+    GI_SIZE
+};
+
 #define MAX_NAME_SIZE  20
 #define MAX_PLAYERS     6
 #define HAND_SIZE       8
@@ -422,9 +441,9 @@ bool8 update(App *app) {
     
     // Update
     if (state->menu_list.mode == IN_GAME) {
-        if (state->mode == MODE_CLIENT)
+        if (state->mode == MODE_CLIENT) {
             os_wait_mutex(state->mutex);
-        
+        }
         update_game(state, app);
                     
         if (state->mode == MODE_CLIENT)
