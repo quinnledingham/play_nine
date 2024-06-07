@@ -34,8 +34,9 @@ enum Packet_Types {
 };
 
 struct Play_Nine_Packet {
-    s32 bytes;
-    s32 type;
+    s8 bytes;
+    u8 id;
+    s8 type;
     u32 game_index;
 
     // what the server sends

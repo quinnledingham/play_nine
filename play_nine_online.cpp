@@ -231,22 +231,26 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
     State *state = (State *)parameters;
 
     while(1) {
-        Play_Nine_Packet buffer = {};
-        Play_Nine_Packet *recv_packet = (Play_Nine_Packet *)&buffer;
+        Play_Nine_Packet packet = {};
+        char *buffer = (char *)&packet;
+        Play_Nine_Packet *recv_packet = &packet;
         
         s32 bytes_received = 0;
+        s32 bytes_left = sizeof(Play_Nine_Packet);
         do {
-            s32 bytes = qsock_recv(online.sock, NULL, (const char *)&buffer, sizeof(Play_Nine_Packet));
+            s32 bytes = qsock_recv(online.sock, NULL, buffer, bytes_left);
 
             if (bytes <= 0) {
                 logprint("play_nine_client_recv()", "received no bytes\n");
                 return 0;
             }
 
+            buffer += bytes;
             bytes_received += bytes;
+            bytes_left -= bytes;
             
             print("client received %d bytes\n", bytes_received);
-        } while(bytes_received < recv_packet->bytes);
+        } while(bytes_left > 0);
         
         if (bytes_received > 0) {
             os_wait_mutex(state->mutex);
