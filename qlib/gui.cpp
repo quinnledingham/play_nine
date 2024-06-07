@@ -184,14 +184,13 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
     if (*gui->input.active_input_type == KEYBOARD_INPUT) {
         gui_select = *gui->input.select;
 
-        if (gui->hover == 0) // if nothing it hovered to begin with set it to first
+        if (gui->hover == 0 && gui->active == 0) // if nothing it hovered to begin with set it to first
             gui->hover = 1;
     } else if (*gui->input.active_input_type == MOUSE_INPUT) {
         gui_select = *gui->input.mouse_left;
 
         if (coords_in_rect(*gui->input.mouse, coords, dim)) {
             gui->hover = gui->index;
-
             // don't hover anyways
             if (gui->active != 0 && !gui->enabled)
                 gui->hover = 0;
@@ -199,7 +198,7 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
             gui->hover = 0;
         }
     }
-
+    
     if (gui->hover == gui->index) {
         state = GUI_HOVER;
 
@@ -368,8 +367,8 @@ gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count
             dropdown_rect.coords.y += dropdown_rect.dim.y;
         } 
         gui->enabled = false;
-    }
-    
+    } 
+        
     gui->index = dropdown_menu_index + options_count + 1;
 
     return value_selected;
@@ -508,9 +507,12 @@ gui_textbox(GUI *gui, Draw_Style style, const char *label, const char *dest, Vec
             }
         } 
     } else {
+        if (box.state == GUI_PRESSED)
+            box.state = GUI_DEFAULT;
         gui->edit.index = 0;
     }
     
+    box.cursor_position = gui->edit.cursor_position;
     gui->edit.shift = draw_textbox(box);
 
     last_state = box.state;
@@ -588,15 +590,15 @@ do_menu_update(Menu *menu, Vector2 coords, Vector2 dim, Vector2_s32 section_coor
         case KEYBOARD_INPUT: {
             if (menu_in_dim(section_coords, section_dim, menu->hover_section)) {
                 menu_update_hot(&menu->gui.input, &menu->hover_section_updated, section_coords, section_dim, menu->interact_region);
-                menu->gui.hover = menu->gui.index;
+                if (menu->gui.active == 0)
+                    menu->gui.hover = menu->gui.index;
             }
         } break;
 
         case MOUSE_INPUT: {
             if (coords_in_rect(*menu->gui.input.mouse, coords, dim)) {
-                menu->hover_section_updated = section_coords;
                 menu->gui.hover = menu->gui.index;
-            }
+            } 
         } break;
     }
 }
@@ -684,6 +686,9 @@ menu_textbox(Menu *menu, const char *label, const char *dest, Vector2_s32 sectio
     Vector2 dim = get_screen_dim(menu, draw_dim);
 
     do_menu_update(menu, coords, dim, section_coords, section_dim);
+
+    if (menu->gui.index == menu->gui.active)
+        menu->hover_section_updated = section_coords;
     
     return gui_textbox(&menu->gui, menu->gui.style, label, dest, coords, dim);
 }

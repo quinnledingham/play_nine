@@ -67,15 +67,16 @@ win32_init_socket(QSock_Socket *sock, const char *ip, const char *port) {
             logprint("win32_init_socket()", "socket() call failed\n");
             continue;
         }
-
+        
         if (sock->passive) {
             if (bind(sock->handle, ptr->ai_addr, (int)ptr->ai_addrlen) != SOCKET_ERROR) 
                 break;
             logprint("win32_init_socket()", "bind() call failed\n");
             return false;
         } else {
-            if (sock->protocol == UDP || connect(sock->handle, ptr->ai_addr, (int)ptr->ai_addrlen) != SOCKET_ERROR) 
+            if (sock->protocol == UDP || connect(sock->handle, ptr->ai_addr, (int)ptr->ai_addrlen) != SOCKET_ERROR) {
                 break;
+            }
             logprint("win32_init_socket()", "connect() call failed\n");
             return false;
         }
