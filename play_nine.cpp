@@ -54,9 +54,16 @@ enum Game_Input {
 #include "play_nine.h"
 #include "play_nine_online.h"
 
+internal void next_player(Game *game);
+
 #include "play_nine_raytrace.cpp"
 #include "play_nine_init.cpp"
 #include "play_nine_score.cpp"
+#include "play_nine_online.cpp"
+#include "play_nine_bitmaps.cpp"
+#include "play_nine_menus.cpp"
+#include "play_nine_draw.cpp"
+#include "play_nine_bot.cpp"
 
 //
 // game logic
@@ -109,12 +116,6 @@ next_player(Game *game) {
 
     add_draw_signal(draw_signals, SIGNAL_NEXT_PLAYER_ROTATION);
 }
-
-#include "play_nine_online.cpp"
-#include "play_nine_bitmaps.cpp"
-#include "play_nine_menus.cpp"
-#include "play_nine_draw.cpp"
-#include "play_nine_bot.cpp"
 
 internal void
 do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
@@ -343,8 +344,9 @@ bool8 update_game(State *state, App *app) {
             // Game logic
             do_update_with_input(game, selected);
 
-            if (state->mode == MODE_SERVER)
-                server_send_game(game);
+            if (state->mode == MODE_SERVER) {
+                server_send_game(game, draw_signals, DRAW_SIGNALS_AMOUNT);
+            }
         } break;
     }
 
@@ -450,7 +452,6 @@ bool8 update(App *app) {
             os_release_mutex(state->mutex);
     } else {
         state->game_draw.name_plates_loaded = false;
-        platform_memory_set(draw_signals, 0, sizeof(Draw_Signal) * DRAW_SIGNALS_AMOUNT);
     }
 
     // Draw
@@ -498,6 +499,7 @@ bool8 update(App *app) {
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {
+            platform_memory_set(draw_signals, 0, sizeof(Draw_Signal) * DRAW_SIGNALS_AMOUNT);
             if (draw_main_menu(state, &state->menu_list.menus[MAIN_MENU], app->window.dim))
                 return 1;
         } break;

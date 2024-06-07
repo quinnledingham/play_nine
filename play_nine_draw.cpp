@@ -436,10 +436,10 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
 //
 
 internal void
-add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_player_index) {
+add_draw_signal_to_signals(Draw_Signal *signals, Draw_Signal signal) {
     for (u32 i = 0 ; i < DRAW_SIGNALS_AMOUNT; i++) {
         if (!signals[i].in_use) {
-            signals[i] = Draw_Signal(in_type, in_card_index, in_player_index);
+            signals[i] = signal;
             //if (*global_mode == MODE_SERVER)
             //    server_add_draw_signal(signals[i]);
             return;
@@ -450,23 +450,26 @@ add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_pla
 }
 
 internal void
+add_draw_signal(Draw_Signal *signals, u32 in_type, u32 in_card_index, u32 in_player_index) {
+    Draw_Signal signal = Draw_Signal(in_type, in_card_index, in_player_index);
+    add_draw_signal_to_signals(signals, signal);
+}
+
+internal void
 add_draw_signal(Draw_Signal *signals, u32 in_type) {
     add_draw_signal(signals, in_type, 0, 0);
 }
 
 internal void
 add_draw_signal(Draw_Signal *signals, Draw_Signal s) {
-    add_draw_signal(signals, s.type, s.card_index, s.player_index);
+    add_draw_signal_to_signals(signals, s);
 }
 
 internal void
-do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {     
+do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {         
     for (u32 i = 0; i < DRAW_SIGNALS_AMOUNT; i++) {
         if (!signals[i].in_use)
             continue;
-
-        if (*global_mode == MODE_SERVER)
-            server_add_draw_signal(signals[i]);
         
         switch(signals[i].type) {
             case SIGNAL_ALL_PLAYER_CARDS: {

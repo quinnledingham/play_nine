@@ -28,6 +28,7 @@ enum Packet_Types {
     SET_SELECTED,
     SET_MENU_MODE,
     ADD_DRAW_SIGNAL,
+    ADD_ALL_DRAW_SIGNALS,
 
     CLOSE_CONNECTION
 };
@@ -39,7 +40,11 @@ struct Play_Nine_Packet {
 
     // what the server sends
     Game game;
-    Draw_Signal signal;
+    union {
+        Draw_Signal signals[DRAW_SIGNALS_AMOUNT];
+        Draw_Signal signal;
+    };
+    u8 signals_count;
     enum Menu_Mode mode;
 
     // what the clients send

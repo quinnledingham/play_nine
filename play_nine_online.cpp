@@ -44,20 +44,29 @@ server_send_game(Game *game) {
 }
 
 internal void
+server_send_game(Game *game, Draw_Signal *signals, u32 signals_count) {
+    Play_Nine_Packet packet = {};
+    packet.type = SET_GAME;
+    packet.game = *game;
+    packet.signals_count = signals_count;
+
+    for (u32 i = 0; i < signals_count; i++) {
+        if (!signals[i].in_use)
+            continue;
+        packet.signals[i] = signals[i];
+    }
+    
+    server_send_packet_all(&packet);
+}
+
+
+internal void
 server_send_menu_mode(enum Menu_Mode mode) {
     Play_Nine_Packet packet = {};
     packet.type = SET_MENU_MODE;
     packet.mode = mode;
     server_send_packet_all(&packet);
 };
-
-internal void
-server_add_draw_signal(Draw_Signal signal) {
-    Play_Nine_Packet packet = {};
-    packet.type = ADD_DRAW_SIGNAL;
-    packet.signal = signal;
-    server_send_packet_all(&packet);
-}
 
 THREAD_RETURN play_nine_server_com(void *parameters) {
     Online_Player *player = (Online_Player *)parameters;
@@ -232,6 +241,10 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
                 case SET_GAME: {
                     state->game = recv_packet->game;
                     state->client_game_index = recv_packet->game_index;
+                    for (u32 i = 0; i < recv_packet->signals_count; i++) {
+                        if (recv_packet->signals[i].in_use)
+                            add_draw_signal(draw_signals, recv_packet->signals[i]);
+                    }
                 } break;
 
                 case SET_MENU_MODE: {
@@ -240,6 +253,13 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
 
                 case ADD_DRAW_SIGNAL: {
                     add_draw_signal(draw_signals, recv_packet->signal);
+                } break;
+
+                case ADD_ALL_DRAW_SIGNALS: {
+                    for (u32 i = 0; i < recv_packet->signals_count; i++) {
+                        if (!recv_packet->signals[i].sent)
+                            add_draw_signal(draw_signals, recv_packet->signals[i]);
+                    }
                 } break;
 
                 // if the server tells the client to disconnect

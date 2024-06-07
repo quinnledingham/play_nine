@@ -182,12 +182,14 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
                 state->menu_list.mode = IN_GAME;
                 menu->gui.close_at_end = true;
                 start_game(&state->game, game->num_of_players);
-                if (state->mode == MODE_SERVER) {
-                    server_send_menu_mode(state->menu_list.mode);
-                    server_send_game(&state->game);
-                }
+                
                 add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);
                 add_draw_signal(draw_signals, SIGNAL_NAME_PLATES);
+                
+                if (state->mode == MODE_SERVER) {
+                    server_send_game(game, draw_signals, DRAW_SIGNALS_AMOUNT);
+                    server_send_menu_mode(state->menu_list.mode);
+                }
             } else {
                 add_onscreen_notification(&state->notifications, "Not enough players");
             }
@@ -367,8 +369,8 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
             add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);    
 
             if (state->mode == MODE_SERVER) {
+                server_send_game(&state->game, draw_signals, DRAW_SIGNALS_AMOUNT);
                 server_send_menu_mode(state->menu_list.mode);
-                server_send_game(&state->game);
             }
         }
         if (menu_button(menu, "Back", { (s32)game->num_of_players - 1, scroll_length + 2 }, { 1, 1 })) {

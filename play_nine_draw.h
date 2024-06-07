@@ -127,6 +127,7 @@ struct Draw_Signal {
     u32 player_index;
     bool8 fulfilled[6]; // tracking which clients have completed the signal
     bool8 in_use; // if this signal is still active
+    bool8 sent;
 
     Draw_Signal() {
         type = 0;
@@ -134,6 +135,7 @@ struct Draw_Signal {
         player_index = 0;
         platform_memory_set(fulfilled, 0, sizeof(bool8) * 6);
         in_use = 0;
+        sent = 0;
     }
     Draw_Signal(u32 in_type, u32 in_card_index, u32 in_player_index) {
         type = in_type;
@@ -141,6 +143,7 @@ struct Draw_Signal {
         player_index = in_player_index;
         platform_memory_set(fulfilled, 0, sizeof(bool8) * 6);
         in_use = true;
+        sent = 0;
     }
 };
 
