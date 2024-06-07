@@ -34,7 +34,7 @@ enum Packet_Types {
 };
 
 struct Play_Nine_Packet {
-    u32 bytes;
+    s32 bytes;
     s32 type;
     u32 game_index;
 
