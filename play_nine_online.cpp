@@ -231,9 +231,9 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
     State *state = (State *)parameters;
 
     while(1) {
-        SDL_Delay(100);
         char buffer[sizeof(Play_Nine_Packet)];
         s32 bytes = qsock_recv(online.sock, NULL, buffer, sizeof(Play_Nine_Packet));
+        print("client received %d bytes\n", bytes);
         if (bytes > 0) {
             Play_Nine_Packet *recv_packet = (Play_Nine_Packet *)&buffer;
             os_wait_mutex(state->mutex);
