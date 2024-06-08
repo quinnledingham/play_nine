@@ -20,6 +20,7 @@ folder_path = ../assets/bitmaps/
 
 struct File {
     const char *filepath;
+    u32 filepath_length;
     const char *path;
     char *ch; // for functions like file_get_char()
     u32 size;

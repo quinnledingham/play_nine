@@ -2,9 +2,10 @@
 TODO
 - Flip "animation"
 - Show keyboard controls
-- see all cards in larger lobby's in online (@SOLUTION Move Camera?)
 - Make lobby menu go back to pause from menu (change play to start new game)
-- Create a way to save the compressed versions of assets
+
+Assets
+- Put mtl and map_Kd files into asset file
 
 Bot
 - Add look ahead, so the bot doesnt give pairs to next player
@@ -15,13 +16,12 @@ Slight Problems
 - Improve game hud
 
 Render.cpp
-- Clean up light sources in shaders
 - Add wireframe toggle
-- Clean up global pipelines
+- Clean up global pipelines, lights, and layout sets
+- add target frame rate
 
 vulkan.h
-- pass thru shader to map bitmap to screen
-- make a basic pipeline to show one bitmap on screen (the output of drawing)
+- fix error when changing resolution scaling
 - make it so that when the resolution = window resolution it does not do the extra step
 */
 

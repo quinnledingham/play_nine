@@ -18,6 +18,7 @@ struct Controller {
 
             // Camera Controls
             Button camera_toggle;
+            Button save_camera;
 
             Button forward;
             Button backward;
@@ -33,7 +34,7 @@ struct Controller {
             // Mouse Controls
             Button mouse_left;
         };
-        Button buttons[21];
+        Button buttons[22];
     };
 };
 

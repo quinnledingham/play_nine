@@ -20,6 +20,7 @@ load_file(const char *filepath) {
     }
     
     result.filepath = filepath;
+    result.filepath_length = get_length(filepath);
     result.ch = (char*)result.memory;
     
     return result;

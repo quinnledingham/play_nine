@@ -210,9 +210,8 @@ init_types_array(Asset *data, Asset_Array *types) {
     }
 }
 
-// returns true if loading the assets fails
 internal bool8
-load_assets(Assets *assets, const char *filepath) {
+load_asset_files_from_ethan(Assets *assets, const char *filepath) {
     File file = load_file(filepath);
     if (file.size == 0) {
         logprint("load_assets()", "could not open file %s\n", filepath);
@@ -222,11 +221,20 @@ load_assets(Assets *assets, const char *filepath) {
     parse_asset_file(assets, &file, count_asset);
     assets->files = ARRAY_MALLOC(Asset_Files, assets->num_of_assets);
     assets->data = ARRAY_MALLOC(Asset, assets->num_of_assets);
+    platform_memory_set(assets->data, 0, sizeof(Asset) * assets->num_of_assets);
+    platform_memory_set(assets->files, 0, sizeof(Asset_Files) * assets->num_of_assets);
     init_types_array(assets->data, assets->types);
     
     file_reset_char(&file);
     parse_asset_file(assets, &file, load_asset_files);
 
+    free_file(&file);
+    return 0;
+}
+
+// returns true if loading the assets fails
+internal bool8
+load_assets(Assets *assets) {
     for (u32 i = 0; i < assets->num_of_assets; i++) {
         Asset *asset = &assets->data[i];
         Asset_Files *files = &assets->files[i];
@@ -237,16 +245,16 @@ load_assets(Assets *assets, const char *filepath) {
             case ASSET_TYPE_MODEL: asset->model = load_obj(files->data[0]); break;
             case ASSET_TYPE_SHADER: {
                 for (u32 shader_index = 0; shader_index < SHADER_STAGES_AMOUNT; shader_index++) {
-                    asset->shader.files[shader_index].filepath = files->data[shader_index].filepath;
+                    //asset->shader.files[shader_index].filepath = files->data[shader_index].filepath;
+                    asset->shader.files[shader_index] = files->data[shader_index];
                 }
-                load_shader(&asset->shader);
+                //load_shader(&asset->shader);
                 spirv_compile_shader(&asset->shader);
             } break;
 
         }
     }
     
-    free_file(&file);
     return 0;
 }
 
@@ -367,6 +375,35 @@ load_mesh(FILE *file)
 }
 
 internal void
+save_asset_files(Assets *assets, const char *file_path) {
+    FILE *file = fopen(file_path, "wb");
+    
+    fwrite(assets, sizeof(Assets), 1, file);
+    fwrite(assets->data, sizeof(Asset), assets->num_of_assets, file);
+    fwrite(assets->files, sizeof(Asset_Files), assets->num_of_assets, file);
+    
+    for (u32 i = 0; i < assets->num_of_assets; i++) {
+        Asset *asset = &assets->data[i];
+        Asset_Files *files = &assets->files[i];
+        
+        fwrite(asset->tag, asset->tag_length + 1, 1, file);
+        
+        for (u32 file_index = 0; file_index < ARRAY_COUNT(files->data); file_index++) {
+            File *asset_file = &files->data[file_index];
+            if (asset_file->size != 0) {
+                fwrite(files->data[file_index].memory, files->data[file_index].size, 1, file);
+                if (files->data[file_index].filepath_length != 0)
+                    fwrite(files->data[file_index].filepath, files->data[file_index].filepath_length + 1, 1, file);
+            }
+        }
+    }
+
+    fclose(file);
+}
+
+const char *temp = "temp/filepath.test";
+
+internal void
 save_assets(Assets *assets, FILE *file)
 {
     //FILE *file = fopen(filename, "wb");
@@ -406,6 +443,50 @@ save_assets(Assets *assets, FILE *file)
 //
 // Load Saved
 //
+
+internal u32
+load_saved_asset_files(Assets *assets, const char *file_path) {
+    FILE *file = fopen(file_path, "rb");
+    if (file == 0) {
+        logprint("load_saved_asset_files()", "could not open file %s\n", file_path); 
+        return 1; 
+    }
+    
+    fread(assets, sizeof(Assets), 1, file);
+    assets->data = ARRAY_MALLOC(Asset, assets->num_of_assets);
+    assets->files = ARRAY_MALLOC(Asset_Files, assets->num_of_assets);
+    platform_memory_set(assets->data, 0, sizeof(Asset) * assets->num_of_assets);
+    platform_memory_set(assets->files, 0, sizeof(Asset_Files) * assets->num_of_assets);
+    fread(assets->data, sizeof(Asset), assets->num_of_assets, file);
+    fread(assets->files, sizeof(Asset_Files), assets->num_of_assets, file);
+    
+    init_types_array(assets->data, assets->types);
+    
+    for (u32 i = 0; i < assets->num_of_assets; i++) {
+        Asset *asset = &assets->data[i];
+        Asset_Files *files = &assets->files[i];
+        
+        asset->tag = (const char*)platform_malloc(asset->tag_length + 1);        
+        fread((void*)asset->tag, asset->tag_length + 1, 1, file);
+        
+        for (u32 file_index = 0; file_index < ARRAY_COUNT(files->data); file_index++) {
+            File *asset_file = &files->data[file_index];
+            if (asset_file->size != 0) {
+            
+                asset_file->memory = platform_malloc(asset_file->size);
+                asset_file->filepath = (const char *)platform_malloc(asset_file->filepath_length + 1);
+                fread(asset_file->memory, asset_file->size, 1, file);
+                if (asset_file->filepath_length != 0)
+                    fread((void*)asset_file->filepath, asset_file->filepath_length + 1, 1, file);
+                asset_file->ch = (char*)asset_file->memory;
+            }
+        }
+    }
+
+    fclose(file);
+
+    return 0;
+}
 
 internal u32
 load_saved_assets(Assets *assets, const char *filename, u32 offset) // returns 0 on success

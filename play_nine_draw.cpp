@@ -395,7 +395,7 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     render_bind_descriptor_set(texture_desc);
 
     Object object = {};
-    object.model = create_transform_m4x4({ 0, -0.1f, 0 }, get_rotation(0, { 0, 1, 0 }), {15.6f, 1.0f, 15.6f});
+    object.model = create_transform_m4x4({ 0, -0.1f - 0.1f, 0 }, get_rotation(0, { 0, 1, 0 }), {15.6f, 2.0f, 15.6f});
     object.index = indices[15];
     render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 

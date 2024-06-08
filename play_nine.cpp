@@ -250,6 +250,11 @@ all_false(bool8 selected[SELECTED_SIZE]) {
     return true;
 }
 
+internal void
+print_vector3(const char *name, Vector3 v) {
+    print("%s: %f, %f, %f\n", name, v.x, v.y, v.z);
+}
+
 bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
@@ -280,6 +285,15 @@ bool8 update_game(State *state, App *app) {
                 app->input.relative_mouse_mode = true;
             }
         } break;
+    }
+
+    if (on_up(state->controller.save_camera)) {
+        print_vector3("position", state->camera.position);
+        print_vector3("target", state->camera.target);
+        print_vector3("up", state->camera.up);
+        print("%f\n", state->camera.fov);
+        print("%f\n", state->camera.yaw);
+        print("%f\n", state->camera.pitch);
     }
     
     // Game update
@@ -398,13 +412,13 @@ bool8 update_game(State *state, App *app) {
             }
             
             float32 rad = deg * DEG2RAD;
-            float32 cam_dis = 9.56f + draw->radius;
+            float32 cam_dis = 11.5f + draw->radius;
             float32 x = cam_dis * cosf(rad);
             float32 y = cam_dis * sinf(rad);
 
-            state->camera.position =  Vector3{ x, 11.85f, y };
+            state->camera.position =  Vector3{ x, 12.0f, y };
             state->camera.yaw      = deg + 180.0f;
-            state->camera.pitch    = -45.5f;
+            state->camera.pitch    = -39.2f;
 
             update_camera_target(&state->camera);    
         } break;
@@ -594,12 +608,12 @@ bool8 update(App *app) {
 
     draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
 
-//#ifdef DEBUG
+#ifdef DEBUG
     // Draw FPS
     char buffer[20];
     float_to_char_array((float32)app->time.frames_per_s, buffer, 20);
     draw_string_tl(default_font, buffer, { 10, (float32)app->window.dim.height - 40 }, 40.0f, { 255, 50, 50, 1 });
-//#endif // DEBUG
+#endif // DEBUG
 
     render_end_frame(&state->assets, &app->window);
     AFTER_DRAW:
@@ -704,7 +718,10 @@ bool8 init_data(App *app) {
     bool8 load_and_save_assets = false;
 
     if (load_and_save_assets) {
-        if (load_assets(&state->assets, "../assets.ethan"))
+        if (load_asset_files_from_ethan(&state->assets, "../assets.ethan"))
+            return true;
+        save_asset_files(&state->assets, "files.save");
+        if (load_assets(&state->assets))
             return true;
 
         convert_to_one_channel(find_bitmap(&state->assets, "BOT"));
@@ -712,12 +729,21 @@ bool8 init_data(App *app) {
         const char *filepath = "assets.save";
         u32 offset = 0;
 
-        // have to compile then run the asset builder application to put the assets in the exe
-        // const char *filepath = "river.exe";
-        // u32 offset = exe_offset;
+        FILE *file = fopen(filepath, "rb");
+        if (file == 0) {
+            load_saved_asset_files(&state->assets, "files.save");
+            load_assets(&state->assets);
+            load_and_save_assets = true;
+            convert_to_one_channel(find_bitmap(&state->assets, "BOT"));
+        } else {
 
-        if (load_saved_assets(&state->assets, filepath, offset))
+            // have to compile then run the asset builder application to put the assets in the exe
+            // const char *filepath = "river.exe";
+            // u32 offset = exe_offset;
+            fclose(file);
+            if (load_saved_assets(&state->assets, filepath, offset))
             return 1;
+        }
     }
 
     init_assets(&state->assets);
@@ -765,12 +791,12 @@ bool8 init_data(App *app) {
     //clean_assets(&state->assets);
 
     // Rendering
-    state->camera.position = { 0, 2, -5 };
+    state->camera.position = { 0, 14, -5 };
     state->camera.target   = { 0, 0, 0 };
     state->camera.up       = { 0, -1, 0 };
     state->camera.fov      = 75.0f;
     state->camera.yaw      = 180.0f;
-    state->camera.pitch    = -75.0f;
+    state->camera.pitch    = -41.0f;
     state->camera_mode = PLAYER_CAMERA;
 
     update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
@@ -794,6 +820,7 @@ bool8 init_data(App *app) {
 
 #ifdef DEBUG
     set(&state->controller.camera_toggle, SDLK_c);
+    set(&state->controller.save_camera, SDLK_v);
 #endif // DEBUG
 
     set(&state->controller.one,   SDLK_u);
