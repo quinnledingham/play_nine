@@ -594,10 +594,106 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     }   
 }
 
+/*
+(0, 0)
+ -> ###############################
+    #   #                         #
+    # r #            r            #
+    # b #                         #  
+    #   #                         #
+    ###############################
+    # r #            r            #
+    ############################### 
+*/
+struct String_Draw_Info {
+    Vector2 dim;
+    Vector2 baseline;
+
+    Vector2 font_dim; // biggest char in font
+    Vector2 font_baseline; // baseline for biggest char
+};
+
+// if length != -1 than the dim only includes chars up to the length position
+internal String_Draw_Info
+get_string_draw_info(Font *font, const char *string, s32 length, float32 pixel_height) {
+    String_Draw_Info info = {};    
+
+    if (string == 0) {
+        return info;
+    } else if (font == 0) {
+        logprint("get_string_draw_info()", "no font\n");
+        return info;
+    }
+
+    stbtt_fontinfo *font_info = (stbtt_fontinfo*)font->info;
+    float32 scale = stbtt_ScaleForPixelHeight(font_info, pixel_height);
+    u32 index = 0;
+
+    s32 top = 0;
+    s32 bottom = 0;
+    float32 left = 0;
+
+    while (string[index] != 0) {
+        if (length != -1) {
+            // if a length is set then only include in the dim the chars up to that point
+            if (index == length) break;
+        }
+
+        Font_Char_Bitmap *font_char_bitmap = load_font_char_bitmap(font, string[index], scale);
+        Font_Char *font_char = font_char_bitmap->font_char;
+
+        float32 char_coords_x = info.dim.x + (font_char->lsb * scale);
+        if (char_coords_x < 0.0f)
+            left = char_coords_x;
+
+        if (top > font_char_bitmap->bb_0.y)
+            top = font_char_bitmap->bb_0.y;
+
+        if (bottom < font_char_bitmap->bb_1.y)
+            bottom = font_char_bitmap->bb_1.y;
+        
+        if ((float32)-font_char_bitmap->bb_0.y > info.baseline.y)
+            info.baseline.y = (float32)-font_char_bitmap->bb_0.y;
+
+        int kern = stbtt_GetCodepointKernAdvance(font_info, string[index], string[index + 1]);
+        if (string[index + 1])
+            info.dim.x += scale * float32(kern + font_char->ax);
+        else
+            info.dim.x += float32(font_char_bitmap->bb_1.x);
+        index++;
+    }
+
+    info.baseline.x = -left;
+    info.dim.y = float32(bottom - top);
+    info.dim.x = float32(info.dim.x - left);
+        
+    s32 x0, y0, x1, y1;
+    stbtt_GetFontBoundingBox(font_info, &x0, &y0, &x1, &y1);
+    info.font_dim.x = float32(x1 - x0) * scale;
+    info.font_dim.y = float32(y1 - y0) * scale;
+    info.font_baseline.x = float32(x0) * scale;
+    info.font_baseline.y = float32(y1) * scale;
+    
+    return info;
+}
+
 void draw_string_tl(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color) {
     String_Draw_Info string_info = get_string_draw_info(font, string, -1, pixel_height);
-    //draw_rect(coords, 0.0f, string_info.dim, { 255, 255, 0, 1 });
-    coords.x += string_info.baseline.x;
     coords.y += string_info.baseline.y;
     draw_string(font, string, coords, pixel_height, color);
+}
+
+internal void
+draw_string_draw_info(String_Draw_Info *info, Vector2 coords) {
+    Vector2 string = coords;
+    string.y -= info->baseline.y;
+    draw_rect(string, 0.0f, info->dim, { 250, 100, 0, 1 });
+
+    Vector2 font = coords;
+    font.y -= info->font_baseline.y;
+    draw_rect(font, 0.0f, info->font_dim, { 200, 0, 0, 1 });
+
+    Vector2 baseline = info->baseline;
+    baseline.x = info->dim.x;
+    draw_rect(string, 0.0f, baseline, { 100, 10, 40, 1 });
 }

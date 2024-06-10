@@ -1,19 +1,17 @@
 // WARNING: centers vertically using baseline
 inline Vector2
-get_centered_text_coords(Font *font, const char *text, float32 pixel_height, Vector2 dim, u32 text_align) {
+get_centered_text_coords(String_Draw_Info string_info, Vector2 dim, u32 text_align) {
     Vector2 coords = { 0, 0 };
     Vector2 text_coords = {};
-
-    String_Draw_Info string_info = get_string_draw_info(font, text, -1, pixel_height);
-
+    
     switch(text_align) {
         case ALIGN_CENTER:
-        text_coords.x = coords.x + (dim.x / 2.0f) - (string_info.dim.x      / 2.0f) + string_info.baseline.x;
-        text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
+        text_coords.x = coords.x + (dim.x / 2.0f) - (string_info.dim.x / 2.0f);
+        text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.font_dim.y / 2.0f) + string_info.font_baseline.y;
         break;
 
         case ALIGN_RIGHT:
-        text_coords.x = coords.x + (dim.x)        - (string_info.dim.x)             + string_info.baseline.x;
+        text_coords.x = coords.x + (dim.x)        - (string_info.dim.x);
         text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.baseline.y / 2.0f) + string_info.baseline.y;
         break;
         
@@ -34,7 +32,8 @@ draw_button(const Draw_Style style, const u32 state, Rect rect, const char *labe
     if (label) {
         float32 pixel_height = rect.dim.y * 0.8f;
 
-        Vector2 text_coords = rect.coords + get_centered_text_coords(font, label, pixel_height, rect.dim, text_align);
+        String_Draw_Info info = get_string_draw_info(font, label, -1, pixel_height);
+        Vector2 text_coords = rect.coords + get_centered_text_coords(info, rect.dim, text_align);
         Vector4 text_color = style.text_colors[state];
 
         render_context.scissor_push(rect.coords, rect.dim);
@@ -53,7 +52,8 @@ draw_slider(const Draw_Style style, const u32 state, Rect rect, float32 value, c
     
     float32 pixel_height = text_rect.dim.y * 0.8f;
 
-    Vector2 text_coords = text_rect.coords + get_centered_text_coords(font, label, pixel_height, text_rect.dim, ALIGN_CENTER);
+    String_Draw_Info info = get_string_draw_info(font, label, -1, pixel_height);
+    Vector2 text_coords = text_rect.coords + get_centered_text_coords(info, text_rect.dim, ALIGN_CENTER);
     Vector4 text_color = style.text_colors[state];
 
     render_context.scissor_push(text_rect.coords, text_rect.dim);
@@ -96,7 +96,8 @@ draw_checkbox(const Draw_Style style, const u32 state, bool8 value, Rect rect, c
     if (label) {
         float32 pixel_height = rect.dim.y * 0.8f;
 
-        Vector2 text_coords = rect.coords + get_centered_text_coords(font, label, pixel_height, rect.dim, ALIGN_LEFT);
+        String_Draw_Info info = get_string_draw_info(font, label, -1, pixel_height);
+        Vector2 text_coords = rect.coords + get_centered_text_coords(info, rect.dim, ALIGN_LEFT);
         text_coords.x += checkbox.dim.x;
         draw_string(font, label, text_coords, pixel_height, text_color); // text
     };
@@ -116,7 +117,7 @@ draw_textbox(Draw_Textbox textbox) {
     Vector4 text_color = textbox.style.text_colors[textbox.state];
 
     String_Draw_Info string_info = get_string_draw_info(textbox.font, textbox.text, -1, pixel_height);
-    Vector2 text_coords = textbox.coords + get_centered_text_coords(textbox.font, textbox.text, pixel_height, textbox.dim, textbox.text_align);
+    Vector2 text_coords = textbox.coords + get_centered_text_coords(string_info, textbox.dim, textbox.text_align);
 
     String_Draw_Info string_info_cursor = get_string_draw_info(textbox.font, textbox.text, textbox.cursor_position, pixel_height);
     Vector2 cursor_coords = text_coords;
@@ -150,6 +151,8 @@ draw_textbox(Draw_Textbox textbox) {
         draw_string(textbox.font, textbox.label, label_coords, label_height, label_text_color);
     }
 
+    //draw_string_draw_info(&string_info, text_coords);
+    
     // Text
     render_context.scissor_push(textbox.coords, textbox.dim);
     draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
@@ -614,7 +617,8 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
         pixel_height = dim.x;
     pixel_height *= 0.8f;
 
-    Vector2 text_coords = coords + get_centered_text_coords(menu->gui.font, text, pixel_height, dim, menu->gui.text_align);
+    String_Draw_Info info = get_string_draw_info(menu->gui.font, text, -1, pixel_height);
+    Vector2 text_coords = coords + get_centered_text_coords(info, dim, menu->gui.text_align);
     //render_set_scissor((s32)floor(coords.x), (s32)floor(coords.y), (u32)ceil(dim.x), (u32)ceil(dim.y) );
     render_context.scissor_push(coords, dim);
     draw_string(menu->gui.font, text, text_coords, pixel_height, color);
