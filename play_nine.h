@@ -3,6 +3,7 @@ TODO
 - Flip "animation"
 - Show keyboard controls
 - Make lobby menu go back to pause from menu (change play to start new game)
+- More music/sounds
 
 Assets
 - Put mtl and map_Kd files into asset file
@@ -19,10 +20,9 @@ Render.cpp
 - Add wireframe toggle
 - Clean up global pipelines, lights, and layout sets
 - add target frame rate
+- make sprite sheet for textures like for cards and for fonts
 
 vulkan.h
-- fix error when changing resolution scaling
-- make it so that when the resolution = window resolution it does not do the extra step
 */
 
 global s8 deck[DECK_SIZE];

@@ -123,6 +123,7 @@ do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
     switch(game->turn_stage) {
         case SELECT_PILE: {
             if (selected[PICKUP_PILE]) {
+                add_draw_signal(draw_signals, SIGNAL_NEW_CARD_ROTATION);
                 game->new_card = game->pile[game->top_of_pile++];
 
                 // @SPECIAL case
@@ -369,7 +370,8 @@ bool8 update_game(State *state, App *app) {
     float32 rotation_degrees = process_rotation(&draw->camera_rotation, (float32)app->time.frame_time_s);
     
     // Update camera and card models after what happened in game update
-    load_pile_card_models(game, draw, rotation_degrees);
+    load_pile_card_models(game, draw, rotation_degrees, app->time.frame_time_s);
+    do_card_animations(game, draw, app->time.frame_time_s);
 
     // Update Camera (uses rotation_degrees)
     switch(state->camera_mode) {

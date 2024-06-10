@@ -28,10 +28,27 @@ struct Rotation {
     float32 speed;
 };
 
+struct Card_Animation {
+    u32 player_index;
+    u32 card_index;
+    
+    Vector3 start;
+    Vector3 dest;
+    float32 speed;
+
+    Rotation flip_rotation;
+};
+
+struct Card_Draw {
+    Matrix_4x4 model;
+    Card_Animation animation;
+};
+
 struct Game_Draw {
     Rotation camera_rotation; // rotation when switching players, also controls pile rotation
 
     float32 rotation_speed = 150.0f;
+    float32 card_flipping_speed = 500.0f;
     float32 rotation; // for in HOLE_OVER state
     Vector2_s32 mouse_down;
 
@@ -50,8 +67,9 @@ struct Game_Draw {
     Matrix_4x4 top_of_discard_pile_model;
     Matrix_4x4 hand_models[MAX_PLAYERS][HAND_SIZE];
 
-    Rotation card_rotation; // flip
-    bool8 flipping[HAND_SIZE];
+    Rotation new_card_rotation;
+    Rotation card_rotation[MAX_PLAYERS][HAND_SIZE]; // flip
+    //bool8 flipping[HAND_SIZE];
 
     float32 x_hand_position; // x coords of hand_position of person at 0 degrees
 
@@ -117,6 +135,7 @@ enum Draw_Signal_Types {
     SIGNAL_ACTIVE_PLAYER_CARDS,
     SIGNAL_PILE_CARDS,
     SIGNAL_NEXT_PLAYER_ROTATION,
+    SIGNAL_NEW_CARD_ROTATION,
     SIGNAL_NAME_PLATES,
     SIGNAL_UNLOAD_NAME_PLATE,
 };
