@@ -143,6 +143,16 @@ chtos(int n, ...)
 }
 
 inline u32
+get_digits(s32 in) {
+    u32 digits = 0;
+    do {
+        digits++;
+        in = in / 10;
+    } while(in != 0);
+    return digits;
+}
+
+inline u32
 s32_to_char_array(char *buffer, u32 size, s32 in) {
     u32 ret = snprintf(buffer, size, "%d", in);
     if (ret < 0) {

@@ -504,6 +504,17 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
 }
 
 internal void
+menu_fill_resolution(char *buffer, float32 scale) {
+    Vector2_s32 resolution = get_resolution(render_context.window_dim, scale);
+    u32 digits_x = get_digits(resolution.x);
+    u32 digits_y = get_digits(resolution.y);
+    s32_to_char_array(buffer +  6 + (4 - digits_x), 5, resolution.x);
+    s32_to_char_array(buffer + 13 + (4 - digits_y), 5, resolution.y);
+    buffer[10] = ' ';
+    buffer[17] = ')';
+}
+
+internal void
 draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     menu->sections = { 1, 6 };
     menu->interact_region[0] = { 0, 1 };
@@ -536,22 +547,34 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         state->menu_list.mode = SETTINGS_MENU;
         menu->gui.close_at_end = true;
     }
+    
     const char *resolution_modes[4] = {
-        " 720 x  480",
-        "1280 x  720",
-        "1920 x 1080",
-        "3840 x 2160"
-    };
-    if (menu_dropdown(menu, resolution_modes, 4, &render_context.resolution_mode, { 0, 4 }, { 1, 1 })) {
-        window->resized = true;
+        "25%  (     x     )",
+        "50%  (     x     )",
+        "75%  (     x     )",
+        "100% (     x     )"
+    };    
 
-        switch(render_context.resolution_mode) {
-            case RESOLUTION_480P:  render_context.resolution = {  720,  480 }; break;
-            case RESOLUTION_720P:  render_context.resolution = { 1280,  720 }; break;
-            case RESOLUTION_1080P: render_context.resolution = { 1920, 1080 }; break;
-            case RESOLUTION_2160P: render_context.resolution = { 3840, 2160 }; break;
-        }
+    u32 char_array_size = 19; // length of one resolution_mode string
+    char **resolution_chars = (char**)platform_malloc(sizeof(char*) * 4);
+    for (u32 i = 0; i < ARRAY_COUNT(resolution_modes); i++) {
+        resolution_chars[i] = (char *)platform_malloc(char_array_size);
+        platform_memory_set(resolution_chars[i], 0, char_array_size);
+        platform_memory_copy((void *)resolution_chars[i], (void *)resolution_modes[i], char_array_size);
+        menu_fill_resolution(resolution_chars[i], get_resolution_scale(i));
     }
+    
+    if (menu_dropdown(menu, (const char **)resolution_chars, 4, &render_context.resolution_mode, { 0, 4 }, { 1, 1 })) {
+        window->resized = true;
+        switch(render_context.resolution_mode) {
+            case RESOLUTION_480P:  render_context.resolution_scale = 0.25f; break;
+            case RESOLUTION_720P:  render_context.resolution_scale = 0.5f;  break;
+            case RESOLUTION_1080P: render_context.resolution_scale = 0.75f; break;
+            case RESOLUTION_2160P: render_context.resolution_scale = 1.0f;  break;
+        }
+        render_context.update_resolution();
+    }
+    
     const char *fullscreen_modes[3] = {
         "Windowed",
         "Fullscreen",
@@ -562,6 +585,12 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         window->resized = true;
     }
     menu->end();
+
+    platform_free(resolution_chars[0]);
+    platform_free(resolution_chars[1]);
+    platform_free(resolution_chars[2]);
+    platform_free(resolution_chars[3]);
+    platform_free(resolution_chars);
     
 }
 

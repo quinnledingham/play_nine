@@ -228,9 +228,8 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
                         window->height = window_event->data2;
                         window->resized = true;
                         render_context.window_dim = window->dim;
-                        if (!render_context.resolution_scaling)
-                            render_context.resolution = render_context.window_dim;
-        
+
+                        render_context.update_resolution();
                     #ifdef OPENGL
                         //opengl_update_window(window);
                         render_context.resolution = window->dim;

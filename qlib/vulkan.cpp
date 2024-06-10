@@ -2135,7 +2135,7 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 	vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
 
 		// Draw Render Pass
-	if (render_context.resolution_scaling) {
+	if (render_context.resolution_scaling && !window->resized) {
 		/*
 		vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.present_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 

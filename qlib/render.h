@@ -142,13 +142,43 @@ enum Resolution_Modes {
     RESOLUTION_2160P
 };
 
+internal float32 get_resolution_scale(u32 resolution_mode) {
+    float32 resolution_scales[4] = {
+        0.25f,
+        0.5f,
+        0.75f,
+        1.0f
+    };
+
+    return resolution_scales[resolution_mode];
+}
+
+internal Vector2_s32
+get_resolution(Vector2_s32 in_resolution, float32 scale) {
+    Vector2 new_resolution = cv2(in_resolution) * scale;
+    Vector2_s32 out_resolution = { s32(new_resolution.x), s32(new_resolution.y) };
+    return out_resolution;
+}
+
 struct Render {
     Vector2_s32 window_dim;
-    u32 resolution_mode = RESOLUTION_720P;
     Vector2_s32 resolution;
     bool8 vsync = FALSE;
     bool8 anti_aliasing = TRUE;
-    bool8 resolution_scaling = TRUE;
+    
+    u32 resolution_mode = RESOLUTION_2160P;
+    bool8 resolution_scaling = false;
+    float32 resolution_scale = 1.0f;
+
+    void update_resolution() {
+        resolution = get_resolution(window_dim, resolution_scale);
+
+        if (resolution == window_dim) {
+            resolution_scaling = FALSE;
+        } else {
+            resolution_scaling = TRUE;
+        }
+    }
     
     //bool8 depth_test;
 
@@ -168,12 +198,21 @@ struct Render {
         render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (s32)rect.dim.x, (s32)rect.dim.y);
     }
 
+    void scissor_pop();
+/*
     void scissor_pop() {
         scissor_stack_index--;
         Rect rect = scissor_stack[scissor_stack_index - 1];
         render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);
     }
+*/
 };
+
+void Render::scissor_pop() {
+    scissor_stack_index--;
+    Rect rect = scissor_stack[scissor_stack_index - 1];
+    render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);
+}
 
 global Render render_context = {};
 
