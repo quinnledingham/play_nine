@@ -528,6 +528,13 @@ get_string_draw_info(Font *font, const char *string, s32 length, float32 pixel_h
     info.baseline.x = -left;
     info.dim.x = float32(info.dim.x - left);
     info.dim.y = float32(bottom - top);
+
+    s32 x0, y0, x1, y1;
+    stbtt_GetFontBoundingBox(font_info, &x0, &y0, &x1, &y1);
+    //info.dim.x = float32(x1 - x0);
+    //info.dim.y = float32(y1 - y0);
+    //info.baseline.x = -float32(x0);
+    info.baseline.y = -float32(y0);
         
     return info;
 }

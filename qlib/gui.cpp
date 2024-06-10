@@ -506,9 +506,10 @@ gui_textbox(GUI *gui, Draw_Style style, const char *label, const char *dest, Vec
                 } break;
             }
         } 
-    } else {
-        if (box.state == GUI_PRESSED)
-            box.state = GUI_DEFAULT;
+    }
+
+    if (last_state == GUI_ACTIVE && box.state != GUI_ACTIVE) {
+        box.state = GUI_DEFAULT;
         gui->edit.index = 0;
     }
     
