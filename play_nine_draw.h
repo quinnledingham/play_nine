@@ -2,6 +2,8 @@
 // General Draw
 //
 
+#define CARD_MODEL_HEIGHT 0.101767f
+
 global Bitmap card_bitmaps[14];
 global Vector2 hand_coords[8];
 global float32 hand_width;
@@ -35,9 +37,19 @@ struct Card_Animation_Keyframe {
     float32 time_elapsed;
     float32 time_duration;
 
+    bool8 dynamic;
+    Vector3 *dynamic_dest;
+
     void fill(Vector3 in_start, Vector3 in_dest, float32 duration) {
         start = in_start;
         dest = in_dest;
+        time_duration = duration;
+        time_elapsed = 0.0f;
+    };
+    void fill(Vector3 in_start, Vector3 *in_dest, float32 duration) {
+        dynamic = true;
+        start = in_start;
+        dynamic_dest = in_dest;
         time_duration = duration;
         time_elapsed = 0.0f;
     };
@@ -50,6 +62,9 @@ struct Card_Animation {
     float32 y_axis_rad;
     float32 z_axis_rad;
     Matrix_4x4 *model;
+
+    bool8 dynamic;
+    float32 *dynamic_y_axis_rad;
 
     bool8 moving;
     
@@ -66,6 +81,14 @@ struct Card_Animation {
     }
     
     void add_movement(Vector3 in_start, Vector3 in_middle, Vector3 in_dest, float32 length) {
+        moving = true;
+
+        keyframes_count = 2;
+        keyframes[0].fill(in_start, in_middle, length / 2.0f);
+        keyframes[1].fill(in_middle, in_dest, length / 2.0f);        
+    }
+    
+    void add_movement(Vector3 in_start, Vector3 in_middle, Vector3 *in_dest, float32 length) {
         moving = true;
 
         keyframes_count = 2;
@@ -92,6 +115,7 @@ struct Game_Draw_Info {
     Vector3 pile_coords;
     Vector3 discard_pile_coords;
     Vector3 selected_card_coords;
+    float32 pile_rads;
     
     float32 x_hand_position; // where hand on x_axis is location
     float32 player_hand_rads[MAX_PLAYERS];
@@ -124,6 +148,7 @@ struct Game_Draw {
     //bool8 flipping[HAND_SIZE];
 
     static const u32 max_card_animations = 20;
+    u32 animations_count;
     Card_Animation animations[max_card_animations];
 };
 

@@ -4,6 +4,8 @@ TODO
 - Show keyboard controls
 - Make lobby menu go back to pause from menu (change play to start new game)
 - More music/sounds
+- Added turn timer
+- Add game settings (number of holes)
 
 Assets
 - Put mtl and map_Kd files into asset file
@@ -94,6 +96,8 @@ struct Game {
     
     // Bot
     float32 bot_thinking_time;
+    
+    float32 turn_time;
 };
 
 enum Menu_Mode {

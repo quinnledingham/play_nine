@@ -114,6 +114,8 @@ next_player(Game *game) {
     if (game->players[game->active_player].is_bot)
         game->bot_thinking_time = 0.0f;
 
+    game->turn_time = 0.0f;
+
     add_draw_signal(draw_signals, SIGNAL_NEXT_PLAYER_ROTATION);
 }
 
@@ -258,6 +260,21 @@ print_vector3(const char *name, Vector3 v) {
     print("%s: %f, %f, %f\n", name, v.x, v.y, v.z);
 }
 
+internal void
+draw_timer(float32 time, Vector2_s32 window_dim) {
+    if (time > 7.0f) {
+        float32 pixel_height = 40.0f;
+        float32 time_left = 10.0f - time;
+        
+        char buffer[20];
+        float_to_char_array(time_left, buffer, 20);
+        
+        String_Draw_Info info = get_string_draw_info(default_font, buffer, -1, pixel_height);
+        float32 x_coords = ((float32)window_dim.width / 2.0f) - (info.dim.width / 2.0f);
+        draw_string_tl(default_font, buffer, { x_coords, 40.0f }, pixel_height, { 255, 255, 255, 1 });
+    }
+}
+
 bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
@@ -355,8 +372,21 @@ bool8 update_game(State *state, App *app) {
                 do_bot_selected_update(selected, game, &game->bot_thinking_time, app->time.frame_time_s);
             }
 
+            // Timer
+            if (state->mode != MODE_CLIENT) {
+                float32 *time = &game->turn_time;
+                *time += (float32)app->time.frame_time_s;
+                
+                if (*time > 10.0f) {
+                    *time = 0.0f;
+                    do_auto_selected_update(selected, game);
+                };
+            }
+            
             if (state->mode == MODE_CLIENT || all_false(selected))
                  break; // client doesn't do any game updates       
+
+            game->turn_time = 0.0f; // input received
 
             // Game logic
             do_update_with_input(game, selected);
@@ -611,6 +641,9 @@ bool8 update(App *app) {
     }
 
     draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
+
+    draw_timer(state->game.turn_time, app->window.dim);
+    
 
 #ifdef DEBUG
     // Draw FPS

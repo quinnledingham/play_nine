@@ -87,7 +87,7 @@ load_card_model(Vector3 position, float32 y_axis_rad, float32 z_axis_rad, Vector
     rotation = get_rotation(z_axis_rad, Z_AXIS) * rotation;
 
     if (z_axis_rad != 0) {
-        position.y += (0.101767f * scale.y);
+        position.y += (CARD_MODEL_HEIGHT * scale.y);
     }
     
     return create_transform_m4x4(position, rotation, scale);
@@ -170,6 +170,7 @@ load_pile_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees, flo
 
     float32 rad = info->player_hand_rads[game->active_player]; 
     float32 rotation_rads = rad - (rotation_degrees * DEG2RAD);
+    info->pile_rads = rotation_rads;
     
     rotate_coords(&info->pile_coords, rotation_rads);
     rotate_coords(&info->discard_pile_coords, rotation_rads);
@@ -177,10 +178,6 @@ load_pile_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees, flo
     
     // draw card selected from pile
     if (game->turn_stage == SELECT_CARD) {
-        //float32 rotation_degrees = process_rotation(&draw->new_card_rotation, (float32)frame_time_s);
-        //float32 percent_rotated = 1.0f - (rotation_degrees / 180.0f);
-        //info->selected_card_coords = linear_interpolate(info->pile_coords, info->selected_card_coords, percent_rotated);
-
         draw->selected_card_model = load_card_model(info->selected_card_coords, rad, rotation_degrees * DEG2RAD, info->card_scale);
     }
 
@@ -189,6 +186,8 @@ load_pile_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees, flo
         float32 pile_y_scale = get_pile_y_scale(DECK_SIZE - game->top_of_pile);
         Vector3 pile_scale = {1.0f, pile_y_scale, 1.0f};
         draw->top_of_pile_model = load_card_model(info->pile_coords, rotation_rads, 180.0f * DEG2RAD, pile_scale);
+
+        info->pile_coords.y += (CARD_MODEL_HEIGHT * pile_y_scale); // used in do_draw_signals for animation
     }
 
     // discard pile
@@ -196,7 +195,10 @@ load_pile_card_models(Game *game, Game_Draw *draw, float32 rotation_degrees, flo
         float32 discard_pile_y_scale = get_pile_y_scale(game->top_of_discard_pile);
         Vector3 discard_pile_scale = {1.0f, discard_pile_y_scale, 1.0f};
         draw->top_of_discard_pile_model = load_card_model(info->discard_pile_coords, rotation_rads, 0.0f, discard_pile_scale);
+        
+        info->discard_pile_coords.y += (CARD_MODEL_HEIGHT * discard_pile_y_scale);
     }
+
 
 }
 
@@ -511,6 +513,7 @@ add_card_animation(Game_Draw *draw, Card_Animation animation) {
         if (!draw->animations[i].in_use) {
             draw->animations[i] = animation;
             draw->animations[i].in_use = true;
+            draw->animations_count++;
             return;
         }
     }
@@ -524,6 +527,10 @@ do_card_animation(Game_Draw *draw, Card_Animation *animation, float32 frame_time
         for (u32 i = 0; i < animation->keyframes_count; i++) {
             Card_Animation_Keyframe *keyframe = &animation->keyframes[i];
             if (keyframe->time_elapsed < keyframe->time_duration) {
+                if (keyframe->dynamic) {
+                    keyframe->dest = *keyframe->dynamic_dest;
+                }
+                
                 keyframe->time_elapsed += frame_time_s;
                 
                 float32 percent = keyframe->time_elapsed / keyframe->time_duration;
@@ -541,11 +548,16 @@ do_card_animation(Game_Draw *draw, Card_Animation *animation, float32 frame_time
         float32 z_axis_degrees = process_rotation(&animation->rotation, frame_time_s);
         animation->z_axis_rad = z_axis_degrees * DEG2RAD;
     }
+
+    if (animation->dynamic) {
+        animation->y_axis_rad = *animation->dynamic_y_axis_rad;
+    }
     
     *animation->model = load_card_model(animation->position, animation->y_axis_rad, animation->z_axis_rad, draw->info.card_scale);
 
     if (!animation->rotation.rotating && !animation->moving) {
         animation->in_use = false;
+        draw->animations_count--;
 
         if (animation->model == &draw->moving_card_model)
             draw->moving_card = false;
@@ -649,14 +661,13 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
                 draw->moving_card = true;
                 
                 Card_Animation animation = {};
-                Vector3 above_discard = info->discard_pile_coords;
                 Vector3 above_position = position;
-                above_discard.y += 1.0f;
-                above_position.y += 1.0f;
+                above_position.y += 2.0f;
                 animation.model = &draw->moving_card_model;
-                animation.y_axis_rad = draw->info.player_hand_rads[signals[i].player_index];
+                animation.dynamic = true;
+                animation.dynamic_y_axis_rad = &info->pile_rads;
                 animation.z_axis_rad = 0.0f;
-                animation.add_movement(position, above_position, info->discard_pile_coords, 0.5f); 
+                animation.add_movement(position, above_position, &info->discard_pile_coords, 0.5f); 
                 if (!signals[i].flipped) {
                     animation.add_rotation(180.0f, 0.0f, -draw->info.card_flipping_speed);
                 }
@@ -682,19 +693,25 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
             } break;
             
             case SIGNAL_NEW_CARD_FROM_PILE: {
+                Vector3 above_pile = info->pile_coords;
+                above_pile.y += 1.0f;
+                
                 Card_Animation animation = {};
                 animation.model = &draw->selected_card_model;
                 animation.y_axis_rad = draw->info.player_hand_rads[game->active_player];
-                animation.add_movement(info->pile_coords, info->selected_card_coords, 0.5f); 
+                animation.add_movement(info->pile_coords, above_pile, info->selected_card_coords, 0.5f); 
                 animation.add_rotation(180.0f, 0.0f, -draw->info.card_flipping_speed);
                 add_card_animation(draw, animation);
             } break;
 
             case SIGNAL_NEW_CARD_FROM_DISCARD: {
+                Vector3 above_pile = info->discard_pile_coords;
+                above_pile.y += 1.0f;
+                
                 Card_Animation animation = {};
                 animation.model = &draw->selected_card_model;
                 animation.y_axis_rad = draw->info.player_hand_rads[game->active_player];
-                animation.add_movement(info->discard_pile_coords, info->selected_card_coords, 0.25f); 
+                animation.add_movement(info->discard_pile_coords, above_pile, info->selected_card_coords, 0.25f); 
                 add_card_animation(draw, animation);
             } break;
 

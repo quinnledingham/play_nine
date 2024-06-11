@@ -33,14 +33,7 @@ random_not_flipped_card_index(bool8 *flipped) {
 }
 
 internal void
-do_bot_selected_update(bool8 selected[SELECTED_SIZE], Game *game, float32 *bot_thinking_time, float64 frame_time_s) {
-
-  *bot_thinking_time += (float32)frame_time_s;
-  if (game->bot_thinking_time < 2.0f)
-    return;
-
-  *bot_thinking_time = 1.5f;
-
+do_auto_selected_update(bool8 selected[SELECTED_SIZE], Game *game) {
   Player *active_player = &game->players[game->active_player];
   
   switch(game->turn_stage) {
@@ -122,5 +115,16 @@ do_bot_selected_update(bool8 selected[SELECTED_SIZE], Game *game, float32 *bot_t
       selected[index] = true;
     } break;
   }
+}
+
+internal void
+do_bot_selected_update(bool8 selected[SELECTED_SIZE], Game *game, float32 *bot_thinking_time, float64 frame_time_s) {
+  *bot_thinking_time += (float32)frame_time_s;
+  if (game->bot_thinking_time < 2.0f)
+    return;
+
+  *bot_thinking_time = 1.5f;
+
+  do_auto_selected_update(selected, game);
 }
 
