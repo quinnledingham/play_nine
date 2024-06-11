@@ -177,23 +177,6 @@ start_game(Game *game, u32 num_of_players) {
     start_hole(game);
 }
 
-internal float32
-get_draw_radius(u32 num_of_players, float32 hand_width, float32 card_height) {
-    if (num_of_players == 2) {
-        return 2.0f * card_height;
-    } 
-
-    float32 angle = (360.0f / float32(num_of_players)) / 2.0f;
-    float32 radius = (hand_width / 2.0f) / tanf(angle * DEG2RAD);
-    radius += card_height + 0.1f;
-
-    if (num_of_players == 3) {
-        radius += 1.0f;
-    }
-
-    return radius;
-}
-
 internal Game
 get_test_game() {
     Game game = {};

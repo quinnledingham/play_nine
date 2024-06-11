@@ -77,7 +77,7 @@ next_player(Game *game) {
         for (u32 i = 0; i < HAND_SIZE; i++) {
             if (!game->players[game->active_player].flipped[i]) {
                 game->players[game->active_player].flipped[i] = true;
-                add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
+                add_draw_signal(draw_signals, SIGNAL_FLIP_CARD, i, game->active_player);
             }
         }
     }
@@ -123,7 +123,7 @@ do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
     switch(game->turn_stage) {
         case SELECT_PILE: {
             if (selected[PICKUP_PILE]) {
-                add_draw_signal(draw_signals, SIGNAL_NEW_CARD_ROTATION);
+                add_draw_signal(draw_signals, SIGNAL_NEW_CARD_FROM_PILE);
                 game->new_card = game->pile[game->top_of_pile++];
 
                 // @SPECIAL case
@@ -135,6 +135,7 @@ do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
                 game->turn_stage = SELECT_CARD;
                 game->pile_card = true;
             } else if (selected[DISCARD_PILE]) {
+                add_draw_signal(draw_signals, SIGNAL_NEW_CARD_FROM_DISCARD);
                 game->new_card = game->discard_pile[game->top_of_discard_pile - 1];
                 game->top_of_discard_pile--;
                 game->turn_stage = SELECT_CARD;
@@ -145,7 +146,7 @@ do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (selected[i]) {
                     game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
-                    add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
+                    add_draw_signal(draw_signals, SIGNAL_REPLACE, i, game->active_player, active_player->flipped[i]);
                     active_player->flipped[i] = true;
                     active_player->cards[i] = game->new_card;
                     game->new_card = 0;
@@ -161,13 +162,14 @@ do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
                 game->discard_pile[game->top_of_discard_pile++] = game->new_card;
                 game->new_card = 0;
                 game->turn_stage = FLIP_CARD;
+                add_draw_signal(draw_signals, SIGNAL_DISCARD_SELECTED);
             }
         } break;
 
         case FLIP_CARD: {
             for (u32 i = 0; i < HAND_SIZE; i++) {
                 if (selected[i] && !active_player->flipped[i]) {    
-                    add_draw_signal(draw_signals, SIGNAL_ACTIVE_PLAYER_CARDS, i, game->active_player);
+                    add_draw_signal(draw_signals, SIGNAL_FLIP_CARD, i, game->active_player);
                     active_player->flipped[i] = true;
 
                     if (game->round_type == FLIP_ROUND) {
@@ -371,7 +373,7 @@ bool8 update_game(State *state, App *app) {
     
     // Update camera and card models after what happened in game update
     load_pile_card_models(game, draw, rotation_degrees, app->time.frame_time_s);
-    do_card_animations(game, draw, app->time.frame_time_s);
+    do_card_animations(draw, (float32)app->time.frame_time_s);
 
     // Update Camera (uses rotation_degrees)
     switch(state->camera_mode) {
@@ -403,18 +405,18 @@ bool8 update_game(State *state, App *app) {
             if (game->round_type == HOLE_OVER) {
                 deg = draw->rotation; // draw->rotation is set above
             } else if (state->mode == MODE_LOCAL) {
-                draw->rotation = -draw->degrees_between_players * game->active_player;
+                draw->rotation = -draw->info.degrees_between_players * game->active_player;
 
-                deg = -draw->degrees_between_players * game->active_player;
+                deg = -draw->info.degrees_between_players * game->active_player;
                 deg += rotation_degrees;
             } else {
-                draw->rotation = -draw->degrees_between_players * state->client_game_index;
+                draw->rotation = -draw->info.degrees_between_players * state->client_game_index;
 
-                deg = -draw->degrees_between_players * state->client_game_index;
+                deg = -draw->info.degrees_between_players * state->client_game_index;
             }
             
             float32 rad = deg * DEG2RAD;
-            float32 cam_dis = 11.5f + draw->radius;
+            float32 cam_dis = 11.5f + draw->info.radius;
             float32 x = cam_dis * cosf(rad);
             float32 y = cam_dis * sinf(rad);
 
