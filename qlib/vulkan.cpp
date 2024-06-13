@@ -1602,7 +1602,7 @@ void vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
 		bitmap->mip_levels = (u32)floor(log2f((float32)max(bitmap->width, bitmap->height))) + 1;
 	}   
 
-	if (bitmap->width == 0) {
+	if (bitmap->channels == 0) {
 		logprint("vulkan_create_texture()", "bitmap not loaded\n");
 		return;
 	}
@@ -2426,13 +2426,13 @@ Descriptor vulkan_get_descriptor_set(Layout *layout) {
 }
 
 Descriptor vulkan_get_descriptor_set_index(Layout *layout, u32 return_index) {
-    if (layout->sets_in_use + 1 > layout->max_sets)
-        ASSERT(0);
+	if (layout->sets_in_use + 1 > layout->max_sets)
+	    ASSERT(0);
 
 	if (return_index < layout->sets_in_use) {
-		logprint("vulkan_get_descriptor_set()", "descriptor could already be in use\n");
+	logprint("vulkan_get_descriptor_set()", "descriptor could already be in use\n");
 	} else {
-		layout->sets_in_use = return_index + 1; // jump to after this set
+	layout->sets_in_use = return_index + 1; // jump to after this set
 	}
 
 	Descriptor desc = {};
@@ -2441,7 +2441,7 @@ Descriptor vulkan_get_descriptor_set_index(Layout *layout, u32 return_index) {
 	desc.set_number = layout->set_number;
 	desc.vulkan_set = &layout->descriptor_sets[return_index];
 
-    return desc;
+	return desc;
 }
 
 
@@ -2490,16 +2490,16 @@ u32 vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
 
 	VkWriteDescriptorSet descriptor_writes[1] = {};
 
-    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[0].dstSet = *desc->vulkan_set;
-    descriptor_writes[0].dstBinding = desc->binding.binding;
-    descriptor_writes[0].dstArrayElement = desc->texture_index;
-    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_writes[0].descriptorCount = 1;
-    descriptor_writes[0].pImageInfo = &image_info;
+	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptor_writes[0].dstSet = *desc->vulkan_set;
+	descriptor_writes[0].dstBinding = desc->binding.binding;
+	descriptor_writes[0].dstArrayElement = desc->texture_index;
+	descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptor_writes[0].descriptorCount = 1;
+	descriptor_writes[0].pImageInfo = &image_info;
 
-    vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
-	
+	vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
+
 	u32 index = desc->texture_index;
 
 	desc->texture_index++;
@@ -2511,18 +2511,18 @@ internal void
 vulkan_set_storage_buffer1(Descriptor desc, u32 size) {
 	VkDescriptorBufferInfo buffer_info = {};
 	buffer_info.offset = 0;
-    buffer_info.range = size;
+	buffer_info.range = size;
 	buffer_info.buffer = vulkan_info.storage_buffer.handle;
 
 	VkWriteDescriptorSet write_set = {};
-    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_set.dstSet = *desc.vulkan_set;
-    write_set.dstBinding = desc.binding.binding;
-    write_set.dstArrayElement = 0;
-    write_set.descriptorType = vulkan_convert_descriptor_type(desc.binding.descriptor_type);
-    write_set.descriptorCount = 1;
-    write_set.pBufferInfo = &buffer_info;
-	
+	write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write_set.dstSet = *desc.vulkan_set;
+	write_set.dstBinding = desc.binding.binding;
+	write_set.dstArrayElement = 0;
+	write_set.descriptorType = vulkan_convert_descriptor_type(desc.binding.descriptor_type);
+	write_set.descriptorCount = 1;
+	write_set.pBufferInfo = &buffer_info;
+
 	vkUpdateDescriptorSets(vulkan_info.device, 1, &write_set, 0, nullptr);
 }
 

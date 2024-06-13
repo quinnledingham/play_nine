@@ -645,7 +645,7 @@ bool8 update(App *app) {
     draw_timer(state->game.turn_time, app->window.dim);
     
 
-#ifdef DEBUG
+#ifdef DEBUG2
     // Draw FPS
     char buffer[20];
     float_to_char_array((float32)app->time.frames_per_s, buffer, 20);

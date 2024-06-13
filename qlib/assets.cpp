@@ -429,9 +429,10 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 
     stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, char_bitmap->scale, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
 
-    if (char_bitmap->bitmap.width != 0) {
-        render_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
-    }
+    if (codepoint == 32)
+        return char_bitmap;
+    
+    render_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
 
     return char_bitmap;
 }
@@ -457,6 +458,43 @@ s32 get_codepoint_kern_advance(void *info, s32 ch1, s32 ch2) {
     return stbtt_GetCodepointKernAdvance((stbtt_fontinfo*)info, ch1, ch2);
 }
 
+internal Descriptor
+load_font_gfx(Font *font, float32 scale) {
+    Font_Cache *cache = font->cache;
+    for (u32 i = 0; i < ARRAY_COUNT(cache->gfxs); i++) {
+        if (cache->gfxs[i].scale == scale) {
+            return cache->gfxs[i].desc;
+        }
+    }
+
+    FIND_GFX:
+    Font_GFX *gfx = 0;
+    for (u32 i = 0; i < ARRAY_COUNT(cache->gfxs); i++) {
+        if (!cache->gfxs[i].in_use) {
+            gfx = &cache->gfxs[i];
+            gfx->in_use = true;
+            break;
+        }
+    }
+
+    if (gfx == 0) {
+        for (u32 i = 0; i < ARRAY_COUNT(cache->gfxs); i++) {
+            cache->gfxs[i].in_use = false;
+        }
+        goto FIND_GFX;
+    }
+
+    gfx->desc = render_get_descriptor_set(&layouts[2]);
+    gfx->scale = scale;
+
+    gfx->desc.texture_index = 33;
+    for (u32 char_index = 33; char_index < 128; char_index++) {
+        Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, char_index, scale);
+        render_set_bitmap(&gfx->desc, &bitmap->bitmap);
+    }
+
+    return gfx->desc;
+}
 
 //
 // Model

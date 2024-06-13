@@ -41,7 +41,7 @@ Render_Pipeline pipelines[PIPELINE_COUNT];
 
 Descriptor light_set;
 Descriptor light_set_2;
-Layout layouts[10];
+Layout layouts[11];
 
 #define TEXTURE_ARRAY_SIZE   64
 #define MAX_FRAMES_IN_FLIGHT  2
