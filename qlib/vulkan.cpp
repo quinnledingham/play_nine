@@ -217,7 +217,7 @@ vulkan_is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface, const c
 	vkGetPhysicalDeviceProperties(device, &device_properties);
 	vkGetPhysicalDeviceFeatures(device, &device_features);
 
-	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device Limits:\nMax Descriptor Set Samplers: %d\nMax Descriptor Set Uniform Buffers: %d\nMax Uniform Buffer Range: %d\n", device_properties.limits.maxDescriptorSetSamplers, device_properties.limits.maxDescriptorSetUniformBuffers, device_properties.limits.maxUniformBufferRange); 
+	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device Limits:\nMax Descriptor Set Samplers: %u\nMax Descriptor Set Uniform Buffers: %u\nMax Uniform Buffer Range: %u\n", device_properties.limits.maxDescriptorSetSamplers, device_properties.limits.maxDescriptorSetUniformBuffers, device_properties.limits.maxUniformBufferRange); 
 	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy; //&& device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 }
 
@@ -233,6 +233,34 @@ vulkan_get_max_usable_sample_count() {
     if (counts & VK_SAMPLE_COUNT_2_BIT)  { return VK_SAMPLE_COUNT_2_BIT;  }
 
     return VK_SAMPLE_COUNT_1_BIT;
+}
+
+inline Vulkan_Version
+vulkan_get_api_version(u32 api_version) {
+	Vulkan_Version version = {};
+	version.variant = VK_API_VERSION_VARIANT(api_version);
+	version.major   = VK_API_VERSION_MAJOR(api_version);
+	version.minor   = VK_API_VERSION_MINOR(api_version);
+	version.patch   = VK_API_VERSION_PATCH(api_version);
+	return version;
+}
+
+inline Vulkan_Version
+vulkan_get_nvidia_driver_version(u32 api_version) {
+	Vulkan_Version version = {};
+	version.variant = 0;
+	version.major = ((u32)api_version >> 22) & 0x000003FF;
+	version.minor = ((u32)api_version >> 12) & 0x000003FF;
+	version.patch = ((u32)api_version) & 0xFFF;
+	return version;
+}
+
+inline void
+vulkan_print_version(const char *name, Vulkan_Version version) {
+	if (version.variant)
+		print("%s: %d.%d.%d.%d\n", name, version.variant, version.major, version.minor, version.patch);
+	else
+		print("%s: %d.%d.%d\n", name, version.major, version.minor, version.patch);
 }
 
 internal bool8
@@ -253,11 +281,18 @@ vulkan_pick_physical_device(Vulkan_Info *info) {
 	vkEnumeratePhysicalDevices(info->instance, &device_count, devices);
 
 	// print all available devies
-	print("\nvulkan_pick_physical_device(): Avaiable Physical Devices:\n\n");
+	print("vulkan_pick_physical_device(): Avaiable Physical Devices:\n");
 	for (u32 device_index = 0; device_index < device_count; device_index++) {
 		VkPhysicalDeviceProperties device_properties;
 		vkGetPhysicalDeviceProperties(devices[device_index], &device_properties);
-		print("Vulkan Physical Device %d:\nApi Version: %d\nDriver Version: %d\nDevice Name: %s\n\n", device_index, device_properties.apiVersion, device_properties.driverVersion, device_properties.deviceName);
+		
+		Vulkan_Version api_version = vulkan_get_api_version(device_properties.apiVersion);
+		Vulkan_Version driver_version = vulkan_get_nvidia_driver_version(device_properties.driverVersion);
+		
+		print("Vulkan Physical Device %d:\n", device_index);
+		vulkan_print_version("  API Version", api_version);
+		vulkan_print_version("  Driver Version", driver_version);
+		print("  Device Name %s\n", device_properties.deviceName);
 	}
 
 	// pick suitable device
@@ -1993,17 +2028,17 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	VkDescriptorPoolSize pool_sizes[3] = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = 1300;
+	pool_sizes[0].descriptorCount = 1000;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[1].descriptorCount = 1300;
+	pool_sizes[1].descriptorCount = 25000;
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	pool_sizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT * 2;
+	pool_sizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT * 128;
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = ARRAY_COUNT(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
-	pool_info.maxSets = 10000;
+	pool_info.maxSets = 26000;
 
   VkResult result = vkCreateDescriptorPool(vulkan_info.device, &pool_info, nullptr, &vulkan_info.descriptor_pool);
   if (result != VK_SUCCESS) {
@@ -2136,40 +2171,6 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 
 		// Draw Render Pass
 	if (render_context.resolution_scaling && !window->resized) {
-		/*
-		vkCmdBeginRenderPass(vulkan_active_cmd_buffer(&vulkan_info), &vulkan_info.present_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-
-		if (present_pipeline.shader == 0) {
-			
-			present_pipeline.shader = find_shader(assets, "TEXTURE");
-			present_pipeline.depth_test = false;
-
-			vulkan_info.msaa_samples = VK_SAMPLE_COUNT_1_BIT;
-
-			vulkan_create_graphics_pipeline(&present_pipeline, get_vertex_xu_info(), vulkan_info.present_render_pass);
-			vulkan_info.msaa_samples = vulkan_get_max_usable_sample_count();
-		}
-
-		Bitmap bitmap = {};
-		bitmap.gpu_info = &vulkan_info.draw_textures[vulkan_info.image_index];
-		
-		render_set_viewport(vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
-		render_set_scissor(0, 0, vulkan_info.swap_chain_extent.width, vulkan_info.swap_chain_extent.height);
-		render_bind_pipeline(&present_pipeline);
-		//render_bind_descriptor_set(state->scene_ortho_set);
-	      
-		Object object = {};
-		Descriptor desc = render_get_descriptor_set(&layouts[3]);
-		object.index = render_set_bitmap(&desc, &bitmap);
-		render_bind_descriptor_set(desc);
-
-		object.model = create_transform_m4x4({ float32(vulkan_info.swap_chain_extent.width) / 2.0f, float32(vulkan_info.swap_chain_extent.height) / 2.0f }, get_rotation(0, {0, 1, 0}), { float32(vulkan_info.swap_chain_extent.width), float32(vulkan_info.swap_chain_extent.height) });
-		render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
-		//render_draw_mesh(&shapes.rect_mesh);
-
-		
-		vkCmdEndRenderPass(vulkan_active_cmd_buffer(&vulkan_info));
-	*/
 		VkImageSubresourceLayers sub = {};
 		sub.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		sub.mipLevel = 0;
@@ -2269,6 +2270,14 @@ void vulkan_compile_shader(Shader *shader) {
 // Descriptor Sets
 //
 
+void vulkan_print_allocated_descriptors() {
+	print("allocated descriptors:\n");
+	print("uniform buffer: %d\n", vulkan_info.allocated_descriptors_uniform_buffer);
+	print("sampler: %d\n", vulkan_info.allocated_descriptors_sampler);
+	print("storage buffer: %d\n", vulkan_info.allocated_descriptors_storage_buffer);
+	print("total: %d\n", vulkan_info.allocated_descriptors_uniform_buffer + vulkan_info.allocated_descriptors_sampler + vulkan_info.allocated_descriptors_storage_buffer);
+}
+
 void vulkan_allocate_descriptor_set(Layout *layout) {
 	VkDescriptorSetLayout layouts[layout->max_sets];
 	for (u32 i = 0; i < layout->max_sets; i++) {
@@ -2280,6 +2289,23 @@ void vulkan_allocate_descriptor_set(Layout *layout) {
 	allocate_info.descriptorPool = vulkan_info.descriptor_pool;
 	allocate_info.descriptorSetCount = layout->max_sets;
 	allocate_info.pSetLayouts = layouts;
+
+#if DEBUG
+
+	for (u32 i = 0; i < 1; i++) {
+		u32 *allocated = 0;
+		
+		switch(layout->bindings[i].descriptor_type) {
+			case DESCRIPTOR_TYPE_UNIFORM_BUFFER: allocated = &vulkan_info.allocated_descriptors_uniform_buffer; break;
+			case DESCRIPTOR_TYPE_SAMPLER: allocated = &vulkan_info.allocated_descriptors_sampler; break;
+			case DESCRIPTOR_TYPE_STORAGE_BUFFER: allocated = &vulkan_info.allocated_descriptors_storage_buffer; break; 
+		}
+
+		if (allocated != 0)
+			*allocated += layout->bindings[i].descriptor_count * layout->max_sets;
+	}
+
+#endif // DEBUG
 
 	VkResult result = vkAllocateDescriptorSets(vulkan_info.device, &allocate_info, layout->descriptor_sets);
 	if (result != VK_SUCCESS) {

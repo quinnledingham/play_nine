@@ -19,8 +19,8 @@ get_file_stream(u32 output_stream) {
 
 inline void
 print_char_array(u32 output_stream, const char *char_array) {
-	//OutputDebugStringA((LPCSTR)char_array);
-	fprintf(get_file_stream(output_stream), "%s", char_array);
+	OutputDebugStringA((LPCSTR)char_array);
+	//fprintf(get_file_stream(output_stream), "%s", char_array);
 }
 
 #elif OS_LINUX
@@ -49,33 +49,40 @@ print_list(u32 output_stream, const char *msg, va_list list) {
 			msg_ptr++;
 			char ch = *msg_ptr;
 			u32 length_to_add = 0;
-            switch(ch) {
+      switch(ch) {
 				case 's': {
-		            const char *string = va_arg(list, const char*);
-		            length_to_add = get_length(string);
-		            if (print_buffer_index + length_to_add >= PRINT_BUFFER_SIZE) {
+					const char *string = va_arg(list, const char*);
+					length_to_add = get_length(string);
+					if (print_buffer_index + length_to_add >= PRINT_BUFFER_SIZE) {
 						print_char_array(PRINT_ERROR, "print_list(): msg to big for print_buffer");
 					}
-		            copy_char_array(&print_buffer[print_buffer_index], string);
-		        } break;
+					copy_char_array(&print_buffer[print_buffer_index], string);
+        } break;
                     
 				case 'd': {                    
 					int d = va_arg(list, int);                   
-                    char buffer[20];
-                    length_to_add = s32_to_char_array(buffer, 20, d);
-                    copy_char_array(&print_buffer[print_buffer_index], buffer);
+					char buffer[20];
+					length_to_add = s32_to_char_array(buffer, 20, d);
+					copy_char_array(&print_buffer[print_buffer_index], buffer);
+				} break;
+
+				case 'u': {
+					u32 d = va_arg(list, u32);
+					char buffer[20];
+					length_to_add = u32_to_char_array(buffer, 20, d);
+					copy_char_array(&print_buffer[print_buffer_index], buffer);
 				} break;
                     
-		        case 'f': {
-		            double f = va_arg(list, double);
-		            const char *f_string = float_to_char_array((float)f);
-		            length_to_add = get_length(f_string);
-		            if (print_buffer_index + length_to_add >= PRINT_BUFFER_SIZE) {
+				case 'f': {
+					double f = va_arg(list, double);
+					const char *f_string = float_to_char_array((float)f);
+					length_to_add = get_length(f_string);
+					if (print_buffer_index + length_to_add >= PRINT_BUFFER_SIZE) {
 						print_char_array(PRINT_ERROR, "print_list(): msg to big for print_buffer");
 					}
 					copy_char_array(&print_buffer[print_buffer_index], f_string);
-		            platform_free((void*)f_string);
-		        } break;
+					platform_free((void*)f_string);
+				} break;
 			}
 			print_buffer_index += length_to_add;
 		} else {

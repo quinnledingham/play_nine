@@ -822,6 +822,13 @@ bool8 init_data(App *app) {
     
     global_assets = &state->assets;
     init_layouts(layouts, find_bitmap(&state->assets, "BACK"));
+    
+#if DEBUG
+#if VULKAN
+    vulkan_print_allocated_descriptors();
+#endif // VULKAN
+#endif // DEBUG
+
     init_pipelines(&state->assets);
 
     init_shapes(&state->assets);

@@ -162,6 +162,10 @@ struct Vulkan_Info {
 	VkSubmitInfo submit_info;
 	VkSubmitInfo compute_submit_info;
 	VkPresentInfoKHR present_info;
+
+	u32 allocated_descriptors_uniform_buffer;
+	u32 allocated_descriptors_sampler;
+	u32 allocated_descriptors_storage_buffer;
 };
 
 inline VkCommandBuffer
@@ -183,3 +187,11 @@ struct Vulkan_Mesh {
 
 global Vulkan_Info vulkan_info = {};
 Render_Pipeline present_pipeline;
+
+struct Vulkan_Version {
+	u32 variant;
+	u32 major;
+	u32 minor;
+	u32 patch;
+};
+

@@ -178,6 +178,18 @@ s32_to_char_array(s32 in) {
     return buffer;
 }
 
+inline u32
+u32_to_char_array(char *buffer, u32 size, u32 in) {
+    u32 ret = snprintf(buffer, size, "%u", in);
+    if (ret < 0) {
+        logprint("u32_to_char_array()", "snprintf() failed\n");
+        return 0;
+    }
+    if (ret >= size)
+        logprint("u32_to_char_array()", "snprintf(): result was truncated\n");
+    return ret;
+}
+
 inline const char*
 u32_to_char_array(u32 in) {
     return s32_to_char_array((s32)in);
