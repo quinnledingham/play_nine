@@ -645,7 +645,7 @@ bool8 update(App *app) {
     draw_timer(state->game.turn_time, app->window.dim);
     
 
-#ifdef DEBUG2
+#ifdef DEBUG
     // Draw FPS
     char buffer[20];
     float_to_char_array((float32)app->time.frames_per_s, buffer, 20);
@@ -983,7 +983,6 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
                 close_server();
             }
 
-            cleanup_shapes();
             render_assets_cleanup(&state->assets);
 
             for (u32 i = 0; i < PIPELINE_COUNT; i++) {

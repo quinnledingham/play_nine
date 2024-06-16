@@ -483,9 +483,6 @@ void init_shapes(Assets *assets) {
     shapes.texture_pipeline = &pipelines[PIPELINE_2D_TEXTURE];
 }
 
-void cleanup_shapes() {
-}
-
 void draw_shape(Shape shape) {
     Object object = {};
 
@@ -550,7 +547,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     render_bind_descriptor_set(v_color_set);
 
     Object object = {};
-    /*Descriptor desc = render_get_descriptor_set(&layouts[2]);
+    Descriptor desc = render_get_descriptor_set(&layouts[2]);
 
     s32 indices[60];
     platform_memory_set(indices, 0, sizeof(u32) * 60);
@@ -561,16 +558,21 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             indices[i] = render_set_bitmap(&desc, &bitmap->bitmap);
         }
         i++;
-    }*/
-
+    }
+/*
     Descriptor desc = load_font_gfx(font, scale);
-    
+*/  
     render_bind_descriptor_set(desc);
+
+    Font_Char *font_char = 0;
+    Font_Char *font_char_next = 0;
 
     i = 0;
     while (string[i] != 0) {
         Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, string[i], scale);
-        Font_Char *font_char = bitmap->font_char;
+        
+        font_char = bitmap->font_char;
+        font_char_next = load_font_char(font, string[i + 1]);
         
         // Draw
         if (bitmap->bitmap.width != 0) {    
@@ -583,14 +585,14 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
             coords_v3.x += dim_v3.x / 2.0f;
             coords_v3.y += dim_v3.y / 2.0f; // coords = top left corner
         		object.model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
-            //object.index = indices[i];
-            object.index = string[i];
+            object.index = indices[i];
+            //object.index = string[i];
             render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));   
             
             render_draw_mesh(&shapes.rect_mesh);
-            // End of Draw
         }
-        s32 kern = get_codepoint_kern_advance(font->info, string[i], string[i + 1]);
+        // End of Draw
+        s32 kern = get_glyph_kern_advance(font->info, font_char->glyph_index, font_char_next->glyph_index);
         current_point += scale * (kern + font_char->ax);
         
         i++;

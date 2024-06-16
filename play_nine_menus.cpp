@@ -12,9 +12,9 @@ quit_to_main_menu(State *state, Menu *menu) {
         } break;
     }
 
+    menu->gui.close_at_end = true;
     state->menu_list.mode = MAIN_MENU;
     state->game.num_of_players = 1;
-    menu->gui.close_at_end = true;
     state->mode = MODE_LOCAL;
 
     os_release_mutex(state->mutex);
@@ -38,6 +38,7 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
     menu_text(menu, "play_nine", play_nine_yellow, { 0, 0 }, { 1, 2 }); 
 
     if (menu_button(menu, "Local", { 0, 2 }, { 1, 1 })) {
+        state->menu_list.previous_mode = MAIN_MENU;
         state->menu_list.mode = LOCAL_MENU;
         state->game.num_of_players = 1;
         default_player_name_string(state->game.players[0].name, 1);
@@ -75,11 +76,13 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     menu->interact_region[0] = { 0,  1 };
     menu->interact_region[1] = { 2, 10 };
 
-    //state->game_draw.degrees_between_players = 360.0f / float32(state->game.num_of_players);
-    //state->game_draw.radius = get_draw_radius(game->num_of_players, hand_width, 3.2f);
-
     menu->start();
 
+    if (on_up(state->controller.pause)) {
+        state->menu_list.mode = state->menu_list.previous_mode;
+        menu->gui.close_at_end = true;
+    }
+    
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
     float32 y_section = menu->gui.rect.dim.y / menu->sections.y;
     draw_rect({ menu->gui.rect.coords.x, menu->gui.rect.coords.y + y_section }, 0, { menu->gui.rect.dim.x, menu->gui.rect.dim.y - y_section }, { 0, 0, 0, 0.2f} );
@@ -177,7 +180,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
             server_send_game(&state->game);
         }
 
-        if (menu_button(menu, "Start", { 0, menu_row + 2 }, { 1, 1 })) {
+        if (menu_button(menu, "Start Game", { 0, menu_row + 2 }, { 1, 1 })) {
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 menu->gui.close_at_end = true;
@@ -205,7 +208,12 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     }
     
     if (menu_button(menu, "Back", back_coords, { back_width, 1 })) {
-        quit_to_main_menu(state, menu);
+        if (state->menu_list.previous_mode == PAUSE_MENU) {
+            state->menu_list.mode = PAUSE_MENU;
+            menu->gui.close_at_end = true;
+        } else {
+            quit_to_main_menu(state, menu);\
+        }
     }
 
     menu->end();
@@ -242,6 +250,7 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
 
     if (full_menu) {
         if (menu_button(menu, "Lobby", { 0, 0 }, { 1, 1 })) {
+            state->menu_list.previous_mode = PAUSE_MENU;
             state->menu_list.mode = LOCAL_MENU;
             menu->hover_section = menu->interact_region[0];
 
@@ -255,7 +264,7 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
         state->menu_list.mode = SETTINGS_MENU;
     }
 
-    if (menu_button(menu, "Quit Game", { 0, 2 }, { 1, 1 })) {
+    if (menu_button_confirm(menu, "Main Menu", "(Again to confirm)", { 0, 2 }, { 1, 1 })) {
         quit_to_main_menu(state, menu);
     }
     menu->end();

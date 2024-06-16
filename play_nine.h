@@ -1,6 +1,5 @@
 /*
 TODO
-- Flip "animation"
 - Show keyboard controls
 - Make lobby menu go back to pause from menu (change play to start new game)
 - More music/sounds

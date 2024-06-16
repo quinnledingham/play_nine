@@ -212,12 +212,12 @@ vulkan_is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface, const c
 	}
 
 	Vulkan_Queue_Family_Indices indices = vulkan_find_queue_families(device, surface);
-	VkPhysicalDeviceProperties device_properties;
-	VkPhysicalDeviceFeatures device_features;
+	VkPhysicalDeviceProperties device_properties = {};
+	VkPhysicalDeviceFeatures device_features = {};
 	vkGetPhysicalDeviceProperties(device, &device_properties);
 	vkGetPhysicalDeviceFeatures(device, &device_features);
 
-	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device Limits:\nMax Descriptor Set Samplers: %d\nMax Descriptor Set Uniform Buffers: %d\nMax Uniform Buffer Range %d\n", device_properties.limits.maxDescriptorSetSamplers, device_properties.limits.maxDescriptorSetUniformBuffers, device_properties.limits.maxUniformBufferRange); 
+	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device Limits:\nMax Descriptor Set Samplers: %d\nMax Descriptor Set Uniform Buffers: %d\nMax Uniform Buffer Range: %d\n", device_properties.limits.maxDescriptorSetSamplers, device_properties.limits.maxDescriptorSetUniformBuffers, device_properties.limits.maxUniformBufferRange); 
 	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy; //&& device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 }
 
@@ -253,7 +253,7 @@ vulkan_pick_physical_device(Vulkan_Info *info) {
 	vkEnumeratePhysicalDevices(info->instance, &device_count, devices);
 
 	// print all available devies
-	print("\nvulkan_pick_physical_device(): Avaiable Physical Devies:\n\n");
+	print("\nvulkan_pick_physical_device(): Avaiable Physical Devices:\n\n");
 	for (u32 device_index = 0; device_index < device_count; device_index++) {
 		VkPhysicalDeviceProperties device_properties;
 		vkGetPhysicalDeviceProperties(devices[device_index], &device_properties);
@@ -1993,9 +1993,9 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	VkDescriptorPoolSize pool_sizes[3] = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = 1000;
+	pool_sizes[0].descriptorCount = 1300;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[1].descriptorCount = 1000;
+	pool_sizes[1].descriptorCount = 1300;
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	pool_sizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT * 2;
 
@@ -2505,6 +2505,33 @@ u32 vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
 	desc->texture_index++;
 
 	return index;
+}
+
+void vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmaps, u32 bitmaps_count) {
+	VkDescriptorImageInfo image_infos[60] = {};
+	
+	for (u32 i = 0; i < bitmaps_count; i++) {
+		Vulkan_Texture *texture = (Vulkan_Texture *)bitmaps[i].gpu_info;
+		
+		image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_infos[i].imageView = texture->image_view;
+		image_infos[i].sampler = texture->sampler;
+	}
+
+	VkWriteDescriptorSet descriptor_writes[1] = {};
+	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptor_writes[0].dstSet = *desc->vulkan_set;
+	descriptor_writes[0].dstBinding = desc->binding.binding;
+	descriptor_writes[0].dstArrayElement = desc->texture_index;
+	descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptor_writes[0].descriptorCount = 1;
+	descriptor_writes[0].pImageInfo = image_infos;
+
+	vkUpdateDescriptorSets(vulkan_info.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
+
+	u32 index = desc->texture_index;
+
+	desc->texture_index += bitmaps_count;
 }
 
 internal void

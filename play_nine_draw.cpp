@@ -117,21 +117,26 @@ load_player_card_model(u32 card_index, Vector3 hand_position, float32 y_axis_rad
 }
 
 internal void
-load_player_hand_models(Game_Draw *draw, u32 player_index) {
+load_player_hand_models(Game_Draw *draw, u32 player_index, bool8 flipped[HAND_SIZE]) {
     Game_Draw_Info *info = &draw->info;
     float32 rad = info->player_hand_rads[player_index];
     Vector3 position = info->hand_positions[player_index];
     
     // draw player cards    
     for (u32 card_index = 0; card_index < 8; card_index++) {
-        draw->hand_models[player_index][card_index] = load_player_card_model(card_index, position, rad, 180.0f * DEG2RAD, info->card_scale);
+        float32 z_axis_rad;
+        if (flipped[card_index])
+            z_axis_rad = 0.0f;
+        else
+            z_axis_rad = 180.0f * DEG2RAD;
+        draw->hand_models[player_index][card_index] = load_player_card_model(card_index, position, rad, z_axis_rad, info->card_scale);
     }
 }
 
 internal void
 load_player_card_models(Game *game, Game_Draw *draw) {
     for (u32 i = 0; i < game->num_of_players; i++) {
-        load_player_hand_models(draw, i);
+        load_player_hand_models(draw, i, game->players[i].flipped);
     }  
 }
 

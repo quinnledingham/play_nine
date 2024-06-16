@@ -19,7 +19,8 @@ get_file_stream(u32 output_stream) {
 
 inline void
 print_char_array(u32 output_stream, const char *char_array) {
-	OutputDebugStringA((LPCSTR)char_array);
+	//OutputDebugStringA((LPCSTR)char_array);
+	fprintf(get_file_stream(output_stream), "%s", char_array);
 }
 
 #elif OS_LINUX

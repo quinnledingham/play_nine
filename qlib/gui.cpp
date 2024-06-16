@@ -250,7 +250,6 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2
         button_pressed = true;
         gui->pressed = 0;
         gui->active = 0;
-
     }
 
     gui->index++;
@@ -639,6 +638,26 @@ menu_button(Menu *menu, const char *text, Vector2_s32 section_coords, Vector2_s3
 internal bool8
 menu_button(Menu *menu, const char *text, Vector2_s32 section_coords, Vector2_s32 section_dim) {
     return menu_button(menu, text, section_coords, section_dim, section_dim);
+}
+
+internal bool8
+menu_button_confirm(Menu *menu, const char *text, const char *confirm_text, Vector2_s32 section_coords, Vector2_s32 section_dim) {
+    Vector2 coords = get_screen_coords(menu, section_coords);
+    Vector2 dim = get_screen_dim(menu, section_dim);
+
+    do_menu_update(menu, coords, dim, section_coords, section_dim);
+
+    if (menu->gui.index != menu->gui.hover)
+        menu->button_confirm_active = false;
+
+    if (menu->button_confirm_active) {
+        return gui_button(&menu->gui, menu->gui.style, confirm_text, coords, dim);
+    } else {
+        if (gui_button(&menu->gui, menu->gui.style, text, coords, dim))
+            menu->button_confirm_active = true;
+    }
+
+    return false;
 }
 
 internal bool8
