@@ -726,3 +726,32 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
         }
     }
 }
+
+// Loading Icon
+
+void Loading_Icon::enable(Bitmap *in_bitmap) {
+    enabled = true;
+    bitmap = in_bitmap;
+    rotation = 0.0f;
+}
+
+void Loading_Icon::disable() {
+    enabled = false;
+}
+
+void Loading_Icon::draw(Vector2_s32 window_dim) {
+    if (!enabled)
+        return;
+
+    rotation += 0.01f;
+
+    float32 size = 100.0f;
+    if (window_dim.y < window_dim.x)
+        size = window_dim.y * 0.1f;
+    else
+        size = window_dim.x * 0.1f;
+        
+    Vector2 dim = { size, size };
+    Vector2 coords = { window_dim.x - dim.x, window_dim.y - dim.y };
+    draw_rect(coords, rotation, dim, bitmap);
+}

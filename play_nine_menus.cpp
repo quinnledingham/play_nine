@@ -425,7 +425,7 @@ draw_host_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green);
     
-    if (menu_textbox(menu, "Port:", state->port, { 0, 0 }, { 2, 1 })) {
+    if (menu_textbox(menu, "Port:", state->host_port, { 0, 0 }, { 2, 1 })) {
 
     }
 
@@ -435,7 +435,7 @@ draw_host_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     }
     if (menu_button(menu, "Back", { 1, 1 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;
-        menu->gui.close_at_end = true;
+        menu->gui.close_at_end = true;        
     }
     menu->end();
 }
@@ -457,24 +457,26 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
-    menu_textbox(menu, "Name:", state->name, { 0, 0 }, { 2, 1 });
-    menu_textbox(menu, "IP:",   state->ip,   { 0, 1 }, { 2, 1 });
-    menu_textbox(menu, "Port:", state->port, { 0, 2 }, { 2, 1 });
+    menu_textbox(menu, "Name:", state->join_name, { 0, 0 }, { 2, 1 });
+    menu_textbox(menu, "IP:",   state->join_ip,   { 0, 1 }, { 2, 1 });
+    menu_textbox(menu, "Port:", state->join_port, { 0, 2 }, { 2, 1 });
 
+    local_persist THREAD join_thread = 0;
     if (menu_button(menu, "Join", { 0, 3 }, { 1, 1 })) {
-        if (qsock_client(&online.sock, state->ip, state->port, TCP)) {
-            online.client_handle = os_create_thread(play_nine_client_recv, (void*)state);
-            state->mode = MODE_CLIENT;            
-            client_set_name(online.sock, state->name);
-        } else {
-            add_onscreen_notification(&state->notifications, "Unable to join");
-        }
+        join_thread = os_create_thread(play_nine_client_join, (void*)state);
     }
     if (menu_button(menu, "Back", { 1, 3 }, { 1, 1 })) {
         state->menu_list.mode = MAIN_MENU;
         menu->gui.close_at_end = true;
+
+        if (join_thread) {
+            os_terminate_thread(join_thread);
+            state->loading_icon.disable();
+        }
     }
     menu->end();
+
+    state->loading_icon.draw(window_dim);
 }
 
 internal void

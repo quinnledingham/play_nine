@@ -7,8 +7,6 @@ TODO
 - fix spacing in lobby
 
 - (gui_textbox) add undoing and select all
-- clear ip and port on leaving join/host menus
-- on screen loading icon for joining server
 - changing name in lobby for online game
 - going back to lobby in scoreboard when player leaves
 
@@ -142,6 +140,16 @@ enum Online_Mode {
     MODE_SERVER
 };
 
+struct Loading_Icon {
+    bool8 enabled;
+    Bitmap *bitmap;
+    float32 rotation;
+
+    void enable(Bitmap *in_bitmap);
+    void disable();
+    void draw(Vector2_s32 window_dim);
+};
+
 struct State {
     MUTEX mutex;
 
@@ -156,9 +164,10 @@ struct State {
     Menu_List menu_list;
 
     // Host/Join Menu textboxes
-    char name[TEXTBOX_SIZE] = "Jeff";
-    char ip[TEXTBOX_SIZE] = "127.0.0.1";
-    char port[TEXTBOX_SIZE] = "4444";
+    char join_name[TEXTBOX_SIZE] = "Jeff";
+    char join_ip[TEXTBOX_SIZE] = "127.0.0.1";
+    char join_port[TEXTBOX_SIZE] = "4444";
+    char host_port[TEXTBOX_SIZE] = "4444";
 
     enum Online_Mode mode;    
     u32 client_game_index; // what player index in game for the local player
@@ -180,8 +189,11 @@ struct State {
     
     Camera camera;
     s32 indices[16];
+
+    Loading_Icon loading_icon;
     
     Assets assets;
 };
 
 enum Online_Mode *global_mode;
+

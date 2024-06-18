@@ -753,7 +753,7 @@ bool8 init_data(App *app) {
     global_assets = &state->assets;
 
     bool8 load_and_save_assets = false;
-
+    
     if (load_and_save_assets) {
         if (load_asset_files_from_ethan(&state->assets, "../assets.ethan"))
             return true;
@@ -812,7 +812,7 @@ bool8 init_data(App *app) {
         fclose(file);
     } else {
         for (u32 i = 0; i < 14; i++) {
-            card_bitmaps[i] = state->assets.types[0].data[i + 7].bitmap; // + 4 to go after bitmaps loaded before the card bitmaps
+            card_bitmaps[i] = state->assets.types[0].data[i + 8].bitmap; // + 8 to go after bitmaps loaded before the card bitmaps
         }
     }
 

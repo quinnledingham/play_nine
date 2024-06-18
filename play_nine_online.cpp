@@ -8,7 +8,7 @@ play_nine_recv(Play_Nine_Packet *packet, QSock_Socket self, QSock_Socket *other)
         s32 bytes = qsock_recv(self, other, buffer, bytes_left);
 
         if (bytes <= 0) {
-            logprint("play_nine_client_recv()", "received no bytes\n");
+            logprint("play_nine_recv()", "received no bytes\n");
             return 1;
         }
 
@@ -168,7 +168,7 @@ THREAD_RETURN play_nine_server(void *parameters) {
     State *state = (State *)parameters;
     online.close_threads = false;
 
-    if (qsock_server(&online.sock, state->port, TCP)) {
+    if (qsock_server(&online.sock, state->host_port, TCP)) {
         state->menu_list.mode = LOCAL_MENU;
         state->mode = MODE_SERVER;
         state->game.num_of_players = 1;
@@ -297,5 +297,28 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
         os_release_mutex(state->mutex);
     }
 
+    return 0;
+}
+
+THREAD_RETURN play_nine_client_join(void *parameters) {
+    State *state = (State *)parameters;
+    
+    os_wait_mutex(state->mutex);
+    state->loading_icon.enable(find_bitmap(&state->assets, "LOADING"));
+    os_release_mutex(state->mutex);
+    
+    if (qsock_client(&online.sock, state->join_ip, state->join_port, TCP)) {
+        os_wait_mutex(state->mutex);
+        online.client_handle = os_create_thread(play_nine_client_recv, (void*)state);
+        state->mode = MODE_CLIENT;            
+        client_set_name(online.sock, state->join_name);
+    } else {
+        os_wait_mutex(state->mutex);
+        add_onscreen_notification(&state->notifications, "Unable to join");
+    }
+
+    state->loading_icon.disable();
+    os_release_mutex(state->mutex); // wait in either of the if branches
+    
     return 0;
 }
