@@ -5,6 +5,15 @@ TODO
 - More music/sounds
 - Added turn timer
 - Add game settings (number of holes)
+- fix spacing in lobby
+
+- left shift capital letters
+- annoying to press enter to exit textbox
+- on screen loading icon for joining server
+- changing name in lobby for online game
+- going back to lobby in scoreboard when player leaves
+- copy and paste into textbox
+- fix ethan's color issue
 
 Assets
 - Put mtl and map_Kd files into asset file

@@ -251,7 +251,7 @@ vulkan_get_nvidia_driver_version(u32 api_version) {
 	version.variant = 0;
 	version.major = ((u32)api_version >> 22) & 0x000003FF;
 	version.minor = ((u32)api_version >> 12) & 0x000003FF;
-	version.patch = ((u32)api_version) & 0xFFF;
+	version.patch = ((u32)api_version >>  0) & 0x00000FFF;
 	return version;
 }
 
@@ -383,10 +383,16 @@ vulkan_create_logical_device(Vulkan_Info *info) {
 // Where SRGB is turned on
 internal VkSurfaceFormatKHR
 vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
+	/*
 	for (u32 i = 0; i < count; i++) {
 		if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
 			return formats[i];
 		}
+	}
+*/
+	logprint("(vulkan) choose_swap_surface_format", "Picking default format\n(vulkan) Other formats available:\n");
+	for (u32 i = 0; i < count; i++) {
+		print("(vulkan) format: %d, color space: %d\n", formats[i].format, formats[i].colorSpace);
 	}
 
 	return formats[0];
@@ -431,7 +437,8 @@ vulkan_create_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	VkSurfaceFormatKHR surface_format = vulkan_choose_swap_surface_format(swap_chain_support.formats, swap_chain_support.formats_count);
 	VkPresentModeKHR present_mode = vulkan_choose_swap_present_mode(swap_chain_support.present_modes, swap_chain_support.present_modes_count);
 	VkExtent2D extent = vulkan_choose_swap_extent(swap_chain_support.capabilities, window_dim.width, window_dim.height);
-	print("extent_w: %d, extent_h: %d\n", extent.width, extent.height);
+	print("(vulkan) extent_w: %d, extent_h: %d\n", extent.width, extent.height);
+	print("(vulkan) surface_format: %d, surface_color_space: %d\n", surface_format.format, surface_format.colorSpace);
 
 	u32 image_count = swap_chain_support.capabilities.minImageCount + 1;
 	if (swap_chain_support.capabilities.maxImageCount > 0 && image_count > swap_chain_support.capabilities.maxImageCount) {

@@ -192,7 +192,7 @@ u32_to_char_array(char *buffer, u32 size, u32 in) {
 
 inline const char*
 u32_to_char_array(u32 in) {
-    return s32_to_char_array((s32)in);
+    return u32_to_char_array(in);
 }
 
 // ptr must point to first char of int

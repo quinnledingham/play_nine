@@ -16,7 +16,7 @@ play_nine_recv(Play_Nine_Packet *packet, QSock_Socket self, QSock_Socket *other)
         bytes_received += bytes;
         bytes_left -= bytes;
         
-        print("received %d bytes\n", bytes_received);
+        //print("received %d bytes\n", bytes_received);
     } while(bytes_left > 0);
 
     return 0;
