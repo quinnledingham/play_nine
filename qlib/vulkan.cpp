@@ -383,13 +383,12 @@ vulkan_create_logical_device(Vulkan_Info *info) {
 // Where SRGB is turned on
 internal VkSurfaceFormatKHR
 vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
-	/*
 	for (u32 i = 0; i < count; i++) {
 		if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
 			return formats[i];
 		}
 	}
-*/
+
 	logprint("(vulkan) choose_swap_surface_format", "Picking default format\n(vulkan) Other formats available:\n");
 	for (u32 i = 0; i < count; i++) {
 		print("(vulkan) format: %d, color space: %d\n", formats[i].format, formats[i].colorSpace);

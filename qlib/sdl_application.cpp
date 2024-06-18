@@ -122,10 +122,6 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) {
     SDL_memset(dest, value, num_of_bytes); 
 }
 
-void * array_malloc(u32 size, u32 n) {
-    return platform_malloc(n * size);
-}
-
 #include "print.h"
 #include "types_math.h"
 #include "char_array.h"
@@ -203,6 +199,18 @@ sdl_set_fullscreen(SDL_Window *sdl_window, enum Display_Modes display_mode) {
     }
 }
 
+internal void
+sdl_get_clipboard_text(App_Input *input) {
+    char *clipboard_text = SDL_GetClipboardText();
+    
+    if (!clipboard_text) {
+        print(SDL_GetError());
+        return;
+    }
+    
+    app_copy_string_to_input_buffer(input, clipboard_text);
+}
+
 internal bool8
 sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sdl_window) {
     window->resized = false;
@@ -267,29 +275,46 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
 
             case SDL_MOUSEBUTTONUP: {
                 SDL_MouseButtonEvent *mouse_event = &event.button;
-                //input->mouse = { mouse_event->x, mouse_event->y };
                 event_handler(app, APP_MOUSEUP, mouse_event->button);
+            } break;
+
+            case SDL_TEXTINPUT: {
+                SDL_TextInputEvent *text_input_event = &event.text;
+                app_copy_string_to_input_buffer(input, text_input_event->text);
+            } break;
+
+            case SDL_TEXTEDITING: {
+                
+                SDL_TextEditingEvent *text_edit_event = &event.edit;
+
             } break;
 
             case SDL_KEYDOWN: {
                 SDL_KeyboardEvent *keyboard_event = &event.key;
-                bool32 shift = keyboard_event->keysym.mod & KMOD_LSHIFT;
+                
                 u32 key_id = keyboard_event->keysym.sym;
-                if (!app_input_buffer)
+                bool32 ctrl = keyboard_event->keysym.mod & (KMOD_LCTRL | KMOD_RCTRL);
+                
+                if (!SDL_IsTextInputActive()) {
                     event_handler(app, APP_KEYDOWN, key_id);
-                else {
-                    if (shift) {
-                        key_id -= 32;
+                } else {
+                    // text input
+                    if (ctrl && key_id == SDLK_v) {
+                        sdl_get_clipboard_text(input);
+                        break;
                     }
+
+                    // aligns with what the gui_textbox is expecting
                     s32 ch = 0;
-                    if (is_ascii(key_id))
-                        ch = key_id;
-                    else if (key_id == SDLK_LEFT)  ch = 37;
-                    else if (key_id == SDLK_UP)    ch = 38;
-                    else if (key_id == SDLK_RIGHT) ch = 39;
-                    else if (key_id == SDLK_DOWN)  ch = 40;
-                    
-                    if (ch != 0)
+                    switch(key_id) {
+                        case SDLK_BACKSPACE: ch = 8; break;
+                        case SDLK_RETURN: ch = 13; break;
+                        case SDLK_LEFT: ch = 4437; break;
+                        case SDLK_RIGHT: ch = 4439; break;
+                        case SDLK_ESCAPE: ch = 27; break;
+                    }
+                                
+                    if (ch != 0 && input->buffer_index < ARRAY_COUNT(input->buffer))
                         input->buffer[input->buffer_index++] = ch;
                 }
             } break;
@@ -307,7 +332,6 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
 		    }
     }
 
-    app_input_buffer = false;
     return false;
 }
 
@@ -353,6 +377,7 @@ int main(int argc, char *argv[]) {
     
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
     SDL_SetRelativeMouseMode(SDL_FALSE);
+    SDL_StopTextInput();
 
     render_context.window_dim = app.window.dim;
     render_context.resolution = app.window.dim;

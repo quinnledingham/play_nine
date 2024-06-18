@@ -3,17 +3,14 @@ TODO
 - Show keyboard controls
 - Make lobby menu go back to pause from menu (change play to start new game)
 - More music/sounds
-- Added turn timer
 - Add game settings (number of holes)
 - fix spacing in lobby
 
-- left shift capital letters
-- annoying to press enter to exit textbox
+- (gui_textbox) add undoing and select all
+- clear ip and port on leaving join/host menus
 - on screen loading icon for joining server
 - changing name in lobby for online game
 - going back to lobby in scoreboard when player leaves
-- copy and paste into textbox
-- fix ethan's color issue
 
 Assets
 - Put mtl and map_Kd files into asset file
@@ -33,6 +30,7 @@ Render.cpp
 - make sprite sheet for textures like for cards and for fonts
 
 vulkan.h
+- (sRGB) fix ethan's color issue
 */
 
 global s8 deck[DECK_SIZE];

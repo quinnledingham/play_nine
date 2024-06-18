@@ -414,12 +414,12 @@ update_textbox(char *buffer, u32 max_length, u32 *cursor_position, s32 input) {
             return true;
         } break;
 
-        case 37: { // Left
+        case 4437: { // Left
             if (*cursor_position != 0)
                 (*cursor_position)--; // Left
         } break;
 
-        case 39: { // Right
+        case 4439: { // Right
             if (*cursor_position != current_length)
                 (*cursor_position)++; // Right
         } break;
@@ -464,61 +464,60 @@ gui_textbox(GUI *gui, Draw_Style style, const char *label, const char *dest, Vec
 
     box.state = gui_update(gui, coords, dim);
 
-    local_persist u32 last_state = GUI_DEFAULT;
-
     bool8 new_text = false;
 
     if (gui->index == gui->active) {
         if ((on_up(*gui->input.select) || on_up(*gui->input.mouse_left)) && gui->edit.index != gui->active) {
             box.text_shift = 0.0f;
             gui->edit.cursor_position = get_length(dest);
+            gui->edit.index = gui->active;
             platform_memory_set(gui->edit.text, 0, TEXTBOX_SIZE);
             platform_memory_copy(gui->edit.text, (void*)dest, gui->edit.cursor_position);
-            gui->edit.index = gui->active;
+
+            app_start_text_input();
         }
 
-        app_input_buffer = true;
         box.text = gui->edit.text;
-
-        //if (input.pressed && input.active_input_type == MOUSE_INPUT)
-        //    gui->edit.cursor_position = get_textbox_cursor_position(&box, input.mouse);
 
         s32 ch = 0;
         s32 i = 0;
         while(i < *gui->input.buffer_index) {
             ch = gui->input.buffer[i++];
             switch(ch) {
-                case 27: // Esc: Close textbox
+                case 27: // Esc: Close textbox with out saving
                     box.state = GUI_DEFAULT;
                     gui->pressed = 0;
                     gui->active = 0;
                     gui->edit.index = 0;
+                    
+                    app_stop_text_input();
                 break;
             
                 default: {
                     if (update_textbox(gui->edit.text, TEXTBOX_SIZE - 1, &gui->edit.cursor_position, ch)) {
-                        platform_memory_set((void*)dest, 0, TEXTBOX_SIZE);
-                        platform_memory_copy((void*)dest, gui->edit.text, get_length(gui->edit.text));
                         box.state = GUI_DEFAULT;
-                        gui->pressed = 0;
-                        gui->active = 0;
-                        gui->edit.index = 0;
-                        new_text = true;
                     }
                 } break;
             }
         } 
     }
+    
+    // saves the text if the textbox is no longer active and it still has the edit index
+    if (box.state != GUI_ACTIVE && gui->edit.index == gui->index) {
+        platform_memory_set((void*)dest, 0, TEXTBOX_SIZE);
+        platform_memory_copy((void*)dest, gui->edit.text, get_length(gui->edit.text));
+        new_text = true;
 
-    if (last_state == GUI_ACTIVE && box.state != GUI_ACTIVE) {
+        app_stop_text_input();
+        
         box.state = GUI_DEFAULT;
+        gui->pressed = 0;
+        gui->active = 0;
         gui->edit.index = 0;
     }
     
     box.cursor_position = gui->edit.cursor_position;
     gui->edit.shift = draw_textbox(box);
-
-    last_state = box.state;
 
     gui->index++;
 

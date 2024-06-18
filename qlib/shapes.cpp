@@ -661,7 +661,7 @@ get_string_draw_info(Font *font, const char *string, s32 length, float32 pixel_h
             info.baseline.y = (float32)-font_char_bitmap->bb_0.y;
 
         int kern = stbtt_GetCodepointKernAdvance(font_info, string[index], string[index + 1]);
-        if (string[index + 1])
+        if (string[index + 1] || string[index] == 32) // 32 == ' ' bitmap width is 0 so need advance
             info.dim.x += scale * float32(kern + font_char->ax);
         else
             info.dim.x += float32(font_char_bitmap->bb_1.x);

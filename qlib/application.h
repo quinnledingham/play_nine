@@ -60,14 +60,12 @@ enum Input_Type {
 	CONTROLLER_INPUT,
 };
 
-bool8 app_input_buffer;
-
 struct App_Input {
 	Vector2_s32 mouse;
 	Vector2_s32 mouse_rel;
 	bool8 relative_mouse_mode = false;
 
-  s32 buffer[10];
+  s32 buffer[100];
   s32 buffer_index;
 
 	enum Input_Type active; // what was the last type of input used
@@ -100,5 +98,23 @@ struct App {
 s32 event_handler(App *app, App_System_Event event, u32 arg);
 
 App app = {};
+
+internal void
+app_copy_string_to_input_buffer(App_Input *input, char *string) {
+    while(*string != 0 && input->buffer_index < ARRAY_COUNT(input->buffer)) {
+        input->buffer[input->buffer_index++] = *string;
+        string++;
+    }
+}
+
+inline void
+app_start_text_input() {
+  SDL_StartTextInput();
+}
+
+inline void
+app_stop_text_input() {
+	SDL_StopTextInput();
+}
 
 #endif // APPLICATION_H

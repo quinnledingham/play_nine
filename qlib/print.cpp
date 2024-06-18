@@ -1,9 +1,26 @@
-enum
-{
-    PRINT_DEFAULT,
-    PRINT_ERROR,
-    PRINT_WARNING,
-};
+#ifdef OS_WINDOWS
+
+internal DWORD
+win32_get_file_stream(u32 output_stream) {
+	switch(output_stream) {
+		case PRINT_DEFAULT: return STD_OUTPUT_HANDLE;
+		case PRINT_WARNING: return STD_ERROR_HANDLE;
+		case PRINT_ERROR:   return STD_ERROR_HANDLE;
+		default:            return STD_OUTPUT_HANDLE;
+	}
+}
+
+inline void
+print_char_array(u32 output_stream, const char *char_array) {
+	OutputDebugStringA((LPCSTR)char_array);
+
+	HANDLE output = GetStdHandle(win32_get_file_stream(output_stream));
+	if (output != NULL && output != INVALID_HANDLE_VALUE) {
+		WriteConsole(output, (VOID *)char_array, get_length(char_array), NULL, NULL);
+	}
+}
+
+#elif OS_LINUX
 
 internal FILE*
 get_file_stream(u32 output_stream) {
@@ -14,16 +31,6 @@ get_file_stream(u32 output_stream) {
 		default:            return stdout;
 	}
 }
-
-#ifdef OS_WINDOWS
-
-inline void
-print_char_array(u32 output_stream, const char *char_array) {
-	OutputDebugStringA((LPCSTR)char_array);
-	//fprintf(get_file_stream(output_stream), "%s", char_array);
-}
-
-#elif OS_LINUX
 
 inline void
 print_char_array(u32 output_stream, const char *char_array) {
@@ -117,48 +124,3 @@ void logprint(const char *where, const char *msg, ...) {
 	print_list(PRINT_DEFAULT, msg, list);
 	va_end(list);
 }
-
-#ifdef OPENGL
-
-void GLAPIENTRY opengl_debug_message_callback(GLenum source, GLenum type, GLuint id,  GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
-{
-    print("GL CALLBACK:");
-    print("message: %s\n", message);
-    switch (type)
-    {
-        case GL_DEBUG_TYPE_ERROR:               print("type: ERROR");               break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: print("type: DEPRECATED_BEHAVIOR"); break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  print("type: UNDEFINED_BEHAVIOR");  break;
-        case GL_DEBUG_TYPE_PORTABILITY:         print("type: PORTABILITY");         break;
-        case GL_DEBUG_TYPE_PERFORMANCE:         print("type: PERFORMANCE");         break;
-        case GL_DEBUG_TYPE_OTHER:               print("type: OTHER");               break;
-    }
-    print("id: %d", id);
-    switch(severity)
-    {
-        case GL_DEBUG_SEVERITY_LOW:    print("severity: LOW");    break;
-        case GL_DEBUG_SEVERITY_MEDIUM: print("severity: MEDIUM"); break;
-        case GL_DEBUG_SEVERITY_HIGH:   print("severity: HIGH");   break;
-    }
-}
-
-void opengl_debug(int type, int id)
-{
-    GLint length;
-    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-    if (length > 0)
-    {
-        GLchar info_log[512];
-        GLint size;
-        
-        switch(type)
-        {
-            case GL_SHADER:  glGetShaderInfoLog (id, 512, &size, info_log); break;
-            case GL_PROGRAM: glGetProgramInfoLog(id, 512, &size, info_log); break;
-        }
-        
-        print(info_log);
-    }
-}
-
-#endif // OPENGL
