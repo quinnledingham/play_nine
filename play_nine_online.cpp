@@ -164,15 +164,22 @@ find_free_player_index() {
     return 0;
 }
 
+internal void
+goto_local_menu(State *state, Menu_Mode previous_mode, Online_Mode online_mode) {
+    state->menu_list.previous_mode = previous_mode;
+    state->menu_list.mode = LOCAL_MENU;
+    state->mode = online_mode;
+    state->game.num_of_players = 1;
+    u32_to_char_array(state->num_of_holes, TEXTBOX_SIZE, state->game.holes_length);
+    default_player_name_string(state->game.players[0].name, 1);
+}
+
 THREAD_RETURN play_nine_server(void *parameters) {
     State *state = (State *)parameters;
     online.close_threads = false;
 
     if (qsock_server(&online.sock, state->host_port, TCP)) {
-        state->menu_list.mode = LOCAL_MENU;
-        state->mode = MODE_SERVER;
-        state->game.num_of_players = 1;
-        default_player_name_string(state->game.players[0].name, 0);
+        goto_local_menu(state, HOST_MENU, MODE_SERVER);
     } else {
         add_onscreen_notification(&state->notifications, "Unable to start server"); 
         return 0;
@@ -291,6 +298,7 @@ THREAD_RETURN play_nine_client_recv(void *parameters) {
                 state->mode = MODE_LOCAL;
                 state->menu_list.mode = JOIN_MENU;
                 add_onscreen_notification(&state->notifications, "Connection Closed");
+                os_release_mutex(state->mutex);
                 return 0;
             } break;
         }

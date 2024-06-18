@@ -9,6 +9,8 @@ TODO
 - (gui_textbox) add undoing and select all
 - changing name in lobby for online game
 - going back to lobby in scoreboard when player leaves
+- fix timer always drawing if less than 3s
+- add victory screen
 
 Assets
 - Put mtl and map_Kd files into asset file
@@ -80,6 +82,7 @@ struct Game {
     u32 active_player;
 
     u32 starting_player; // tracks who should start the hole
+    s32 holes_length = 9; // number of holes
     u32 holes_played;
     bool8 game_over;
 
@@ -157,6 +160,8 @@ struct State {
     Game_Draw game_draw;
     Onscreen_Notifications notifications;
 
+    char num_of_holes[TEXTBOX_SIZE];
+    
     // Input
     Controller controller = {};
     enum Camera_Mode camera_mode = PLAYER_CAMERA;

@@ -44,7 +44,7 @@ enum Game_Input {
 #define HAND_SIZE       8
 #define DECK_SIZE     108
 #define MAX_HOLES      20 // max holes that can be played in one gamed
-#define GAME_LENGTH     2 // play NINE
+//#define GAME_LENGTH     2 // play NINE
 
 #define DRAW_SIGNALS_AMOUNT 6
 
@@ -92,7 +92,7 @@ next_player(Game *game) {
 
         // END GAME
         game->holes_played++;
-        if (game->holes_played == GAME_LENGTH) {
+        if (game->holes_played == game->holes_length) {
             game->game_over = true;
         }
 
@@ -481,6 +481,19 @@ controller_process_input(Controller *controller, s32 id, bool8 state) {
     }
 }
 
+// Hole 11
+// buffer must be 8 bytes
+internal void
+get_hole_text(char *buffer, u32 hole, u32 length) {
+    platform_memory_set(buffer, 0, 16);
+    platform_memory_copy(buffer, (void*)"Hole ", 5);
+    buffer += 5;
+    buffer += s32_to_char_array(buffer, 3, hole);
+    platform_memory_copy(buffer, (void*)" / ", 3);
+    buffer += 3;
+    s32_to_char_array(buffer, 3, length);
+}
+
 bool8 update(App *app) {
     State *state = (State *)app->data;
     Assets *assets = &state->assets;
@@ -491,13 +504,9 @@ bool8 update(App *app) {
     
     // Update
     if (state->menu_list.mode == IN_GAME) {
-        if (state->mode == MODE_CLIENT) {
-            os_wait_mutex(state->mutex);
-        }
-        update_game(state, app);
-                    
-        if (state->mode == MODE_CLIENT)
-            os_release_mutex(state->mutex);
+        os_wait_mutex(state->mutex);
+        update_game(state, app);        
+        os_release_mutex(state->mutex);
     } else {
         state->game_draw.name_plates_loaded = false;
     }
@@ -573,11 +582,11 @@ bool8 update(App *app) {
             float32 pixel_height = app->window.dim.x / 20.0f;
             float32 padding = 10.0f;
 
-            char hole_text[8];
+            char hole_text[16];
             u32 hole_number = state->game.holes_played + 1;
             if (state->game.round_type == HOLE_OVER)
                 hole_number -= 1;
-            get_hole_text(hole_text, hole_number);
+            get_hole_text(hole_text, hole_number, state->game.holes_length);
 
             String_Draw_Info hole_string_info = get_string_draw_info(font, hole_text, -1, hole_pixel_height);
             String_Draw_Info string_info = get_string_draw_info(font, round_types[state->game.round_type], -1, pixel_height);
@@ -585,8 +594,6 @@ bool8 update(App *app) {
             Vector2 hole_coords = { padding, padding };
             Vector2 round_coords = hole_coords + Vector2{ 0.0f, 2.0f + hole_string_info.dim.y };
 
-            //draw_rect(hole_coords, 0, hole_string_info.dim, { 0, 0, 0, 0.5f} );            
-            //draw_rect(round_coords - Vector2{ 5.0f, 5.0f }, 0, string_info.dim + Vector2{ 5.0f, 5.0f } * 2.0f, { 0, 0, 0, 0.8f} );      
             draw_string_tl(font, hole_text, hole_coords, hole_pixel_height, { 255, 255, 255, 1 });
             draw_string_tl(font, round_types[state->game.round_type], round_coords, pixel_height, { 255, 255, 255, 1 });
 

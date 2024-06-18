@@ -179,7 +179,7 @@ struct Menu {
     Vector2_s32 hover_section; // saves where the controller is hovering
     Vector2_s32 hover_section_updated;
 
-    bool8 button_confirm_active;
+    u32 button_confirm_active;
 
     GUI gui;
 
@@ -189,7 +189,6 @@ struct Menu {
         else
             hover_section_updated = hover_section;
 
-
         gui.start();
     }
 
@@ -197,7 +196,7 @@ struct Menu {
         hover_section = hover_section_updated;
 
         if (gui.close_at_end) {
-            button_confirm_active = false;
+            button_confirm_active = 0;
             gui.close_at_end = false;
             hover_section = interact_region[0];
             gui.close();

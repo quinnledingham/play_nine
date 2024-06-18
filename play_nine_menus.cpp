@@ -38,10 +38,7 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
     menu_text(menu, "play_nine", play_nine_yellow, { 0, 0 }, { 1, 2 }); 
 
     if (menu_button(menu, "Local", { 0, 2 }, { 1, 1 })) {
-        state->menu_list.previous_mode = MAIN_MENU;
-        state->menu_list.mode = LOCAL_MENU;
-        state->game.num_of_players = 1;
-        default_player_name_string(state->game.players[0].name, 1);
+        goto_local_menu(state, MAIN_MENU, MODE_LOCAL);
     }
     if (menu_button(menu, "Host Online", { 0, 3 }, { 1, 1 })) {
         state->menu_list.mode = HOST_MENU;
@@ -63,6 +60,41 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
     return false;
 }
 
+internal void
+draw_bot_icon(Menu *menu, Vector2_s32 section_coords, Vector2_s32 draw_dim) {
+    Vector2 coords = get_screen_coords(menu, section_coords);
+    Vector2 dim = get_screen_dim(menu, draw_dim);
+    Vector2 bot_dim = dim * 0.6f;
+    bot_dim.x = bot_dim.y;
+    coords.x += dim.x;
+    coords.x -= (bot_dim.y / 2.0f);
+    coords.x -= bot_dim.x / 2.0f;
+
+    coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
+    coords.y += bot_dim.y / 2.0f;
+
+    render_bind_pipeline(&pipelines[PIPELINE_2D_TEXT]);
+
+    Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
+    render_update_ubo(v_color_set, (void *)&play_nine_green);
+    render_bind_descriptor_set(v_color_set);
+
+    Object object = {};
+
+    Descriptor desc = render_get_descriptor_set(&layouts[2]);
+    object.index = render_set_bitmap(&desc, find_bitmap(global_assets, "BOT"));
+    render_bind_descriptor_set(desc);
+
+    Vector3 coords_v3 = { coords.x, coords.y, 0 };
+    Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
+    Vector3 dim_v3 = { bot_dim.width, bot_dim.height, 1 };
+    object.model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
+
+    render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+
+    render_draw_mesh(&shapes.rect_mesh);
+}
+
 internal s32
 draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_dim) {
     Game *game = &state->game;
@@ -72,9 +104,9 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     window_rect.dim    = cv2(window_dim);
     menu->gui.rect = get_centered_rect(window_rect, 0.8f, 0.8f);
 
-    menu->sections = { 2, 10 };
-    menu->interact_region[0] = { 0,  1 };
-    menu->interact_region[1] = { 2, 10 };
+    menu->sections = { 2, 8 };
+    menu->interact_region[0] = { 0, 1 };
+    menu->interact_region[1] = { 2, 8 };
 
     menu->start();
 
@@ -84,32 +116,39 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     }
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
+    //draw_rect(menu->gui.rect.coords, 0, menu->gui.rect.dim, { 255, 0, 0, 1 });
+
+    float32 x_section = menu->gui.rect.dim.x / menu->sections.x;
     float32 y_section = menu->gui.rect.dim.y / menu->sections.y;
-    draw_rect({ menu->gui.rect.coords.x, menu->gui.rect.coords.y + y_section }, 0, { menu->gui.rect.dim.x, menu->gui.rect.dim.y - y_section }, { 0, 0, 0, 0.2f} );
+    Vector2 dark_rect_coords = { menu->gui.rect.coords.x, menu->gui.rect.coords.y + (2 * y_section) };
+    Vector2 dark_rect_dim = { menu->gui.rect.dim.x - (x_section), menu->gui.rect.dim.y - (3 * y_section) };
+    draw_rect(dark_rect_coords, 0, dark_rect_dim, { 0, 0, 0, 0.2f} );
 
     char *lobby_name;
-    if (state->mode == Online_Mode::MODE_LOCAL)
+    char *back_label;
+    if (state->mode == Online_Mode::MODE_LOCAL) {
         lobby_name = "Local Lobby";
-    else if (state->mode == Online_Mode::MODE_CLIENT || state->mode == Online_Mode::MODE_SERVER)
+        back_label = "Main Menu";
+    } else if (state->mode == Online_Mode::MODE_CLIENT) {
         lobby_name = "Online Lobby";
+        back_label = "Leave Game";
+    } else if (state->mode == Online_Mode::MODE_SERVER) {
+        lobby_name = "Online Lobby";
+        back_label = "Close Game";
+    }
     
-    menu_text(menu, lobby_name, play_nine_yellow, { 0, 0 }, { 2, 1 });
+    menu_text(menu, lobby_name,  play_nine_yellow, { 0, 0 }, { 2, 1 });
         
     s32 menu_row = 1;
     for (u32 player_index = 0; player_index < (s32)game->num_of_players; player_index++) {
         Player *player = &game->players[player_index];
         
         Vector2_s32 section_coords = { 0, menu_row };
-        Vector2_s32 section_dim = { 2, 1 };
+        Vector2_s32 section_dim = { 1, 1 };
         Vector2_s32 draw_dim = section_dim;
         
         if (player_index == game->num_of_players - 1) {
-            section_dim = { 2, 7 - (s32)game->num_of_players };
-
-            if (state->mode == MODE_CLIENT)
-                section_dim.y += 2;
-            else if (state->mode == MODE_SERVER)
-                section_dim.y += 1;
+            section_dim = { 1, 2 + 6 - (s32)game->num_of_players };
         }
         
         if (menu_textbox(menu, "Name:", player->name, section_coords, section_dim, draw_dim) && menu_row == state->client_game_index) {
@@ -120,67 +159,44 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
         }
 
         if (player->is_bot) {
-            // Draw bot icon
-            Vector2 coords = get_screen_coords(menu, section_coords);
-            Vector2 dim = get_screen_dim(menu, draw_dim);
-            Vector2 bot_dim = dim * 0.6f;
-            bot_dim.x = bot_dim.y;
-            coords.x += dim.x;
-            coords.x -= (bot_dim.y / 2.0f);
-            coords.x -= bot_dim.x / 2.0f;
-            
-            coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
-            coords.y += bot_dim.y / 2.0f;
-            
-            render_bind_pipeline(&pipelines[PIPELINE_2D_TEXT]);
-            
-            Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
-            render_update_ubo(v_color_set, (void *)&play_nine_green);
-            render_bind_descriptor_set(v_color_set);
-
-            Object object = {};
-            
-            Descriptor desc = render_get_descriptor_set(&layouts[2]);
-            object.index = render_set_bitmap(&desc, find_bitmap(&state->assets, "BOT"));
-            render_bind_descriptor_set(desc);
-            
-            Vector3 coords_v3 = { coords.x, coords.y, 0 };
-            Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
-            Vector3 dim_v3 = { bot_dim.width, bot_dim.height, 1 };
-            object.model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
-
-            render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
-
-            render_draw_mesh(&shapes.rect_mesh);
+            draw_bot_icon(menu, section_coords, draw_dim);
         }
 
         menu_row++;
     }
-    
-    menu_row = 7;
+
+    menu_row = 1;
 
     if (full_menu) {
         if (state->mode != MODE_SERVER) {
-            if (menu_button(menu, "+ Player", { 0, menu_row }, { 1, 1 })) {
+            if (menu_button(menu, "+ Player", { 1, menu_row++ }, { 1, 1 })) {
                 add_player(game, false);
             }
-            if (menu_button(menu, "- Player", { 1, menu_row }, { 1, 1 })) {
+            if (menu_button(menu, "- Player", { 1, menu_row++ }, { 1, 1 })) {
                 remove_player(game, false);
             }
         } 
 
-        if (menu_button(menu, "+ Bot", { 0, menu_row + 1 }, { 1, 1 })) {
+        if (menu_button(menu, "+ Bot", { 1, menu_row++ }, { 1, 1 })) {
             add_player(game, true);
             server_send_game(&state->game);
         }
-        if (menu_button(menu, "- Bot", { 1, menu_row + 1 }, { 1, 1 })) {
+        if (menu_button(menu, "- Bot", { 1, menu_row++ }, { 1, 1 })) {
             s32 removed_index = remove_player(game, true);
             if (removed_index != -1 && state->mode == MODE_SERVER)
                 remove_online_player(&state->game, removed_index);
             server_send_game(&state->game);
         }
+        if (menu_textbox(menu, "# of Holes:", state->num_of_holes, { 1, menu_row++ }, { 1, 1 })) {
+            s32 last_holes_length = state->game.holes_length;
+            char_array_to_s32(state->num_of_holes, &state->game.holes_length);
+            if (state->game.holes_length < 1) {
+                state->game.holes_length = last_holes_length;
+            }
+            s32_to_char_array(state->num_of_holes, TEXTBOX_SIZE, state->game.holes_length);
+        }
 
-        if (menu_button(menu, "Start Game", { 0, menu_row + 2 }, { 1, 1 })) {
+        if (menu_button(menu, "Start Game", { 1, menu_row++ }, { 1, 1 })) {
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 menu->gui.close_at_end = true;
@@ -198,22 +214,16 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
             }
         }
     } 
-    
-    Vector2_s32 back_coords = { 1, menu_row + 2 };
-    s32 back_width = 1;
 
-    if (!full_menu) {
-        back_coords = { 0, menu_row + 2 };
-        back_width = 2;
+    Vector2_s32 back_section_dim = { 1, 1 };
+    if (state->mode == MODE_SERVER) {
+        back_section_dim = { 1, 3 };
+    } else if (state->mode == MODE_CLIENT) {
+        back_section_dim = { 1, 7 };
     }
     
-    if (menu_button(menu, "Back", back_coords, { back_width, 1 })) {
-        if (state->menu_list.previous_mode == PAUSE_MENU) {
-            state->menu_list.mode = PAUSE_MENU;
-            menu->gui.close_at_end = true;
-        } else {
-            quit_to_main_menu(state, menu);\
-        }
+    if (menu_button_confirm(menu, back_label, "(Again to confirm)", { 1, menu_row++ }, back_section_dim, { 1, 1 })) {
+        quit_to_main_menu(state, menu);
     }
 
     menu->end();
@@ -249,10 +259,11 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
 
     if (full_menu) {
-        if (menu_button(menu, "Lobby", { 0, 0 }, { 1, 1 })) {
+        if (menu_button_confirm(menu, "End Game", "(Again to confirm)", { 0, 0 }, { 1, 1 })) {
             state->menu_list.previous_mode = PAUSE_MENU;
             state->menu_list.mode = LOCAL_MENU;
             menu->hover_section = menu->interact_region[0];
+            menu->gui.close_at_end = true;
 
             if (state->mode == MODE_SERVER)
                 server_send_menu_mode(state->menu_list.mode);
@@ -270,15 +281,6 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     menu->end();
 
     return false;
-}
-
-// Hole 11
-// buffer must be 8 bytes
-internal void
-get_hole_text(char *buffer, u32 hole) {
-    platform_memory_set(buffer, 0, 8);
-    platform_memory_copy(buffer, (void*)"Hole ", 5);
-    s32_to_char_array(buffer + 5, 3, hole);
 }
 
 /*
