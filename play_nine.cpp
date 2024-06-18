@@ -260,21 +260,6 @@ print_vector3(const char *name, Vector3 v) {
     print("%s: %f, %f, %f\n", name, v.x, v.y, v.z);
 }
 
-internal void
-draw_timer(float32 time, Vector2_s32 window_dim) {
-    if (time > 7.0f) {
-        float32 pixel_height = 40.0f;
-        float32 time_left = 10.0f - time;
-        
-        char buffer[20];
-        float_to_char_array(time_left, buffer, 20);
-        
-        String_Draw_Info info = get_string_draw_info(default_font, buffer, -1, pixel_height);
-        float32 x_coords = ((float32)window_dim.width / 2.0f) - (info.dim.width / 2.0f);
-        draw_string_tl(default_font, buffer, { x_coords, 40.0f }, pixel_height, { 255, 255, 255, 1 });
-    }
-}
-
 bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
@@ -481,18 +466,6 @@ controller_process_input(Controller *controller, s32 id, bool8 state) {
     }
 }
 
-// Hole 11
-// buffer must be 8 bytes
-internal void
-get_hole_text(char *buffer, u32 hole, u32 length) {
-    platform_memory_set(buffer, 0, 16);
-    platform_memory_copy(buffer, (void*)"Hole ", 5);
-    buffer += 5;
-    buffer += s32_to_char_array(buffer, 3, hole);
-    platform_memory_copy(buffer, (void*)" / ", 3);
-    buffer += 3;
-    s32_to_char_array(buffer, 3, length);
-}
 
 bool8 update(App *app) {
     State *state = (State *)app->data;
@@ -570,87 +543,13 @@ bool8 update(App *app) {
         case AUDIO_SETTINGS_MENU: draw_audio_settings_menu(&state->menu_list.menus[AUDIO_SETTINGS_MENU], state, &app->player, &app->window); break;
         
         case PAUSE_MENU:
-        case IN_GAME: {
-                
+        case IN_GAME: {                
             draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
-
-            // depth test already off from draw_game()
-            render_bind_descriptor_set(state->scene_ortho_set);
-
-            Font *font = find_font(&state->assets, "CASLON");
-            float32 hole_pixel_height = app->window.dim.x / 30.0f;
-            float32 pixel_height = app->window.dim.x / 20.0f;
-            float32 padding = 10.0f;
-
-            char hole_text[16];
-            u32 hole_number = state->game.holes_played + 1;
-            if (state->game.round_type == HOLE_OVER)
-                hole_number -= 1;
-            get_hole_text(hole_text, hole_number, state->game.holes_length);
-
-            String_Draw_Info hole_string_info = get_string_draw_info(font, hole_text, -1, hole_pixel_height);
-            String_Draw_Info string_info = get_string_draw_info(font, round_types[state->game.round_type], -1, pixel_height);
-
-            Vector2 hole_coords = { padding, padding };
-            Vector2 round_coords = hole_coords + Vector2{ 0.0f, 2.0f + hole_string_info.dim.y };
-
-            draw_string_tl(font, hole_text, hole_coords, hole_pixel_height, { 255, 255, 255, 1 });
-            draw_string_tl(font, round_types[state->game.round_type], round_coords, pixel_height, { 255, 255, 255, 1 });
-
-            gui.start();
-            gui.rect.coords = { 0, 0 };
-            gui.rect.dim = cv2(app->window.dim);
-            gui.input = {
-                &app->input.active,
-                
-                &state->controller.select,
-                &state->controller.left,
-                &state->controller.up,
-                &state->controller.right,
-                &state->controller.down,
-                
-                &app->input.mouse,
-                &state->controller.mouse_left
-            };
-
-            float32 button_width = app->window.dim.x / 7.0f;
-            Player *active_player = &state->game.players[state->game.active_player];
-
-            if (state->menu_list.mode == PAUSE_MENU) {
-
-                draw_pause_menu(state, &state->menu_list.menus[PAUSE_MENU], full_menu, app->window.dim);
-
-            } else if (state->game.round_type == HOLE_OVER) {
-
-                if (state->mode != MODE_CLIENT) {
-                    Vector2 dim = { button_width, pixel_height };
-                    Vector2 coords = { gui.rect.dim.x - dim.x - padding, gui.rect.dim.y - dim.y - padding };
-                    if (gui_button(&gui, default_style, "Proceed", coords, dim)) {
-                        state->menu_list.mode = SCOREBOARD_MENU;
-                        if (state->mode == MODE_SERVER)
-                            server_send_menu_mode(state->menu_list.mode);
-                    }
-                }
-
-            } else if (state->game.turn_stage == FLIP_CARD && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
-                
-                if (state->is_active) {
-                    Vector2 dim = { button_width, pixel_height };
-                    Vector2 coords = { app->window.dim.x - dim.x - padding, app->window.dim.y - dim.y - padding };
-                    if (gui_button(&gui, default_style, "Pass", coords, dim)) {
-                        state->pass_selected = true; // in update_game feed this into selected
-                    }
-                }
-
-            }
-
+            draw_game_hud(state, app->window.dim, &app->input, full_menu);
         } break;
     }
 
-    draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);
-
-    draw_timer(state->game.turn_time, app->window.dim);
-    
+    draw_onscreen_notifications(&state->notifications, app->window.dim, (float32)app->time.frame_time_s);    
 
 #ifdef DEBUG
     // Draw FPS

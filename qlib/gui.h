@@ -115,6 +115,8 @@ struct GUI {
     u32 active;
     GUI_Input input;
 
+    bool8 handle_input;
+
     Textbox edit;
 
     Rect rect;
@@ -134,6 +136,11 @@ struct GUI {
 
     void start() { 
         index = 1; 
+    };
+
+    void end() {
+        if (hover > index - 1)
+            hover = index - 1;
     };
 
     void close() {
@@ -194,7 +201,8 @@ struct Menu {
 
     void end() {
         hover_section = hover_section_updated;
-
+        gui.end();
+    
         if (gui.close_at_end) {
             button_confirm_active = 0;
             gui.close_at_end = false;

@@ -104,9 +104,9 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     window_rect.dim    = cv2(window_dim);
     menu->gui.rect = get_centered_rect(window_rect, 0.8f, 0.8f);
 
-    menu->sections = { 2, 8 };
+    menu->sections = { 4, 7 };
     menu->interact_region[0] = { 0, 1 };
-    menu->interact_region[1] = { 2, 8 };
+    menu->interact_region[1] = { 4, 7 };
 
     menu->start();
 
@@ -120,8 +120,8 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
 
     float32 x_section = menu->gui.rect.dim.x / menu->sections.x;
     float32 y_section = menu->gui.rect.dim.y / menu->sections.y;
-    Vector2 dark_rect_coords = { menu->gui.rect.coords.x, menu->gui.rect.coords.y + (2 * y_section) };
-    Vector2 dark_rect_dim = { menu->gui.rect.dim.x - (x_section), menu->gui.rect.dim.y - (3 * y_section) };
+    Vector2 dark_rect_coords = { menu->gui.rect.coords.x, menu->gui.rect.coords.y + (1 * y_section) };
+    Vector2 dark_rect_dim = { menu->gui.rect.dim.x - (2 * x_section), menu->gui.rect.dim.y - (1 * y_section) };
     draw_rect(dark_rect_coords, 0, dark_rect_dim, { 0, 0, 0, 0.2f} );
 
     char *lobby_name;
@@ -137,25 +137,29 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
         back_label = "Close Game";
     }
     
-    menu_text(menu, lobby_name,  play_nine_yellow, { 0, 0 }, { 2, 1 });
+    menu_text(menu, lobby_name,  play_nine_yellow, { 0, 0 }, { 4, 1 });
         
     s32 menu_row = 1;
     for (u32 player_index = 0; player_index < (s32)game->num_of_players; player_index++) {
         Player *player = &game->players[player_index];
         
         Vector2_s32 section_coords = { 0, menu_row };
-        Vector2_s32 section_dim = { 1, 1 };
+        Vector2_s32 section_dim = { 2, 1 };
         Vector2_s32 draw_dim = section_dim;
         
         if (player_index == game->num_of_players - 1) {
-            section_dim = { 1, 2 + 6 - (s32)game->num_of_players };
+            section_dim.y = 2 + 6 - (s32)game->num_of_players;
         }
-        
-        if (menu_textbox(menu, "Name:", player->name, section_coords, section_dim, draw_dim) && menu_row == state->client_game_index) {
-            if (state->mode == MODE_CLIENT)
-                client_set_name(online.sock, player->name);
-            else if (state->mode == MODE_SERVER)
-                server_send_game(&state->game);            
+
+        if (state->mode == MODE_LOCAL || player_index == state->client_game_index) {
+            if (menu_textbox(menu, "Name:", player->name, section_coords, section_dim, draw_dim)) {
+                if (state->mode == MODE_CLIENT)
+                    client_set_name(online.sock, player->name);
+                else if (state->mode == MODE_SERVER)
+                    server_send_game(&state->game);            
+            }
+        } else {
+            menu_button(menu, player->name, section_coords, section_dim, draw_dim);
         }
 
         if (player->is_bot) {
@@ -169,25 +173,25 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
 
     if (full_menu) {
         if (state->mode != MODE_SERVER) {
-            if (menu_button(menu, "+ Player", { 1, menu_row++ }, { 1, 1 })) {
+            if (menu_button(menu, "+ Player", { 2, menu_row }, { 1, 1 })) {
                 add_player(game, false);
             }
-            if (menu_button(menu, "- Player", { 1, menu_row++ }, { 1, 1 })) {
+            if (menu_button(menu, "- Player", { 3, menu_row++ }, { 1, 1 })) {
                 remove_player(game, false);
             }
         } 
 
-        if (menu_button(menu, "+ Bot", { 1, menu_row++ }, { 1, 1 })) {
+        if (menu_button(menu, "+ Bot", { 2, menu_row }, { 1, 1 })) {
             add_player(game, true);
             server_send_game(&state->game);
         }
-        if (menu_button(menu, "- Bot", { 1, menu_row++ }, { 1, 1 })) {
+        if (menu_button(menu, "- Bot", { 3, menu_row++ }, { 1, 1 })) {
             s32 removed_index = remove_player(game, true);
             if (removed_index != -1 && state->mode == MODE_SERVER)
                 remove_online_player(&state->game, removed_index);
             server_send_game(&state->game);
         }
-        if (menu_textbox(menu, "# of Holes:", state->num_of_holes, { 1, menu_row++ }, { 1, 1 })) {
+        if (menu_textbox(menu, "# of Holes:", state->num_of_holes, { 2, menu_row++ }, { 2, 1 })) {
             s32 last_holes_length = state->game.holes_length;
             char_array_to_s32(state->num_of_holes, &state->game.holes_length);
             if (state->game.holes_length < 1) {
@@ -196,7 +200,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
             s32_to_char_array(state->num_of_holes, TEXTBOX_SIZE, state->game.holes_length);
         }
 
-        if (menu_button(menu, "Start Game", { 1, menu_row++ }, { 1, 1 })) {
+        if (menu_button(menu, "Start Game", { 2, menu_row++ }, { 2, 1 })) {
             if (game->num_of_players != 1) {
                 state->menu_list.mode = IN_GAME;
                 menu->gui.close_at_end = true;
@@ -215,14 +219,14 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
         }
     } 
 
-    Vector2_s32 back_section_dim = { 1, 1 };
+    Vector2_s32 back_section_dim = { 2, 2 };
     if (state->mode == MODE_SERVER) {
-        back_section_dim = { 1, 3 };
+        back_section_dim = { 2, 5 };
     } else if (state->mode == MODE_CLIENT) {
-        back_section_dim = { 1, 7 };
+        back_section_dim = { 2, 6 };
     }
     
-    if (menu_button_confirm(menu, back_label, "(Again to confirm)", { 1, menu_row++ }, back_section_dim, { 1, 1 })) {
+    if (menu_button_confirm(menu, back_label, "(Again to confirm)", { 2, menu_row++ }, back_section_dim, { 2, 1 })) {
         quit_to_main_menu(state, menu);
     }
 
@@ -309,6 +313,12 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
         scroll = { (s32)game->holes_played - scroll_length + 1, (s32)game->holes_played + 1 };
 
     menu->start();
+    
+    if (on_up(state->controller.pause)) {
+        state->menu_list.mode = IN_GAME;
+        menu->gui.close_at_end = true;
+    }
+    
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
     draw_rect(menu->gui.rect, { 0, 0, 0, 0.2f} );
 
@@ -364,47 +374,11 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
         menu_text(menu, total_text, text_color, { player_index + 1, scroll_length + 1 }, { 1, 1 }); 
     }
 
-    const char *play_button_text;
-    if (full_menu) {
-        if (!game->game_over)
-            play_button_text = "Next Hole";
-        else
-            play_button_text = "Play Again";
-
-        if (menu_button(menu, play_button_text, { 0, scroll_length + 2 }, { (s32)game->num_of_players - 1, 1 })) {
-            state->menu_list.mode = IN_GAME;
-            if (!game->game_over)
-                start_hole(game);
-            else
-                start_game(game, game->num_of_players);
-            add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);    
-
-            if (state->mode == MODE_SERVER) {
-                server_send_game(&state->game, draw_signals, DRAW_SIGNALS_AMOUNT);
-                server_send_menu_mode(state->menu_list.mode);
-            }
-        }
-        if (menu_button(menu, "Back", { (s32)game->num_of_players - 1, scroll_length + 2 }, { 1, 1 })) {
-            state->menu_list.mode = IN_GAME;
-
-            if (state->mode == MODE_SERVER) {
-                server_send_menu_mode(state->menu_list.mode);
-            }
-        }
+    if (menu_button(menu, "Back", { 0, scroll_length + 2 }, { (s32)game->num_of_players + 1, 1 })) {
+        state->menu_list.mode = IN_GAME;
+        menu->gui.close_at_end = true;
     }
-
-    Vector2_s32 quit_coords = { (s32)game->num_of_players, scroll_length + 2 };
-    s32 quit_width = 1;
-
-    if (!full_menu) {
-        quit_coords = { 0, scroll_length + 2 };
-        quit_width = (s32)game->num_of_players + 1;
-    }
-
-    if (menu_button(menu, "Quit", quit_coords, { quit_width, 1 })) {
-        quit_to_main_menu(state, &state->menu_list.menus[SCOREBOARD_MENU]);
-    }
-
+    
     menu->end();
 
     return 0;

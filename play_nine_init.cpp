@@ -166,6 +166,7 @@ start_hole(Game *game) {
     game->round_type = FLIP_ROUND;
     game->turn_stage = FLIP_CARD;
     game->last_turn = 0;
+    game->turn_time = 0.0f;
 }
 
 internal void

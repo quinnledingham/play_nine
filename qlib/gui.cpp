@@ -176,6 +176,37 @@ ui_button(UI *ui, Vector2 coords, Vector2 dim, const char *text) {
 }
 */
 
+internal void
+gui_do_keyboard_input(GUI *gui) {
+    if (*gui->input.active_input_type != KEYBOARD_INPUT)
+        return;
+    
+    if (gui->hover == 0 && gui->active == 0) // if nothing it hovered to begin with set it to first
+        gui->hover = 1;
+
+    if (on_down(*gui->input.down) || on_down(*gui->input.right)) {
+        gui->hover++;
+    }
+    if (on_down(*gui->input.up) || on_down(*gui->input.left)) {
+        gui->hover--;
+    }
+}
+
+internal void
+gui_do_mouse_input(GUI *gui, Vector2 coords, Vector2 dim) {
+    if (*gui->input.active_input_type != MOUSE_INPUT)
+        return;
+    
+    if (coords_in_rect(*gui->input.mouse, coords, dim)) {
+        gui->hover = gui->index;
+        // don't hover anyways
+        if (gui->active != 0 && !gui->enabled)
+            gui->hover = 0;
+    } else if (gui->hover == gui->index) {
+        gui->hover = 0;
+    }
+}
+
 // does mouse by default but for keyboard input to work
 // gui->hover has to be set before. It does the logic of when keyboard is clicked
 // but it does not know which one is being hovered.
@@ -184,27 +215,17 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
     u32 state = GUI_DEFAULT; // the state of the calling gui component        
 
     Button gui_select = {};
-    if (*gui->input.active_input_type == KEYBOARD_INPUT) {
-        gui_select = *gui->input.select;
-
-        if (gui->hover == 0 && gui->active == 0) // if nothing it hovered to begin with set it to first
-            gui->hover = 1;
-    } else if (*gui->input.active_input_type == MOUSE_INPUT) {
-        gui_select = *gui->input.mouse_left;
-
-        if (coords_in_rect(*gui->input.mouse, coords, dim)) {
-            gui->hover = gui->index;
-            // don't hover anyways
-            if (gui->active != 0 && !gui->enabled)
-                gui->hover = 0;
-        } else if (gui->hover == gui->index) {
-            gui->hover = 0;
-        }
+    switch(*gui->input.active_input_type) {
+        case KEYBOARD_INPUT: gui_select = *gui->input.select;     break;
+        case MOUSE_INPUT:    gui_select = *gui->input.mouse_left; break;
     }
+
+    if (gui->handle_input)
+        gui_do_mouse_input(gui, coords, dim);
     
     if (gui->hover == gui->index) {
         state = GUI_HOVER;
-
+        
         if (on_down(gui_select)) {
             gui->pressed = gui->hover;
         }
@@ -344,11 +365,17 @@ gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count
     draw_button(style, state, rect, options[*option_selected], gui->font, ALIGN_LEFT);
         
     bool8 value_selected = false;
-    if (gui->index == gui->active) {
+    if (gui->index == gui->active) { 
         // set the first active to be the selected option
         if (previous_active != gui->active) {
             gui->hover = gui->index + *option_selected + 1;
         }
+        
+        gui->handle_input = true;
+        if (gui->hover <= dropdown_menu_index)
+            gui->hover = dropdown_menu_index + 1;
+        else if (gui->hover > dropdown_menu_index + options_count)
+            gui->hover = dropdown_menu_index + options_count;
         
         Rect dropdown_rect = rect;
         dropdown_rect.coords.y += rect.dim.y;
@@ -368,11 +395,13 @@ gui_dropdown(GUI *gui, Draw_Style style, const char **options, u32 options_count
             }
             dropdown_rect.coords.y += dropdown_rect.dim.y;
         } 
+        gui_do_keyboard_input(gui);
         gui->enabled = false;
+        gui->handle_input = false;
     } 
         
     gui->index = dropdown_menu_index + options_count + 1;
-
+    
     return value_selected;
 }
 
@@ -591,6 +620,7 @@ do_menu_update(Menu *menu, Vector2 coords, Vector2 dim, Vector2_s32 section_coor
     switch(*menu->gui.input.active_input_type) {
         case KEYBOARD_INPUT: {
             if (menu_in_dim(section_coords, section_dim, menu->hover_section)) {
+                menu->hover_section_updated = section_coords; // sends it back to the top of the section
                 menu_update_hot(&menu->gui.input, &menu->hover_section_updated, section_coords, section_dim, menu->interact_region);
                 if (menu->gui.active == 0)
                     menu->gui.hover = menu->gui.index;
@@ -600,7 +630,12 @@ do_menu_update(Menu *menu, Vector2 coords, Vector2 dim, Vector2_s32 section_coor
         case MOUSE_INPUT: {
             if (coords_in_rect(*menu->gui.input.mouse, coords, dim)) {
                 menu->gui.hover = menu->gui.index;
-            } 
+                // don't hover anyways
+                if (menu->gui.active != 0 && !menu->gui.enabled)
+                    menu->gui.hover = 0;
+            } else {
+                menu->gui.hover = 0;
+            }
         } break;
     }
 }
@@ -692,6 +727,7 @@ menu_dropdown(Menu *menu, const char **options, u32 options_count, u32 *option_s
     if (menu->gui.active != menu->gui.index)
         do_menu_update(menu, coords, dim, section_coords, section_dim);
     else {
+        /*
         if (on_down(*menu->gui.input.down) || on_down(*menu->gui.input.right)) {
             menu->gui.hover++;
         }
@@ -703,6 +739,7 @@ menu_dropdown(Menu *menu, const char **options, u32 options_count, u32 *option_s
             menu->gui.hover = menu->gui.index + 1;
         else if (menu->gui.hover > menu->gui.index + options_count)
             menu->gui.hover = menu->gui.index + options_count;
+        */
     }
     
     return gui_dropdown(&menu->gui, menu->gui.style, options, options_count, option_selected, coords, dim);
@@ -796,10 +833,9 @@ draw_onscreen_notifications(Onscreen_Notifications *n, Vector2_s32 window_dim, f
         text_coords.x = (window_dim.x / 2.0f) - (string_info.dim.x / 2.0f) + string_info.baseline.x;
         text_coords.y = above_text_coord + string_info.baseline.y + 10.0f;
 
-        if (n->times[i] == 0.0f)
-            print("yo\n");
-
-        draw_string(n->font, n->memory[i], text_coords, pixel_height, n->colors[i]);
+        Vector4 color = n->colors[i];
+        clamp(&color.a, 0.0f, 1.0f);
+        draw_string(n->font, n->memory[i], text_coords, pixel_height, color);
 
         above_text_coord = text_coords.y;
     }

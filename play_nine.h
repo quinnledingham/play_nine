@@ -7,10 +7,8 @@ TODO
 - fix spacing in lobby
 
 - (gui_textbox) add undoing and select all
-- changing name in lobby for online game
-- going back to lobby in scoreboard when player leaves
-- fix timer always drawing if less than 3s
 - add victory screen
+- show hole scores on hud
 
 Assets
 - Put mtl and map_Kd files into asset file
