@@ -57,8 +57,8 @@ enum Game_Input {
 internal void next_player(Game *game);
 
 #include "play_nine_raytrace.cpp"
-#include "play_nine_init.cpp"
 #include "play_nine_score.cpp"
+#include "play_nine_init.cpp"
 #include "play_nine_online.cpp"
 #include "play_nine_bitmaps.cpp"
 #include "play_nine_menus.cpp"
@@ -96,6 +96,7 @@ next_player(Game *game) {
             game->game_over = true;
         }
 
+        fill_total_scores(game);
         return; // Don't need to move ahead a player now
     }
 

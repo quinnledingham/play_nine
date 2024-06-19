@@ -366,11 +366,11 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
     char total_text[4]; // max score = 12 * 8 * 9 = 864
     menu_text(menu, "Total", text_color, { 0, scroll_length + 1 }, { 1, 1 });
     for (s32 player_index = 0; player_index < (s32)game->num_of_players; player_index++) {
-        u32 player_total = 0;
-        for (u32 i = 0; i < game->holes_played; i++)
-            player_total += game->players[player_index].scores[i];
+        //u32 player_total = 0;
+        //for (u32 i = 0; i < game->holes_played; i++)
+        //    player_total += game->players[player_index].scores[i];
         platform_memory_set(total_text, 0, 4);
-        s32_to_char_array(total_text, 4, player_total);
+        s32_to_char_array(total_text, 4, game->players[player_index].total_score);
         menu_text(menu, total_text, text_color, { player_index + 1, scroll_length + 1 }, { 1, 1 }); 
     }
 

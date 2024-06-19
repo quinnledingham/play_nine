@@ -92,3 +92,27 @@ get_number_flipped(bool8 *flipped) {
     }
     return number_flipped;
 }
+
+internal void
+fill_total_scores(Game *game) {
+    for (s32 player_index = 0; player_index < (s32)game->num_of_players; player_index++) {
+        game->players[player_index].total_score = 0;
+        for (u32 i = 0; i < game->holes_played; i++)
+            game->players[player_index].total_score += game->players[player_index].scores[i];
+    }
+}
+
+internal Player*
+get_winner(Game *game) {
+    Player *winner = &game->players[0];
+    for(u32 i = 1; i < game->num_of_players; i++) {
+        if (winner->total_score == game->players[i].total_score)
+            return 0;
+
+        if (winner->total_score > game->players[i].total_score)
+            winner = &game->players[i];
+    }
+
+    return winner;
+}
+

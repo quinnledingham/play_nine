@@ -121,6 +121,12 @@ clamp(float32 *value, float32 low, float32 high) {
         *value = high;
 }
 
+// returns coordinate to center inner dim in outer dim
+inline float32
+center(float32 outer, float32 inner) {
+    return (outer / 2.0f) - (inner / 2.0f);
+}
+
 //
 // Vector3
 //

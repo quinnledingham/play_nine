@@ -1,11 +1,10 @@
 /*
 TODO
 - Show keyboard controls
-- Make lobby menu go back to pause from menu (change play to start new game)
 - More music/sounds
-- Add game settings (number of holes)
-- fix spacing in lobby
+- Add game settings (Any others)
 
+- fix pause menu spacing
 - (gui_textbox) add undoing and select all
 - add victory screen
 - show hole scores on hud
@@ -65,6 +64,7 @@ Card indices
 struct Player {
     char name[MAX_NAME_SIZE];
     s32 scores[MAX_HOLES];
+    s32 total_score;
 
     u32 cards[HAND_SIZE];     // indices to global deck array
     bool8 flipped[HAND_SIZE];

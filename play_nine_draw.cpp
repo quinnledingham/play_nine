@@ -552,14 +552,19 @@ draw_game_hud(State *state, Vector2_s32 window_dim, App_Input *input, bool8 full
         hole_number -= 1;
     get_hole_text(hole_text, hole_number, state->game.holes_length);
 
+    const char *round_type_text = round_types[state->game.round_type];
+    if (state->game.game_over) {
+        round_type_text = "Game Over";
+    }
+    
     String_Draw_Info hole_string_info = get_string_draw_info(font, hole_text, -1, hole_pixel_height);
-    String_Draw_Info string_info = get_string_draw_info(font, round_types[state->game.round_type], -1, pixel_height);
+    String_Draw_Info string_info = get_string_draw_info(font, round_type_text, -1, pixel_height);
 
     Vector2 hole_coords = { padding, padding };
     Vector2 round_coords = hole_coords + Vector2{ 0.0f, 2.0f + hole_string_info.dim.y };
 
     draw_string_tl(font, hole_text, hole_coords, hole_pixel_height, { 255, 255, 255, 1 });
-    draw_string_tl(font, round_types[state->game.round_type], round_coords, pixel_height, { 255, 255, 255, 1 });
+    draw_string_tl(font, round_type_text, round_coords, pixel_height, { 255, 255, 255, 1 });
 
     gui.start();
     gui.rect.coords = { 0, 0 };
@@ -588,16 +593,45 @@ draw_game_hud(State *state, Vector2_s32 window_dim, App_Input *input, bool8 full
     } else if (state->game.round_type == HOLE_OVER) {
 
         Vector2 dim = { button_width, pixel_height };
-        Vector2 next_coords = { gui.rect.dim.x - dim.x - padding, gui.rect.dim.y - dim.y - padding - dim.y - padding };
         Vector2 scoreboard_coords = { gui.rect.dim.x - dim.x - padding, gui.rect.dim.y - dim.y - padding };
+        Vector2 next_coords = scoreboard_coords;
+        next_coords.y -= dim.y + padding;
+        Vector2 lobby_coords = next_coords;
+        lobby_coords.y -= dim.y + padding;
 
         if (full_menu) {
             const char *play_button_text;
-            if (!state->game.game_over)
+            if (!state->game.game_over) {
                 play_button_text = "Next Hole";
-            else
+            } else {
                 play_button_text = "Play Again";
+
+                Player *winner = get_winner(&state->game);
+                char buffer[MAX_NAME_SIZE + 6];
+                platform_memory_set(buffer, 0, MAX_NAME_SIZE + 6);
+                if (winner) {
+                    const char *wins_string = " Wins!";
+                    u32 name_length = get_length(winner->name);
+                    platform_memory_copy(buffer, winner, name_length);
+                    platform_memory_copy(buffer + name_length, (void *)wins_string, 6);
+                } else {
+                    platform_memory_copy(buffer, "Tie", 3);
+                }
                 
+                String_Draw_Info string_info = get_string_draw_info(font, buffer, -1, pixel_height);
+                Vector2 winner_coords = { 0, 10 };
+                winner_coords.x = center(float32(window_dim.x), string_info.dim.x);
+                draw_string_tl(font, buffer, winner_coords, pixel_height, { 255, 255, 255, 1 });
+                
+                if (gui_button(&gui, default_style, "Lobby", lobby_coords, dim)) {
+                    state->menu_list.previous_mode = PAUSE_MENU;
+                    state->menu_list.mode = LOCAL_MENU;
+
+                    if (state->mode == MODE_SERVER)
+                        server_send_menu_mode(state->menu_list.mode);
+                }
+            }
+            
             if (gui_button(&gui, default_style, play_button_text, next_coords, dim)) {
                 state->menu_list.mode = IN_GAME;
                 if (!state->game.game_over)

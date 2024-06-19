@@ -192,5 +192,7 @@ get_test_game() {
 
     game.players[0].scores[0] = -10;
 
+    fill_total_scores(&game);
+    
     return game;
 }
