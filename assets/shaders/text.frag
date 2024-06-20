@@ -22,7 +22,7 @@ vec4 to_linear(vec4 sRGB) {
 
 void main() {
     vec4 norm_text_color = vec4(text.color.x/255, text.color.y/255, text.color.z/255, text.color.w);
-    norm_text_color = to_linear(norm_text_color);
+    //norm_text_color = to_linear(norm_text_color);
 
     float alpha = texture(texSampler[fragIndex], fragTexCoord).r * text.color.a;
     vec4 tex = vec4(1.0, 1.0, 1.0, alpha);

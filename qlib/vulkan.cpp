@@ -4,7 +4,7 @@
 
 internal VKAPI_ATTR VkBool32 VKAPI_CALL
 vulkan_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
-	print("validation layer: %s\n", callback_data->pMessage);
+	print("(vulkan) %s\n", callback_data->pMessage);
 	return VK_FALSE;
 }
 
@@ -388,12 +388,12 @@ vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
 		VK_FORMAT_R8G8B8A8_SRGB
 	}; 
 	
-	for (u32 i = 0; i < count; i++) {
+/*	for (u32 i = 3; i < count; i++) {
 		if ((formats[i].format == vulkan_target_formats[0] || formats[i].format == vulkan_target_formats[1])
 		    && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
 			return formats[i];
 		}
-	}
+	}*/
 
 	logprint("(vulkan) choose_swap_surface_format", "Picking default format\n(vulkan) Other formats available:\n");
 	for (u32 i = 0; i < count; i++) {
@@ -458,7 +458,7 @@ vulkan_create_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	create_info.imageColorSpace = surface_format.colorSpace;
 	create_info.imageExtent = extent;
 	create_info.imageArrayLayers = 1;
-	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
 	u32 queue_family_indices[2] = { info->indices.graphics_and_compute_family.index, info->indices.present_family.index };
 
@@ -496,7 +496,7 @@ vulkan_create_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 		info->swap_chain_textures[i].image_format = info->swap_chain_image_format;
 		info->swap_chain_textures[i].image = swap_chain_images[i];
 	}
-
+	
 	platform_free(swap_chain_support.formats);
 	platform_free(swap_chain_support.present_modes);
 }
@@ -534,7 +534,7 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 		final_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
 	VkAttachmentDescription color_attachment = {};
-	color_attachment.format         = info->swap_chain_image_format;
+	color_attachment.format         = info->draw_textures[0].image_format;
 	color_attachment.samples        = info->msaa_samples;
 	color_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	color_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
@@ -566,7 +566,7 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	depth_attachment_ref.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentDescription color_attachment_resolve = {};
-	color_attachment_resolve.format         = info->swap_chain_image_format;
+	color_attachment_resolve.format         = info->draw_textures[0].image_format;
 	color_attachment_resolve.samples        = VK_SAMPLE_COUNT_1_BIT;
 	color_attachment_resolve.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment_resolve.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
@@ -595,6 +595,7 @@ vulkan_create_draw_render_pass(Vulkan_Info *info) {
 	dependencies[0].srcAccessMask = 0;
 	dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 	
 	/*
 	ALLOWS FOR SECOND RENDER PASS
@@ -1550,7 +1551,7 @@ vulkan_create_depth_resources(Vulkan_Info *info) {
 
 internal void
 vulkan_create_color_resources() {
-	vulkan_info.color_texture.image_format = vulkan_info.swap_chain_image_format;
+	vulkan_info.color_texture.image_format = vulkan_info.draw_textures[0].image_format;
 
   vulkan_create_image(vulkan_info.device, vulkan_info.physical_device, render_context.resolution.width, render_context.resolution.height, 1, vulkan_info.msaa_samples, vulkan_info.color_texture.image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vulkan_info.color_texture.image, vulkan_info.color_texture.image_memory);
   vulkan_info.color_texture.image_view = vulkan_create_image_view(vulkan_info.device, vulkan_info.color_texture.image, vulkan_info.color_texture.image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
@@ -1690,7 +1691,8 @@ vulkan_create_render_image_views(Vulkan_Info *info) {
 	for (u32 i = 0; i < info->swap_chain_textures.get_size(); i++) {
 		info->swap_chain_textures[i].image_view = vulkan_create_image_view(info->device, info->swap_chain_textures[i].image, info->swap_chain_image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
-		info->draw_textures[i].image_format = info->swap_chain_image_format;
+		//info->draw_textures[i].image_format = info->swap_chain_image_format;
+		info->draw_textures[i].image_format = VK_FORMAT_B8G8R8A8_UNORM;
 		vulkan_create_image(info->device, info->physical_device, render_context.resolution.width, render_context.resolution.height, 1, VK_SAMPLE_COUNT_1_BIT, info->draw_textures[i].image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, info->draw_textures[i].image, info->draw_textures[i].image_memory);
 		info->draw_textures[i].image_view = vulkan_create_image_view(info->device, info->draw_textures[i].image, info->draw_textures[i].image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 		vulkan_create_sampler(&info->draw_textures[i].sampler, TEXTURE_PARAMETERS_DEFAULT, 1);

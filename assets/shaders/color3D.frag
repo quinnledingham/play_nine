@@ -33,7 +33,7 @@ vec4 to_linear(vec4 sRGB) {
 void main() {
     float power = 2.2;
     vec4 col = vec4(color.c.x/255, color.c.y/255, color.c.z/255, color.c.w);
-    col = to_linear(col);
+    //col = to_linear(col);
 
     vec3 light_position = light.position.rgb;
     vec3 light_color = light.color.rgb;

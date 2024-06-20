@@ -27,7 +27,7 @@ Render.cpp
 - make sprite sheet for textures like for cards and for fonts
 
 vulkan.h
-- (sRGB) fix ethan's color issue
+- (sRGB) fix ethan's color issue - okay this is more of an issue
 */
 
 global s8 deck[DECK_SIZE];

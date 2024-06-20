@@ -110,7 +110,7 @@ void opengl_graphics_pipeline_cleanup(Render_Pipeline *pipe) {
 
 }
 
-void opengl_compute_pipeline_cleanup(Compute_Pipeline *pipe) {
+void opengl_compute_pipeline_cleanup(Render_Pipeline *pipe) {
 
 }
 
@@ -374,7 +374,7 @@ void opengl_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32
 
 }
 
-void opengl_create_compute_pipeline(Compute_Pipeline *pipeline) {
+void opengl_create_compute_pipeline(Render_Pipeline *pipeline) {
 
 }
 

@@ -63,7 +63,7 @@ using namespace std;
 //#pragma message("OPENGL")
 
 #include <gl.h>
-#include <gl.c>
+//#include <gl.c>
 
 #elif VULKAN
 
@@ -169,6 +169,12 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) {
 #include "dx12.cpp"
 
 #endif // OPENGL / VULKAN / DX12
+
+#ifdef STEAM
+
+#include "steam_api.h"
+
+#endif // STEAM
 
 #include "play_nine.cpp"
 
@@ -345,6 +351,7 @@ sdl_set_icon(Bitmap *icon, SDL_Window *sdl_window) {
 int main(int argc, char *argv[]) {
     print("starting application...\n");
 
+
     app.time.performance_frequency = SDL_GetPerformanceFrequency();
     app.time.start_ticks           = SDL_GetPerformanceCounter();
     app.time.last_frame_ticks      = app.time.start_ticks;
@@ -371,6 +378,19 @@ int main(int argc, char *argv[]) {
     	print(SDL_GetError());
     	return 1;
     }
+
+#ifdef STEAM
+
+    if (SteamAPI_RestartAppIfNecessary(480)) {
+        return 1;
+    }
+
+    if (!SteamAPI_Init()) {
+        logprint("main()", "SteamAPI_Init() failed\n" );
+        return 1;
+    }
+    const char *name = SteamFriends()->GetPersonaName();
+#endif // STEAM
 
     if (SDL_HasScreenKeyboardSupport() == SDL_TRUE)
         print("Has Screen Keyboard Support!\n");
@@ -434,6 +454,13 @@ int main(int argc, char *argv[]) {
     render_wait_frame();
     event_handler(&app, APP_EXIT, 0) ;
     render_cleanup();
+
+#ifdef STEAM
+
+    SteamAPI_Shutdown();
+
+#endif // STEAM
+    
     SDL_DestroyWindow(sdl_window);
 
 	return 0;
