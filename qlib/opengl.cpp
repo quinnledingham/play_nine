@@ -50,20 +50,22 @@ opengl_msaa() {
     glBindFramebuffer(GL_FRAMEBUFFER, opengl_info.framebuffer);
 
     // create a multisampled color attachment texture
-    u32 samples = 1;
-    if (render_context.anti_aliasing) {
-        samples = 4;
+    if (gfx.anti_aliasing) {
+        opengl_info.msaa_samples = 8;
+    } else {
+        opengl_info.msaa_samples = 1;
     }
+    
     glGenTextures(1, &opengl_info.texture_color_buffer_multisampled);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, opengl_info.texture_color_buffer_multisampled);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGB, gfx.resolution.width, gfx.resolution.height, GL_TRUE);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, opengl_info.msaa_samples, GL_RGB, gfx.resolution.width, gfx.resolution.height, GL_TRUE);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, opengl_info.texture_color_buffer_multisampled, 0);
     
     // create a multisampled renderbuffer object for depth and stencil attachments
     glGenRenderbuffers(1, &opengl_info.rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, opengl_info.rbo);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, gfx.resolution.width, gfx.resolution.height);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, opengl_info.msaa_samples, GL_DEPTH24_STENCIL8, gfx.resolution.width, gfx.resolution.height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, opengl_info.rbo);    
 
@@ -102,8 +104,9 @@ bool8 opengl_sdl_init(SDL_Window *sdl_window) {
     // Also request a depth buffer
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   24);
-    
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
     
     SDL_GLContext Context = SDL_GL_CreateContext(sdl_window);
     SDL_GL_SetSwapInterval(0); // vsync: 0 off, 1 on

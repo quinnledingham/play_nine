@@ -7,6 +7,8 @@ struct OpenGL_Mesh {
 struct OpenGL_Info {
     SDL_Window *sdl_window;
 
+    u32 msaa_samples;
+
     u32 framebuffer;
     u32 texture_color_buffer_multisampled;
     u32 rbo;

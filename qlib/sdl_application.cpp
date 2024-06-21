@@ -173,6 +173,8 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) {
 #ifdef STEAM
 
 #include "steam_api.h"
+#include "isteamfriends.h"
+#include "isteammatchmaking.h"
 
 #endif // STEAM
 
@@ -391,6 +393,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     const char *name = SteamFriends()->GetPersonaName();
+
+    Steam_Manager local_steam_manager;
+    steam_manager = &local_steam_manager;
 #endif // STEAM
 
     if (SDL_HasScreenKeyboardSupport() == SDL_TRUE)
@@ -424,6 +429,12 @@ int main(int argc, char *argv[]) {
             SDL_SetRelativeMouseMode(SDL_TRUE);
         else 
             SDL_SetRelativeMouseMode(SDL_FALSE);
+
+#ifdef STEAM
+
+        SteamAPI_RunCallbacks();
+        
+#endif // STEAM
 
         if (sdl_process_input(&app, &app.window, &app.input, sdl_window)) 
             break;

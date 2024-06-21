@@ -39,6 +39,13 @@ server_disconnect_client(Online_Player *player) {
 
 internal void
 close_server() {
+
+#ifdef STEAM
+
+    SteamMatchmaking()->LeaveLobby(steam_manager->lobby_id);
+
+#endif // STEAM
+
     os_terminate_thread(online.server_handle);
     online.close_threads = true;
     for (u32 i = 0; i < 5; i++) {
@@ -184,6 +191,15 @@ THREAD_RETURN play_nine_server(void *parameters) {
         add_onscreen_notification(&state->notifications, "Unable to start server"); 
         return 0;
     }
+
+#ifdef STEAM
+
+    steam_manager->create_lobby(k_ELobbyTypeFriendsOnly, 6);
+    u32 port;
+    char_array_to_u32(state->host_port, &port);
+    SteamMatchmaking()->SetLobbyGameServer(steam_manager->lobby_id, 0x7f000001, (u16)port, k_steamIDNil);
+
+#endif // STEAM
 
     while (1) {
         qsock_listen(online.sock);

@@ -56,6 +56,12 @@ enum Game_Input {
 
 internal void next_player(Game *game);
 
+#ifdef STEAM
+
+#include "play_nine_steam.cpp"
+
+#endif // STEAM
+
 #include "play_nine_raytrace.cpp"
 #include "play_nine_score.cpp"
 #include "play_nine_init.cpp"
@@ -64,6 +70,7 @@ internal void next_player(Game *game);
 #include "play_nine_menus.cpp"
 #include "play_nine_draw.cpp"
 #include "play_nine_bot.cpp"
+
 
 //
 // game logic
