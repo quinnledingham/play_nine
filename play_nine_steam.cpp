@@ -26,8 +26,8 @@ void Steam_Manager::on_game_overlay_activated(GameOverlayActivated_t *pCallback)
   }
 }
 
-void Steam_Manager::lobby_game_created(LobbyGameCreated_t *p_callback) {
-  
+void Steam_Manager::lobby_game_created(LobbyGameCreated_t *pCallback) {
+  print("ip: %d\n", pCallback->m_unIP); 
 }
 
 void Steam_Manager::create_lobby(ELobbyType eLobbyType, int cMaxMembers)  {

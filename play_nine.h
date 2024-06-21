@@ -11,6 +11,7 @@ TODO
 
 Assets
 - Put mtl and map_Kd files into asset file
+- make opengl output glsl files to proper folder
 
 Bot
 - Add look ahead, so the bot doesnt give pairs to next player
