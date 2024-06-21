@@ -115,7 +115,7 @@ void *platform_malloc(u32 size) {
 void platform_free(void *ptr)   { 
     SDL_free(ptr); 
 }
-void platform_memory_copy(void *dest, void *src, u32 num_of_bytes) { 
+void platform_memory_copy(void *dest, const void *src, u32 num_of_bytes) { 
     SDL_memcpy(dest, src, num_of_bytes); 
 }
 void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { 

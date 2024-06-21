@@ -615,7 +615,8 @@ draw_game_hud(State *state, Vector2_s32 window_dim, App_Input *input, bool8 full
                     platform_memory_copy(buffer, winner, name_length);
                     platform_memory_copy(buffer + name_length, (void *)wins_string, 6);
                 } else {
-                    platform_memory_copy(buffer, "Tie", 3);
+                    const char *tie_string = "Tie";
+                    platform_memory_copy(buffer, tie_string, 3);
                 }
                 
                 String_Draw_Info string_info = get_string_draw_info(font, buffer, -1, pixel_height);

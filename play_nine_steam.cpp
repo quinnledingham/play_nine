@@ -1,5 +1,5 @@
 struct Steam_Manager {
-  u64 lobby_id;
+  uint64 lobby_id;
   
   STEAM_CALLBACK(Steam_Manager, on_game_overlay_activated, GameOverlayActivated_t);
   STEAM_CALLBACK(Steam_Manager, lobby_game_created, LobbyGameCreated_t);
