@@ -659,7 +659,7 @@ bool8 init_data(App *app) {
 
     global_assets = &state->assets;
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
     
     if (load_and_save_assets) {
         if (load_asset_files_from_ethan(&state->assets, "../assets.ethan"))

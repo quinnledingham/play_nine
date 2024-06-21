@@ -1,23 +1,28 @@
 void GLAPIENTRY opengl_debug_message_callback(GLenum source, GLenum type, GLuint id,  GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+        return;
+    
     print("GL CALLBACK:");
-    print("message: %s\n", message);
+    print(" message: %s", message);
     switch (type)
     {
-        case GL_DEBUG_TYPE_ERROR:               print("type: ERROR");               break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: print("type: DEPRECATED_BEHAVIOR"); break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  print("type: UNDEFINED_BEHAVIOR");  break;
-        case GL_DEBUG_TYPE_PORTABILITY:         print("type: PORTABILITY");         break;
-        case GL_DEBUG_TYPE_PERFORMANCE:         print("type: PERFORMANCE");         break;
-        case GL_DEBUG_TYPE_OTHER:               print("type: OTHER");               break;
+        case GL_DEBUG_TYPE_ERROR:               print(" type: ERROR");               break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: print(" type: DEPRECATED_BEHAVIOR"); break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  print(" type: UNDEFINED_BEHAVIOR");  break;
+        case GL_DEBUG_TYPE_PORTABILITY:         print(" type: PORTABILITY");         break;
+        case GL_DEBUG_TYPE_PERFORMANCE:         print(" type: PERFORMANCE");         break;
+        case GL_DEBUG_TYPE_OTHER:               print(" type: OTHER");               break;
     }
-    print("id: %d", id);
+    print(" id: %d", id);
     switch(severity)
     {
-        case GL_DEBUG_SEVERITY_LOW:    print("severity: LOW");    break;
-        case GL_DEBUG_SEVERITY_MEDIUM: print("severity: MEDIUM"); break;
-        case GL_DEBUG_SEVERITY_HIGH:   print("severity: HIGH");   break;
+        case GL_DEBUG_SEVERITY_LOW:    print(" severity: LOW");    break;
+        case GL_DEBUG_SEVERITY_MEDIUM: print(" severity: MEDIUM"); break;
+        case GL_DEBUG_SEVERITY_HIGH:   print(" severity: HIGH");   break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION: print(" severity: ZERO"); break;
     }
+    print("\n");
 }
 
 void opengl_debug(int type, int id)
@@ -40,11 +45,49 @@ void opengl_debug(int type, int id)
 }
 
 internal void
-opengl_msaa(u32 samples, u32 width, u32 height) {
-    u32 msaa;
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msaa);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGB, width, height, GL_TRUE);
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);  
+opengl_msaa() {
+    glGenFramebuffers(1, &opengl_info.framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, opengl_info.framebuffer);
+
+    // create a multisampled color attachment texture
+    u32 samples = 1;
+    if (render_context.anti_aliasing) {
+        samples = 4;
+    }
+    glGenTextures(1, &opengl_info.texture_color_buffer_multisampled);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, opengl_info.texture_color_buffer_multisampled);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGB, gfx.resolution.width, gfx.resolution.height, GL_TRUE);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, opengl_info.texture_color_buffer_multisampled, 0);
+    
+    // create a multisampled renderbuffer object for depth and stencil attachments
+    glGenRenderbuffers(1, &opengl_info.rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, opengl_info.rbo);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, gfx.resolution.width, gfx.resolution.height);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, opengl_info.rbo);    
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        logprint("opengl_sdl_init", "Framebuffer is not complete\n");
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // configure second post-processing framebuffer
+    glGenFramebuffers(1, &opengl_info.intermediate_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, opengl_info.intermediate_fbo);
+    
+    // create a color attachment texture
+    glGenTextures(1, &opengl_info.screen_texture);
+    glBindTexture(GL_TEXTURE_2D, opengl_info.screen_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, gfx.resolution.width, gfx.resolution.height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);    
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, opengl_info.screen_texture, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        logprint("opengl_sdl_init", "Intermediate framebuffer is not complete\n");
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 bool8 opengl_sdl_init(SDL_Window *sdl_window) {
@@ -60,6 +103,8 @@ bool8 opengl_sdl_init(SDL_Window *sdl_window) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   24);
     
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+    
     SDL_GLContext Context = SDL_GL_CreateContext(sdl_window);
     SDL_GL_SetSwapInterval(0); // vsync: 0 off, 1 on
     
@@ -72,18 +117,25 @@ bool8 opengl_sdl_init(SDL_Window *sdl_window) {
 
     opengl_info.sdl_window = sdl_window;
 
+#if DEBUG
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(opengl_debug_message_callback, 0);
+#endif // DEBUG
+
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
-    glEnable(GL_FRAMEBUFFER_SRGB); 
+    //glEnable(GL_FRAMEBUFFER_SRGB); 
     glPointSize(4.0f);
-    glEnable(GL_MULTISAMPLE);  
 
-    //glEnable(GL_CULL_FACE);  
+    glEnable(GL_CULL_FACE);  
     glCullFace(GL_BACK);
     glFrontFace(GL_CW);  
+    glEnable(GL_MULTISAMPLE);  
 
     //glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-
+    
+    opengl_msaa();
+    
     return 0;
 }
 
@@ -91,19 +143,34 @@ void opengl_clear_color(Vector4 color) {
     glClearColor(color.r, color.g, color.b, color.a);
 }
 
-bool8 opengl_start_frame() {
+bool8 opengl_start_frame() {    
     u32 gl_clear_flags = 
             GL_COLOR_BUFFER_BIT  | 
             GL_DEPTH_BUFFER_BIT  | 
             GL_STENCIL_BUFFER_BIT;
 
     glClear(gl_clear_flags);
-
+    glBindFramebuffer(GL_FRAMEBUFFER, opengl_info.framebuffer);
+    
+    glClear(gl_clear_flags);
+    
     return 0;
 }
 
 void opengl_end_frame(Assets *assets, App_Window *window) {
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, opengl_info.framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, opengl_info.intermediate_fbo);
+    glBlitFramebuffer(0, 0, gfx.resolution.width, gfx.resolution.height, 0, 0, gfx.resolution.width, gfx.resolution.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, opengl_info.intermediate_fbo);
+    glBlitFramebuffer(0, 0, gfx.resolution.width, gfx.resolution.height, 0, 0, gfx.window_dim.width, gfx.window_dim.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
     SDL_GL_SwapWindow(opengl_info.sdl_window);
+
+    if (window->resized) {
+        opengl_msaa();
+    }
 }
 
 void opengl_graphics_pipeline_cleanup(Render_Pipeline *pipe) {
@@ -216,9 +283,6 @@ void opengl_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
 
 }
 
-void opengl_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
-
-}
 
 void opengl_pipeline_cleanup(Render_Pipeline *pipe) {
 
@@ -294,13 +358,20 @@ void opengl_update_ubo(Descriptor desc, void *data) {
 // this is where I am connect memory to a point in the shader
 void opengl_set_uniform_block_binding(u32 shader_handle, const char *tag, u32 index) {
     u32 tag_uniform_block_index = glGetUniformBlockIndex(shader_handle, tag);
+    if (tag_uniform_block_index == GL_INVALID_INDEX) {
+        logprint("opengl_set_uniform_block_binding", "invalid index\n");
+        return;
+    }
+    
     glUniformBlockBinding(shader_handle, tag_uniform_block_index, index);
+
+    u32 test = GL_MAX_UNIFORM_BUFFER_BINDINGS;
 }
 
 void opengl_bind_descriptor_set(Descriptor desc) {
     switch(desc.binding.descriptor_type) {
         case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-            opengl_set_uniform_block_binding(global_shader_handle, "scene", 0); 
+            opengl_set_uniform_block_binding(global_shader_handle, "Scene", 0); 
 
             glBindBufferBase(GL_UNIFORM_BUFFER, desc.binding.binding, *(u32*)desc.handle);
             glBindBuffer(GL_UNIFORM_BUFFER, *desc.handle);
@@ -316,7 +387,7 @@ void opengl_bind_descriptor_set(Descriptor desc) {
             }
 
             s32 values[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15  };
-            glUniform1iv(glGetUniformLocation(global_shader_handle, "texSampler"), 16, values);
+            glUniform1iv(glGetUniformLocation(global_shader_handle, "texSampler"), desc.binding.descriptor_count, values);
 
         } break;
     }
@@ -352,6 +423,9 @@ u32 opengl_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
 }
 
 void opengl_delete_texture(Bitmap *bitmap) {
+    if (!bitmap->gpu_info)
+        return;
+    
     glDeleteTextures(1, (u32*)bitmap->gpu_info);
 }
 
@@ -367,6 +441,8 @@ void opengl_create_set_layout(Layout *layout) {
 }
 
 void opengl_allocate_descriptor_set(Layout *layout) {
+    //s32 values[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15  };
+    //glUniform1iv(glGetUniformLocation(global_shader_handle, "texSampler"), layout->bindings[0].descriptor_count, values);
 
 }
 
@@ -437,7 +513,7 @@ void opengl_compile_shader(Shader *shader) {
     if (shader->handle != 0) glDeleteProgram(shader->handle);
     shader->handle = glCreateProgram();
     
-    if (shader->files[0].memory == 0) {
+    if (shader->spirv_files[0].memory == 0) {
         logprint("compile_shader(Shader *shader)", "vertex shader required\n");
         return;
     }
@@ -447,6 +523,16 @@ void opengl_compile_shader(Shader *shader) {
 
         File glsl_file = compile_spirv_to_glsl(&shader->spirv_files[i]);
         glsl_file.filepath = shader->files[i].filepath;
+
+#if DEBUG
+        if (glsl_file.filepath) {
+            const char *filename = get_filename(glsl_file.filepath);
+            FILE *file = fopen(filename, "wb");
+            fwrite(glsl_file.memory, glsl_file.size, 1, file);
+            fclose(file);
+            platform_free((void*)filename);
+        }
+#endif // DEBUG
 
         u32 new_part = opengl_compile_glsl((char*)glsl_file.memory, opengl_shader_file_types[i]);
 
@@ -468,6 +554,10 @@ void opengl_compile_shader(Shader *shader) {
     }
 
     shader->compiled = true;
+}
+
+void opengl_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
+    opengl_compile_shader(pipeline->shader);
 }
 
 //
@@ -528,6 +618,8 @@ init_bitmap_gpu_handle(Bitmap *bitmap, u32 texture_parameters) {
     }
     
     glBindTexture(target, 0);
+
+    //opengl_msaa(*(u32*)bitmap->gpu_info, 8, bitmap->width, bitmap->height);
 }
 
 void opengl_create_texture(Bitmap *bitmap, u32 texture_parameters) { 

@@ -39,6 +39,10 @@ public:
 			platform_free(data);
 		data = (T*)platform_malloc(data_size);
 	}
+
+	~Arr() {
+		platform_free(data);
+	}
 };
 
 struct LL_Node

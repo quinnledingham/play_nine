@@ -381,6 +381,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef STEAM
 
+    // overrides steam_appid.txt
     if (SteamAPI_RestartAppIfNecessary(480)) {
         return 1;
     }

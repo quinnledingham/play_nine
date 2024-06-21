@@ -120,15 +120,13 @@ struct Vulkan_Info {
 		
 	// swap_chain
 	VkSwapchainKHR swap_chains[1];
+	VkExtent2D swap_chain_extent; // size of window, size of swap_chain_images
 	
 	Arr<Vulkan_Texture> draw_textures; // where the frame gets drawn before swap chain buffer
 	Arr<Vulkan_Texture> swap_chain_textures;
 	
 	Arr<VkFramebuffer> draw_framebuffers;
 	Arr<VkFramebuffer> swap_chain_framebuffers; // framebuffers for the swap_chain
-	
-	VkExtent2D swap_chain_extent; // size of window, size of swap_chain_images
-	VkFormat swap_chain_image_format;
 	
 	u32 current_frame; // which frame to fill ie. MAX_FRAMES_IN_FLIGHT = 2 either 0 or 1
 	// Set at the start of the frame for the current frame.
@@ -168,11 +166,6 @@ struct Vulkan_Info {
 	u32 allocated_descriptors_storage_buffer;
 };
 
-inline VkCommandBuffer
-vulkan_active_cmd_buffer(Vulkan_Info *info) {
-	return *info->active_command_buffer;
-}
-
 struct Vulkan_Mesh {
     u32 vertices_offset;
     u32 indices_offset;
@@ -181,13 +174,6 @@ struct Vulkan_Mesh {
     u32 uniform_size; // size of the individual uniforms
 };
 
-#define VULKAN_STATIC_BUFFER_SIZE 100000
-#define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 1000000
-#define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000
-
-global Vulkan_Info vulkan_info = {};
-Render_Pipeline present_pipeline;
-
 struct Vulkan_Version {
 	u32 variant;
 	u32 major;
@@ -195,3 +181,11 @@ struct Vulkan_Version {
 	u32 patch;
 };
 
+#define VK_CMD(i) *i.active_command_buffer
+
+#define VULKAN_STATIC_BUFFER_SIZE 100000
+#define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 1000000
+#define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000
+
+global Vulkan_Info vulkan_info = {};
+Render_Pipeline present_pipeline;

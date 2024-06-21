@@ -565,7 +565,7 @@ init_assets(Assets *assets) {
             case ASSET_TYPE_BITMAP: {
                 render_create_texture(&asset->bitmap, TEXTURE_PARAMETERS_CHAR);
             } break;
-            case ASSET_TYPE_SHADER: render_compile_shader(&asset->shader); break;
+            //case ASSET_TYPE_SHADER: render_compile_shader(&asset->shader); break;
             case ASSET_TYPE_AUDIO:                                         break;
             case ASSET_TYPE_MODEL:  init_model(&asset->model);             break;
         }

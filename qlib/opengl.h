@@ -6,6 +6,12 @@ struct OpenGL_Mesh {
 
 struct OpenGL_Info {
     SDL_Window *sdl_window;
+
+    u32 framebuffer;
+    u32 texture_color_buffer_multisampled;
+    u32 rbo;
+    u32 intermediate_fbo;
+    u32 screen_texture;
 };
 
 OpenGL_Info opengl_info = {};

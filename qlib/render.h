@@ -43,7 +43,7 @@ Descriptor light_set;
 Descriptor light_set_2;
 Layout layouts[11];
 
-#define TEXTURE_ARRAY_SIZE   64
+#define TEXTURE_ARRAY_SIZE   16
 #define MAX_FRAMES_IN_FLIGHT  2
 
 struct Light {
@@ -119,7 +119,6 @@ RENDER_FUNC(void, init_mesh, Mesh *mesh);
 RENDER_FUNC(void, draw_mesh, Mesh *mesh);
 RENDER_FUNC(void, set_viewport, u32 window_width, u32 window_height);
 RENDER_FUNC(void, set_scissor, s32 x, s32 y, u32 window_width, u32 window_height);
-RENDER_FUNC(void, compile_shader, Shader *shader);
 RENDER_FUNC(void, assets_cleanup, Assets *assets);
 RENDER_FUNC(void, wait_frame, );
 RENDER_FUNC(void, depth_test, bool32 enable);
@@ -142,7 +141,8 @@ enum Resolution_Modes {
     RESOLUTION_2160P
 };
 
-internal float32 get_resolution_scale(u32 resolution_mode) {
+internal float32 
+get_resolution_scale(u32 resolution_mode) {
     float32 resolution_scales[4] = {
         0.25f,
         0.5f,
@@ -208,11 +208,11 @@ struct Render {
 */
 };
 
-void Render::scissor_pop() {
-    scissor_stack_index--;
-    Rect rect = scissor_stack[scissor_stack_index - 1];
-    render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);
-}
 
 global Render render_context = {};
 
+#define gfx render_context
+
+struct GFX {
+
+};

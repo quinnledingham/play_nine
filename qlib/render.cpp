@@ -44,3 +44,13 @@ update_camera_with_keys(Camera *camera, Vector3 target, Vector3 up_v, Vector3 ma
     if (up)       camera->position.y += magnitude.y;
     if (down)     camera->position.y -= magnitude.y;
 }
+
+//
+// GFX
+//
+
+void Render::scissor_pop() {
+    scissor_stack_index--;
+    Rect rect = scissor_stack[scissor_stack_index - 1];
+    render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);
+}
