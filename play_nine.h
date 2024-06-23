@@ -9,6 +9,8 @@ TODO
 - add victory screen
 - show hole scores on hud
 
+- fix crashing when enter invalid port
+
 Assets
 - Put mtl and map_Kd files into asset file
 - make opengl output glsl files to proper folder
