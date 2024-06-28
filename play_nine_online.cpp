@@ -195,8 +195,6 @@ THREAD_RETURN play_nine_server(void *parameters) {
 #ifdef STEAM
 
     steam_manager->create_lobby(k_ELobbyTypeFriendsOnly, 6);
-    u32 port;
-    char_array_to_u32(state->host_port, &port);
 
 #endif // STEAM
 
@@ -236,7 +234,7 @@ THREAD_RETURN play_nine_server(void *parameters) {
         os_release_mutex(state->mutex);
 
         online.players[player_index].thread_handle = os_create_thread(play_nine_server_com, (void*)&online.players[player_index]);
-        SteamMatchmaking()->SetLobbyGameServer(steam_manager->lobby_id, 0x7f000001, (u16)port, k_steamIDNil);
+
     }
 
     return 0;

@@ -26,8 +26,19 @@ void Steam_Manager::on_game_overlay_activated(GameOverlayActivated_t *pCallback)
   }
 }
 
+union IP_Address {
+  struct {
+    u8 d, c, b, a;
+  };
+  u32 decimal;
+  u8 E[4];
+};
+
 void Steam_Manager::lobby_game_created(LobbyGameCreated_t *pCallback) {
-  print("ip: %d\n", pCallback->m_unIP); 
+  IP_Address address = {};
+  address.decimal = pCallback->m_unIP;
+  
+  print("ip: %d.%d.%d.%d\n", address.a, address.b, address.c, address.d); 
 }
 
 void Steam_Manager::create_lobby(ELobbyType eLobbyType, int cMaxMembers)  {
@@ -41,7 +52,7 @@ void Steam_Manager::on_lobby_created(LobbyCreated_t *pCallback, bool bIOFailure)
       return;
     }
 
-    print("(steam) Lobby Created");
+    print("(steam) Lobby Created\n");
 
     lobby_id = pCallback->m_ulSteamIDLobby;
 }
