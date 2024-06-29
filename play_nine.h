@@ -3,8 +3,8 @@ TODO
 - Show keyboard controls
 - More music/sounds
 - Add game settings (Any others)
+- add controller support
 
-- fix pause menu spacing
 - (gui_textbox) add undoing and select all
 - add victory screen
 - show hole scores on hud
@@ -27,7 +27,6 @@ Render.cpp
 - Add wireframe toggle
 - Clean up global pipelines, lights, and layout sets
 - add target frame rate
-- make sprite sheet for textures like for cards and for fonts
 
 vulkan.h
 - (sRGB) fix ethan's color issue - okay this is more of an issue

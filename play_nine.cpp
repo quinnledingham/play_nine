@@ -240,7 +240,21 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
 }
 
 internal void
-do_controller_selected_update(bool8 selected[SELECTED_SIZE],  Controller *controller) {
+do_controller_selected_update(bool8 selected[SELECTED_SIZE], bool8 pressed[SELECTED_SIZE], Controller *controller) {
+    platform_memory_set(pressed, 0, sizeof(bool8) * SELECTED_SIZE);
+    
+    for (u32 i = 0; i < HAND_SIZE; i++) {
+        if (is_down(controller->buttons[i])) {
+            pressed[i] = true;
+        }
+    }    
+
+    if (is_down(controller->pile)) {
+        pressed[PICKUP_PILE] = true;
+    } else if (is_down(controller->discard)) {
+        pressed[DISCARD_PILE] = true;
+    }
+    
     for (u32 i = 0; i < HAND_SIZE; i++) {
         if (on_up(controller->buttons[i])) {
             selected[i] = true;
@@ -341,10 +355,10 @@ bool8 update_game(State *state, App *app) {
             bool8 selected[SELECTED_SIZE] = {};
             
             if (state->is_active) {
-                //if (app->input.active == MOUSE_INPUT)
+                if (app->input.active == MOUSE_INPUT)
                     do_mouse_selected_update(state, app, selected);
-                //else if (app->input.active == KEYBOARD_INPUT)
-                    do_controller_selected_update(selected, &state->controller);
+                else if (app->input.active == KEYBOARD_INPUT)
+                    do_controller_selected_update(selected, draw->highlight_pressed, &state->controller);
 
                 if (state->pass_selected) {
                     selected[PASS_BUTTON] = true;

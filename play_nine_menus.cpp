@@ -249,13 +249,14 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     window_rect.dim    = cv2(window_dim);
     menu->gui.rect = get_centered_rect(window_rect, 0.5f, 0.3f);
 
-    menu->sections = { 1, 3 };
     if (full_menu) {
+        menu->sections = { 1, 3 };
         menu->interact_region[0] = { 0, 0 };
         menu->interact_region[1] = { 1, 3 };
     } else {
+        menu->sections = { 1, 2 };
         menu->interact_region[0] = { 0, 1 };
-        menu->interact_region[1] = { 1, 3 };
+        menu->interact_region[1] = { 1, 2 };
     }
 
     menu->start();
@@ -267,8 +268,10 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
 
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
 
+    s32 menu_row = 0;
+
     if (full_menu) {
-        if (menu_button_confirm(menu, "End Game", "(Again to confirm)", { 0, 0 }, { 1, 1 })) {
+        if (menu_button_confirm(menu, "End Game", "(Again to confirm)", { 0, menu_row++ }, { 1, 1 })) {
             state->menu_list.previous_mode = PAUSE_MENU;
             state->menu_list.mode = LOCAL_MENU;
             menu->hover_section = menu->interact_region[0];
@@ -279,12 +282,12 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
         }
     }
     
-    if (menu_button(menu, "Settings", { 0, 1 }, { 1, 1 })) {
+    if (menu_button(menu, "Settings", { 0, menu_row++ }, { 1, 1 })) {
         state->menu_list.previous_mode = PAUSE_MENU;
         state->menu_list.mode = SETTINGS_MENU;
     }
 
-    if (menu_button_confirm(menu, "Main Menu", "(Again to confirm)", { 0, 2 }, { 1, 1 })) {
+    if (menu_button_confirm(menu, "Main Menu", "(Again to confirm)", { 0, menu_row++ }, { 1, 1 })) {
         quit_to_main_menu(state, menu);
     }
     menu->end();
