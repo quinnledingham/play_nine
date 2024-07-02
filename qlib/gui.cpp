@@ -178,7 +178,7 @@ ui_button(UI *ui, Vector2 coords, Vector2 dim, const char *text) {
 
 internal void
 gui_do_keyboard_input(GUI *gui) {
-    if (*gui->input.active_input_type != KEYBOARD_INPUT)
+    if (*gui->input.active_input_type == MOUSE_INPUT)
         return;
     
     if (gui->hover == 0 && gui->active == 0) // if nothing it hovered to begin with set it to first
@@ -216,6 +216,7 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
 
     Button gui_select = {};
     switch(*gui->input.active_input_type) {
+        case CONTROLLER_INPUT:
         case KEYBOARD_INPUT: gui_select = *gui->input.select;     break;
         case MOUSE_INPUT:    gui_select = *gui->input.mouse_left; break;
     }
@@ -618,6 +619,7 @@ menu_update_hot(GUI_Input *input, Vector2_s32 *hover_updated, Vector2_s32 sectio
 internal void
 do_menu_update(Menu *menu, Vector2 coords, Vector2 dim, Vector2_s32 section_coords, Vector2_s32 section_dim) {
     switch(*menu->gui.input.active_input_type) {
+        case CONTROLLER_INPUT:
         case KEYBOARD_INPUT: {
             if (menu_in_dim(section_coords, section_dim, menu->hover_section)) {
                 menu->hover_section_updated = section_coords; // sends it back to the top of the section

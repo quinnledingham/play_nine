@@ -240,7 +240,7 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
 }
 
 internal void
-do_controller_selected_update(bool8 selected[SELECTED_SIZE], bool8 pressed[SELECTED_SIZE], Controller *controller) {
+do_keyboard_selected_update(bool8 selected[SELECTED_SIZE], bool8 pressed[SELECTED_SIZE], Controller *controller) {
     platform_memory_set(pressed, 0, sizeof(bool8) * SELECTED_SIZE);
     
     for (u32 i = 0; i < HAND_SIZE; i++) {
@@ -276,6 +276,105 @@ all_false(bool8 selected[SELECTED_SIZE]) {
     }
     return true;
 }
+
+internal s32
+get_input_index(bool8 *hovered) {
+    for (u32 i = 0; i < SELECTED_SIZE; i++) {
+        if (hovered[i])
+            return (s32)i;
+    }
+    return GI_SIZE;
+}
+
+internal void
+do_controller_selected_update(u8 turn_stage, Game *game, Controller *controller, bool8 *hovered, bool8 *pressed, bool8 *selected) {
+    if (turn_stage == FLIP_CARD || turn_stage == SELECT_CARD) {
+        if (all_false(hovered)) {
+            hovered[0] = true;
+        }
+        s32 hover_index = get_input_index(hovered);
+        u32 direction = RIGHT;
+
+        if (on_down(controller->left)) {
+            if (hover_index != 0) {
+                hovered[hover_index - 1] = true;
+                hovered[hover_index] = false;
+                direction = LEFT;
+            }
+        }
+        if (on_down(controller->right)) {
+            if (hover_index < 7) {
+                hovered[hover_index + 1] = true;
+                hovered[hover_index] = false;
+                direction = RIGHT;
+            }
+        }
+        if (on_down(controller->forward)) {
+            if (hover_index > 3 && hover_index <= 7) {
+                hovered[hover_index - 4] = true;
+                hovered[hover_index] = false;
+            } else if (turn_stage == SELECT_CARD && game->pile_card && hover_index <= 3) {
+                hovered[GI_DISCARD_PILE] = true;
+                hovered[hover_index] = false;
+            }
+        }
+        if (on_down(controller->backward)) {
+            if (hover_index == GI_DISCARD_PILE) {
+                hovered[2] = true;
+                hovered[hover_index] = false;
+            } else if (hover_index < 4) {
+                hovered[hover_index + 4] = true;
+                hovered[hover_index] = false;
+            }
+        }
+
+        if (turn_stage == FLIP_CARD) {
+            hover_index = get_input_index(hovered);
+            while (game->players[game->active_player].flipped[hover_index]) {
+                hovered[hover_index] = false;
+                if (direction == RIGHT)
+                    hover_index++;
+                else if (direction = LEFT)
+                    hover_index--;
+                
+                if (hover_index >= 8)
+                    hover_index = 0;
+                if (hover_index < 0)
+                    hover_index = 7;
+                hovered[hover_index] = true;
+            }
+        }
+    } else if (turn_stage == SELECT_PILE) {
+        if (all_false(hovered)) {
+            hovered[GI_PICKUP_PILE] = true;
+        }
+
+        if (on_down(controller->left)) {
+            hovered[GI_PICKUP_PILE] = true;
+            hovered[GI_DISCARD_PILE] = false;
+        }
+        if (on_down(controller->right)) {
+            hovered[GI_PICKUP_PILE] = false;
+            hovered[GI_DISCARD_PILE] = true;
+        }
+    }
+
+    if (on_down(controller->select)) {
+        platform_memory_copy(pressed, hovered, sizeof(bool8) * SELECTED_SIZE);
+    }
+    if (on_up(controller->select)) {
+        platform_memory_copy(selected, hovered, sizeof(bool8) * SELECTED_SIZE);
+
+        for (u32 i = 0; i < SELECTED_SIZE; i++) {
+            if (selected[i] && !pressed[i])
+                selected[i] = false;
+        }
+
+        platform_memory_set(hovered, 0, sizeof(bool8) * SELECTED_SIZE);
+        platform_memory_set(pressed, 0, sizeof(bool8) * SELECTED_SIZE);
+    }
+}
+
 
 internal void
 print_vector3(const char *name, Vector3 v) {
@@ -358,7 +457,9 @@ bool8 update_game(State *state, App *app) {
                 if (app->input.active == MOUSE_INPUT)
                     do_mouse_selected_update(state, app, selected);
                 else if (app->input.active == KEYBOARD_INPUT)
-                    do_controller_selected_update(selected, draw->highlight_pressed, &state->controller);
+                    do_keyboard_selected_update(selected, draw->highlight_pressed, &state->controller);
+                else if (app->input.active == CONTROLLER_INPUT)
+                    do_controller_selected_update(state->game.turn_stage, game, &state->controller, draw->highlight_hover, draw->highlight_pressed, selected);
 
                 if (state->pass_selected) {
                     selected[PASS_BUTTON] = true;
@@ -476,18 +577,6 @@ prepare_controller_for_input(Controller *controller) {
         controller->buttons[j].previous_state = controller->buttons[j].current_state;
     }
 }
-
-internal void
-controller_process_input(Controller *controller, s32 id, bool8 state) {
-    for (u32 i = 0; i < ARRAY_COUNT(controller->buttons); i++) {
-        // loop through all ids associated with button
-        for (u32 j = 0; j < controller->buttons[i].num_of_ids; j++) {
-            if (id == controller->buttons[i].ids[j]) 
-                controller->buttons[i].current_state = state;
-        }
-    }
-}
-
 
 bool8 update(App *app) {
     State *state = (State *)app->data;
@@ -776,18 +865,24 @@ bool8 init_data(App *app) {
     // Input
     set(&state->controller.forward, 'w');
     set(&state->controller.forward, SDLK_UP);
+    set_controller(&state->controller.forward, SDL_CONTROLLER_BUTTON_DPAD_UP);
     set(&state->controller.backward, SDLK_s);
     set(&state->controller.backward, SDLK_DOWN);
+    set_controller(&state->controller.backward, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
     set(&state->controller.left, SDLK_a);
     set(&state->controller.left, SDLK_LEFT);
+    set_controller(&state->controller.left, SDL_CONTROLLER_BUTTON_DPAD_LEFT);
     set(&state->controller.right, SDLK_d);
     set(&state->controller.right, SDLK_RIGHT);
+    set_controller(&state->controller.right, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
 
     set(&state->controller.up, SDLK_SPACE);
     set(&state->controller.down, SDLK_LSHIFT);
 
     set(&state->controller.select, SDLK_RETURN);
+    set_controller(&state->controller.select, SDL_CONTROLLER_BUTTON_A);
     set(&state->controller.pause,  SDLK_ESCAPE);
+    set_controller(&state->controller.pause,  SDL_CONTROLLER_BUTTON_START);
     set(&state->controller.pass,   SDLK_p); 
 
 #ifdef DEBUG
@@ -890,6 +985,29 @@ bool8 init_data(App *app) {
     return false;
 }
 
+internal void
+controller_process_input(Controller *controller, s32 id, bool8 state, u8 type) {
+    for (u32 button_index = 0; button_index < ARRAY_COUNT(controller->buttons); button_index++) {
+        // loop through all ids associated with button
+        for (u32 id_index = 0; id_index < controller->buttons[button_index].num_of_ids; id_index++) {
+            Button_ID *button_id = &controller->buttons[button_index].ids[id_index];
+            if (id == button_id->id && type == button_id->type) 
+                controller->buttons[button_index].current_state = state;
+        }
+    }
+}
+
+internal void
+controller_input(Controller *controller, App_Input *input, u32 menu_mode, u32 arg, bool8 button_state, u8 button_type) {
+    u32 previous_active = input->active;
+    
+    // eat input when switching from mouse to keyboard if it is not escape and in menu
+    if (previous_active == MOUSE_INPUT && menu_mode != IN_GAME && arg != 27)
+        return;
+    
+    controller_process_input(controller, arg, button_state, button_type);
+}
+
 s32 event_handler(App *app, App_System_Event event, u32 arg) {
     State *state = (State *)app->data;
 
@@ -931,28 +1049,26 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
         }
 
+        case APP_KEYUP:
         case APP_KEYDOWN: {
-            u32 previous_active = app->input.active;
             app->input.active = KEYBOARD_INPUT;
-            if (previous_active == MOUSE_INPUT && state->menu_list.mode != IN_GAME && arg != 27) break;
-            controller_process_input(&state->controller, arg, true);
+            controller_input(&state->controller, &app->input, state->menu_list.mode, arg, event - APP_KEYUP, BUTTON_ID_TYPE_KEYBOARD);
         } break;
-
-        case APP_KEYUP: {
-            u32 previous_active = app->input.active;
-            app->input.active = KEYBOARD_INPUT;
-            if (previous_active == MOUSE_INPUT && state->menu_list.mode != IN_GAME && arg != 27) break;
-            controller_process_input(&state->controller, arg, false);
+        
+        case APP_CONTROLLER_BUTTONUP:
+        case APP_CONTROLLER_BUTTONDOWN: {
+            app->input.active = CONTROLLER_INPUT;
+            controller_input(&state->controller, &app->input, state->menu_list.mode, arg, event - APP_CONTROLLER_BUTTONUP, BUTTON_ID_TYPE_CONTROLLER);
         } break;
-
+        
         case APP_MOUSEDOWN: {
             app->input.active = MOUSE_INPUT;
-            controller_process_input(&state->controller, arg, true);
+            controller_process_input(&state->controller, arg, true, BUTTON_ID_TYPE_KEYBOARD);
         } break;
 
         case APP_MOUSEUP: {
             app->input.active = MOUSE_INPUT;
-            controller_process_input(&state->controller, arg, false);
+            controller_process_input(&state->controller, arg, false, BUTTON_ID_TYPE_KEYBOARD);
         } break;
     }
 

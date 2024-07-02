@@ -3,7 +3,9 @@ TODO
 - Show keyboard controls
 - More music/sounds
 - Add game settings (Any others)
-- add controller support
+
+- improve how controller moves hover around in game
+- make it easier to see what card is hovered
 
 - (gui_textbox) add undoing and select all
 - add victory screen
@@ -107,6 +109,17 @@ struct Game {
     float32 turn_time;
 };
 
+enum Direction {
+    DIRECTION_NONE,
+    
+    RIGHT,
+    UP,
+    LEFT,
+    DOWN,
+
+    DIRECTION_SIZE
+};
+
 enum Menu_Mode {
     MAIN_MENU,
     LOCAL_MENU,
@@ -201,4 +214,3 @@ struct State {
 };
 
 enum Online_Mode *global_mode;
-

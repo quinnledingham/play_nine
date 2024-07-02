@@ -1,20 +1,38 @@
-struct Button {
+enum Button_ID_Type {
+    BUTTON_ID_TYPE_KEYBOARD,
+    BUTTON_ID_TYPE_CONTROLLER,
+    BUTTON_ID_TYPE_MOUSE
+};
+
+struct Button_ID {
     s32 id;
-    
-    s32 ids[3];
+    u8 type;
+};
+
+struct Button {    
+    //s32 ids[3];
+    Button_ID ids[3];
     u32 num_of_ids;
     
     bool8 current_state; 
     bool8 previous_state;    
 };
 
-inline void 
+inline Button_ID*
 set(Button *button, s32 id)  {
     if (button->num_of_ids > 2)
         logprint("set()", "too many ids trying to be assigned to button\n");
     
-    button->ids[button->num_of_ids++] = id;
-    button->id = id; 
+    Button_ID *button_id = &button->ids[button->num_of_ids++];
+    button_id->id = id;
+    button_id->type = BUTTON_ID_TYPE_KEYBOARD;
+    return button_id;
+}
+
+inline void
+set_controller(Button *button, s32 id) {
+    Button_ID *button_id = set(button, id);
+    button_id->type = BUTTON_ID_TYPE_CONTROLLER;
 }
 
 inline bool8 

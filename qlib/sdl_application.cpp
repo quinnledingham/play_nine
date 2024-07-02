@@ -219,6 +219,38 @@ sdl_get_clipboard_text(App_Input *input) {
     app_copy_string_to_input_buffer(input, clipboard_text);
 }
 
+struct SDL_Input {
+    SDL_Joystick *joysticks[4];
+    SDL_GameController *game_controllers[4];
+    u32 num_of_joysticks;
+    u32 num_of_game_controllers;
+};
+
+internal void
+sdl_init_controllers(SDL_Input *input) {
+    input->num_of_joysticks = SDL_NumJoysticks();
+    for (u32 i = 0; i < input->num_of_joysticks; i++) {
+        input->joysticks[i] = SDL_JoystickOpen(i);
+        if (SDL_IsGameController(i)) {
+            print("(sdl) %s\n", SDL_JoystickName(input->joysticks[i]));
+
+            input->game_controllers[i] = SDL_GameControllerOpen(i);
+            input->num_of_game_controllers++;
+        }
+    }
+}
+
+internal float32
+sdl_process_stick_value(s16 value, s16 dead_zone) {
+    float32 result = 0;
+    if (value < -dead_zone) {
+        result = float32((value + dead_zone) / (32768.0f - dead_zone));
+    } else if (value > dead_zone) {
+        result = float32((value - dead_zone) / (32767.0f - dead_zone));
+    }
+    return result;
+}
+
 internal bool8
 sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sdl_window) {
     window->resized = false;
@@ -336,7 +368,51 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
                     break;
                 }
                 event_handler(app, APP_KEYUP, key_id);
+            } break;
+
+            case SDL_CONTROLLERBUTTONDOWN: {
+                SDL_ControllerButtonEvent *button_event = &event.cbutton;
+                
+                event_handler(app, APP_CONTROLLER_BUTTONDOWN, button_event->button);
             } break;    
+            
+            case SDL_CONTROLLERBUTTONUP: {
+                SDL_ControllerButtonEvent *button_event = &event.cbutton;
+                
+                event_handler(app, APP_CONTROLLER_BUTTONUP, button_event->button);
+            } break;    
+
+            case SDL_CONTROLLERAXISMOTION: {
+                SDL_ControllerAxisEvent *axis_event = &event.caxis;
+
+                u32 button_low = 0;
+                u32 button_high = 0;
+
+                if (axis_event->axis == SDL_CONTROLLER_AXIS_LEFTX) {
+                    button_low  = SDL_CONTROLLER_BUTTON_DPAD_LEFT;
+                    button_high = SDL_CONTROLLER_BUTTON_DPAD_RIGHT;
+                } else if (axis_event->axis == SDL_CONTROLLER_AXIS_LEFTY) {
+                    button_low  = SDL_CONTROLLER_BUTTON_DPAD_UP;
+                    button_high = SDL_CONTROLLER_BUTTON_DPAD_DOWN;
+                } else {
+                    break;
+                }
+                        
+                float32 threshold = 0.5f;
+                s16 dead_zone_threshold = 5000;
+                float32 value = sdl_process_stick_value(axis_event->value, dead_zone_threshold);
+                
+                App_System_Event event_low = APP_CONTROLLER_BUTTONUP;
+                App_System_Event event_high = APP_CONTROLLER_BUTTONUP;
+                
+                if ((value < -threshold) ? 1 : 0)
+                    event_low = APP_CONTROLLER_BUTTONDOWN;
+                else if ((value > threshold) ? 1 : 0)
+                    event_high = APP_CONTROLLER_BUTTONDOWN;
+                
+                event_handler(app, event_low, button_low);
+                event_handler(app, event_high, button_high);
+            } break;
 		    }
     }
 
@@ -416,6 +492,9 @@ int main(int argc, char *argv[]) {
         return 1;
 
     sdl_set_icon(app.icon, sdl_window);
+
+    SDL_Input sdl_input = {};
+    sdl_init_controllers(&sdl_input);
     
     srand(SDL_GetTicks());
 
