@@ -99,8 +99,6 @@ struct App {
 
 s32 event_handler(App *app, App_System_Event event, u32 arg);
 
-App app = {};
-
 internal void
 app_copy_string_to_input_buffer(App_Input *input, char *string) {
     while(*string != 0 && input->buffer_index < ARRAY_COUNT(input->buffer)) {

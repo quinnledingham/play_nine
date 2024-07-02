@@ -427,8 +427,9 @@ sdl_set_icon(Bitmap *icon, SDL_Window *sdl_window) {
 }
 
 int main(int argc, char *argv[]) {
-    print("starting application...\n");
-
+    print("(sdl) starting application...\n");
+    
+    App app = {};
 
     app.time.performance_frequency = SDL_GetPerformanceFrequency();
     app.time.start_ticks           = SDL_GetPerformanceCounter();
@@ -436,8 +437,8 @@ int main(int argc, char *argv[]) {
     
     u32 sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO;
     if (SDL_Init(sdl_init_flags)) {
-    	print(SDL_GetError());
-    	return 1;
+        print(SDL_GetError());
+        return 1;
     }
 
     qsock_init_qsock();
@@ -472,10 +473,11 @@ int main(int argc, char *argv[]) {
 
     Steam_Manager local_steam_manager;
     steam_manager = &local_steam_manager;
+    
 #endif // STEAM
 
     if (SDL_HasScreenKeyboardSupport() == SDL_TRUE)
-        print("Has Screen Keyboard Support!\n");
+        print("(sdl) Has Screen Keyboard Support!\n");
     
     SDL_GetWindowSize(sdl_window, &app.window.width, &app.window.height);
     SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -483,12 +485,13 @@ int main(int argc, char *argv[]) {
 
     render_context.window_dim = app.window.dim;
     render_context.resolution = app.window.dim;
+    
     if (render_sdl_init(sdl_window)) {
         logprint("main()", "Failed to init renderer\n");
         return 1;
     }
     
-    if (event_handler(&app, APP_INIT, 0) == 1)
+    if (event_handler(&app, APP_INIT, 0))
         return 1;
 
     sdl_set_icon(app.icon, sdl_window);
@@ -527,19 +530,6 @@ int main(int argc, char *argv[]) {
 
         if (app.update(&app))
             break;
-
-
-        // Audio
-        /*
-        mix_audio(&app.player, app.time.frame_time_s);
-        if (app.player.length > 0) {
-            if (SDL_QueueAudio(app.player.device_id, app.player.buffer, app.player.length))
-                print("%s\n", SDL_GetError());
-            print("audio: %d\n",  app.player.length);
-            platform_memory_set(app.player.buffer, 0, app.player.max_length); 
-        }
-        */
-        //SDL_Delay(5);
     }
 
     render_wait_frame();
@@ -554,5 +544,5 @@ int main(int argc, char *argv[]) {
     
     SDL_DestroyWindow(sdl_window);
 
-	return 0;
+    return 0;
 }

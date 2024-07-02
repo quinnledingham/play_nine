@@ -263,8 +263,11 @@ gui_button(GUI *gui, Draw_Style style, const char *text, Vector2 coords, Vector2
     draw_button(style, state, rect, text, gui->font, gui->text_align);
 
     if (gui->index == gui->pressed) {
-        if (previous_pressed != gui->pressed)       
-            play_sound("TAP");
+        if (previous_pressed != gui->pressed) {
+            if (gui->audio_player != 0 && gui->pressed_sound != 0) {
+                play_audio(gui->audio_player, gui->pressed_sound, AUDIO_TYPE_SOUND_EFFECT);
+            }
+        }
     }
 
     bool8 button_pressed = false;

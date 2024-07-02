@@ -131,8 +131,10 @@ struct GUI {
     bool8 close_at_end;
 
     // Audio
-    Audio hovered;
-    Audio activated;
+    Audio_Player *audio_player;
+    Audio *hovered_sound;
+    Audio *pressed_sound;
+    Audio *activated_sound;
 
     void start() { 
         index = 1; 
@@ -148,32 +150,8 @@ struct GUI {
         pressed = 0;
         active = 0;
         edit.index = 0;
-    }
-    
-/*
-    bool8 is_hover(Rect rect) {
-        bool8 hover = false;
-        
-        if (input.active_input_type == KEYBOARD_INPUT) {
-
-            if (gui->hover == 0)
-                gui->hover = 1;
-        } else if (input.active_input_type == MOUSE_INPUT) {
-            gui_select = *gui->input.mouse_left;
-
-            if (coords_in_rect(*gui->input.mouse, coords, dim)) {
-                gui->hover = gui->index;
-            } else if (gui->hover == gui->index) {
-                gui->hover = 0;
-            }
-        }
-
-        return hover;
-    }
-    */
+    }    
 };
-
-GUI gui = {};
 
 //
 // Menu

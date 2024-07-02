@@ -476,6 +476,5 @@ inline Shader* find_shader(Assets *assets, const char *tag) { return (Shader*) f
 inline Model*  find_model (Assets *assets, const char *tag) { return (Model*)  find_asset(assets, ASSET_TYPE_MODEL,  tag); }
 inline Audio*  find_audio (Assets *assets, const char *tag) { return (Audio*)  find_asset(assets, ASSET_TYPE_AUDIO,  tag); }
 
-Assets *global_assets;
 
 #endif // ASSETS_H

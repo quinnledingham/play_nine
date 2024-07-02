@@ -44,7 +44,6 @@ enum Game_Input {
 #define HAND_SIZE       8
 #define DECK_SIZE     108
 #define MAX_HOLES      20 // max holes that can be played in one gamed
-//#define GAME_LENGTH     2 // play NINE
 
 #define DRAW_SIGNALS_AMOUNT 6
 
@@ -55,6 +54,19 @@ enum Game_Input {
 #include "play_nine_online.h"
 
 internal void next_player(Game *game);
+
+internal void
+play_sound(const char *tag) {
+    Audio *audio = find_audio(global_assets, tag);
+    play_audio(audio_player, audio, AUDIO_TYPE_SOUND_EFFECT); 
+}
+
+internal void
+play_music(const char *tag) {
+    Audio *audio = find_audio(global_assets, tag);
+    play_audio(audio_player, audio, AUDIO_TYPE_MUSIC); 
+}
+
 
 #ifdef STEAM
 
@@ -767,8 +779,6 @@ bool8 init_data(App *app) {
     *state = {};
     state->assets = {};
 
-    global_assets = &state->assets;
-
     bool8 load_and_save_assets = false;
     
     if (load_and_save_assets) {
@@ -847,9 +857,7 @@ bool8 init_data(App *app) {
 #endif // DEBUG
 
     init_pipelines(&state->assets);
-
     init_shapes(&state->assets);
-    //clean_assets(&state->assets);
 
     // Rendering
     state->camera.position = { 0, 14, -5 };
@@ -1019,12 +1027,15 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             //render_start_frame();
             //render_end_frame();
 
+            audio_player = &app->player;
             init_audio_player(&app->player);
 
             app->update = &update;
+            
             if (init_data(app))
                 return 1;
-            State *state = (State *)app->data;
+            state = (State *)app->data; // init data allocates new memory for data
+            
             app->icon = find_bitmap(&state->assets, "ICON");
         } break;
 

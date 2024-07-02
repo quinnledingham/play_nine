@@ -6,12 +6,15 @@ TODO
 
 - improve how controller moves hover around in game
 - make it easier to see what card is hovered
+- change hud buttons to use other controller buttons
+- controller with textboxs?
+
+- hide test menu unless in debug
+- make scoreboard look better
 
 - (gui_textbox) add undoing and select all
 - add victory screen
 - show hole scores on hud
-
-- fix crashing when enter invalid port
 
 Assets
 - Put mtl and map_Kd files into asset file
@@ -33,8 +36,6 @@ Render.cpp
 vulkan.h
 - (sRGB) fix ethan's color issue - okay this is more of an issue
 */
-
-global s8 deck[DECK_SIZE];
 
 enum Round_Types {
     FLIP_ROUND,
@@ -214,3 +215,7 @@ struct State {
 };
 
 enum Online_Mode *global_mode;
+global s8 deck[DECK_SIZE];
+GUI gui = {};
+Assets *global_assets;
+Audio_Player *audio_player; // play_sound & play_music

@@ -14,7 +14,7 @@ set CF_DEFAULT= -MD -nologo -Gm- -GR- -EHa- -Od -Oi -FC -Z7 -W3 -EHsc -D_CRT_SEC
 set CF_SDL= /I..\sdl-vc\include -DSDL
 set CF_OPENGL= /I..\glad -DOPENGL
 set CF_VULKAN= /I%VULKAN_SDK%\Include -DVULKAN
-set CF_STEAM= /I..\steam -DSTEAM
+set CF_STEAM= /I..\steam -DSTEAM2
 
 set LF_DEFAULT= -incremental:no -opt:ref -subsystem:windows
 set LF_SDL= shell32.lib ..\sdl-vc\lib\x64\SDL2main.lib ..\sdl-vc\lib\x64\SDL2.lib

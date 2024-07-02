@@ -661,18 +661,6 @@ play_audio(Audio_Player *player, Audio *audio, u32 type) {
 }
 
 internal void
-play_sound(const char *tag) {
-    Audio *audio = find_audio(global_assets, tag);
-    play_audio(&app.player, audio, AUDIO_TYPE_SOUND_EFFECT); 
-}
-
-internal void
-play_music(const char *tag) {
-    Audio *audio = find_audio(global_assets, tag);
-    play_audio(&app.player, audio, AUDIO_TYPE_MUSIC); 
-}
-
-internal void
 mix_audio(Audio_Player *player, float32 frame_time_s) {
     float32 samples_per_second = 22050.0f; // frequency
     u32 bytes_padding = 100;
