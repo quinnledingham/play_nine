@@ -779,7 +779,7 @@ bool8 init_data(App *app) {
     *state = {};
     state->assets = {};
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
     
     if (load_and_save_assets) {
         if (load_asset_files_from_ethan(&state->assets, "../assets.ethan"))
@@ -814,6 +814,7 @@ bool8 init_data(App *app) {
 
     default_font = find_font(&state->assets, "CASLON");
 
+    global_assets = &state->assets;
     print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 
     if (load_and_save_assets) {
@@ -847,7 +848,6 @@ bool8 init_data(App *app) {
 
     clear_font_bitmap_cache(default_font);
     
-    global_assets = &state->assets;
     init_layouts(layouts, find_bitmap(&state->assets, "BACK"));
     
 #if DEBUG
@@ -871,7 +871,7 @@ bool8 init_data(App *app) {
     update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
 
     // Input
-    set(&state->controller.forward, 'w');
+    set(&state->controller.forward, SDLK_w);
     set(&state->controller.forward, SDLK_UP);
     set_controller(&state->controller.forward, SDL_CONTROLLER_BUTTON_DPAD_UP);
     set(&state->controller.backward, SDLK_s);

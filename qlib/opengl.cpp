@@ -528,12 +528,16 @@ void opengl_compile_shader(Shader *shader) {
         glsl_file.filepath = shader->files[i].filepath;
 
 #if DEBUG
+        // outputing the new glsl files to glsl folder in build folder
+        // see how they changed from going glsl -> spirv -> glsl
         if (glsl_file.filepath) {
             const char *filename = get_filename(glsl_file.filepath);
-            FILE *file = fopen(filename, "wb");
+            const char *filepath = char_array_concat("glsl/", filename);
+            FILE *file = fopen(filepath, "wb");
             fwrite(glsl_file.memory, glsl_file.size, 1, file);
             fclose(file);
             platform_free((void*)filename);
+            platform_free((void*)filepath);
         }
 #endif // DEBUG
 

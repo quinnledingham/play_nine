@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include <SDL_gamecontroller.h>
 
 //#define OS_WINDOWS
 //#define API_SDL
@@ -224,6 +225,7 @@ struct SDL_Input {
     SDL_GameController *game_controllers[4];
     u32 num_of_joysticks;
     u32 num_of_game_controllers;
+
 };
 
 internal void
@@ -372,18 +374,24 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
 
             case SDL_CONTROLLERBUTTONDOWN: {
                 SDL_ControllerButtonEvent *button_event = &event.cbutton;
+                SDL_GameController *controller = SDL_GameControllerFromInstanceID(button_event->which);
+                input->controller_type = SDL_GameControllerGetType(controller);
                 
                 event_handler(app, APP_CONTROLLER_BUTTONDOWN, button_event->button);
             } break;    
             
             case SDL_CONTROLLERBUTTONUP: {
                 SDL_ControllerButtonEvent *button_event = &event.cbutton;
+                SDL_GameController *controller = SDL_GameControllerFromInstanceID(button_event->which);
+                input->controller_type = SDL_GameControllerGetType(controller);
                 
                 event_handler(app, APP_CONTROLLER_BUTTONUP, button_event->button);
             } break;    
 
             case SDL_CONTROLLERAXISMOTION: {
                 SDL_ControllerAxisEvent *axis_event = &event.caxis;
+                SDL_GameController *controller = SDL_GameControllerFromInstanceID(axis_event->which);
+                input->controller_type = SDL_GameControllerGetType(controller);
 
                 u32 button_low = 0;
                 u32 button_high = 0;
@@ -421,6 +429,9 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
 
 internal void
 sdl_set_icon(Bitmap *icon, SDL_Window *sdl_window) {
+    if (icon == 0)
+        return;
+    
     SDL_Surface *icon_surface = SDL_CreateRGBSurfaceFrom(icon->memory, icon->dim.width, icon->dim.height, 32, icon->pitch, 0x00000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
     SDL_SetWindowIcon(sdl_window, icon_surface);
     SDL_FreeSurface(icon_surface);

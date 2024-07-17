@@ -10,12 +10,13 @@ struct Button_ID {
 };
 
 struct Button {    
-    //s32 ids[3];
     Button_ID ids[3];
     u32 num_of_ids;
+
+    u32 bitmaps[SDL_CONTROLLER_TYPE_NVIDIA_SHIELD];
     
-    bool8 current_state; 
-    bool8 previous_state;    
+    bool8 current_state;
+    bool8 previous_state;
 };
 
 inline Button_ID*
@@ -56,3 +57,14 @@ on_up(Button button) {
     else
         return false;
 }
+
+struct Entry {
+    u32 key;
+    char *value;
+};
+
+const char *prompt_folder = "../xelu/";
+
+Entry sdl_prompt_xbox_bitmaps[1] = {
+    { SDL_CONTROLLER_BUTTON_A, "Xbox Series/XboxSeriesX_A" }
+};

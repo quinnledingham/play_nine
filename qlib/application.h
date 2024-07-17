@@ -49,11 +49,6 @@ get_seconds_elapsed(App_Time *time, s64 start, s64 end) {
     return result;
 }
 
-struct App_Key_Event {
-	s32 id;
-	bool8 state; // true if pressed, false if released
-};
-
 enum Input_Type {
 	KEYBOARD_INPUT,
 	MOUSE_INPUT,
@@ -69,6 +64,7 @@ struct App_Input {
   s32 buffer_index;
 
 	enum Input_Type active; // what was the last type of input used
+	u32 controller_type; // SDL_GameControllerType
 };
 
 typedef enum {

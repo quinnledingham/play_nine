@@ -290,7 +290,8 @@ char_array_to_float32(const char *ptr, float32 *result)
 
     while (isdigit(*ptr)) num = 10.0 * num + (double)(*ptr++ - '0');
 
-    if (*ptr == '.') ptr++;
+    // @WARNING . or , based on system keyboard
+    if (*ptr == '.' || *ptr == ',') ptr++;
 
     while (isdigit(*ptr))
     {
