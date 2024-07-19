@@ -668,6 +668,7 @@ bool8 update(App *app) {
         case PAUSE_MENU:
         case IN_GAME: {                
             draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
+            //test_draw_rect();
             draw_game_hud(state, app->window.dim, &app->input, full_menu);
         } break;
     }
@@ -779,7 +780,7 @@ bool8 init_data(App *app) {
     *state = {};
     state->assets = {};
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
     
     if (load_and_save_assets) {
         if (load_asset_files_from_ethan(&state->assets, "../assets.ethan"))

@@ -77,7 +77,7 @@ struct Matrix_3x3 {
 
 struct Matrix_4x4 {
 	union {
-    	float32 E[4][4];
+		float32 E[4][4];
 		float32 F[16];
 	};
 };

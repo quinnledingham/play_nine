@@ -168,6 +168,7 @@ void draw_rect(Vector2 coords, float32 rotation, Vector2 dim, Bitmap *bitmap) {
     draw_shape(shape);
 }
 
+
 //
 // Triangle
 //

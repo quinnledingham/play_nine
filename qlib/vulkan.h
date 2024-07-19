@@ -139,6 +139,7 @@ struct Vulkan_Info {
 	union {
 		struct {
 			Vulkan_Buffer static_buffer;
+			Vulkan_Buffer dynamic_buffer;
 			Vulkan_Buffer static_uniform_buffer;
 			Vulkan_Buffer dynamic_uniform_buffer;
 

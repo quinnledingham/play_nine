@@ -1967,6 +1967,14 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                        info->static_buffer.handle,
                        info->static_buffer.memory);
+	
+	vulkan_create_buffer(info->device, 
+                       info->physical_device,
+                       VULKAN_STATIC_BUFFER_SIZE, 
+                       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                       info->dynamic_buffer.handle,
+                       info->dynamic_buffer.memory);
 
 
 	vulkan_create_buffer(info->device, 
@@ -2210,6 +2218,8 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 	}
 
 	vulkan_info.current_frame = (vulkan_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+	vulkan_info.dynamic_buffer.offset = 0;
 }
 
 //
@@ -2247,6 +2257,27 @@ void vulkan_draw_mesh(Mesh *mesh) {
 
 void vulkan_depth_test(bool32 enable) {
 	vkCmdSetDepthTestEnable(VK_CMD(vulkan_info), vulkan_bool(enable));
+}
+
+void vulkan_immediate_vertex(Vertex_XNU vertex) {
+	float32 data[8];
+	data[0] = vertex.position.x; data[1] = vertex.position.y; data[2] = vertex.position.z;
+	data[3] = vertex.normal.x; data[4] = vertex.normal.y; data[5] = vertex.normal.z;
+	data[6] = vertex.uv.x; data[7] = vertex.uv.y;
+	vulkan_update_buffer(&vulkan_info, &vulkan_info.dynamic_buffer.handle, &vulkan_info.dynamic_buffer.memory, data, sizeof(Vertex_XNU), vulkan_info.dynamic_buffer.offset);
+	vulkan_info.dynamic_buffer.offset += sizeof(Vertex_XNU);
+}
+
+void test_draw_rect() {
+    VkDeviceSize offsets[] = { vulkan_info.dynamic_buffer.offset };
+    vulkan_immediate_vertex(Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} });
+    vulkan_immediate_vertex(Vertex_XNU{ {-0.5, 0.5, 0}, {0, 0, 1}, {0, 1} });
+    vulkan_immediate_vertex(Vertex_XNU{ {0.5, -0.5, 0}, {0, 0, 1}, {1, 0} });
+    Object object = {};
+    object.model = identity_m4x4();
+    render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+    vkCmdBindVertexBuffers(VK_CMD(vulkan_info), 0, 1, &vulkan_info.dynamic_buffer.handle, offsets);
+    vkCmdDraw(VK_CMD(vulkan_info), 3, 1, 0, 0);
 }
 
 //
