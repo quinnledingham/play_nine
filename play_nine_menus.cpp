@@ -421,7 +421,10 @@ draw_host_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
         state->menu_list.mode = MAIN_MENU;
         menu->gui.close_at_end = true;        
     }
+              
     menu->end();
+    
+    draw_input_prompt({ 200, 200, 0 }, state->controller.pause);
 }
 
 internal void

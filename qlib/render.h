@@ -8,6 +8,8 @@ struct Object {
     s32 index;
 };
 
+typedef Object GFX_Object;
+
 struct Render_Pipeline {
     Shader *shader;
     bool8 compute = FALSE;
@@ -33,6 +35,7 @@ enum Pipelines {
     PIPELINE_3D_TEXT,
 
     PIPELINE_RAY,
+    PIPELINE_PROMPT,
 
     PIPELINE_COUNT
 };

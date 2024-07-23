@@ -19,6 +19,9 @@ TEXT3D|FRAGMENT,    text.frag
 
 RAY|COMPUTE, ray.comp
 
+PROMPT|VERTEX, 2D.vert
+PROMPT|FRAGMENT, prompt.frag
+
 BITMAPS:
 BACK,    back.png
 ICON,    favicon.png

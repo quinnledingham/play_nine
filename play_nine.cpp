@@ -79,6 +79,7 @@ play_music(const char *tag) {
 #include "play_nine_init.cpp"
 #include "play_nine_online.cpp"
 #include "play_nine_bitmaps.cpp"
+#include "input.cpp"
 #include "play_nine_menus.cpp"
 #include "play_nine_draw.cpp"
 #include "play_nine_bot.cpp"
@@ -771,6 +772,13 @@ bool8 init_pipelines(Assets *assets) {
     init_ray_comp_layout(&pipeline->shader->set, layouts);
     render_create_compute_pipeline(pipeline);
     
+    pipeline = &pipelines[PIPELINE_PROMPT];
+    pipeline->shader = find_shader(assets, "PROMPT");
+    pipeline->depth_test = false;
+    init_basic_vert_layout(&pipeline->shader->set, layouts);
+    init_prompt_layout(&pipeline->shader->set, layouts);
+    render_create_graphics_pipeline(pipeline, get_vertex_xu_info());
+    
     return false;
 }
 
@@ -780,7 +788,7 @@ bool8 init_data(App *app) {
     *state = {};
     state->assets = {};
 
-    bool8 load_and_save_assets = false;
+    bool8 load_and_save_assets = true;
     
     if (load_and_save_assets) {
         if (load_asset_files_from_ethan(&state->assets, "../assets.ethan"))
@@ -990,6 +998,8 @@ bool8 init_data(App *app) {
     state->notifications.text_color = { 255, 255, 255, 1 };
 
     global_mode = &state->mode;
+
+    create_input_prompt_texture(keyboard_prompts, ARRAY_COUNT(keyboard_prompts));
 
     return false;
 }

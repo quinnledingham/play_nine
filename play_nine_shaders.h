@@ -75,3 +75,8 @@ init_ray_comp_layout(Layout_Set *set, Layout layouts[11]) {
     set->add_layout(&layouts[8]);
     set->add_layout(&layouts[9]);
 }
+
+inline void
+init_prompt_layout(Layout_Set *set, Layout *layouts) {
+    set->add_layout(&layouts[3]);
+}
