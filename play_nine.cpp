@@ -788,7 +788,7 @@ bool8 init_data(App *app) {
     *state = {};
     state->assets = {};
 
-    bool8 load_and_save_assets = true;
+    bool8 load_and_save_assets = false;
     
     if (load_and_save_assets) {
         if (load_asset_files_from_ethan(&state->assets, "../assets.ethan"))
@@ -999,8 +999,13 @@ bool8 init_data(App *app) {
 
     global_mode = &state->mode;
 
-    create_input_prompt_texture(keyboard_prompts, ARRAY_COUNT(keyboard_prompts));
+    create_input_prompt_texture(keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
+    create_input_prompt_texture(xbox_prompts, ARRAY_COUNT(xbox_prompts), "../xelu/Xbox Series/XboxSeriesX_", ".png", "xbox_prompt.png");
 
+    File file = load_file("prompt.png");
+    keyboard_prompt_texture = load_bitmap(file, false);
+    render_create_texture(&keyboard_prompt_texture, TEXTURE_PARAMETERS_CHAR);
+    
     return false;
 }
 

@@ -63,6 +63,20 @@ struct Input_Prompt {
     const char *filename;
 };
 
+Input_Prompt xbox_prompts[] = {
+    { SDL_CONTROLLER_BUTTON_A, "A" },
+    { SDL_CONTROLLER_BUTTON_B, "B" },
+    { SDL_CONTROLLER_BUTTON_X, "X" },
+    { SDL_CONTROLLER_BUTTON_Y, "Y" },
+    { SDL_CONTROLLER_BUTTON_DPAD_DOWN, "Dpad_Down" },
+    { SDL_CONTROLLER_BUTTON_DPAD_LEFT, "Dpad_Left" },
+    { SDL_CONTROLLER_BUTTON_DPAD_RIGHT, "Dpad_Right" },
+    { SDL_CONTROLLER_BUTTON_DPAD_UP, "Dpad_Up" },
+    { SDL_CONTROLLER_BUTTON_LEFTSHOULDER, "LB" },
+    { SDL_CONTROLLER_BUTTON_LEFTSTICK, "Left_Stick_Click" },
+    { SDL_CONTROLLER_BUTTON_LEFT, "LB" },
+};
+
 // Matches sdl keycodes to files in the xelu prompt bitmap folder
 Input_Prompt keyboard_prompts[] = {
     { SDLK_0, "0" },

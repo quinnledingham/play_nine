@@ -53,7 +53,9 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
     if (menu_button(menu, "Quit", { 0, 6 }, { 1, 1 })) 
         return true;
 
+#ifdef DEBUG
     draw_card_bitmaps(card_bitmaps, window_dim);
+#endif // DEBUG
 
     menu->end();
 

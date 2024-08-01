@@ -1,7 +1,7 @@
 Bitmap keyboard_prompt_texture;
 
 internal void
-create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts) {
+create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts, char *folder_path, char *key_type, char *filename) {
   u32 columns = 10;
   u32 rows = (u32)ceilf(float32(num_of_prompts) / float32(columns));
   
@@ -14,8 +14,8 @@ create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts) {
   bitmap.memory = (u8 *)platform_malloc(bitmap_size);
   platform_memory_set(bitmap.memory, 0, bitmap_size);
 
-  const char *key_type = "_Key_Dark.png";
-  char *folder_path = "../xelu/Keyboard & Mouse/Dark/";
+  //const char *key_type = "_Key_Dark.png";
+  //char *folder_path = "../xelu/Keyboard & Mouse/Dark/";
   
   u32 folder_path_length = get_length(folder_path);
   char filepath[100];
@@ -39,11 +39,8 @@ create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts) {
     copy_blend_bitmap(bitmap, prompt_bitmap, position, { 255, 255, 255 });
   }
 
-  write_bitmap(&bitmap, "prompt.png");
+  write_bitmap(&bitmap, filename);
 
-  File file = load_file("prompt.png");
-  keyboard_prompt_texture = load_bitmap(file, false);
-  render_create_texture(&keyboard_prompt_texture, TEXTURE_PARAMETERS_CHAR);
 }
 
 internal u32
@@ -65,12 +62,11 @@ draw_input_prompt(Vector3 coords, Button button) {
   render_bind_pipeline(&pipelines[PIPELINE_PROMPT]);
 
   Descriptor desc = render_get_descriptor_set(&layouts[3]);
+  render_set_bitmap(&desc, &keyboard_prompt_texture);
+  render_bind_descriptor_set(desc);
   
   object.index = find_input_prompt_index(button.ids[0].id, keyboard_prompts, ARRAY_COUNT(keyboard_prompts));
-  render_set_bitmap(&desc, &keyboard_prompt_texture);
   
-  render_bind_descriptor_set(desc);
-
   coords.x += dim.x / 2.0f;
   coords.y += dim.y / 2.0f; // coords = top left corner
   object.model = create_transform_m4x4(coords, rotation, dim);
