@@ -385,7 +385,6 @@ load_name_plates(Game *game, Game_Draw *draw) {
             render_create_texture(&draw->name_plates[i], TEXTURE_PARAMETERS_CHAR);
     }
 
-    draw->name_plates_loaded = true;
 }
 
 internal void

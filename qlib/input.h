@@ -74,7 +74,6 @@ Input_Prompt xbox_prompts[] = {
     { SDL_CONTROLLER_BUTTON_DPAD_UP, "Dpad_Up" },
     { SDL_CONTROLLER_BUTTON_LEFTSHOULDER, "LB" },
     { SDL_CONTROLLER_BUTTON_LEFTSTICK, "Left_Stick_Click" },
-    { SDL_CONTROLLER_BUTTON_LEFT, "LB" },
 };
 
 // Matches sdl keycodes to files in the xelu prompt bitmap folder

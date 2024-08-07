@@ -398,32 +398,15 @@ bool8 update_game(State *state, App *app) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
 
-    // Change camera mode or menu mode
-    switch(state->camera_mode) {
-        case FREE_CAMERA: {
-            if (on_down(state->controller.pause)) {
-                state->menu_list.mode = PAUSE_MENU;
-                app->input.relative_mouse_mode = false;
-                state->paused_earlier_in_frame = true;
-            }
-    
-            if (on_down(state->controller.camera_toggle)) {
-                state->camera_mode = PLAYER_CAMERA;
-                app->input.relative_mouse_mode = false;
-            }
-        } break;
-
-        case PLAYER_CAMERA: {
-            if (on_up(state->controller.pause)) {
-                state->menu_list.mode = PAUSE_MENU;
-                state->paused_earlier_in_frame = true;                
-            }
-            
-            if (on_down(state->controller.camera_toggle)) {
-                state->camera_mode = FREE_CAMERA;
-                app->input.relative_mouse_mode = true;
-            }
-        } break;
+    // Toggle camera between player and free
+    if (on_down(state->controller.camera_toggle)) {
+        if (state->camera_mode == FREE_CAMERA) {
+            state->camera_mode = PLAYER_CAMERA;
+            app->input.relative_mouse_mode = false;
+        } else if (state->camera_mode == PLAYER_CAMERA) {
+            state->camera_mode = FREE_CAMERA;
+            app->input.relative_mouse_mode = true;
+        }
     }
 
     if (on_up(state->controller.save_camera)) {
@@ -435,78 +418,49 @@ bool8 update_game(State *state, App *app) {
         print("%f\n", state->camera.pitch);
     }
     
-    // Game update
-    switch(state->camera_mode) {
-        case PLAYER_CAMERA: {
-            // Game input
-            if (game->round_type == HOLE_OVER) {
-                float32 rot_speed = 100.0f * (float32)app->time.frame_time_s;
-                float64 mouse_rot_speed = 0.2f;
+    // Game input
+    if (state->camera_mode == PLAYER_CAMERA && game->round_type != HOLE_OVER) {
+        bool8 selected[SELECTED_SIZE] = {};
+        
+        if (state->is_active) {
+            if (app->input.active == MOUSE_INPUT)
+                do_mouse_selected_update(state, app, selected);
+            else if (app->input.active == KEYBOARD_INPUT)
+                do_keyboard_selected_update(selected, draw->highlight_pressed, &state->controller);
+            else if (app->input.active == CONTROLLER_INPUT)
+                do_controller_selected_update(state->game.turn_stage, game, &state->controller, draw->highlight_hover, draw->highlight_pressed, selected);
 
-                if (is_down(state->controller.right)) {
-                    draw->rotation += rot_speed;
-                }
-
-                if (is_down(state->controller.left)) {
-                    draw->rotation -= rot_speed;
-                }
-
-                if (on_down(state->controller.mouse_left)) {
-                    draw->mouse_down = app->input.mouse;
-                }
-
-                if (is_down(state->controller.mouse_left)) {
-                    float64 x_delta = float64(app->input.mouse.x - draw->mouse_down.x);
-                    draw->rotation -= float32(x_delta * mouse_rot_speed);
-                    draw->mouse_down = app->input.mouse;
-                }
-                
-                break; // don't need to check game input or no game logic if hole over
-            } 
-    
-            bool8 selected[SELECTED_SIZE] = {};
-            
-            if (state->is_active) {
-                if (app->input.active == MOUSE_INPUT)
-                    do_mouse_selected_update(state, app, selected);
-                else if (app->input.active == KEYBOARD_INPUT)
-                    do_keyboard_selected_update(selected, draw->highlight_pressed, &state->controller);
-                else if (app->input.active == CONTROLLER_INPUT)
-                    do_controller_selected_update(state->game.turn_stage, game, &state->controller, draw->highlight_hover, draw->highlight_pressed, selected);
-
-                if (state->pass_selected) {
-                    selected[PASS_BUTTON] = true;
-                    state->pass_selected = false;
-                }
-
-                if (state->mode == MODE_CLIENT && !all_false(selected)) {
-                    client_set_selected(online.sock, selected, state->client_game_index);
-                }
-            } else if (state->mode == MODE_SERVER && !game->players[game->active_player].is_bot) {
-                os_wait_mutex(state->selected_mutex);
-                if (!all_false(state->selected)) {
-                    platform_memory_copy(selected, state->selected, sizeof(selected[0]) * SELECTED_SIZE);
-                    platform_memory_set(state->selected, 0, sizeof(selected[0]) * SELECTED_SIZE);
-                }
-                os_release_mutex(state->selected_mutex);
-            } else if (game->players[game->active_player].is_bot) {
-                do_bot_selected_update(selected, game, &game->bot_thinking_time, app->time.frame_time_s);
+            if (state->pass_selected) {
+                selected[PASS_BUTTON] = true;
+                state->pass_selected = false;
             }
 
-            // Timer
-            if (state->mode != MODE_CLIENT) {
-                float32 *time = &game->turn_time;
-                *time += (float32)app->time.frame_time_s;
-                
-                if (*time > 10.0f) {
-                    *time = 0.0f;
-                    do_auto_selected_update(selected, game);
-                };
+            if (state->mode == MODE_CLIENT && !all_false(selected)) {
+                client_set_selected(online.sock, selected, state->client_game_index);
             }
-            
-            if (state->mode == MODE_CLIENT || all_false(selected))
-                 break; // client doesn't do any game updates       
+        } else if (state->mode == MODE_SERVER && !game->players[game->active_player].is_bot) {
+            os_wait_mutex(state->selected_mutex);
+            if (!all_false(state->selected)) {
+                platform_memory_copy(selected, state->selected, sizeof(selected[0]) * SELECTED_SIZE);
+                platform_memory_set(state->selected, 0, sizeof(selected[0]) * SELECTED_SIZE);
+            }
+            os_release_mutex(state->selected_mutex);
+        } else if (game->players[game->active_player].is_bot) {
+            do_bot_selected_update(selected, game, &game->bot_thinking_time, app->time.frame_time_s);
+        }
 
+        // Timer
+        if (state->mode != MODE_CLIENT) {
+            float32 *time = &game->turn_time;
+            *time += (float32)app->time.frame_time_s;
+            
+            if (*time > 10.0f) {
+                *time = 0.0f;
+                do_auto_selected_update(selected, game);
+            };
+        }
+        
+        if (state->mode != MODE_CLIENT && !all_false(selected)) {
             game->turn_time = 0.0f; // input received
 
             // Game logic
@@ -515,7 +469,29 @@ bool8 update_game(State *state, App *app) {
             if (state->mode == MODE_SERVER) {
                 server_send_game(game, draw_signals, DRAW_SIGNALS_AMOUNT);
             }
-        } break;
+        }
+    } else if (state->camera_mode == PLAYER_CAMERA && game->round_type == HOLE_OVER) {
+        float32 rot_speed = 100.0f * (float32)app->time.frame_time_s;
+        float64 mouse_rot_speed = 0.2f;
+
+        if (is_down(state->controller.right)) {
+            draw->rotation += rot_speed;
+        }
+
+        if (is_down(state->controller.left)) {
+            draw->rotation -= rot_speed;
+        }
+
+        if (on_down(state->controller.mouse_left)) {
+            draw->mouse_down = app->input.mouse;
+        }
+
+        if (is_down(state->controller.mouse_left)) {
+            float64 x_delta = float64(app->input.mouse.x - draw->mouse_down.x);
+            draw->rotation -= float32(x_delta * mouse_rot_speed);
+            draw->mouse_down = app->input.mouse;
+        }
+        
     }
 
     // update card models
@@ -591,40 +567,15 @@ prepare_controller_for_input(Controller *controller) {
     }
 }
 
-bool8 update(App *app) {
-    State *state = (State *)app->data;
-    Assets *assets = &state->assets;
-
-    bool8 full_menu = state->mode != MODE_CLIENT;
-    state->is_active = (state->client_game_index == state->game.active_player || state->mode == MODE_LOCAL) && !state->game.players[state->game.active_player].is_bot;
-    state->paused_earlier_in_frame = false;
-    
-    // Update
-    if (state->menu_list.mode == IN_GAME) {
-        os_wait_mutex(state->mutex);
-        update_game(state, app);        
-        os_release_mutex(state->mutex);
-    } else {
-        state->game_draw.name_plates_loaded = false;
-    }
-
-    // Draw
-    os_wait_mutex(state->mutex);
-    Shader *basic_3D = find_shader(assets, "BASIC3D");
-    Shader *color_3D = find_shader(assets, "COLOR3D");
-
+internal u32
+draw(App *app, State *state) {
+    // Resets all of the descriptor sets to be reallocated on next frame
     for (u32 i = 0; i < 10; i++) {
         layouts[i].reset();
     }
-
-    if (no_music_playing(&app->player))
-        play_music("MORNING");
-    
-    mix_audio(&app->player, (float32)app->time.frame_time_s);
-    queue_audio(&app->player);
     
     if (render_start_frame())
-        goto AFTER_DRAW;
+        return 0;
 
     texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
@@ -650,6 +601,10 @@ bool8 update(App *app) {
         render_bind_pipeline(shapes.color_pipeline);
         render_bind_descriptor_set(state->scene_ortho_set);
     }
+    
+    bool8 full_menu = state->mode != MODE_CLIENT;
+    Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
+    Shader *color_3D = find_shader(&state->assets, "COLOR3D");
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {
@@ -668,6 +623,9 @@ bool8 update(App *app) {
         
         case PAUSE_MENU:
         case IN_GAME: {                
+            if (on_up(state->controller.pause)) {
+                state->menu_list.toggle(IN_GAME, PAUSE_MENU);
+            }
             draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
             //test_draw_rect();
             draw_game_hud(state, app->window.dim, &app->input, full_menu);
@@ -684,8 +642,31 @@ bool8 update(App *app) {
 #endif // DEBUG
 
     render_end_frame(&state->assets, &app->window);
-    AFTER_DRAW:
 
+    return 0;
+}
+
+bool8 update(App *app) {
+    State *state = (State *)app->data;
+
+    os_wait_mutex(state->mutex);
+    
+    state->is_active = (state->client_game_index == state->game.active_player || state->mode == MODE_LOCAL) && !state->game.players[state->game.active_player].is_bot;
+
+    // Update
+    if (state->menu_list.mode == IN_GAME) {
+        update_game(state, app);        
+    }
+    
+    // Audio plaing
+    if (no_music_playing(&app->player))
+        play_music("MORNING");
+    mix_audio(&app->player, (float32)app->time.frame_time_s);
+    queue_audio(&app->player);
+
+    if (draw(app, state))
+        return 1;
+    
     os_release_mutex(state->mutex);
     prepare_controller_for_input(&state->controller);
     

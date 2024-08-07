@@ -8,7 +8,7 @@ cd build
 REM CF = Compiler Flags
 REM LF = Linker Flags
 
-set VULKAN_SDK= ..\VulkanSDK\1.3.268.0
+set VULKAN_SDK= ..\VulkanSDK\1.3.280.0
 
 set CF_DEFAULT= -MD -nologo -Gm- -GR- -EHa- -Od -Oi -FC -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\stb /I..\ -DSHADERS
 set CF_SDL= /I..\sdl-vc\include -DSDL

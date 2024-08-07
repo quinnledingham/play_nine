@@ -12,8 +12,7 @@ quit_to_main_menu(State *state, Menu *menu) {
         } break;
     }
 
-    menu->gui.close_at_end = true;
-    state->menu_list.mode = MAIN_MENU;
+    state->menu_list.update_close(MAIN_MENU);
     state->game.num_of_players = 1;
     state->mode = MODE_LOCAL;
 
@@ -41,14 +40,14 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
         goto_local_menu(state, MAIN_MENU, MODE_LOCAL);
     }
     if (menu_button(menu, "Host Online", { 0, 3 }, { 1, 1 })) {
-        state->menu_list.mode = HOST_MENU;
+        state->menu_list.update(HOST_MENU);
     }
     if (menu_button(menu, "Join Online", { 0, 4 }, { 1, 1 })) {
-        state->menu_list.mode = JOIN_MENU;
+        state->menu_list.update(JOIN_MENU);
     }
     if (menu_button(menu, "Settings", { 0, 5 }, { 1, 1 })) {
         state->menu_list.previous_mode = MAIN_MENU;
-        state->menu_list.mode = SETTINGS_MENU;
+        state->menu_list.update(SETTINGS_MENU);
     }
     if (menu_button(menu, "Quit", { 0, 6 }, { 1, 1 })) 
         return true;
@@ -113,8 +112,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     menu->start();
 
     if (on_up(state->controller.pause)) {
-        state->menu_list.mode = state->menu_list.previous_mode;
-        menu->gui.close_at_end = true;
+        state->menu_list.update_close(state->menu_list.previous_mode);
     }
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
@@ -204,8 +202,7 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
 
         if (menu_button(menu, "Start Game", { 2, menu_row++ }, { 2, 1 })) {
             if (game->num_of_players != 1) {
-                state->menu_list.mode = IN_GAME;
-                menu->gui.close_at_end = true;
+                state->menu_list.update_close(IN_GAME);
                 start_game(&state->game, game->num_of_players);
                 
                 add_draw_signal(draw_signals, SIGNAL_ALL_PLAYER_CARDS);
@@ -262,22 +259,13 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     }
 
     menu->start();
-
-    if (on_up(state->controller.pause) && !state->paused_earlier_in_frame) {
-        state->menu_list.mode = IN_GAME;
-        menu->gui.close_at_end = true;
-    }
-
     draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
 
     s32 menu_row = 0;
 
     if (full_menu) {
         if (menu_button_confirm(menu, "End Game", "(Again to confirm)", { 0, menu_row++ }, { 1, 1 })) {
-            state->menu_list.previous_mode = PAUSE_MENU;
-            state->menu_list.mode = LOCAL_MENU;
-            menu->hover_section = menu->interact_region[0];
-            menu->gui.close_at_end = true;
+            state->menu_list.update_close(LOCAL_MENU);
 
             if (state->mode == MODE_SERVER)
                 server_send_menu_mode(state->menu_list.mode);
@@ -286,7 +274,7 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     
     if (menu_button(menu, "Settings", { 0, menu_row++ }, { 1, 1 })) {
         state->menu_list.previous_mode = PAUSE_MENU;
-        state->menu_list.mode = SETTINGS_MENU;
+        state->menu_list.update(SETTINGS_MENU);
     }
 
     if (menu_button_confirm(menu, "Main Menu", "(Again to confirm)", { 0, menu_row++ }, { 1, 1 })) {
@@ -325,8 +313,7 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
     menu->start();
     
     if (on_up(state->controller.pause)) {
-        state->menu_list.mode = IN_GAME;
-        menu->gui.close_at_end = true;
+        state->menu_list.update_close(IN_GAME);
     }
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
@@ -385,8 +372,7 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
     }
 
     if (menu_button(menu, "Back", { 0, scroll_length + 2 }, { (s32)game->num_of_players + 1, 1 })) {
-        state->menu_list.mode = IN_GAME;
-        menu->gui.close_at_end = true;
+        state->menu_list.update_close(IN_GAME);
     }
     
     menu->end();
@@ -403,12 +389,7 @@ draw_host_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->interact_region[1] = { 2, 2 };
     
     menu->start();
-    
-    if (on_up(state->controller.pause)) {
-        state->menu_list.mode = MAIN_MENU;
-        menu->gui.close_at_end = true;
-    }
-    
+        
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green);
     
     if (menu_textbox(menu, "Port:", state->host_port, { 0, 0 }, { 2, 1 })) {
@@ -419,9 +400,8 @@ draw_host_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
         state->client_game_index = 0;
         online.server_handle = os_create_thread(play_nine_server, (void*)state);
     }
-    if (menu_button(menu, "Back", { 1, 1 }, { 1, 1 })) {
-        state->menu_list.mode = MAIN_MENU;
-        menu->gui.close_at_end = true;        
+    if (menu_button(menu, "Back", { 1, 1 }, { 1, 1 }) || on_up(state->controller.pause)) {
+        state->menu_list.update_close(MAIN_MENU);
     }
               
     menu->end();
@@ -438,12 +418,7 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->interact_region[1] = { 2, 4 };
     
     menu->start();
-    
-    if (on_up(state->controller.pause)) {
-        state->menu_list.mode = MAIN_MENU;
-        menu->gui.close_at_end = true;
-    }
-    
+        
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     menu_textbox(menu, "Name:", state->join_name, { 0, 0 }, { 2, 1 });
@@ -454,9 +429,8 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     if (menu_button(menu, "Join", { 0, 3 }, { 1, 1 })) {
         join_thread = os_create_thread(play_nine_client_join, (void*)state);
     }
-    if (menu_button(menu, "Back", { 1, 3 }, { 1, 1 })) {
-        state->menu_list.mode = MAIN_MENU;
-        menu->gui.close_at_end = true;
+    if (menu_button(menu, "Back", { 1, 3 }, { 1, 1 }) || on_up(state->controller.pause)) {
+        state->menu_list.update_close(MAIN_MENU);
 
         if (join_thread) {
             os_terminate_thread(join_thread);
@@ -477,11 +451,6 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->interact_region[1] = { 1, 5 };
 
     menu->start();
-
-    if (on_up(state->controller.pause)) {
-        state->menu_list.mode = state->menu_list.previous_mode;
-        menu->gui.close_at_end = true;
-    }
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
@@ -496,9 +465,8 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
         state->game = get_test_game();
         state->menu_list.mode = SCOREBOARD_MENU;    
     }
-    if (menu_button(menu, "Back", { 0, 4 }, { 1, 1 })) {
-        state->menu_list.mode = state->menu_list.previous_mode;
-        menu->gui.close_at_end = true;
+    if (menu_button(menu, "Back", { 0, 4 }, { 1, 1 }) || on_up(state->controller.pause)) {
+        state->menu_list.update(state->menu_list.previous_mode);
     }
     menu->end();
 }
@@ -526,8 +494,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
 
     if (on_up(state->controller.pause)) {
         if (menu->gui.active == 0) {
-            state->menu_list.mode = SETTINGS_MENU;
-            menu->gui.close_at_end = true;
+            state->menu_list.update_close(SETTINGS_MENU);
         } else {
             // break out of dropdown menu
             menu->gui.pressed = 0;
@@ -544,8 +511,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         window->resized = true;
     }
     if (menu_button(menu, "Back", { 0, 5 }, { 1, 1 })) {
-        state->menu_list.mode = SETTINGS_MENU;
-        menu->gui.close_at_end = true;
+        state->menu_list.update_close(SETTINGS_MENU);
     }
     
     const char *resolution_modes[4] = {
@@ -606,8 +572,7 @@ draw_audio_settings_menu(Menu *menu, State *state, Audio_Player *player, App_Win
 
     if (on_up(state->controller.pause)) {
         if (menu->gui.active == 0) {
-            state->menu_list.mode = SETTINGS_MENU;
-            menu->gui.close_at_end = true;
+            state->menu_list.update_close(SETTINGS_MENU);
         } 
     }
     
@@ -619,8 +584,7 @@ draw_audio_settings_menu(Menu *menu, State *state, Audio_Player *player, App_Win
     }
 
     if (menu_button(menu, "Back", { 0, 5 }, { 1, 1 })) {
-        state->menu_list.mode = SETTINGS_MENU;
-        menu->gui.close_at_end = true;
+        state->menu_list.update_close(SETTINGS_MENU);
     }
     
     menu->end();

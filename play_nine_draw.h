@@ -134,7 +134,6 @@ struct Game_Draw {
 
     Bitmap *bot_bitmap;
     Bitmap name_plates[MAX_PLAYERS];
-    bool name_plates_loaded;
 
     bool8 moving_card;
     Matrix_4x4 moving_card_model;

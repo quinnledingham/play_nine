@@ -140,10 +140,26 @@ enum Menu_Mode {
 };
 
 struct Menu_List {
-    enum Menu_Mode mode = MAIN_MENU;
-    enum Menu_Mode previous_mode;
+    enum Menu_Mode previous_mode; // can save a mode here
+    enum Menu_Mode mode;
 
     Menu menus[MENU_MODES_COUNT];
+
+    void update(enum Menu_Mode new_mode) {
+        mode = new_mode;
+    }
+
+    void update_close(enum Menu_Mode new_mode) {
+        menus[mode].gui.close_at_end = true;
+        mode = new_mode;
+    }
+
+    void toggle(enum Menu_Mode mode_1, enum Menu_Mode mode_2) {
+        if (mode == mode_1)
+            update_close(mode_2);
+        else
+            update_close(mode_1);
+    }
 };
 
 enum Camera_Mode {
@@ -198,7 +214,6 @@ struct State {
     MUTEX selected_mutex;
 
     bool8 pass_selected;
-    bool8 paused_earlier_in_frame;    
     
     // Drawing
     Scene scene;
