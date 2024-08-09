@@ -574,7 +574,7 @@ draw(App *app, State *state) {
         layouts[i].reset();
     }
     
-    if (render_start_frame())
+    if (render_start_frame(&app->window))
         return 0;
 
     texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
@@ -649,7 +649,7 @@ draw(App *app, State *state) {
 bool8 update(App *app) {
     State *state = (State *)app->data;
 
-    os_wait_mutex(state->mutex);
+    //os_wait_mutex(state->mutex);
     
     state->is_active = (state->client_game_index == state->game.active_player || state->mode == MODE_LOCAL) && !state->game.players[state->game.active_player].is_bot;
 
@@ -667,7 +667,7 @@ bool8 update(App *app) {
     if (draw(app, state))
         return 1;
     
-    os_release_mutex(state->mutex);
+    //os_release_mutex(state->mutex);
     prepare_controller_for_input(&state->controller);
     
     return 0;

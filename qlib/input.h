@@ -13,7 +13,7 @@ struct Button {
     Button_ID ids[3];
     u32 num_of_ids;
 
-    u32 bitmaps[SDL_CONTROLLER_TYPE_NVIDIA_SHIELD];
+    u32 bitmaps[15]; // max amount of types of controllers (older sdl did not have a set way)
     
     bool8 current_state;
     bool8 previous_state;

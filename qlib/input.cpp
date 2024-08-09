@@ -1,7 +1,7 @@
 Bitmap keyboard_prompt_texture;
 
 internal void
-create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts, char *folder_path, char *key_type, char *filename) {
+create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts, const char *folder_path, const char *key_type, const char *filename) {
   u32 columns = 10;
   u32 rows = (u32)ceilf(float32(num_of_prompts) / float32(columns));
   

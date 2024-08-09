@@ -218,7 +218,7 @@ vulkan_is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface, const c
 	vkGetPhysicalDeviceFeatures(device, &device_features);
 
 	logprint("vulkan_is_device_suitable()", "Vulkan Physical Device Limits:\nMax Descriptor Set Samplers: %u\nMax Descriptor Set Uniform Buffers: %u\nMax Uniform Buffer Range: %u\n", device_properties.limits.maxDescriptorSetSamplers, device_properties.limits.maxDescriptorSetUniformBuffers, device_properties.limits.maxUniformBufferRange); 
-	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy; //&& device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+	return indices.graphics_and_compute_family.found && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy && device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 }
 
 internal VkSampleCountFlagBits
@@ -299,7 +299,7 @@ vulkan_pick_physical_device(Vulkan_Info *info) {
 	for (u32 device_index = 0; device_index < device_count; device_index++) {
 		if (vulkan_is_device_suitable(devices[device_index], info->surface, info->device_extensions, ARRAY_COUNT(info->device_extensions))) {
 			info->physical_device = devices[device_index];
-			print("Picking device %d\n", device_index);
+			print("(vulkan) Picking device %d\n", device_index);
 			break;
 		}
 	}
@@ -457,7 +457,7 @@ vulkan_create_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	create_info.imageColorSpace = surface_format.colorSpace;
 	create_info.imageExtent = extent;
 	create_info.imageArrayLayers = 1;
-	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	create_info.preTransform = swap_chain_support.capabilities.currentTransform;
 	create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	create_info.presentMode = present_mode;
@@ -2122,8 +2122,14 @@ void vulkan_end_compute() {
 	//vkWaitForFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
 };
 
-bool8 vulkan_start_frame() {
+bool8 vulkan_start_frame(App_Window *window) {
 	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
+
+	if (window->resized) {
+		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
+		vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_get_extent();
+		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
+	}
 
 	// Waiting for the previous frame
 	vkWaitForFences(vulkan_info.device, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
@@ -2134,13 +2140,13 @@ bool8 vulkan_start_frame() {
 	                                        VK_NULL_HANDLE,
                                           &vulkan_info.image_index);
 
+	// don't draw frame if swap chain is out of date
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
-		vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_get_extent();
-		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
+		logprint("vulkan_start_frame()", "out of date swap chain\n");
 		return 1;
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-		logprint("vulkan_draw_frame()", "failed to acquire swap chain");
+		logprint("vulkan_start_frame()", "failed to acquire swap chain");
+		return 1;
 	}
 
 	vulkan_info.draw_render_pass_info.framebuffer = vulkan_info.draw_framebuffers[vulkan_info.image_index];
@@ -2184,7 +2190,7 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 		
 		Vulkan_Texture *texture = &vulkan_info.swap_chain_textures[vulkan_info.image_index];
 		vulkan_transition_image_layout(VK_CMD(vulkan_info), texture->image, texture->image_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);	
-		vkCmdBlitImage(VK_CMD(vulkan_info), vulkan_info.draw_textures[vulkan_info.image_index].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vulkan_info.swap_chain_textures[vulkan_info.image_index].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_LINEAR);
+		vkCmdBlitImage(VK_CMD(vulkan_info), vulkan_info.draw_textures[vulkan_info.image_index].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_LINEAR);
 		vulkan_transition_image_layout(VK_CMD(vulkan_info), texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);	
 	}
 	// End draw render pass
@@ -2209,12 +2215,12 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 	
 	VkResult result = vkQueuePresentKHR(vulkan_info.present_queue, &vulkan_info.present_info);
 
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || window->resized) {
-		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
-		vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_get_extent();
-		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
+	// swap chain became out of date during drawing. sdl should have a window changed event
+	// to flag the swap chain to update.
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+		logprint("vulkan_end_frame()", "out of date swap chain\n");
 	} else if (result != VK_SUCCESS) {
-		logprint("vulkan_draw_frame()", "failed to acquire swap chain");
+		logprint("vulkan_end_frame()", "failed to acquire swap chain\n");
 	}
 
 	vulkan_info.current_frame = (vulkan_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;

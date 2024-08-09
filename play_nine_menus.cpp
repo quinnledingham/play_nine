@@ -124,8 +124,8 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     Vector2 dark_rect_dim = { menu->gui.rect.dim.x - (2 * x_section), menu->gui.rect.dim.y - (1 * y_section) };
     draw_rect(dark_rect_coords, 0, dark_rect_dim, { 0, 0, 0, 0.2f} );
 
-    char *lobby_name;
-    char *back_label;
+    const char *lobby_name;
+    const char *back_label;
     if (state->mode == Online_Mode::MODE_LOCAL) {
         lobby_name = "Local Lobby";
         back_label = "Main Menu";

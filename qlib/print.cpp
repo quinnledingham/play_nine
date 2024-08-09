@@ -35,9 +35,17 @@ get_file_stream(u32 output_stream) {
 inline void
 print_char_array(u32 output_stream, const char *char_array) {
 	fprintf(get_file_stream(output_stream), "%s", char_array);
+
+	// @DEBUG_RELEASE for testing
+	// also log to a file
+	local_persist FILE *output_file;
+	if (!output_file) {
+		output_file = fopen("output.a", "w");
+	}
+	fprintf(output_file, "%s", char_array);
 }
 
-#endif // OS_WINDOWS
+#endif // OS_WINDOWS / OS_LINUX
 
 #define PRINT_BUFFER_SIZE 2000
 

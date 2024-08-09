@@ -703,8 +703,10 @@ do_card_animation(Game_Draw *draw, Card_Animation *animation, float32 frame_time
                 float32 percent = keyframe->time_elapsed / keyframe->time_duration;
                 animation->position = linear_interpolate(keyframe->start, keyframe->dest, percent);
 
-                if (percent >= 1.0f && i == animation->keyframes_count - 1)
+                if (percent >= 1.0f && i == animation->keyframes_count - 1) {
                     animation->moving = false;
+                    animation->position = keyframe->dest;
+                }
 
                 break;
             }
