@@ -40,7 +40,7 @@ print_char_array(u32 output_stream, const char *char_array) {
 	// also log to a file
 	local_persist FILE *output_file;
 	if (!output_file) {
-		output_file = fopen("output.a", "w");
+		output_file = fopen("output.txt", "w");
 	}
 	fprintf(output_file, "%s", char_array);
 }

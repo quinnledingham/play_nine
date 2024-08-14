@@ -2,6 +2,10 @@
 // Camera
 //
 
+inline Matrix_4x4 get_view(Camera camera)  { 
+    return look_at(camera.position, camera.position + camera.target, camera.up); 
+}
+
 internal void
 update_camera_target(Camera *camera) {
     Vector3 camera_direction = {
@@ -49,7 +53,48 @@ update_camera_with_keys(Camera *camera, Vector3 target, Vector3 up_v, Vector3 ma
 // GFX
 //
 
-void Render::scissor_pop() {
+internal float32 
+get_resolution_scale(u32 resolution_mode) {
+    float32 resolution_scales[4] = {
+        0.25f,
+        0.5f,
+        0.75f,
+        1.0f
+    };
+
+    return resolution_scales[resolution_mode];
+}
+
+internal Vector2_s32
+get_resolution(Vector2_s32 in_resolution, float32 scale) {
+    Vector2 new_resolution = cv2(in_resolution) * scale;
+    Vector2_s32 out_resolution = { s32(new_resolution.x), s32(new_resolution.y) };
+    return out_resolution;
+}
+
+void GFX::update_resolution() {
+    resolution = get_resolution(window_dim, resolution_scale);
+
+    if (resolution == window_dim) {
+        resolution_scaling = FALSE;
+    } else {
+        resolution_scaling = TRUE;
+    }
+}
+
+void GFX::scissor_push(Vector2 coords, Vector2 dim) {
+    Vector2 factor = {
+        (float32)resolution.x / (float32)window_dim.x,
+        (float32)resolution.y / (float32)window_dim.y
+    };
+    
+    Rect *rect = &scissor_stack[scissor_stack_index++];
+    rect->coords = coords * factor;
+    rect->dim = dim * factor;
+    render_set_scissor((s32)rect->coords.x, (s32)rect->coords.y, (s32)rect->dim.x, (s32)rect->dim.y);
+}
+
+void GFX::scissor_pop() {
     scissor_stack_index--;
     Rect rect = scissor_stack[scissor_stack_index - 1];
     render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);

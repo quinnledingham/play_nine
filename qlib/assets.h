@@ -121,14 +121,6 @@ Instances: Images (sometimes) Material instance - makes sense - memory set once 
 Locals: Models one per object (can't push images) - memory changes a lot but is used a lot
 */
 
-enum struct descriptor_scope {
-    GLOBAL,   // ubo
-    INSTANCE, // ubo
-    LOCAL,    // push constant
-
-    AMOUNT
-};
-
 // Could be descriptor
 struct Layout_Binding {
     u32 binding;
@@ -228,17 +220,6 @@ struct Layout_Set {
         push.size = size;
         push_constants[push_constants_count++] = push;
     }
-};
-
-struct Descriptor_v2 {
-
-};
-
-// Descriptors that get updated at the same time can be put in a a set
-struct Descriptor_Set {
-    u32 number; // set number in shader (i.e. set = 1)
-
-    Descriptor_v2 descriptors;
 };
 
 struct Shader {

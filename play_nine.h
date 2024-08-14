@@ -9,7 +9,6 @@ TODO
 - change hud buttons to use other controller buttons
 - controller with textboxs?
 
-- hide test menu unless in debug
 - make scoreboard look better
 
 - (gui_textbox) add undoing and select all
@@ -234,3 +233,4 @@ global s8 deck[DECK_SIZE];
 GUI gui = {};
 Assets *global_assets;
 Audio_Player *audio_player; // play_sound & play_music
+

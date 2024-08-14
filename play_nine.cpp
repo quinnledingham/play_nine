@@ -1,3 +1,5 @@
+#include "basic.cpp"
+
 #include <stdarg.h>
 #include <cstdint>
 #include <ctype.h>
@@ -47,10 +49,12 @@ enum Game_Input {
 
 #define DRAW_SIGNALS_AMOUNT 6
 
-#include "application.h"
+#include "play_nine_raytrace.h"
+#include "play_nine_shaders.h"
 #include "play_nine_input.h"
 #include "play_nine_draw.h"
 #include "play_nine.h"
+#include "play_nine_render.h"
 #include "play_nine_online.h"
 
 internal void next_player(Game *game);
@@ -1021,8 +1025,8 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
             render_clear_color(Vector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
             // draw loading screen
-            //render_start_frame();
-            //render_end_frame();
+            render_start_frame(&app->window);
+            render_end_frame(global_assets, &app->window);
 
             audio_player = &app->player;
             init_audio_player(&app->player);

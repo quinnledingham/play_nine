@@ -58,24 +58,6 @@ struct Light {
     bool enabled;
 };
 
-Light global_light = {
-    { 0.0f, 5.0f, 0.0f, 1.0f },
-    { 0.4f, 0.4f, 0.4f, 1.0f },
-    { 0.9f, 0.9f, 0.9f, 1.0f },
-    { 0.5f, 0.5f, 0.5f, 1.0f },
-    { 1.0f, 1.0f, 1.0f, 1.0f },
-    true,
-};
-
-Light global_light_2 = {
-    { 0.0f, 5.0f, 0.0f, 1.0f },
-    { 1.0f, 1.0f, 1.0f, 1.0f },
-    { 0.9f, 0.9f, 0.9f, 1.0f },
-    { 0.5f, 0.5f, 0.5f, 1.0f },
-    { 1.0f, 1.0f, 1.0f, 1.0f },
-    false
-};
-
 union Camera {
     struct {
         Vector3 position;
@@ -87,10 +69,6 @@ union Camera {
     };
     float32 E[12];
 };
-
-inline Matrix_4x4 get_view(Camera camera)  { 
-    return look_at(camera.position, camera.position + camera.target, camera.up); 
-}
 
 // used with render_create_texture function
 enum Texture_Parameters {
@@ -144,78 +122,31 @@ enum Resolution_Modes {
     RESOLUTION_2160P
 };
 
-internal float32 
-get_resolution_scale(u32 resolution_mode) {
-    float32 resolution_scales[4] = {
-        0.25f,
-        0.5f,
-        0.75f,
-        1.0f
-    };
-
-    return resolution_scales[resolution_mode];
-}
-
-internal Vector2_s32
-get_resolution(Vector2_s32 in_resolution, float32 scale) {
-    Vector2 new_resolution = cv2(in_resolution) * scale;
-    Vector2_s32 out_resolution = { s32(new_resolution.x), s32(new_resolution.y) };
-    return out_resolution;
-}
-
 struct Render {
     Vector2_s32 window_dim;
-    Vector2_s32 resolution;
     bool8 vsync = FALSE;
     bool8 anti_aliasing = TRUE;
-    
+
+    // Resolution scaling
+    Vector2_s32 resolution;
     u32 resolution_mode = RESOLUTION_2160P;
     bool8 resolution_scaling = false;
     float32 resolution_scale = 1.0f;
 
-    void update_resolution() {
-        resolution = get_resolution(window_dim, resolution_scale);
-
-        if (resolution == window_dim) {
-            resolution_scaling = FALSE;
-        } else {
-            resolution_scaling = TRUE;
-        }
-    }
+    void update_resolution();
     
     //bool8 depth_test;
 
+    // Scissor
     u32 scissor_stack_index = 0;
     Rect scissor_stack[10];
 
-    void scissor_push(Vector2 coords, Vector2 dim) {
-        Vector2 factor = {
-            (float32)resolution.x / (float32)window_dim.x,
-            (float32)resolution.y / (float32)window_dim.y
-        };
-        
-        Rect rect = {};
-        rect.coords = coords * factor;
-        rect.dim = dim * factor;
-        scissor_stack[scissor_stack_index++] = rect;
-        render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (s32)rect.dim.x, (s32)rect.dim.y);
-    }
-
+    void scissor_push(Vector2 coords, Vector2 dim);
     void scissor_pop();
-/*
-    void scissor_pop() {
-        scissor_stack_index--;
-        Rect rect = scissor_stack[scissor_stack_index - 1];
-        render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);
-    }
-*/
 };
 
 
 global Render render_context = {};
 
 #define gfx render_context
-
-struct GFX {
-
-};
+#define GFX Render

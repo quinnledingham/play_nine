@@ -120,7 +120,7 @@ struct Vulkan_Info {
 		
 	// swap_chain
 	VkSwapchainKHR swap_chains[1];
-	VkExtent2D swap_chain_extent; // size of window, size of swap_chain_images
+	VkExtent2D swap_chain_extent; // size of window, size of swap_chain_images, the value returned by vulkan_choose_swap_extent
 	
 	Arr<Vulkan_Texture> draw_textures; // where the frame gets drawn before swap chain buffer
 	Arr<Vulkan_Texture> swap_chain_textures;
@@ -146,7 +146,7 @@ struct Vulkan_Info {
 			Vulkan_Buffer storage_buffer;
 			Vulkan_Buffer triangle_buffer;
 		};
-		Vulkan_Buffer buffers[5];
+		Vulkan_Buffer buffers[6];
 	};
 	
 	Vulkan_Texture depth_texture; // Depth Buffer

@@ -1,6 +1,25 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+/*
+Compiler Defines
+
+OS:
+OS_WINDOWS
+OS_LINUX
+
+API:
+SDL
+STEAM
+
+GFX:
+OPENGL
+VULKAN
+
+COMPILE_TYPE:
+DEBUG
+*/
+
 typedef int8_t  s8;
 typedef int16_t s16;
 typedef int32_t s32;

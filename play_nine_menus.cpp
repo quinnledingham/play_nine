@@ -446,27 +446,35 @@ internal void
 draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window_dim), 0.5f, 0.5f);
 
+#if DEBUG
     menu->sections = { 1, 5 };
-    menu->interact_region[0] = { 0, 1 };
-    menu->interact_region[1] = { 1, 5 };
+#else
+    menu->sections = { 1, 4 };
+#endif // DEBUG
 
+    menu->interact_region[0] = { 0, 1 };
+    menu->interact_region[1] = menu->sections;
+    
     menu->start();
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
-    menu_text(menu, "Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
-    if (menu_button(menu, "Video", { 0, 1 }, { 1, 1 })) {
+    s32 y_index = 0;
+    menu_text(menu, "Settings", play_nine_yellow, { 0, y_index++ }, { 1, 1 }); 
+    if (menu_button(menu, "Video", { 0, y_index++ }, { 1, 1 })) {
         state->menu_list.mode = VIDEO_SETTINGS_MENU;
     }
-    if (menu_button(menu, "Audio", { 0, 2 }, { 1, 1 })) {
+    if (menu_button(menu, "Audio", { 0, y_index++ }, { 1, 1 })) {
         state->menu_list.mode = AUDIO_SETTINGS_MENU;
     }
-    if (menu_button(menu, "Test Menu", { 0, 3 }, { 1, 1 })) {
+#if DEBUG
+    if (menu_button(menu, "Test Menu", { 0, y_index++ }, { 1, 1 })) {
         state->game = get_test_game();
         state->menu_list.mode = SCOREBOARD_MENU;    
     }
-    if (menu_button(menu, "Back", { 0, 4 }, { 1, 1 }) || on_up(state->controller.pause)) {
-        state->menu_list.update(state->menu_list.previous_mode);
+#endif // DEBUG
+    if (menu_button(menu, "Back", { 0, y_index++ }, { 1, 1 }) || on_up(state->controller.pause)) {
+        state->menu_list.update_close(state->menu_list.previous_mode);
     }
     menu->end();
 }

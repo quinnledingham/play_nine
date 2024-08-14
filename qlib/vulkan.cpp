@@ -476,7 +476,6 @@ vulkan_create_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 		create_info.pQueueFamilyIndices = nullptr; // optional
 	}
 
-
 	if (vkCreateSwapchainKHR(info->device, &create_info, nullptr, &info->swap_chains[0])) {
 		logprint("vulkan_create_swap_chain()", "failed to create swap chain\n");
 	}
@@ -2129,6 +2128,8 @@ bool8 vulkan_start_frame(App_Window *window) {
 		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
 		vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_get_extent();
 		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
+
+		window->resized = false;
 	}
 
 	// Waiting for the previous frame
@@ -2306,7 +2307,7 @@ void vulkan_allocate_descriptor_set(Layout *layout) {
 
 	VkDescriptorSetAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocate_info.descriptorPool = vulkan_info.descriptor_pool;
+	allocate_info.descriptorPool = vulkan_info.descriptor_pool; // set in vulkan initialization function
 	allocate_info.descriptorSetCount = layout->max_sets;
 	allocate_info.pSetLayouts = layouts;
 
@@ -2348,13 +2349,14 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
 	dynamic_buffer_info.buffer = vulkan_info.dynamic_uniform_buffer.handle;
 
 	VkWriteDescriptorSet write_set = {};
-    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_set.dstBinding = layout_binding->binding;
-    write_set.dstArrayElement = 0;
-    write_set.descriptorType = vulkan_convert_descriptor_type(layout_binding->descriptor_type);
-    write_set.descriptorCount = layout_binding->descriptor_count;
-    write_set.pBufferInfo = &dynamic_buffer_info;
+	write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write_set.dstBinding = layout_binding->binding;
+	write_set.dstArrayElement = 0;
+	write_set.descriptorType = vulkan_convert_descriptor_type(layout_binding->descriptor_type);
+	write_set.descriptorCount = layout_binding->descriptor_count;
+	write_set.pBufferInfo = &dynamic_buffer_info;
 
+	// set up static buffer info if regular uniform buffer
 	if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
 		for (u32 i = 0; i < num_of_sets; i++) {
 			u32 offset = vulkan_get_next_offset(&vulkan_info.static_uniform_buffer.offset, alignment, VULKAN_STATIC_UNIFORM_BUFFER_SIZE, false);
@@ -2366,7 +2368,7 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
 
 			VkDescriptorBufferInfo static_buffer_info = {};
 			static_buffer_info.offset = offsets[offset_index];
-    		static_buffer_info.range = layout_binding->size;
+  		static_buffer_info.range = layout_binding->size;
 			static_buffer_info.buffer = vulkan_info.static_uniform_buffer.handle;
 
 			static_buffer_infos[i] = static_buffer_info;
@@ -2376,7 +2378,7 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
 
 	for (u32 i = 0; i < num_of_sets; i++) {
 		write_sets[i] = write_set;
-    	write_sets[i].dstSet = sets[i];
+		write_sets[i].dstSet = sets[i];
 		if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
 			write_sets[i].pBufferInfo = &static_buffer_infos[i *  layout_binding->descriptor_count];
 		}
@@ -2420,7 +2422,7 @@ vulkan_init_bitmaps(VkDescriptorSet *sets, u32 num_of_sets, Bitmap *bitmap, Layo
 
 void vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
 	if (layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-        layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
+      layout->bindings[0].descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
 		vulkan_init_ubos(layout->descriptor_sets, &layout->bindings[0], layout->max_sets, layout->offsets);
 	}
 
@@ -2429,8 +2431,17 @@ void vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
 	}
 }
 
-// just creating with one binding right now
 void vulkan_create_set_layout(Layout *layout) {
+
+	if (layout->binding_count = 0) {
+		logprint("(vulkan) vulkan_create_set_layout()", "no bindings set\n");
+	}
+
+	// @TODO just creating with one binding right now
+	if (layout->binding_count > 1) {
+		logprint("(vulkan) vulkan_create_set_layout()", "only supporting 1 binding right now\n");
+		return;
+	}
 
 	VkDescriptorSetLayoutBinding vulkan_binding = {};
 	vulkan_binding.binding = layout->bindings[0].binding;
@@ -2449,6 +2460,7 @@ void vulkan_create_set_layout(Layout *layout) {
 	if (vkCreateDescriptorSetLayout(vulkan_info.device, &layout_info, nullptr, &layout->descriptor_set_layout) != VK_SUCCESS) {
 		logprint("vulkan_create_descriptor_set_layout()", "failed to create descriptor set layout\n");
 	}
+
 }
 
 
