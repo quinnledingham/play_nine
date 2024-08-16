@@ -106,7 +106,7 @@ RENDER_FUNC(void, depth_test, bool32 enable);
 RENDER_FUNC(void, create_set_layout, Layout *layout);
 RENDER_FUNC(void, allocate_descriptor_set, Layout *layout);
 RENDER_FUNC(void, init_layout_offsets, Layout *layout, Bitmap *bitmap);
-RENDER_FUNC(void, bind_descriptor_sets, Descriptor desc, u32 first_set, void *data, u32 size);
+RENDER_FUNC(void, bind_descriptor_sets, Descriptor desc, void *data);
 RENDER_FUNC(void, push_constants, u32 shader_stage, void *data, u32 data_size);
 RENDER_FUNC(void, bind_descriptor_set, Descriptor desc);
 RENDER_FUNC(void, update_ubo, Descriptor desc, void *data);

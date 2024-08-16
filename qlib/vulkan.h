@@ -186,7 +186,7 @@ struct Vulkan_Version {
 
 #define VULKAN_STATIC_BUFFER_SIZE 100000
 #define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 1000000
-#define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000
+#define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 100000
 
 global Vulkan_Info vulkan_info = {};
 Render_Pipeline present_pipeline;

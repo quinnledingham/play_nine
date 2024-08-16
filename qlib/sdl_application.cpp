@@ -72,8 +72,6 @@ sdl_process_stick_value(s16 value, s16 dead_zone) {
 
 internal bool8
 sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sdl_window) {
-    window->resized = false;
-
     //input->mouse = {};
     input->mouse_rel = {};
     input->buffer_index = 0;
@@ -91,9 +89,10 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
                 switch(window_event->event) {
                     //case SDL_WINDOWEVENT_RESIZED:
                     case SDL_WINDOWEVENT_SIZE_CHANGED: {
+                        window->resized = true;
+
                         window->width  = window_event->data1;
                         window->height = window_event->data2;
-                        window->resized = true;
                         render_context.window_dim = window->dim;
 
                         render_context.update_resolution();

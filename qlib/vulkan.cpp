@@ -940,7 +940,7 @@ vulkan_get_alignment(VkDeviceSize in, u32 alignment) {
 internal u32
 vulkan_get_next_offset(u32 *offset, u32 in_data_size, u32 max_offset, bool8 allow_looping) {
 	u32 return_offset = *offset;
-    *offset += in_data_size;
+  *offset += in_data_size;
 
 	if (*offset < max_offset)
 		return return_offset;
@@ -2124,6 +2124,8 @@ void vulkan_end_compute() {
 bool8 vulkan_start_frame(App_Window *window) {
 	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
 
+	vulkan_info.dynamic_uniform_buffer.offset = 0;
+
 	if (window->resized) {
 		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
 		vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_get_extent();
@@ -2380,7 +2382,7 @@ vulkan_init_ubos(VkDescriptorSet *sets, Layout_Binding *layout_binding, u32 num_
 		write_sets[i] = write_set;
 		write_sets[i].dstSet = sets[i];
 		if (layout_binding->descriptor_type == DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-			write_sets[i].pBufferInfo = &static_buffer_infos[i *  layout_binding->descriptor_count];
+			write_sets[i].pBufferInfo = &static_buffer_infos[i * layout_binding->descriptor_count];
 		}
 	}
 
@@ -2525,13 +2527,13 @@ void vulkan_bind_descriptor_set(Descriptor desc) {
 		vkCmdBindDescriptorSets(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
 }
 
-void vulkan_bind_descriptor_sets(Descriptor desc, u32 first_set, void *data, u32 size) {
-	u32 alignment = (u32)vulkan_get_alignment(size, (u32)vulkan_info.uniform_buffer_min_alignment);
+void vulkan_bind_descriptor_sets(Descriptor desc, void *data) {
+	u32 alignment = (u32)vulkan_get_alignment(desc.binding.size, (u32)vulkan_info.uniform_buffer_min_alignment);
 	u32 offset = vulkan_get_next_offset(&vulkan_info.dynamic_uniform_buffer.offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE, true);
 
 	memcpy((char*)vulkan_info.dynamic_uniform_buffer.data + offset, data, desc.binding.size);
 
-	vkCmdBindDescriptorSets(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, first_set, 1, desc.vulkan_set, 1, &offset);
+	vkCmdBindDescriptorSets(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_info.pipeline_layout, desc.set_number, 1, desc.vulkan_set, 1, &offset);
 }
 
 void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {

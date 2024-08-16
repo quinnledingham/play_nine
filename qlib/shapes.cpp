@@ -492,8 +492,9 @@ void draw_shape(Shape shape) {
             render_bind_pipeline(shapes.color_pipeline);
 
             Descriptor v_set = render_get_descriptor_set(&layouts[4]);
-            render_update_ubo(v_set, &shape.color);
-            render_bind_descriptor_set(v_set);
+            //render_update_ubo(v_set, &shape.color);
+            //render_bind_descriptor_set(v_set);
+            render_bind_descriptor_sets(v_set, &shape.color);
         } break;
 
         case Shape_Draw_Type::TEXTURE: {
@@ -542,8 +543,9 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     render_bind_pipeline(shapes.text_pipeline);
 
     Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
-    render_update_ubo(v_color_set, (void *)&color);
-    render_bind_descriptor_set(v_color_set);
+    //render_update_ubo(v_color_set, (void *)&color);
+    //render_bind_descriptor_set(v_color_set);
+    render_bind_descriptor_sets(v_color_set, &color);
 
     Object object = {};
     s32 indices[TEXTURE_ARRAY_SIZE];
