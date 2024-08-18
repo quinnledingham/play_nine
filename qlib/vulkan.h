@@ -50,6 +50,9 @@ struct Vulkan_Texture {
 };
 
 struct Vulkan_Frame {
+	u32 dynamic_offset_start;
+	u32 dynamic_offset_end;
+	
 	union {
 		struct {
 			VkCommandBuffer command_buffer;

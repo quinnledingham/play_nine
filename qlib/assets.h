@@ -27,22 +27,6 @@ struct File {
     void *memory;
 };
 
-struct Bitmap {
-    u8 *memory; // loaded pixels
-    union {
-        struct {
-            s32 width;
-            s32 height;
-        };
-        Vector2_s32 dim;
-    };
-    s32 pitch;
-    s32 channels;
-    u32 mip_levels;
-
-    void *gpu_info;
-};
-
 //
 // Audio
 //
@@ -181,8 +165,8 @@ struct Layout {
     u32 offsets[max_sets]; // for static uniform buffers, correlates with descriptor_sets
 
 #if VULKAN
-    VkDescriptorSet descriptor_sets[max_sets];
-    VkDescriptorSetLayout descriptor_set_layout;
+    VkDescriptorSet descriptor_sets[max_sets]; // descriptor / set of descriptors
+    VkDescriptorSetLayout descriptor_set_layout; // what is in the set
 #elif OPENGL
     u32 handles[max_sets];
     Bitmap *bitmaps[max_sets][16];
@@ -230,6 +214,27 @@ struct Shader {
 
     bool8 compiled;
     u32 handle;
+};
+
+//
+// Bitmap
+//
+
+struct Bitmap {
+    u8 *memory; // loaded pixels
+    union {
+        struct {
+            s32 width;
+            s32 height;
+        };
+        Vector2_s32 dim;
+    };
+    s32 pitch;
+    s32 channels;
+    u32 mip_levels;
+
+    void *gpu_info;
+    Descriptor *descriptor;
 };
 
 //

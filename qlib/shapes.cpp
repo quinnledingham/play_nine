@@ -484,6 +484,8 @@ void init_shapes(Assets *assets) {
     shapes.texture_pipeline = &pipelines[PIPELINE_2D_TEXTURE];
 }
 
+global Descriptor shapes_color_descriptor;
+
 void draw_shape(Shape shape) {
     Object object = {};
 
@@ -491,10 +493,11 @@ void draw_shape(Shape shape) {
         case Shape_Draw_Type::COLOR: {
             render_bind_pipeline(shapes.color_pipeline);
 
-            Descriptor v_set = render_get_descriptor_set(&layouts[4]);
+            //Descriptor v_set = render_get_descriptor_set(&layouts[4]);
             //render_update_ubo(v_set, &shape.color);
             //render_bind_descriptor_set(v_set);
-            render_bind_descriptor_sets(v_set, &shape.color);
+            //render_bind_descriptor_sets(v_set, &shape.color);
+            render_bind_descriptor_sets(shapes_color_descriptor, &shape.color);
         } break;
 
         case Shape_Draw_Type::TEXTURE: {
@@ -541,11 +544,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     float32 baseline      = coords.y;
 
     render_bind_pipeline(shapes.text_pipeline);
-
-    Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
-    //render_update_ubo(v_color_set, (void *)&color);
-    //render_bind_descriptor_set(v_color_set);
-    render_bind_descriptor_sets(v_color_set, &color);
+    render_bind_descriptor_sets(shapes_color_descriptor, &color);
 
     Object object = {};
     s32 indices[TEXTURE_ARRAY_SIZE];

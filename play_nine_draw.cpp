@@ -407,6 +407,8 @@ unload_name_plates(Game_Draw *draw) {
 
 internal void
 draw_name_plates(Game *game, Game_Draw *draw) {
+    Descriptor color_set_2 = render_get_descriptor_set(&layouts[4]);
+
     for (u32 i = 0; i < game->num_of_players; i++) {
         if (draw->name_plates[i].gpu_info == 0)
             continue;
@@ -420,9 +422,7 @@ draw_name_plates(Game *game, Game_Draw *draw) {
         object.index = render_set_bitmap(&bitmap_desc, &draw->name_plates[i]);
         render_bind_descriptor_set(bitmap_desc);
 
-        Descriptor color_set_2 = render_get_descriptor_set(&layouts[4]);
-        render_update_ubo(color_set_2, (void *)&name_plates_color);
-        render_bind_descriptor_set(color_set_2);
+        render_bind_descriptor_sets(color_set_2, &name_plates_color);
 
         Vector3 position = get_hand_position(draw->info.radius, draw->info.degrees_between_players, i);
         position += normalized(position) * 4.1f;
@@ -459,6 +459,7 @@ draw_triangle_indicator(Game *game, Game_Draw *draw) {
 internal void
 draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[16]) {
     render_depth_test(true);
+    
     render_bind_pipeline(&pipelines[PIPELINE_3D_TEXTURE]);
     render_bind_descriptor_set(state->scene_set);
     render_bind_descriptor_set(light_set);
@@ -481,7 +482,6 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     }
 
     render_bind_pipeline(&pipelines[PIPELINE_3D_TEXT]);
-    render_bind_descriptor_set(light_set);
 
     // Name Plate
     draw_name_plates(game, &state->game_draw);

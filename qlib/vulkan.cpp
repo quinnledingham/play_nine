@@ -2124,7 +2124,12 @@ void vulkan_end_compute() {
 bool8 vulkan_start_frame(App_Window *window) {
 	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
 
-	vulkan_info.dynamic_uniform_buffer.offset = 0;
+	vulkan_info.dynamic_buffer.offset = 0;
+	
+	if (vulkan_info.current_frame == 0)
+		vulkan_info.dynamic_uniform_buffer.offset = 0;
+
+	frame->dynamic_offset_start = vulkan_info.dynamic_uniform_buffer.offset;
 
 	if (window->resized) {
 		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
@@ -2171,6 +2176,8 @@ bool8 vulkan_start_frame(App_Window *window) {
 void vulkan_end_frame(Assets *assets, App_Window *window) {
 	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
 	
+	frame->dynamic_offset_end = vulkan_info.dynamic_uniform_buffer.offset;
+
 	vkCmdEndRenderPass(VK_CMD(vulkan_info));
 
 		// Draw Render Pass
@@ -2227,8 +2234,6 @@ void vulkan_end_frame(Assets *assets, App_Window *window) {
 	}
 
 	vulkan_info.current_frame = (vulkan_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-
-	vulkan_info.dynamic_buffer.offset = 0;
 }
 
 //
@@ -2529,7 +2534,17 @@ void vulkan_bind_descriptor_set(Descriptor desc) {
 
 void vulkan_bind_descriptor_sets(Descriptor desc, void *data) {
 	u32 alignment = (u32)vulkan_get_alignment(desc.binding.size, (u32)vulkan_info.uniform_buffer_min_alignment);
+
+	u32 next_frame_index = vulkan_info.current_frame + 1;
+	if (next_frame_index >= MAX_FRAMES_IN_FLIGHT)
+		next_frame_index = 0;
+	
 	u32 offset = vulkan_get_next_offset(&vulkan_info.dynamic_uniform_buffer.offset, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE, true);
+
+	if (offset >= vulkan_info.frames[next_frame_index].dynamic_offset_start && offset < vulkan_info.frames[next_frame_index].dynamic_offset_end) {
+		vulkan_info.dynamic_uniform_buffer.offset = vulkan_get_next_offset(&vulkan_info.frames[next_frame_index].dynamic_offset_end, alignment, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE, true);
+		offset = vulkan_info.dynamic_uniform_buffer.offset;
+	}
 
 	memcpy((char*)vulkan_info.dynamic_uniform_buffer.data + offset, data, desc.binding.size);
 

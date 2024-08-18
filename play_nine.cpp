@@ -657,6 +657,7 @@ bool8 update(App *app) {
     
     state->is_active = (state->client_game_index == state->game.active_player || state->mode == MODE_LOCAL) && !state->game.players[state->game.active_player].is_bot;
 
+    shapes_color_descriptor = render_get_descriptor_set(&layouts[4]);
     // Update
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);        
