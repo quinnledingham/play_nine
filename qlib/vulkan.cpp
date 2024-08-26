@@ -1056,8 +1056,8 @@ vulkan_bool(bool8 in) {
 	else    return VK_FALSE;
 }
 
-bool8 vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info, VkRenderPass render_pass) {
-	Shader *shader = pipeline->shader;
+bool8 vulkan_create_graphics_pipeline(Shader *shader, VkRenderPass render_pass) {
+	GFX_Pipeline *pipeline = &shader->pipeline;
 
 	u32 shader_stages_index = 0;
 	VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_AMOUNT] = {};
@@ -1081,8 +1081,8 @@ bool8 vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info ver
 	// Copy into arrays
 
 	VkDescriptorSetLayout descriptor_set_layouts[5];
-	for (u32 i = 0; i < shader->set.descriptor_sets_count; i++) {
-		descriptor_set_layouts[i] = shader->set.descriptor_sets[i]->descriptor_set_layout;
+	for (u32 i = 0; i < shader->set.layouts_count; i++) {
+		descriptor_set_layouts[i] = shader->set.layouts[i]->descriptor_set_layout;
 	}
 
 	VkPushConstantRange push_constant_ranges[5] = {};
@@ -1096,7 +1096,7 @@ bool8 vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info ver
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount         = shader->set.descriptor_sets_count; 
+	pipeline_layout_info.setLayoutCount         = shader->set.layouts_count; 
 	pipeline_layout_info.pSetLayouts            = descriptor_set_layouts;      
 	pipeline_layout_info.pushConstantRangeCount = shader->set.push_constants_count; 
 	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;          
@@ -1117,8 +1117,8 @@ bool8 vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info ver
 
 	// Create the pipeline vertex input info
 	u32 vertex_size = 0;
-	for (u32 i = 0; i < vertex_info.attributes_count; i++) {
-		switch(vertex_info.formats[i]) {
+	for (u32 i = 0; i < shader->vertex_info.attributes_count; i++) {
+		switch(shader->vertex_info.formats[i]) {
 			case VECTOR2: vertex_size += sizeof(Vector2); break;
 			case VECTOR3: vertex_size += sizeof(Vector3); break;
 		}
@@ -1130,18 +1130,18 @@ bool8 vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info ver
 	binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	
 	VkVertexInputAttributeDescription attribute_descriptions[5] = {}; // 5 = vertex max attributes
-	for (u32 i = 0; i < vertex_info.attributes_count; i++) {
+	for (u32 i = 0; i < shader->vertex_info.attributes_count; i++) {
 		attribute_descriptions[i].binding = 0;
 		attribute_descriptions[i].location = i;
-		attribute_descriptions[i].format = convert_to_vulkan(vertex_info.formats[i]);
-		attribute_descriptions[i].offset = vertex_info.offsets[i];
+		attribute_descriptions[i].format = convert_to_vulkan(shader->vertex_info.formats[i]);
+		attribute_descriptions[i].offset = shader->vertex_info.offsets[i];
 	}
 
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
 	vertex_input_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	vertex_input_info.vertexBindingDescriptionCount   = 1;
 	vertex_input_info.pVertexBindingDescriptions      = &binding_description;         // Optional
-	vertex_input_info.vertexAttributeDescriptionCount = vertex_info.attributes_count;
+	vertex_input_info.vertexAttributeDescriptionCount = shader->vertex_info.attributes_count;
 	vertex_input_info.pVertexAttributeDescriptions    = attribute_descriptions;       // Optional
 
 	VkPipelineInputAssemblyStateCreateInfo input_assembly = {};
@@ -1236,14 +1236,16 @@ bool8 vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info ver
 			vkDestroyShaderModule(vulkan_info.device, shader_modules[i], nullptr);
 	}
 
+	shader->pipeline.compiled = TRUE;
+
 	return false;
 }
-void vulkan_create_graphics_pipeline(Render_Pipeline *pipeline, Vertex_Info vertex_info) {
-	vulkan_create_graphics_pipeline(pipeline, vertex_info, vulkan_info.draw_render_pass);
+void vulkan_create_graphics_pipeline(Shader *shader) {
+	vulkan_create_graphics_pipeline(shader, vulkan_info.draw_render_pass);
 }
 
-void vulkan_create_compute_pipeline(Render_Pipeline *pipeline) {
-	Shader *shader = pipeline->shader;
+void vulkan_create_compute_pipeline(Shader *shader) {
+	GFX_Pipeline *pipeline = &shader->pipeline;
 
 	u32 shader_stages_index = 0;
 	VkPipelineShaderStageCreateInfo shader_stage = {};
@@ -1262,8 +1264,8 @@ void vulkan_create_compute_pipeline(Render_Pipeline *pipeline) {
 	// Copy into arrays
 
 	VkDescriptorSetLayout descriptor_set_layouts[5];
-	for (u32 i = 0; i < shader->set.descriptor_sets_count; i++) {
-		descriptor_set_layouts[i] = shader->set.descriptor_sets[i]->descriptor_set_layout;
+	for (u32 i = 0; i < shader->set.layouts_count; i++) {
+		descriptor_set_layouts[i] = shader->set.layouts[i]->descriptor_set_layout;
 	}
 
 	VkPushConstantRange push_constant_ranges[5] = {};
@@ -1277,7 +1279,7 @@ void vulkan_create_compute_pipeline(Render_Pipeline *pipeline) {
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount         = shader->set.descriptor_sets_count; 
+	pipeline_layout_info.setLayoutCount         = shader->set.layouts_count; 
 	pipeline_layout_info.pSetLayouts            = descriptor_set_layouts;      
 	pipeline_layout_info.pushConstantRangeCount = shader->set.push_constants_count; 
 	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;          
@@ -1296,6 +1298,8 @@ void vulkan_create_compute_pipeline(Render_Pipeline *pipeline) {
 	}
 
 	vkDestroyShaderModule(vulkan_info.device, shader_module, nullptr);
+
+	shader->pipeline.compiled = TRUE;
 }
 
 //
@@ -1696,25 +1700,28 @@ void vulkan_pipeline_cleanup(Render_Pipeline *pipe) {
 }
 
 internal void
-vulkan_recreate_pipelines() {
-	for (u32 i = 0; i < PIPELINE_COUNT; i++) {
-		Render_Pipeline *pipeline = &pipelines[i];
+vulkan_recreate_pipelines(Assets *assets) {
+	for (u32 i = 0; i < assets->types[ASSET_TYPE_SHADER].num_of_assets; i++) {
+		Shader *shader = &assets->types[ASSET_TYPE_SHADER].data[i].shader;
+		GFX_Pipeline *pipeline = &shader->pipeline;
+
+		if (!pipeline->compiled) {
+			logprint("vulkan_recreate_pipelines()", "pipeline not compiled (%d)\n", i);
+			continue;
+		}
+		
 		vulkan_pipeline_cleanup(pipeline);
 		
 		if (!pipeline->compute) {
-			if (pipeline->depth_test) {
-			  render_create_graphics_pipeline(pipeline, get_vertex_xnu_info());
-			} else {
-			  render_create_graphics_pipeline(pipeline, get_vertex_xu_info());
-			}
+			render_create_graphics_pipeline(shader);
 		} else {
-	    render_create_compute_pipeline(pipeline);
+	    render_create_compute_pipeline(shader);
 		}
 	}
 }
 
 internal void
-vulkan_recreate_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
+vulkan_recreate_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim, Assets *assets) {
 	vkDeviceWaitIdle(info->device);
 
 	vulkan_cleanup_swap_chain(info);
@@ -1743,7 +1750,7 @@ vulkan_recreate_swap_chain(Vulkan_Info *info, Vector2_s32 window_dim) {
 	vulkan_info.draw_render_pass_info.renderPass = vulkan_info.draw_render_pass;
 	vulkan_info.present_render_pass_info.renderPass = vulkan_info.present_render_pass;
 
-	vulkan_recreate_pipelines();	
+	vulkan_recreate_pipelines(assets);	
 }
 
 
@@ -1771,7 +1778,10 @@ void vulkan_assets_cleanup(Assets *assets) {
 		      }
 				} break;
 				
-		    case ASSET_TYPE_SHADER: break;
+		    case ASSET_TYPE_SHADER: {
+						Shader *shader = (Shader *)&asset->shader;
+		    		vulkan_pipeline_cleanup(&shader->pipeline);
+		    } break;
 		    case ASSET_TYPE_AUDIO: break;
 		}
 	}
@@ -1797,6 +1807,13 @@ void vulkan_cleanup_frame(VkDevice device, Vulkan_Frame *frame) {
 		}
 }
 
+void vulkan_cleanup_layouts(Layout *layouts, u32 layouts_count) {
+	for (u32 i = 0; i < layouts_count; i++) {
+		if (layouts[i].descriptor_set_layout != 0)
+			vkDestroyDescriptorSetLayout(vulkan_info.device, layouts[i].descriptor_set_layout, nullptr);
+	}
+}
+
 void vulkan_cleanup() {
 	Vulkan_Info *info = &vulkan_info;
 	vulkan_cleanup_swap_chain(info);
@@ -1805,11 +1822,6 @@ void vulkan_cleanup() {
 	vulkan_destroy_texture(&info->color_texture);
 
 	vkDestroyDescriptorPool(vulkan_info.device, vulkan_info.descriptor_pool, nullptr);
-
-	for (u32 i = 0; i < ARRAY_COUNT(layouts); i++) {
-		if (layouts[i].descriptor_set_layout != 0)
-			vkDestroyDescriptorSetLayout(vulkan_info.device, layouts[i].descriptor_set_layout, nullptr);
-	}
 
 	for (u32 i = 0; i < ARRAY_COUNT(info->buffers); i++) {
 		vulkan_cleanup_buffer(info->buffers[i]);
@@ -2077,13 +2089,11 @@ void vulkan_set_scissor(s32 x, s32 y, u32 width, u32 height) {
 void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
 	vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
-	vulkan_info.active_shader = pipeline->shader;
 }
 
 void vulkan_bind_compute_pipeline(Render_Pipeline *pipeline) {
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
 	vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->graphics_pipeline);
-	vulkan_info.active_shader = pipeline->shader;
 }
 
 void vulkan_start_compute() {
@@ -2132,7 +2142,7 @@ bool8 vulkan_start_frame(App_Window *window) {
 	frame->dynamic_offset_start = vulkan_info.dynamic_uniform_buffer.offset;
 
 	if (window->resized) {
-		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim);
+		vulkan_recreate_swap_chain(&vulkan_info, render_context.window_dim, global_assets);
 		vulkan_info.draw_render_pass_info.renderArea.extent = vulkan_get_extent();
 		vulkan_info.present_render_pass_info.renderArea.extent = vulkan_info.swap_chain_extent;
 
@@ -2474,12 +2484,19 @@ void vulkan_create_set_layout(Layout *layout) {
 // Descriptor Set Usage
 
 Descriptor vulkan_get_descriptor_set(Layout *layout) {
-  if (layout->sets_in_use + 1 > layout->max_sets)
-      ASSERT(0);
+	if (layout == 0) {
+		logprint("vulkan_get_descriptor_set()", "layout is null\n");
+		ASSERT(0);
+	}
+	
+  if (layout->sets_in_use + 1 > layout->max_sets) {
+		logprint("vulkan_get_descriptor_set()", "used all sets\n");
+		ASSERT(0);
+  }
 
   u32 return_index = layout->sets_in_use++;
   if (vulkan_info.current_frame == 1)
-      return_index += layout->max_sets / 2;
+    return_index += layout->max_sets / 2;
 
 	Descriptor desc = {};
 	desc.binding = layout->bindings[0];

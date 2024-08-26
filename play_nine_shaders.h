@@ -1,5 +1,7 @@
+Layout layouts[11];
+
 inline void
-init_layouts(Layout layouts[10], Bitmap *bitmap) {
+init_layouts(Layout *layouts, Bitmap *bitmap) {
     layouts[0].bindings[0] = Layout_Binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene)); // 2D.vert, basic.vert
     layouts[1].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Light)); // basic.frag, color3D.frag
     layouts[2].bindings[0] = Layout_Binding(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, TEXTURE_ARRAY_SIZE); // text.frag
@@ -79,4 +81,73 @@ init_ray_comp_layout(Layout_Set *set, Layout layouts[11]) {
 inline void
 init_prompt_layout(Layout_Set *set, Layout *layouts) {
     set->add_layout(&layouts[3]);
+}
+
+bool8 init_pipelines(Assets *assets) {
+    
+    init_layouts(layouts, find_bitmap(assets, "BACK"));
+
+#if DEBUG
+#if VULKAN
+    vulkan_print_allocated_descriptors(); // based on init_layouts
+#endif // VULKAN
+#endif // DEBUG
+
+    Shader *shader;
+
+    shader = find_shader(assets, "TEXT");
+    shader->pipeline.depth_test = false;
+    shader->vertex_info = get_vertex_xu_info();
+    init_basic_vert_layout(&shader->set, layouts);
+    init_text_frag_layout(shader, layouts);
+    render_create_graphics_pipeline(shader);
+
+    shader = find_shader(assets, "COLOR");
+    shader->pipeline.depth_test = false;
+    shader->vertex_info = get_vertex_xu_info();
+    init_basic_vert_layout(&shader->set, layouts);
+    init_color_frag_layout(shader, layouts);
+    render_create_graphics_pipeline(shader);
+        
+    shader = find_shader(assets, "TEXTURE");
+    shader->pipeline.depth_test = false;
+    shader->vertex_info = get_vertex_xu_info();
+    init_basic_vert_layout(&shader->set, layouts);
+    init_texture_frag_layout(shader, layouts);
+    render_create_graphics_pipeline(shader);
+    
+    shader = find_shader(assets, "BASIC3D");
+    shader->pipeline.depth_test = true;
+    shader->vertex_info = get_vertex_xnu_info();
+    init_basic_vert_layout(&shader->set, layouts);
+    init_basic_frag_layout(shader, layouts);
+    render_create_graphics_pipeline(shader);
+
+    shader = find_shader(assets, "COLOR3D");
+    shader->pipeline.depth_test = true;
+    shader->vertex_info = get_vertex_xnu_info();
+    init_basic_vert_layout(&shader->set, layouts);
+    init_color3D_frag_layout(shader, layouts);
+    render_create_graphics_pipeline(shader);
+    
+    shader = find_shader(assets, "TEXT3D");
+    shader->pipeline.depth_test = true;
+    shader->vertex_info = get_vertex_xnu_info();
+    init_basic_vert_layout(&shader->set, layouts);
+    init_text_frag_layout(shader, layouts);
+    render_create_graphics_pipeline(shader);
+
+    shader = find_shader(assets, "RAY");
+    shader->pipeline.compute = true;
+    init_ray_comp_layout(&shader->set, layouts);
+    render_create_compute_pipeline(shader);
+
+    shader = find_shader(assets, "PROMPT");
+    shader->pipeline.depth_test = false;
+    shader->vertex_info = get_vertex_xu_info();
+    init_basic_vert_layout(&shader->set, layouts);
+    init_prompt_layout(&shader->set, layouts);
+    render_create_graphics_pipeline(shader);
+        
+    return false;
 }

@@ -59,7 +59,9 @@ draw_input_prompt(Vector3 coords, Button button) {
   GFX_Object object = {};
   Quaternion rotation = get_rotation(0.0f, { 0, 0, 1 });
   Vector3 dim = { 100, 100, 1 };
-  render_bind_pipeline(&pipelines[PIPELINE_PROMPT]);
+
+  Shader *shader = find_shader(global_assets, "PROMPT");
+  render_bind_pipeline(&shader->pipeline);
 
   Descriptor desc = render_get_descriptor_set(&layouts[3]);
   render_set_bitmap(&desc, &keyboard_prompt_texture);

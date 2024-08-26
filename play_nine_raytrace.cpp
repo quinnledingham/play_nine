@@ -268,7 +268,8 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
         }
     }
 
-    vulkan_bind_compute_pipeline(&pipelines[PIPELINE_RAY]);
+    Shader *shader = find_shader(global_assets, "RAY");
+    vulkan_bind_compute_pipeline(&shader->pipeline);
 
     memset((char*)vulkan_info.storage_buffer.data, 0, 10 * 48);
 

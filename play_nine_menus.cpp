@@ -74,11 +74,11 @@ draw_bot_icon(Menu *menu, Vector2_s32 section_coords, Vector2_s32 draw_dim) {
     coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
     coords.y += bot_dim.y / 2.0f;
 
-    render_bind_pipeline(&pipelines[PIPELINE_2D_TEXT]);
+    Shader *shader = find_shader(global_assets, "TEXT");
+    render_bind_pipeline(&shader->pipeline);
 
     Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
-    render_update_ubo(v_color_set, (void *)&play_nine_green);
-    render_bind_descriptor_set(v_color_set);
+    render_bind_descriptor_sets(v_color_set, (void *)&play_nine_green);
 
     Object object = {};
 

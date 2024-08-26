@@ -9,7 +9,9 @@ TODO
 - change hud buttons to use other controller buttons
 - controller with textboxs?
 
+Scoreboard
 - make scoreboard look better
+- add scrolling to scoreboard
 
 - (gui_textbox) add undoing and select all
 - add victory screen
@@ -231,6 +233,5 @@ struct State {
 enum Online_Mode *global_mode;
 global s8 deck[DECK_SIZE];
 GUI gui = {};
-Assets *global_assets;
 Audio_Player *audio_player; // play_sound & play_music
 

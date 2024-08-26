@@ -71,6 +71,80 @@ struct Audio_Player {
 };
 
 //
+// Vextex
+//
+
+typedef enum {
+    VECTOR2,
+    VECTOR3
+} Vector_Type;
+
+#ifdef VULKAN
+inline VkFormat
+convert_to_vulkan(Vector_Type type) {
+    switch(type) {
+        case VECTOR2: return VK_FORMAT_R32G32_SFLOAT;
+        case VECTOR3: return VK_FORMAT_R32G32B32_SFLOAT;
+        default: {
+            logprint("convert_to_vulkan()", "not a valid vector type\n");
+            ASSERT(0);
+            return VK_FORMAT_R32G32B32_SFLOAT;
+        } break;
+    }
+}
+#endif // VULKAN
+
+struct Vertex_Info {
+    static const u32 max_attributes = 5;
+    u32 attributes_count;
+    Vector_Type formats[max_attributes];
+    u32 offsets[max_attributes];
+
+    u32 size;
+
+    void add(Vector_Type format, u32 offset) {
+        if (attributes_count >= max_attributes) {
+            logprint("Vertex_Info add()", "tried to add too many attributes\n");
+            return;
+        }
+
+        formats[attributes_count] = format;
+        offsets[attributes_count] = offset;
+        attributes_count++;
+    }
+};
+
+struct Vertex_XNU {
+    Vector3 position;
+    Vector3 normal;
+    Vector2 uv;
+};
+
+inline Vertex_Info
+get_vertex_xnu_info() {
+    Vertex_Info basic_info = {};
+    basic_info.add(VECTOR3, offsetof(Vertex_XNU, position));
+    basic_info.add(VECTOR3, offsetof(Vertex_XNU, normal));
+    basic_info.add(VECTOR2, offsetof(Vertex_XNU, uv));
+    basic_info.size = sizeof(Vertex_XNU);
+    return basic_info;
+}
+
+struct Vertex_XU {
+    Vector2 position;
+    Vector2 uv;
+};
+
+inline Vertex_Info
+get_vertex_xu_info() {
+    Vertex_Info basic_info = {};
+    basic_info.add(VECTOR2, offsetof(Vertex_XU, position));
+    basic_info.add(VECTOR2, offsetof(Vertex_XU, uv));
+    basic_info.size = sizeof(Vertex_XU);
+    return basic_info;
+}
+
+//
 // render
 //
 
@@ -155,7 +229,7 @@ struct Descriptor {
 
 struct Layout {
     static const u32 max_bindings = 10;
-    static const u32 max_sets = 128;
+    static const u32 max_sets = 512;
 
     Layout_Binding bindings[max_bindings];
     u32 binding_count;
@@ -188,14 +262,14 @@ struct Push_Constant {
 };
 
 struct Layout_Set {
-    Layout *descriptor_sets[5];
+    Layout *layouts[5];
     Push_Constant push_constants[5];
 
-    u32 descriptor_sets_count;
+    u32 layouts_count;
     u32 push_constants_count;
 
     void add_layout(Layout *layout) {
-        descriptor_sets[descriptor_sets_count++] = layout;
+        layouts[layouts_count++] = layout;
     }
 
     void add_push(u32 shader_stage, u32 size) {
@@ -206,14 +280,28 @@ struct Layout_Set {
     }
 };
 
+struct Render_Pipeline {
+    bool8 compute = FALSE;
+    bool8 blend;
+    bool8 depth_test = TRUE;
+    bool8 wireframe;
+    bool8 compiled = FALSE;
+
+#ifdef VULKAN
+    VkPipelineLayout pipeline_layout;
+    VkPipeline graphics_pipeline;
+#endif
+};
+
+typedef Render_Pipeline GFX_Pipeline;
+
 struct Shader {
     File files[SHADER_STAGES_AMOUNT];       // GLSL
     File spirv_files[SHADER_STAGES_AMOUNT]; // SPIRV
-    
-    Layout_Set set;
 
-    bool8 compiled;
-    u32 handle;
+    Vertex_Info vertex_info;
+    Layout_Set set; // layout of the descriptors in the shader
+    GFX_Pipeline pipeline;
 };
 
 //
@@ -293,76 +381,6 @@ struct Font {
 //
 // Mesh
 //
-
-typedef enum {
-    VECTOR2,
-    VECTOR3
-} Vector_Type;
-
-#ifdef VULKAN
-inline VkFormat
-convert_to_vulkan(Vector_Type type) {
-    switch(type) {
-        case VECTOR2: return VK_FORMAT_R32G32_SFLOAT;
-        case VECTOR3: return VK_FORMAT_R32G32B32_SFLOAT;
-        default: {
-            logprint("convert_to_vulkan()", "not a valid vector type\n");
-            ASSERT(0);
-            return VK_FORMAT_R32G32B32_SFLOAT;
-        } break;
-    }
-}
-#endif // VULKAN
-
-struct Vertex_Info {
-    static const u32 max_attributes = 5;
-    u32 attributes_count;
-    Vector_Type formats[max_attributes];
-    u32 offsets[max_attributes];
-
-    u32 size;
-
-    void add(Vector_Type format, u32 offset) {
-        if (attributes_count >= max_attributes) {
-            logprint("Vertex_Info add()", "tried to add too many attributes\n");
-            return;
-        }
-
-        formats[attributes_count] = format;
-        offsets[attributes_count] = offset;
-        attributes_count++;
-    }
-};
-
-struct Vertex_XNU {
-    Vector3 position;
-    Vector3 normal;
-    Vector2 uv;
-};
-
-inline Vertex_Info
-get_vertex_xnu_info() {
-    Vertex_Info basic_info = {};
-    basic_info.add(VECTOR3, offsetof(Vertex_XNU, position));
-    basic_info.add(VECTOR3, offsetof(Vertex_XNU, normal));
-    basic_info.add(VECTOR2, offsetof(Vertex_XNU, uv));
-    basic_info.size = sizeof(Vertex_XNU);
-    return basic_info;
-}
-
-struct Vertex_XU {
-    Vector2 position;
-    Vector2 uv;
-};
-
-inline Vertex_Info
-get_vertex_xu_info() {
-    Vertex_Info basic_info = {};
-    basic_info.add(VECTOR2, offsetof(Vertex_XU, position));
-    basic_info.add(VECTOR2, offsetof(Vertex_XU, uv));
-    basic_info.size = sizeof(Vertex_XU);
-    return basic_info;
-}
 
 struct Material {
     Vector3 ambient;           // Ka (in .obj files)
@@ -446,6 +464,8 @@ struct Assets {
     Asset_Array types[ASSET_TYPE_AMOUNT];
 };
 
+Assets *global_assets;
+
 internal void*
 find_asset(Assets *assets, u32 type, const char *tag) {
     for (u32 i = 0; i < assets->types[type].num_of_assets; i++) {
@@ -461,6 +481,5 @@ inline Font*   find_font  (Assets *assets, const char *tag) { return (Font*)   f
 inline Shader* find_shader(Assets *assets, const char *tag) { return (Shader*) find_asset(assets, ASSET_TYPE_SHADER, tag); }
 inline Model*  find_model (Assets *assets, const char *tag) { return (Model*)  find_asset(assets, ASSET_TYPE_MODEL,  tag); }
 inline Audio*  find_audio (Assets *assets, const char *tag) { return (Audio*)  find_asset(assets, ASSET_TYPE_AUDIO,  tag); }
-
 
 #endif // ASSETS_H

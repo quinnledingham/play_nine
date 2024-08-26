@@ -10,41 +10,9 @@ struct Object {
 
 typedef Object GFX_Object;
 
-struct Render_Pipeline {
-    Shader *shader;
-    bool8 compute = FALSE;
-    bool8 blend;
-    bool8 depth_test = TRUE;
-    bool8 wireframe;
-
-#ifdef VULKAN
-    VkPipelineLayout pipeline_layout;
-    VkPipeline graphics_pipeline;
-#endif
-
-    void *gpu_info; // OpenGL = NULL, Vulkan = VkPipeline
-};
-
-enum Pipelines {
-    PIPELINE_2D_COLOR,
-    PIPELINE_2D_TEXTURE,
-    PIPELINE_2D_TEXT,
-
-    PIPELINE_3D_COLOR,
-    PIPELINE_3D_TEXTURE,
-    PIPELINE_3D_TEXT,
-
-    PIPELINE_RAY,
-    PIPELINE_PROMPT,
-
-    PIPELINE_COUNT
-};
-
-Render_Pipeline pipelines[PIPELINE_COUNT];
 
 Descriptor light_set;
 Descriptor light_set_2;
-Layout layouts[11];
 
 #define TEXTURE_ARRAY_SIZE   16
 #define MAX_FRAMES_IN_FLIGHT  2
@@ -89,8 +57,8 @@ RENDER_FUNC(void, clear_color, Vector4 color);
 RENDER_FUNC(bool8, start_frame, App_Window *window);
 RENDER_FUNC(void, end_frame, Assets *assets, App_Window *window);
 RENDER_FUNC(void, cleanup);
-RENDER_FUNC(void, create_graphics_pipeline, Render_Pipeline *pipeline, Vertex_Info vertex_info);
-RENDER_FUNC(void, create_compute_pipeline, Render_Pipeline *pipeline);
+RENDER_FUNC(void, create_graphics_pipeline, Shader *shader);
+RENDER_FUNC(void, create_compute_pipeline, Shader *shader);
 RENDER_FUNC(void, pipeline_cleanup, Render_Pipeline *pipe);
 RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
 RENDER_FUNC(void, create_texture, Bitmap *bitmap, u32 texture_parameters);

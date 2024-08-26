@@ -182,7 +182,7 @@ internal Game
 get_test_game() {
     Game game = {};
     game.num_of_players = 6;
-    game.holes_played = 4;
+    game.holes_played = 9;
     game.round_type = HOLE_OVER;
 
     for (u32 i = 0; i < game.num_of_players; i++) {

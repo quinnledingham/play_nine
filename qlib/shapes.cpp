@@ -29,11 +29,7 @@ struct Shapes {
     Mesh rect_3D_mesh;
     Mesh triangle_3D_mesh;
     Mesh sphere_mesh;
-    Mesh cube_mesh;
-    
-    Render_Pipeline *color_pipeline;
-    Render_Pipeline *texture_pipeline;
-    Render_Pipeline *text_pipeline;
+    Mesh cube_mesh;    
 };
 
 Shapes shapes = {};
@@ -203,11 +199,12 @@ void draw_triangle(Vector3 coords, Vector3 rotation, Vector3 dim, Vector4 color)
     Quaternion rotation_quat_y = get_rotation(rotation.y, { 0, 1, 0 });
     Quaternion rotation_quat_z = get_rotation(rotation.z, { 0, 0, 1 });
     Quaternion rotation_quat = rotation_quat_x * rotation_quat_y * rotation_quat_z;
-    
-    render_bind_pipeline(&pipelines[PIPELINE_3D_COLOR]);
+
+    Shader *shader = find_shader(global_assets, "COLOR3D");
+    render_bind_pipeline(&shader->pipeline);
     render_bind_descriptor_set(light_set);
     
-    Descriptor color_desc = render_get_descriptor_set(&layouts[5]);
+    Descriptor color_desc = render_get_descriptor_set(shader->set.layouts[2]);
     render_update_ubo(color_desc, (void *)&color);
     render_bind_descriptor_set(color_desc);
 
@@ -371,10 +368,12 @@ void draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     draw_shape(shape);
 */
     Quaternion rotation_quat = get_rotation(rotation, { 0, 0, 1 });
-    render_bind_pipeline(&pipelines[PIPELINE_3D_COLOR]);
+
+    Shader *shader = find_shader(global_assets, "COLOR3D");
+    render_bind_pipeline(&shader->pipeline);
     render_bind_descriptor_set(light_set);
 
-    Descriptor object_desc = render_get_descriptor_set(&layouts[5]);
+    Descriptor object_desc = render_get_descriptor_set(shader->set.layouts[2]);
     render_update_ubo(object_desc, (void *)&color);
     render_bind_descriptor_set(object_desc);
 
@@ -450,10 +449,11 @@ void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
     draw_shape(shape);
 */
 
-    render_bind_pipeline(&pipelines[PIPELINE_3D_COLOR]);
+    Shader *shader = find_shader(global_assets, "COLOR3D");
+    render_bind_pipeline(&shader->pipeline);
     render_bind_descriptor_set(light_set);
 
-    Descriptor object_set = render_get_descriptor_set(&layouts[5]);
+    Descriptor object_set = render_get_descriptor_set(shader->set.layouts[2]);
     render_update_ubo(object_set, (void *)&color);
     render_bind_descriptor_set(object_set);
 
@@ -477,11 +477,6 @@ void init_shapes(Assets *assets) {
     shapes.triangle_3D_mesh = init_triangle_mesh();
     shapes.sphere_mesh = get_sphere_mesh(0.025f, 10, 10);
     shapes.cube_mesh = get_cube_mesh(true);
-
-    // Text Pipeline
-    shapes.text_pipeline = &pipelines[PIPELINE_2D_TEXT];
-    shapes.color_pipeline = &pipelines[PIPELINE_2D_COLOR];
-    shapes.texture_pipeline = &pipelines[PIPELINE_2D_TEXTURE];
 }
 
 global Descriptor shapes_color_descriptor;
@@ -491,7 +486,8 @@ void draw_shape(Shape shape) {
 
     switch(shape.draw_type) {
         case Shape_Draw_Type::COLOR: {
-            render_bind_pipeline(shapes.color_pipeline);
+            Shader *shader = find_shader(global_assets, "COLOR");
+            render_bind_pipeline(&shader->pipeline);
 
             //Descriptor v_set = render_get_descriptor_set(&layouts[4]);
             //render_update_ubo(v_set, &shape.color);
@@ -501,9 +497,10 @@ void draw_shape(Shape shape) {
         } break;
 
         case Shape_Draw_Type::TEXTURE: {
-            render_bind_pipeline(shapes.texture_pipeline);
+            Shader *shader = find_shader(global_assets, "TEXTURE");
+            render_bind_pipeline(&shader->pipeline);
 
-            Descriptor desc = render_get_descriptor_set(&layouts[3]);
+            Descriptor desc = render_get_descriptor_set(shader->set.layouts[1]);
             object.index = render_set_bitmap(&desc, shape.bitmap);
             render_bind_descriptor_set(desc);
         } break;
@@ -543,7 +540,8 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     float32 current_point = coords.x;
     float32 baseline      = coords.y;
 
-    render_bind_pipeline(shapes.text_pipeline);
+    Shader *shader = find_shader(global_assets, "TEXT");
+    render_bind_pipeline(&shader->pipeline);
     render_bind_descriptor_sets(shapes_color_descriptor, &color);
 
     Object object = {};
@@ -552,7 +550,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     
     u32 string_index = 0;
     while(string[string_index] != 0) {
-        Descriptor desc = render_get_descriptor_set(&layouts[2]);
+        Descriptor desc = render_get_descriptor_set(shader->set.layouts[2]);
 
         u32 indices_index = 0;
         platform_memory_set(indices, 0, sizeof(u32) * TEXTURE_ARRAY_SIZE);

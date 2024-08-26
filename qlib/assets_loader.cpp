@@ -528,8 +528,6 @@ load_saved_assets(Assets *assets, const char *filename, u32 offset) // returns 0
                     }
                     asset->shader.spirv_files[i].path = 0;
                 }
-
-                asset->shader.compiled = false;
             } break;
             
             case ASSET_TYPE_AUDIO: {

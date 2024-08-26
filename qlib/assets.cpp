@@ -461,7 +461,7 @@ s32 get_codepoint_kern_advance(void *info, s32 ch1, s32 ch2) {
 s32 get_glyph_kern_advance(void *info, s32 gl1, s32 gl2) {
     return stbtt_GetGlyphKernAdvance((stbtt_fontinfo*)info, gl1, gl2);
 }
-
+/*
 internal Descriptor
 load_font_gfx(Font *font, float32 scale) {
     Font_Cache *cache = font->cache;
@@ -499,6 +499,7 @@ load_font_gfx(Font *font, float32 scale) {
 
     return gfx->desc;
 }
+*/
 
 //
 // Model
