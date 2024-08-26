@@ -2086,6 +2086,19 @@ void vulkan_set_scissor(s32 x, s32 y, u32 width, u32 height) {
 	vkCmdSetScissor(VK_CMD(vulkan_info), 0, 1, &scissor);
 }
 
+void vulkan_bind_shader(const char *tag) {
+	u32 id = find_asset_id(global_assets, tag);
+	gfx.active_shader_id = id;
+
+	Shader *shader = &global_assets->data[id].shader;
+	vulkan_info.pipeline_layout = shader->pipeline.pipeline_layout; // to use when binding sets later
+	if (!shader->pipeline.compute) {
+		vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, shader->pipeline.graphics_pipeline);
+	} else {
+		vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, shader->pipeline.graphics_pipeline);
+	}
+}
+
 void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
 	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
 	vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
@@ -2180,12 +2193,14 @@ bool8 vulkan_start_frame(App_Window *window) {
 
 	vkCmdBeginRenderPass(VK_CMD(vulkan_info), &vulkan_info.draw_render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
+	gfx.recording_frame = TRUE;
 	return 0;
 }
 
 void vulkan_end_frame(Assets *assets, App_Window *window) {
+	gfx.recording_frame = FALSE;
+		;
 	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
-	
 	frame->dynamic_offset_end = vulkan_info.dynamic_uniform_buffer.offset;
 
 	vkCmdEndRenderPass(VK_CMD(vulkan_info));
@@ -2450,12 +2465,12 @@ void vulkan_init_layout_offsets(Layout *layout, Bitmap *bitmap) {
 
 void vulkan_create_set_layout(Layout *layout) {
 
-	if (layout->binding_count = 0) {
+	if (layout->bindings_count = 0) {
 		logprint("(vulkan) vulkan_create_set_layout()", "no bindings set\n");
 	}
 
 	// @TODO just creating with one binding right now
-	if (layout->binding_count > 1) {
+	if (layout->bindings_count > 1) {
 		logprint("(vulkan) vulkan_create_set_layout()", "only supporting 1 binding right now\n");
 		return;
 	}
@@ -2507,7 +2522,30 @@ Descriptor vulkan_get_descriptor_set(Layout *layout) {
   return desc;
 }
 
-Descriptor vulkan_get_descriptor_set_index(Layout *layout, u32 return_index) {
+Descriptor vulkan_get_descriptor_set(u32 layout_id) {
+	if (!gfx.recording_frame) {
+		// if we are not in the middle of recording commands for a frame, don't check active
+		// shader for the layout.
+		return vulkan_get_descriptor_set(&gfx.layouts[layout_id]);
+	}
+
+	Shader *shader = &global_assets->data[gfx.active_shader_id].shader;
+	Layout_Set *set = &shader->set;
+	
+	for (u32 i = 0; i < set->layouts_count; i++) {
+		if (set->layouts[i]->id == layout_id) {
+			return vulkan_get_descriptor_set(set->layouts[i]);
+		}
+	}
+		
+	logprint("vulkan_get_descriptor_set()", "no layout in set with id in shader: %d\n", gfx.active_shader_id);
+	ASSERT(0);
+	return {};
+}
+
+Descriptor vulkan_get_descriptor_set_index(u32 layout_id, u32 return_index) {
+	Layout *layout = &gfx.layouts[layout_id];
+	
 	if (layout->sets_in_use + 1 > layout->max_sets)
 	    ASSERT(0);
 

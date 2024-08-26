@@ -74,15 +74,18 @@ draw_bot_icon(Menu *menu, Vector2_s32 section_coords, Vector2_s32 draw_dim) {
     coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
     coords.y += bot_dim.y / 2.0f;
 
-    Shader *shader = find_shader(global_assets, "TEXT");
-    render_bind_pipeline(&shader->pipeline);
+    //Shader *shader = find_shader(global_assets, "TEXT");
+    //render_bind_pipeline(&shader->pipeline);
+    vulkan_bind_shader("TEXT");
 
-    Descriptor v_color_set = render_get_descriptor_set(&layouts[4]);
+    //Descriptor v_color_set = render_get_descriptor_set_id(&shader->set, 4);
+    Descriptor v_color_set = vulkan_get_descriptor_set(4);
     render_bind_descriptor_sets(v_color_set, (void *)&play_nine_green);
 
     Object object = {};
 
-    Descriptor desc = render_get_descriptor_set(&layouts[2]);
+    Descriptor desc = vulkan_get_descriptor_set(2);
+   // Descriptor desc = render_get_descriptor_set_id(&shader->set, 2);
     object.index = render_set_bitmap(&desc, find_bitmap(global_assets, "BOT"));
     render_bind_descriptor_set(desc);
 

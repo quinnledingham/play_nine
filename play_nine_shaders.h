@@ -1,11 +1,28 @@
-Layout layouts[11];
+enum GFX_Layout_IDs {
+    GFX_ID_SCENE,
+    GFX_ID_LIGHT,
+    GFX_ID_TEXT,
+    GFX_ID_TEXTURE,
+    GFX_ID_COLOR_2D,
+    GFX_ID_COLOR_3D,
+    
+    GFX_ID_RAY_VERTEX,
+    GFX_ID_RAY_TRIANGLE,
+    GFX_ID_RAY_INTERSECTION,
+    GFX_ID_RAY_MODELS,
+    GFX_ID_BASIC_TEXTURE,
+
+    GFX_ID_COUNT
+};
 
 inline void
 init_layouts(Layout *layouts, Bitmap *bitmap) {
-    layouts[0].bindings[0] = Layout_Binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene)); // 2D.vert, basic.vert
-    layouts[1].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Light)); // basic.frag, color3D.frag
-    layouts[2].bindings[0] = Layout_Binding(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, TEXTURE_ARRAY_SIZE); // text.frag
-    layouts[3].bindings[0] = Layout_Binding(0, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, TEXTURE_ARRAY_SIZE); // texture.frag
+    //layouts[GFX_ID_SCENE].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX,)
+    
+    layouts[GFX_ID_SCENE].add_binding(Layout_Binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene))); // 2D.vert, basic.vert
+    layouts[GFX_ID_LIGHT].add_binding(Layout_Binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Light))); // basic.frag, color3D.frag
+    layouts[GFX_ID_TEXT].add_binding(Layout_Binding(2, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, TEXTURE_ARRAY_SIZE)); // text.frag
+    layouts[GFX_ID_TEXTURE].add_binding(Layout_Binding(0, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, TEXTURE_ARRAY_SIZE)); // texture.frag
     layouts[4].bindings[0] = Layout_Binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, SHADER_STAGE_FRAGMENT, 1, sizeof(Vector4)); // color.frag, text.frag
     layouts[5].bindings[0] = Layout_Binding(2, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Vector4)); // color3D.frag
 
@@ -28,7 +45,8 @@ init_layouts(Layout *layouts, Bitmap *bitmap) {
     layouts[9].set_number = 3;
     layouts[10].set_number = 2;
 
-    for (u32 i = 0; i < 11; i++) {
+    for (u32 i = 0; i < GFX_ID_COUNT; i++) {
+        layouts[i].id = i;
         render_create_set_layout(&layouts[i]);
         render_allocate_descriptor_set(&layouts[i]);
         render_init_layout_offsets(&layouts[i], bitmap);
@@ -84,8 +102,9 @@ init_prompt_layout(Layout_Set *set, Layout *layouts) {
 }
 
 bool8 init_pipelines(Assets *assets) {
-    
-    init_layouts(layouts, find_bitmap(assets, "BACK"));
+
+    gfx.layouts = ARRAY_MALLOC(Layout, 11);
+    init_layouts(gfx.layouts, find_bitmap(assets, "BACK"));
 
 #if DEBUG
 #if VULKAN
@@ -98,55 +117,55 @@ bool8 init_pipelines(Assets *assets) {
     shader = find_shader(assets, "TEXT");
     shader->pipeline.depth_test = false;
     shader->vertex_info = get_vertex_xu_info();
-    init_basic_vert_layout(&shader->set, layouts);
-    init_text_frag_layout(shader, layouts);
+    init_basic_vert_layout(&shader->set, gfx.layouts);
+    init_text_frag_layout(shader, gfx.layouts);
     render_create_graphics_pipeline(shader);
 
     shader = find_shader(assets, "COLOR");
     shader->pipeline.depth_test = false;
     shader->vertex_info = get_vertex_xu_info();
-    init_basic_vert_layout(&shader->set, layouts);
-    init_color_frag_layout(shader, layouts);
+    init_basic_vert_layout(&shader->set, gfx.layouts);
+    init_color_frag_layout(shader, gfx.layouts);
     render_create_graphics_pipeline(shader);
         
     shader = find_shader(assets, "TEXTURE");
     shader->pipeline.depth_test = false;
     shader->vertex_info = get_vertex_xu_info();
-    init_basic_vert_layout(&shader->set, layouts);
-    init_texture_frag_layout(shader, layouts);
+    init_basic_vert_layout(&shader->set, gfx.layouts);
+    init_texture_frag_layout(shader, gfx.layouts);
     render_create_graphics_pipeline(shader);
     
     shader = find_shader(assets, "BASIC3D");
     shader->pipeline.depth_test = true;
     shader->vertex_info = get_vertex_xnu_info();
-    init_basic_vert_layout(&shader->set, layouts);
-    init_basic_frag_layout(shader, layouts);
+    init_basic_vert_layout(&shader->set, gfx.layouts);
+    init_basic_frag_layout(shader, gfx.layouts);
     render_create_graphics_pipeline(shader);
 
     shader = find_shader(assets, "COLOR3D");
     shader->pipeline.depth_test = true;
     shader->vertex_info = get_vertex_xnu_info();
-    init_basic_vert_layout(&shader->set, layouts);
-    init_color3D_frag_layout(shader, layouts);
+    init_basic_vert_layout(&shader->set, gfx.layouts);
+    init_color3D_frag_layout(shader, gfx.layouts);
     render_create_graphics_pipeline(shader);
     
     shader = find_shader(assets, "TEXT3D");
     shader->pipeline.depth_test = true;
     shader->vertex_info = get_vertex_xnu_info();
-    init_basic_vert_layout(&shader->set, layouts);
-    init_text_frag_layout(shader, layouts);
+    init_basic_vert_layout(&shader->set, gfx.layouts);
+    init_text_frag_layout(shader, gfx.layouts);
     render_create_graphics_pipeline(shader);
 
     shader = find_shader(assets, "RAY");
     shader->pipeline.compute = true;
-    init_ray_comp_layout(&shader->set, layouts);
+    init_ray_comp_layout(&shader->set, gfx.layouts);
     render_create_compute_pipeline(shader);
 
     shader = find_shader(assets, "PROMPT");
     shader->pipeline.depth_test = false;
     shader->vertex_info = get_vertex_xu_info();
-    init_basic_vert_layout(&shader->set, layouts);
-    init_prompt_layout(&shader->set, layouts);
+    init_basic_vert_layout(&shader->set, gfx.layouts);
+    init_prompt_layout(&shader->set, gfx.layouts);
     render_create_graphics_pipeline(shader);
         
     return false;

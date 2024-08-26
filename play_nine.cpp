@@ -574,32 +574,31 @@ prepare_controller_for_input(Controller *controller) {
 internal u32
 draw(App *app, State *state) {
     // Resets all of the descriptor sets to be reallocated on next frame
-    for (u32 i = 0; i < 10; i++) {
-        layouts[i].reset();
+    for (u32 i = 0; i < GFX_ID_COUNT; i++) {
+        gfx.layouts[i].reset();
     }
     
+    texture_desc = render_get_descriptor_set_index(GFX_ID_TEXT, 0);
+
+    state->scene_set = render_get_descriptor_set(GFX_ID_SCENE);
+    render_update_ubo(state->scene_set, (void*)&state->scene);
+
+    state->scene_ortho_set = render_get_descriptor_set(GFX_ID_SCENE);
+    render_update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
+
+    light_set = render_get_descriptor_set(GFX_ID_LIGHT);
+    render_update_ubo(light_set, (void*)&global_light);
+
+    light_set_2 = render_get_descriptor_set(GFX_ID_LIGHT);
+    render_update_ubo(light_set_2, (void*)&global_light_2);
+
     if (render_start_frame(&app->window))
         return 0;
-
-    texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
 
     render_set_viewport(render_context.resolution.width, render_context.resolution.height);
     render_context.scissor_stack_index = 0;
     render_context.scissor_push({ 0, 0 }, cv2(app->window.dim));
-
-    state->scene_set = render_get_descriptor_set(&layouts[0]);
-    render_update_ubo(state->scene_set, (void*)&state->scene);
-
-    state->scene_ortho_set = render_get_descriptor_set(&layouts[0]);
-    render_update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
-    
     render_depth_test(false);
-
-    light_set = render_get_descriptor_set(&layouts[1]);
-    render_update_ubo(light_set, (void*)&global_light);
-
-    light_set_2 = render_get_descriptor_set(&layouts[1]);
-    render_update_ubo(light_set_2, (void*)&global_light_2);
 
     if (state->menu_list.mode != IN_GAME && state->menu_list.mode != PAUSE_MENU) {
         Shader *shader = find_shader(&state->assets, "COLOR");
@@ -658,7 +657,7 @@ bool8 update(App *app) {
     
     state->is_active = (state->client_game_index == state->game.active_player || state->mode == MODE_LOCAL) && !state->game.players[state->game.active_player].is_bot;
 
-    shapes_color_descriptor = render_get_descriptor_set(&layouts[4]);
+    shapes_color_descriptor = render_get_descriptor_set(4);
     // Update
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);        
@@ -897,7 +896,7 @@ bool8 init_data(App *app) {
     state->mutex = os_create_mutex();
     state->selected_mutex = os_create_mutex();
 
-    Descriptor texture_desc = render_get_descriptor_set_index(&layouts[2], 0);
+    Descriptor texture_desc = render_get_descriptor_set_index(2, 0);
 
     for (u32 j = 0; j < 14; j++) {
         state->indices[j] = render_set_bitmap(&texture_desc, &card_bitmaps[j]);
@@ -982,7 +981,7 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
                 close_server();
             }
 
-            vulkan_cleanup_layouts(layouts, ARRAY_COUNT(layouts));
+            vulkan_cleanup_layouts(gfx.layouts, GFX_ID_COUNT);
             render_assets_cleanup(&state->assets);
 
             unload_name_plates(&state->game_draw);

@@ -78,8 +78,12 @@ RENDER_FUNC(void, bind_descriptor_sets, Descriptor desc, void *data);
 RENDER_FUNC(void, push_constants, u32 shader_stage, void *data, u32 data_size);
 RENDER_FUNC(void, bind_descriptor_set, Descriptor desc);
 RENDER_FUNC(void, update_ubo, Descriptor desc, void *data);
-RENDER_FUNC(Descriptor, get_descriptor_set, Layout *layout);
-RENDER_FUNC(Descriptor, get_descriptor_set_index, Layout *layout, u32 return_index);
+RENDER_FUNC(Descriptor, get_descriptor_set, u32 layout_id);
+RENDER_FUNC(Descriptor, get_descriptor_set_index, u32 layout_id, u32 return_index);
+
+#define GFX_FUNC(r, n, ...) r API3D_EXT(n)(__VA_ARGS__); r (*gfx_##n)(__VA_ARGS__) = &API3D_EXT(n)
+
+GFX_FUNC(void, bind_shader, const char *tag);
 
 void render_init_model(Model *model);
 
@@ -103,7 +107,10 @@ struct Render {
 
     void update_resolution();
     
-    //bool8 depth_test;
+    //bool8 depth_test
+    u32 active_shader_id;
+    bool8 recording_frame = FALSE;
+    Layout *layouts;
 
     // Scissor
     u32 scissor_stack_index = 0;

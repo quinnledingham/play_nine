@@ -244,16 +244,14 @@ void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 ba
 
         switch(draw_index) {
             case 0: { 
-                Shader *shader = find_shader(global_assets, "COLOR3D");
-                render_bind_pipeline(&shader->pipeline); 
+                gfx_bind_shader("COLOR3D");
                 render_bind_descriptor_set(color_set);
             } break;
 
             case 1:
                 object.index = front_index;
             case 2: 
-                Shader *shader = find_shader(global_assets, "BASIC3D");
-                render_bind_pipeline(&shader->pipeline); 
+                gfx_bind_shader("BASIC3D");
                 render_bind_descriptor_set(texture_desc);
             break;
         }
@@ -265,10 +263,9 @@ void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 ba
 
 // drawing highlight
 void draw_highlight(Model *model, Render_Pipeline *color_pipeline, Vector4 color, Matrix_4x4 model_matrix) {
-    Shader *shader = find_shader(global_assets, "COLOR3D");
-    render_bind_pipeline(&shader->pipeline);
+    gfx_bind_shader("COLOR3D");
 
-    Descriptor color_set = render_get_descriptor_set(&layouts[5]);
+    Descriptor color_set = render_get_descriptor_set(5);
     render_update_ubo(color_set, (void *)&color);
     render_bind_descriptor_set(color_set);
 
@@ -310,8 +307,9 @@ internal void
 draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 indices[16]) {
     Player *active_player = &game->players[game->active_player];
     enum Turn_Stages stage = game->turn_stage;
-    
-    Descriptor color_set = render_get_descriptor_set(&layouts[5]);
+
+    gfx_bind_shader("COLOR3D");
+    Descriptor color_set = render_get_descriptor_set(5);
     Vector4 color = { 150, 150, 150, 1 };
     render_update_ubo(color_set, &color);
 
@@ -411,7 +409,7 @@ unload_name_plates(Game_Draw *draw) {
 
 internal void
 draw_name_plates(Game *game, Game_Draw *draw) {
-    Descriptor color_set_2 = render_get_descriptor_set(&layouts[4]);
+    Descriptor color_set_2 = render_get_descriptor_set(4);
 
     for (u32 i = 0; i < game->num_of_players; i++) {
         if (draw->name_plates[i].gpu_info == 0)
@@ -422,7 +420,7 @@ draw_name_plates(Game *game, Game_Draw *draw) {
         Vector4 name_plates_color = { 255, 255, 255, 1 };
         Object object = {};
 
-        Descriptor bitmap_desc = render_get_descriptor_set(&layouts[2]);
+        Descriptor bitmap_desc = render_get_descriptor_set(2);
         object.index = render_set_bitmap(&bitmap_desc, &draw->name_plates[i]);
         render_bind_descriptor_set(bitmap_desc);
 
@@ -464,8 +462,7 @@ internal void
 draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[16]) {
     render_depth_test(true);
     
-    Shader *texture_shader = find_shader(global_assets, "BASIC3D");
-    render_bind_pipeline(&texture_shader->pipeline);
+    gfx_bind_shader("BASIC3D");    
     render_bind_descriptor_set(state->scene_set);
     render_bind_descriptor_set(light_set);
     
@@ -473,7 +470,8 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
 
     // Table
-    render_bind_pipeline(&texture_shader->pipeline);
+    gfx_bind_shader("BASIC3D");
+    //render_bind_pipeline(&texture_shader->pipeline);
     render_bind_descriptor_set(texture_desc);
 
     Object object = {};
@@ -486,8 +484,9 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
         render_draw_mesh(&model->meshes[i]);
     }
 
-    Shader *text_shader = find_shader(global_assets, "TEXT3D");
-    render_bind_pipeline(&text_shader->pipeline);
+    //Shader *text_shader = find_shader(global_assets, "TEXT3D");
+    //render_bind_pipeline(&text_shader->pipeline);
+    gfx_bind_shader("TEXT3D");
 
     // Name Plate
     draw_name_plates(game, &state->game_draw);
@@ -497,7 +496,8 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     draw_triangle_indicator(&state->game, &state->game_draw);
 
     // Cards
-    render_bind_pipeline(&texture_shader->pipeline);
+    gfx_bind_shader("BASIC3D");
+    //render_bind_pipeline(&texture_shader->pipeline);
     render_bind_descriptor_set(texture_desc);
 
     Model *card_model = find_model(assets, "CARD");

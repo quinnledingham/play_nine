@@ -219,7 +219,7 @@ struct Descriptor {
     u32 texture_index; // where to write next texture for this frame
 
 #if VULKAN
-    VkDescriptorSet *vulkan_set;
+    VkDescriptorSet *vulkan_set; // points to a descriptor set in a Layout
 #elif OPENGL
     u32 *handle;
     Bitmap **bitmaps;
@@ -231,11 +231,13 @@ struct Layout {
     static const u32 max_bindings = 10;
     static const u32 max_sets = 512;
 
-    Layout_Binding bindings[max_bindings];
-    u32 binding_count;
+    u32 id;
+    u32 sets_in_use;
+
+    Layout_Binding bindings[max_bindings]; // array_index != binding location
+    u32 bindings_count;
 
     u32 set_number; // what set in the shader it is
-    u32 sets_in_use;
     u32 offsets[max_sets]; // for static uniform buffers, correlates with descriptor_sets
 
 #if VULKAN
@@ -248,7 +250,7 @@ struct Layout {
 #endif    
 
     void add_binding(Layout_Binding new_binding) {
-        bindings[new_binding.binding] = new_binding; // Set up so array index == binding location
+        bindings[bindings_count++] = new_binding;
     }
 
     void reset() {
@@ -473,6 +475,16 @@ find_asset(Assets *assets, u32 type, const char *tag) {
             return &assets->types[type].data[i].memory;
     }
     logprint("find_asset()", "Could not find asset, type: %d, tag: %s\n", type, tag);
+    return 0;
+}
+
+internal u32
+find_asset_id(Assets *assets, const char *tag) {
+    for (u32 i = 0; i < assets->num_of_assets; i++) {
+        if (equal(tag, assets->data[i].tag))
+            return i;
+    }
+    logprint("find_asset_id()", "Could not find asset, tag: %s\n", tag);
     return 0;
 }
 

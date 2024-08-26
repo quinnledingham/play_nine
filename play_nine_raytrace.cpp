@@ -178,7 +178,7 @@ init_triangles(Model *model) {
     u32 size = sizeof(Triangle_v4) * triangle_count;
     memcpy((char*)vulkan_info.triangle_buffer.data, triangles, size);
 
-    Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
+    Descriptor tri_desc = render_get_descriptor_set_index(7, 0);
     vulkan_set_storage_buffer(tri_desc, size);
 #endif // VULKAN
 
@@ -231,10 +231,12 @@ internal void
 mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
     vulkan_start_compute();
     
-    Descriptor ray_desc = vulkan_get_descriptor_set(&layouts[6]);
-    Descriptor tri_desc = render_get_descriptor_set_index(&layouts[7], 0);
-    Descriptor out_desc = vulkan_get_descriptor_set(&layouts[8]);
-    Descriptor object_desc = vulkan_get_descriptor_set(&layouts[9]);
+    gfx_bind_shader("RAY");
+    
+    Descriptor ray_desc = vulkan_get_descriptor_set(6);
+    Descriptor tri_desc = render_get_descriptor_set_index(7, 0);
+    Descriptor out_desc = vulkan_get_descriptor_set(8);
+    Descriptor object_desc = vulkan_get_descriptor_set(9);
 
     Ray_v4 ray_v4 = {
         { mouse_ray.origin.x, mouse_ray.origin.y, mouse_ray.origin.z, 0.0f },
@@ -267,9 +269,6 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
             selected[i] = false;
         }
     }
-
-    Shader *shader = find_shader(global_assets, "RAY");
-    vulkan_bind_compute_pipeline(&shader->pipeline);
 
     memset((char*)vulkan_info.storage_buffer.data, 0, 10 * 48);
 
