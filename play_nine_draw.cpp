@@ -315,20 +315,20 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 
 
     {
         bool8 h = stage == SELECT_PILE && highlight;
-        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], draw->top_of_pile_model, h, get_highlight_color(draw, PICKUP_PILE), false);
+        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], draw->top_of_pile_model, h, get_highlight_color(draw, GI_PICKUP_PILE), false);
     }
 
     if (game->top_of_discard_pile != 0 && !draw->moving_card) {
         Matrix_4x4 model = draw->top_of_discard_pile_model;
         s32 card = deck[game->discard_pile[game->top_of_discard_pile - 1]];
         bool8 h = ((stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE) && highlight;
-        draw_card(card_model, color_set, indices, card, model, h, get_highlight_color(draw, DISCARD_PILE), true);
+        draw_card(card_model, color_set, indices, card, model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
     }
 
     if (draw->moving_card && game->top_of_discard_pile > 1) {
         s32 card = deck[game->discard_pile[game->top_of_discard_pile - 2]];
         bool8 h = ((stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE) && highlight;
-        draw_card(card_model, color_set, indices, card, draw->top_of_discard_pile_model, h, get_highlight_color(draw, DISCARD_PILE), true);
+        draw_card(card_model, color_set, indices, card, draw->top_of_discard_pile_model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
     }
     
     for (u32 player_index = 0; player_index < game->num_of_players; player_index++) {
@@ -345,7 +345,7 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 
         Matrix_4x4 model = draw->moving_card_model;
         s32 card = deck[game->discard_pile[game->top_of_discard_pile - 1]];
         bool8 h = ((stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE) && highlight;
-        draw_card(card_model, color_set, indices, card, model, h, get_highlight_color(draw, DISCARD_PILE), true);
+        draw_card(card_model, color_set, indices, card, model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
     }
     
     // always draw new card on top

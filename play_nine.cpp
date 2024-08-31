@@ -1,54 +1,6 @@
 #include "basic.cpp"
 
-#include <stdarg.h>
-#include <cstdint>
-#include <ctype.h>
-#include <stdio.h>
-
-#include "defines.h"
-#include "types.h"
-#include "types_math.h"
-
-void *platform_malloc(u32 size);
-void platform_free(void *ptr);
-void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
-
-#include "print.h"
-#include "char_array.h"
-#include "assets.h"
-
-#define PICKUP_PILE    8
-#define DISCARD_PILE   9
-#define PASS_BUTTON   10
-#define SELECTED_SIZE 11
-
-enum Game_Input {
-    GI_0,
-    GI_1,
-    GI_2,
-    GI_3,
-
-    GI_4,
-    GI_5,
-    GI_6,
-    GI_7,
-
-    GI_PICKUP_PILE,
-    GI_DISCARD_PILE,
-
-    GI_PASS_BUTTON,
-
-    GI_SIZE
-};
-
-#define MAX_NAME_SIZE  20
-#define MAX_PLAYERS     6
-#define HAND_SIZE       8
-#define DECK_SIZE     108
-#define MAX_HOLES      20 // max holes that can be played in one gamed
-
-#define DRAW_SIGNALS_AMOUNT 6
-
+#include "play_nine_game.h"
 #include "play_nine_assets.h"
 #include "play_nine_raytrace.h"
 #include "play_nine_shaders.h"
@@ -58,20 +10,9 @@ enum Game_Input {
 #include "play_nine_render.h"
 #include "play_nine_online.h"
 
-internal void next_player(Game *game);
-
-internal void
-play_sound(const char *tag) {
-    Audio *audio = find_audio(global_assets, tag);
-    play_audio(audio_player, audio, AUDIO_TYPE_SOUND_EFFECT); 
-}
-
-internal void
-play_music(const char *tag) {
-    Audio *audio = find_audio(global_assets, tag);
-    play_audio(audio_player, audio, AUDIO_TYPE_MUSIC); 
-}
-
+#include "play_nine_score.cpp"
+#include "play_nine_init.cpp"
+#include "play_nine_game.cpp"
 
 #ifdef STEAM
 
@@ -80,8 +21,6 @@ play_music(const char *tag) {
 #endif // STEAM
 
 #include "play_nine_raytrace.cpp"
-#include "play_nine_score.cpp"
-#include "play_nine_init.cpp"
 #include "play_nine_online.cpp"
 #include "play_nine_bitmaps.cpp"
 #include "input.cpp"
@@ -89,145 +28,8 @@ play_music(const char *tag) {
 #include "play_nine_draw.cpp"
 #include "play_nine_bot.cpp"
 
-
-//
-// game logic
-//
-
 internal void
-next_player(Game *game) {
-    // Flip all cards after final turn
-    if (game->round_type == FINAL_ROUND) {
-        game->last_turn++;
-        for (u32 i = 0; i < HAND_SIZE; i++) {
-            if (!game->players[game->active_player].flipped[i]) {
-                game->players[game->active_player].flipped[i] = true;
-                add_draw_signal(draw_signals, SIGNAL_FLIP_CARD, i, game->active_player);
-            }
-        }
-    }
-
-    // END HOLE
-    if (game->last_turn == game->num_of_players && game->round_type != HOLE_OVER) {
-        update_scores(game);
-        game->round_type = HOLE_OVER;
-        game->turn_stage = FLIP_CARD;
-
-        increment_player(&game->starting_player, game->num_of_players);
-
-        // END GAME
-        game->holes_played++;
-        if (game->holes_played == game->holes_length) {
-            game->game_over = true;
-        }
-
-        fill_total_scores(game);
-        return; // Don't need to move ahead a player now
-    }
-
-    game->pile_card = false;
-    game->turn_stage = SELECT_PILE;
-    increment_player(&game->active_player, game->num_of_players);
-
-    if (game->active_player == game->starting_player && game->round_type == FLIP_ROUND) {
-        game->round_type = REGULAR_ROUND;
-    }
-
-    if (game->round_type == FLIP_ROUND) {
-        game->turn_stage = FLIP_CARD;
-    }
-
-    if (game->players[game->active_player].is_bot)
-        game->bot_thinking_time = 0.0f;
-
-    game->turn_time = 0.0f;
-
-    add_draw_signal(draw_signals, SIGNAL_NEXT_PLAYER_ROTATION);
-}
-
-internal void
-do_update_with_input(Game *game, bool8 selected[SELECTED_SIZE]) {
-    Player *active_player = &game->players[game->active_player];
-    switch(game->turn_stage) {
-        case SELECT_PILE: {
-            if (selected[PICKUP_PILE]) {
-                add_draw_signal(draw_signals, SIGNAL_NEW_CARD_FROM_PILE);
-                game->new_card = game->pile[game->top_of_pile++];
-
-                // @SPECIAL case
-                // Probably shouldn't happen in a real game
-                if (game->top_of_pile + game->num_of_players >= DECK_SIZE) {
-                    game->round_type = FINAL_ROUND;
-                }
-
-                game->turn_stage = SELECT_CARD;
-                game->pile_card = true;
-            } else if (selected[DISCARD_PILE]) {
-                add_draw_signal(draw_signals, SIGNAL_NEW_CARD_FROM_DISCARD);
-                game->new_card = game->discard_pile[game->top_of_discard_pile - 1];
-                game->top_of_discard_pile--;
-                game->turn_stage = SELECT_CARD;
-            }
-        } break;
-
-        case SELECT_CARD: {
-            for (u32 i = 0; i < HAND_SIZE; i++) {
-                if (selected[i]) {
-                    game->discard_pile[game->top_of_discard_pile++] = active_player->cards[i];
-                    add_draw_signal(draw_signals, SIGNAL_REPLACE, i, game->active_player, active_player->flipped[i]);
-                    active_player->flipped[i] = true;
-                    active_player->cards[i] = game->new_card;
-                    game->new_card = 0;
-
-                    if (get_number_flipped(active_player->flipped) == HAND_SIZE)
-                        game->round_type = FINAL_ROUND;
-                    next_player(game);
-                    return;
-                }
-            }
-
-            if (game->pile_card && selected[DISCARD_PILE]) {
-                game->discard_pile[game->top_of_discard_pile++] = game->new_card;
-                game->new_card = 0;
-                game->turn_stage = FLIP_CARD;
-                add_draw_signal(draw_signals, SIGNAL_DISCARD_SELECTED);
-            }
-        } break;
-
-        case FLIP_CARD: {
-            for (u32 i = 0; i < HAND_SIZE; i++) {
-                if (selected[i] && !active_player->flipped[i]) {    
-                    add_draw_signal(draw_signals, SIGNAL_FLIP_CARD, i, game->active_player);
-                    active_player->flipped[i] = true;
-
-                    if (game->round_type == FLIP_ROUND) {
-                        // check if player turn over
-                        if (get_number_flipped(active_player->flipped) == 2) {
-                            next_player(game);
-                            return;
-                        }
-                    } else {                
-                        if (get_number_flipped(active_player->flipped) == HAND_SIZE && game->round_type != FINAL_ROUND) {
-                            game->round_type = FINAL_ROUND; 
-                            game->last_turn = 0;
-                        }
-                        next_player(game);
-                        return;
-                    }
-                }
-
-                if (selected[PASS_BUTTON] && get_number_flipped(active_player->flipped) == HAND_SIZE - 1) {
-                    next_player(game);
-                    return;
-                }
-
-            }
-        } break;
-    }
-}
-
-internal void
-do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) {
+do_mouse_selected_update(State *state, App *app, bool8 selected[GI_SIZE]) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
     Model *card_model = find_model(&state->assets, "CARD");
@@ -242,24 +44,24 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[SELECTED_SIZE]) 
     #endif // VULKAN / OPENGL
 
     if (on_down(state->controller.mouse_left)) {
-        platform_memory_copy(draw->highlight_pressed, draw->highlight_hover, sizeof(bool8) * SELECTED_SIZE);
+        platform_memory_copy(draw->highlight_pressed, draw->highlight_hover, sizeof(bool8) * GI_SIZE);
     }
 
     if (on_up(state->controller.mouse_left)) {
-        platform_memory_copy(selected, draw->highlight_hover, sizeof(bool8) * SELECTED_SIZE);
+        platform_memory_copy(selected, draw->highlight_hover, sizeof(bool8) * GI_SIZE);
 
-        for (u32 i = 0; i < SELECTED_SIZE; i++) {
+        for (u32 i = 0; i < GI_SIZE; i++) {
             if (selected[i] && !draw->highlight_pressed[i])
                 selected[i] = false;
         }
 
-        platform_memory_set(draw->highlight_pressed, 0, sizeof(bool8) * SELECTED_SIZE);
+        platform_memory_set(draw->highlight_pressed, 0, sizeof(bool8) * GI_SIZE);
     }
 }
 
 internal void
-do_keyboard_selected_update(bool8 selected[SELECTED_SIZE], bool8 pressed[SELECTED_SIZE], Controller *controller) {
-    platform_memory_set(pressed, 0, sizeof(bool8) * SELECTED_SIZE);
+do_keyboard_selected_update(bool8 selected[GI_SIZE], bool8 pressed[GI_SIZE], Controller *controller) {
+    platform_memory_set(pressed, 0, sizeof(bool8) * GI_SIZE);
     
     for (u32 i = 0; i < HAND_SIZE; i++) {
         if (is_down(controller->buttons[i])) {
@@ -268,9 +70,9 @@ do_keyboard_selected_update(bool8 selected[SELECTED_SIZE], bool8 pressed[SELECTE
     }    
 
     if (is_down(controller->pile)) {
-        pressed[PICKUP_PILE] = true;
+        pressed[GI_PICKUP_PILE] = true;
     } else if (is_down(controller->discard)) {
-        pressed[DISCARD_PILE] = true;
+        pressed[GI_DISCARD_PILE] = true;
     }
     
     for (u32 i = 0; i < HAND_SIZE; i++) {
@@ -280,15 +82,15 @@ do_keyboard_selected_update(bool8 selected[SELECTED_SIZE], bool8 pressed[SELECTE
     }    
 
     if (on_up(controller->pile)) {
-        selected[PICKUP_PILE] = true;
+        selected[GI_PICKUP_PILE] = true;
     } else if (on_up(controller->discard)) {
-        selected[DISCARD_PILE] = true;
+        selected[GI_DISCARD_PILE] = true;
     }
 }
 
 internal bool8
-all_false(bool8 selected[SELECTED_SIZE]) {
-    for (u32 i = 0; i < SELECTED_SIZE; i++) {
+all_false(bool8 selected[GI_SIZE]) {
+    for (u32 i = 0; i < GI_SIZE; i++) {
         if (selected[i])
             return false;
     }
@@ -297,7 +99,7 @@ all_false(bool8 selected[SELECTED_SIZE]) {
 
 internal s32
 get_input_index(bool8 *hovered) {
-    for (u32 i = 0; i < SELECTED_SIZE; i++) {
+    for (u32 i = 0; i < GI_SIZE; i++) {
         if (hovered[i])
             return (s32)i;
     }
@@ -378,18 +180,18 @@ do_controller_selected_update(u8 turn_stage, Game *game, Controller *controller,
     }
 
     if (on_down(controller->select)) {
-        platform_memory_copy(pressed, hovered, sizeof(bool8) * SELECTED_SIZE);
+        platform_memory_copy(pressed, hovered, sizeof(bool8) * GI_SIZE);
     }
     if (on_up(controller->select)) {
-        platform_memory_copy(selected, hovered, sizeof(bool8) * SELECTED_SIZE);
+        platform_memory_copy(selected, hovered, sizeof(bool8) * GI_SIZE);
 
-        for (u32 i = 0; i < SELECTED_SIZE; i++) {
+        for (u32 i = 0; i < GI_SIZE; i++) {
             if (selected[i] && !pressed[i])
                 selected[i] = false;
         }
 
-        platform_memory_set(hovered, 0, sizeof(bool8) * SELECTED_SIZE);
-        platform_memory_set(pressed, 0, sizeof(bool8) * SELECTED_SIZE);
+        platform_memory_set(hovered, 0, sizeof(bool8) * GI_SIZE);
+        platform_memory_set(pressed, 0, sizeof(bool8) * GI_SIZE);
     }
 }
 
@@ -425,7 +227,7 @@ bool8 update_game(State *state, App *app) {
     
     // Game input
     if (state->camera_mode == PLAYER_CAMERA && game->round_type != HOLE_OVER) {
-        bool8 selected[SELECTED_SIZE] = {};
+        bool8 selected[GI_SIZE] = {};
         
         if (state->is_active) {
             if (app->input.active == MOUSE_INPUT)
@@ -436,7 +238,7 @@ bool8 update_game(State *state, App *app) {
                 do_controller_selected_update(state->game.turn_stage, game, &state->controller, draw->highlight_hover, draw->highlight_pressed, selected);
 
             if (state->pass_selected) {
-                selected[PASS_BUTTON] = true;
+                selected[GI_PASS_BUTTON] = true;
                 state->pass_selected = false;
             }
 
@@ -446,8 +248,8 @@ bool8 update_game(State *state, App *app) {
         } else if (state->mode == MODE_SERVER && !game->players[game->active_player].is_bot) {
             os_wait_mutex(state->selected_mutex);
             if (!all_false(state->selected)) {
-                platform_memory_copy(selected, state->selected, sizeof(selected[0]) * SELECTED_SIZE);
-                platform_memory_set(state->selected, 0, sizeof(selected[0]) * SELECTED_SIZE);
+                platform_memory_copy(selected, state->selected, sizeof(selected[0]) * GI_SIZE);
+                platform_memory_set(state->selected, 0, sizeof(selected[0]) * GI_SIZE);
             }
             os_release_mutex(state->selected_mutex);
         } else if (game->players[game->active_player].is_bot) {

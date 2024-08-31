@@ -220,15 +220,15 @@ mouse_ray_model_intersections_cpu(bool8 *selected, Ray mouse_ray, Game_Draw *dra
         if (selected[card_index]) return;
     }
 
-    selected[PICKUP_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, draw->top_of_pile_model);
+    selected[GI_PICKUP_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, draw->top_of_pile_model);
     if (draw->top_of_discard_pile_model.E[0] != 0)
-        selected[DISCARD_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, draw->top_of_discard_pile_model);
+        selected[GI_DISCARD_PILE] = ray_model_intersection_cpu(mouse_ray, card_model, draw->top_of_discard_pile_model);
 }
 
 #if VULKAN
 
 internal void
-mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
+mouse_ray_model_intersections(bool8 selected[GI_SIZE], Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
     vulkan_start_compute();
     
     gfx_bind_shader("RAY");
@@ -251,8 +251,8 @@ mouse_ray_model_intersections(bool8 selected[SELECTED_SIZE], Ray mouse_ray, Game
     for (u32 card_index = 0; card_index < 8; card_index++) {
         object[card_index] = draw->hand_models[active_player][card_index];
     }
-    object[PICKUP_PILE] = draw->top_of_pile_model;
-    object[DISCARD_PILE] = draw->top_of_discard_pile_model;
+    object[GI_PICKUP_PILE] = draw->top_of_pile_model;
+    object[GI_DISCARD_PILE] = draw->top_of_discard_pile_model;
 
     char *test = (char*)vulkan_info.static_uniform_buffer.data + object_desc.offset;
     memcpy(test, object, sizeof(Matrix_4x4) * 10);

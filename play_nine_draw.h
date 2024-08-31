@@ -2,6 +2,7 @@
 // General Draw
 //
 
+#define DRAW_SIGNALS_AMOUNT 6
 #define CARD_MODEL_HEIGHT 0.101767f
 
 global Bitmap card_bitmaps[14];
@@ -129,8 +130,8 @@ struct Game_Draw {
     float32 rotation; // for in HOLE_OVER state
     Vector2_s32 mouse_down;
 
-    bool8 highlight_hover[SELECTED_SIZE];
-    bool8 highlight_pressed[SELECTED_SIZE];
+    bool8 highlight_hover[GI_SIZE];
+    bool8 highlight_pressed[GI_SIZE];
 
     Bitmap *bot_bitmap;
     Bitmap name_plates[MAX_PLAYERS];

@@ -1,4 +1,3 @@
-
 internal void
 default_player_name_string(char buffer[MAX_NAME_SIZE], u32 number) {
     platform_memory_set((void*)buffer, 0, MAX_NAME_SIZE);
@@ -76,20 +75,6 @@ remove_player(Game *game, bool8 bot) {
     }
 
     return -1;
-}
-
-internal void
-increment_player(u32 *counter, u32 num_of_players) {
-    (*counter)++;
-    if (*counter >= num_of_players)
-        (*counter) = 0;
-}
-
-internal void
-decrement_player(u32 *counter, u32 num_of_players) {
-    (*counter)--;
-    if (*counter < 0)
-        (*counter) = num_of_players - 1;
 }
 
 internal void

@@ -1,3 +1,29 @@
+enum Bitmap_IDs {
+  BITAMP_BACK,
+  BITMAP_ICON,
+  BITMAP_FRONT,
+  BITMAP_FRONT0,
+  BITMAP_FRONT11,
+  BITMAP_FRONT12,
+  BITMAP_BOT,
+  BITMAP_LOADING,
+
+  BITMAP_COUNT
+};
+
+enum Sound_IDs {
+  SOUND_WOOSH,
+  SOUND_TAP,
+
+  SOUND_COUNT
+};
+
+enum Music_IDs {
+  MUSIC_MORNING,
+
+  MUSIC_COUNT
+};
+
 Asset_Load shaders_to_load[] = {
  { "BASIC3D", "basic.vert", NULL, NULL, NULL, "basic.frag", NULL },
  { "COLOR3D", "basic.vert", NULL, NULL, NULL, "color3D.frag", NULL },
@@ -42,3 +68,17 @@ Assets_Load assets_to_load[] = {
   { ASSET_TYPE_MODEL, ARRAY_COUNT(models_to_load), models_to_load },
   { ASSET_TYPE_AUDIO, ARRAY_COUNT(audios_to_load), audios_to_load },
 };
+
+Audio_Player *audio_player; // play_sound & play_music
+
+internal void
+play_sound(const char *tag) {
+    Audio *audio = find_audio(global_assets, tag);
+    play_audio(audio_player, audio, AUDIO_TYPE_SOUND_EFFECT); 
+}
+
+internal void
+play_music(const char *tag) {
+    Audio *audio = find_audio(global_assets, tag);
+    play_audio(audio_player, audio, AUDIO_TYPE_MUSIC); 
+}

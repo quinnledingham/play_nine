@@ -119,7 +119,7 @@ THREAD_RETURN play_nine_server_com(void *parameters) {
             case SET_SELECTED: {
                 os_wait_mutex(state->selected_mutex);
                 if (state->game.active_player == packet.game_index)
-                    platform_memory_copy(state->selected, packet.selected, sizeof(packet.selected[0]) * SELECTED_SIZE);
+                    platform_memory_copy(state->selected, packet.selected, sizeof(packet.selected[0]) * GI_SIZE);
                 os_release_mutex(state->selected_mutex);
             } break;
 
@@ -253,11 +253,11 @@ client_set_name(QSock_Socket sock, const char *name) {
 }
 
 internal void
-client_set_selected(QSock_Socket sock, bool8 selected[SELECTED_SIZE], u32 index) {
+client_set_selected(QSock_Socket sock, bool8 selected[GI_SIZE], u32 index) {
     Play_Nine_Packet packet = {};
     packet.type = SET_SELECTED;
     packet.game_index = index;
-    platform_memory_copy(packet.selected, selected, sizeof(selected[0]) * SELECTED_SIZE);
+    platform_memory_copy(packet.selected, selected, sizeof(selected[0]) * GI_SIZE);
     qsock_send(sock, NULL, (const char *)&packet, sizeof(packet));
 }
 

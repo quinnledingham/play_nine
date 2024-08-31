@@ -49,7 +49,7 @@ struct Play_Nine_Packet {
     enum Menu_Mode mode;
 
     // what the clients send
-    bool8 selected[SELECTED_SIZE];
+    bool8 selected[GI_SIZE];
     char buffer[TEXTBOX_SIZE];
 };
 

@@ -157,6 +157,7 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) {
 #include "shapes.cpp"
 #include "render.cpp"
 #include "gui.cpp"
+//#include "input.cpp"
 
 #ifdef OPENGL
 

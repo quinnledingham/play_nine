@@ -33,14 +33,14 @@ random_not_flipped_card_index(bool8 *flipped) {
 }
 
 internal void
-do_auto_selected_update(bool8 selected[SELECTED_SIZE], Game *game) {
+do_auto_selected_update(bool8 selected[GI_SIZE], Game *game) {
   Player *active_player = &game->players[game->active_player];
   
   switch(game->turn_stage) {
     case FLIP_CARD: {
       
       if (get_number_flipped(active_player->flipped) == HAND_SIZE - 1 && get_score(active_player->cards) > 15) {
-        selected[PASS_BUTTON] = true;
+        selected[GI_PASS_BUTTON] = true;
         return;
       }
 
@@ -56,16 +56,16 @@ do_auto_selected_update(bool8 selected[SELECTED_SIZE], Game *game) {
         if (!active_player->flipped[i]) continue;
         
         if (discard_number == deck[active_player->cards[i]] && !is_pair(active_player->cards, active_player->flipped, i)) {
-          selected[DISCARD_PILE] = true;
+          selected[GI_DISCARD_PILE] = true;
           return;
         }
       }
               
       // pick discard if it is low
       if (discard_number < 6)
-        selected[DISCARD_PILE] = true;
+        selected[GI_DISCARD_PILE] = true;
       else
-        selected[PICKUP_PILE] = true;
+        selected[GI_PICKUP_PILE] = true;
     } break;
 
     case SELECT_CARD: {
@@ -88,7 +88,7 @@ do_auto_selected_update(bool8 selected[SELECTED_SIZE], Game *game) {
       // if from pickup pile discard if high card
       if (game->pile_card) {
         if (new_card > 8) {
-          selected[DISCARD_PILE] = true;
+          selected[GI_DISCARD_PILE] = true;
           return;
         }
       }
@@ -118,7 +118,7 @@ do_auto_selected_update(bool8 selected[SELECTED_SIZE], Game *game) {
 }
 
 internal void
-do_bot_selected_update(bool8 selected[SELECTED_SIZE], Game *game, float32 *bot_thinking_time, float64 frame_time_s) {
+do_bot_selected_update(bool8 selected[GI_SIZE], Game *game, float32 *bot_thinking_time, float64 frame_time_s) {
   *bot_thinking_time += (float32)frame_time_s;
   if (game->bot_thinking_time < 2.0f)
     return;
