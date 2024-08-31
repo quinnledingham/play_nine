@@ -6,8 +6,6 @@
 
 #ifdef OS_WINDOWS
 
-#pragma message("WINDOWS")
-
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif

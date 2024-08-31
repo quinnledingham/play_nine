@@ -290,8 +290,8 @@ struct Render_Pipeline {
     bool8 compiled = FALSE;
 
 #ifdef VULKAN
-    VkPipelineLayout pipeline_layout;
-    VkPipeline graphics_pipeline;
+    VkPipelineLayout layout;
+    VkPipeline handle;
 #endif
 };
 

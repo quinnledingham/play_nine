@@ -164,8 +164,8 @@ struct Menu_List {
 };
 
 enum Camera_Mode {
-    FREE_CAMERA,
     PLAYER_CAMERA,
+    FREE_CAMERA
 };
 
 enum Online_Mode {

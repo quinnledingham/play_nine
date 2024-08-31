@@ -49,6 +49,7 @@ enum Game_Input {
 
 #define DRAW_SIGNALS_AMOUNT 6
 
+#include "play_nine_assets.h"
 #include "play_nine_raytrace.h"
 #include "play_nine_shaders.h"
 #include "play_nine_input.h"
@@ -552,6 +553,9 @@ bool8 update_game(State *state, App *app) {
             float32 y = cam_dis * sinf(rad);
 
             state->camera.position =  Vector3{ x, 12.0f, y };
+            state->camera.up       = { 0, -1, 0 };
+            state->camera.fov      = 75.0f;
+            state->camera.target   = { 0, 0, 0 };
             state->camera.yaw      = deg + 180.0f;
             state->camera.pitch    = -39.2f;
 
@@ -714,46 +718,38 @@ bool8 init_data(App *app) {
     *state = {};
     state->assets = {};
 
-    bool8 load_and_save_assets = false;
+    bool8 load_failed = false;
+    const char *assets_save_filepath = "assets.save";
+    u32 offset = 0;
+
+    if (load_saved_assets(&state->assets, assets_save_filepath, offset)) {
+        load_failed = true; 
+    }
     
-    if (load_and_save_assets) {
-        if (load_asset_files_from_ethan(&state->assets, "../assets.ethan"))
-            return true;
+    if (load_failed) {
+#if DEBUG
+        load_asset_files(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load));
         save_asset_files(&state->assets, "files.save");
+#endif // DEBUG
+        
+        load_saved_asset_files(&state->assets, "files.save");
+        
         if (load_assets(&state->assets))
             return true;
-
         convert_to_one_channel(find_bitmap(&state->assets, "BOT"));
-    } else {
-        const char *filepath = "assets.save";
-        u32 offset = 0;
 
-        FILE *file = fopen(filepath, "rb");
-        if (file == 0) {
-            load_saved_asset_files(&state->assets, "files.save");
-            load_assets(&state->assets);
-            load_and_save_assets = true;
-            convert_to_one_channel(find_bitmap(&state->assets, "BOT"));
-        } else {
-
-            // have to compile then run the asset builder application to put the assets in the exe
-            // const char *filepath = "river.exe";
-            // u32 offset = exe_offset;
-            fclose(file);
-            if (load_saved_assets(&state->assets, filepath, offset))
-            return 1;
-        }
     }
-
+    
     init_assets(&state->assets);
-
-    default_font = find_font(&state->assets, "CASLON");
-
     global_assets = &state->assets;
-    print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 
-    if (load_and_save_assets) {
-        init_card_bitmaps(card_bitmaps, default_font); 
+    // must check again because the card assets use a font for their creation
+    if (load_failed) {
+        // Load card bitmaps
+        Font *card_font = find_font(&state->assets, "CASLON");
+        init_card_bitmaps(card_bitmaps, card_font); 
+        clear_font_bitmap_cache(card_font);
+        
         Asset *card_assets = ARRAY_MALLOC(Asset, 14);
         for (u32 i = 0; i < 14; i++) {
             Asset *asset = &card_assets[i];
@@ -764,13 +760,13 @@ bool8 init_data(App *app) {
             platform_memory_set((void*)asset->tag, 0, 5);
             const char *tag = "card";
             platform_memory_copy((void*)asset->tag, (void*)tag, 4);
-
-            //write_bitmap(&asset->bitmap, &asset->file);
         };
         add_assets(&state->assets, card_assets, 14);
+
         print_assets(&state->assets);
 
-        FILE *file = fopen("assets.save", "wb");
+        // Save Assets File
+        FILE *file = fopen(assets_save_filepath, "wb");
         save_assets(&state->assets, file);
         fclose(file);
     } else {
@@ -780,21 +776,14 @@ bool8 init_data(App *app) {
     }
 
     default_font = find_font(&state->assets, "CASLON");
-
-    clear_font_bitmap_cache(default_font);
+    global_mode = &state->mode;
+    
+#if DEBUG
+    print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
+#endif // DEBUG
     
     init_pipelines(&state->assets);
     init_shapes(&state->assets);
-
-    // Rendering
-    state->camera.position = { 0, 14, -5 };
-    state->camera.target   = { 0, 0, 0 };
-    state->camera.up       = { 0, -1, 0 };
-    state->camera.fov      = 75.0f;
-    state->camera.yaw      = 180.0f;
-    state->camera.pitch    = -41.0f;
-    state->camera_mode = PLAYER_CAMERA;
-
     update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
 
     // Input
@@ -896,6 +885,7 @@ bool8 init_data(App *app) {
     state->mutex = os_create_mutex();
     state->selected_mutex = os_create_mutex();
 
+    // General Game
     Descriptor texture_desc = render_get_descriptor_set_index(2, 0);
 
     for (u32 j = 0; j < 14; j++) {
@@ -904,8 +894,6 @@ bool8 init_data(App *app) {
     state->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&state->assets, "BACK"));
     Model *model = find_model(&state->assets, "TABLE");
     state->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
-    
-    // General Game
 
     init_triangles(find_model(&state->assets, "CARD")); // Fills array on graphics card
     init_deck();
@@ -914,8 +902,6 @@ bool8 init_data(App *app) {
 
     state->notifications.font = default_font;
     state->notifications.text_color = { 255, 255, 255, 1 };
-
-    global_mode = &state->mode;
 
     create_input_prompt_texture(keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
     create_input_prompt_texture(xbox_prompts, ARRAY_COUNT(xbox_prompts), "../xelu/Xbox Series/XboxSeriesX_", ".png", "xbox_prompt.png");

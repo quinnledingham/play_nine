@@ -1101,7 +1101,7 @@ bool8 vulkan_create_graphics_pipeline(Shader *shader, VkRenderPass render_pass) 
 	pipeline_layout_info.pushConstantRangeCount = shader->set.push_constants_count; 
 	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;          
 
-	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->pipeline_layout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->layout) != VK_SUCCESS) {
 		logprint("vulkan_create_graphics_pipeline()", "failed to create pipeline layout\n");
 	}
 
@@ -1221,13 +1221,13 @@ bool8 vulkan_create_graphics_pipeline(Shader *shader, VkRenderPass render_pass) 
 	pipeline_create_info.pDepthStencilState  = &depth_stencil;         // Optional
 	pipeline_create_info.pColorBlendState    = &color_blending;
 	pipeline_create_info.pDynamicState       = &dynamic_state;
-	pipeline_create_info.layout              = pipeline->pipeline_layout;
+	pipeline_create_info.layout              = pipeline->layout;
 	pipeline_create_info.renderPass          = render_pass;
 	pipeline_create_info.subpass             = 0;
 	pipeline_create_info.basePipelineHandle  = VK_NULL_HANDLE;        // Optional
 	pipeline_create_info.basePipelineIndex   = -1;                    // Optional
 
-	if (vkCreateGraphicsPipelines(vulkan_info.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &pipeline->graphics_pipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(vulkan_info.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &pipeline->handle) != VK_SUCCESS) {
 		logprint("vulkan_create_graphics_pipeline()", "failed to create graphics pipelines\n");
 	}
 
@@ -1284,16 +1284,16 @@ void vulkan_create_compute_pipeline(Shader *shader) {
 	pipeline_layout_info.pushConstantRangeCount = shader->set.push_constants_count; 
 	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;          
 
-	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->pipeline_layout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(vulkan_info.device, &pipeline_layout_info, nullptr, &pipeline->layout) != VK_SUCCESS) {
 		logprint("vulkan_create_graphics_pipeline()", "failed to create pipeline layout\n");
 	}
 
 	VkComputePipelineCreateInfo pipeline_create_info = {};
 	pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-	pipeline_create_info.layout = pipeline->pipeline_layout;
+	pipeline_create_info.layout = pipeline->layout;
 	pipeline_create_info.stage = shader_stage;
 
-	if (vkCreateComputePipelines(vulkan_info.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &pipeline->graphics_pipeline) != VK_SUCCESS) {
+	if (vkCreateComputePipelines(vulkan_info.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &pipeline->handle) != VK_SUCCESS) {
 		logprint("vulkan_create_compute_pipeline()", "failed to create compute pipelines\n");
 	}
 
@@ -1695,8 +1695,8 @@ vulkan_cleanup_swap_chain(Vulkan_Info *info) {
 }
 
 void vulkan_pipeline_cleanup(Render_Pipeline *pipe) {
-	vkDestroyPipeline(vulkan_info.device, pipe->graphics_pipeline, nullptr);
-	vkDestroyPipelineLayout(vulkan_info.device, pipe->pipeline_layout, nullptr);
+	vkDestroyPipeline(vulkan_info.device, pipe->handle, nullptr);
+	vkDestroyPipelineLayout(vulkan_info.device, pipe->layout, nullptr);
 }
 
 internal void
@@ -2091,22 +2091,22 @@ void vulkan_bind_shader(const char *tag) {
 	gfx.active_shader_id = id;
 
 	Shader *shader = &global_assets->data[id].shader;
-	vulkan_info.pipeline_layout = shader->pipeline.pipeline_layout; // to use when binding sets later
+	vulkan_info.pipeline_layout = shader->pipeline.layout; // to use when binding sets later
 	if (!shader->pipeline.compute) {
-		vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, shader->pipeline.graphics_pipeline);
+		vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, shader->pipeline.handle);
 	} else {
-		vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, shader->pipeline.graphics_pipeline);
+		vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, shader->pipeline.handle);
 	}
 }
 
 void vulkan_bind_pipeline(Render_Pipeline *pipeline) {
-	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
-	vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
+	vulkan_info.pipeline_layout = pipeline->layout; // to use when binding sets later
+	vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle);
 }
 
 void vulkan_bind_compute_pipeline(Render_Pipeline *pipeline) {
-	vulkan_info.pipeline_layout = pipeline->pipeline_layout; // to use when binding sets later
-	vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->graphics_pipeline);
+	vulkan_info.pipeline_layout = pipeline->layout; // to use when binding sets later
+	vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->handle);
 }
 
 void vulkan_start_compute() {

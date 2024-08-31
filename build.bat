@@ -8,9 +8,9 @@ cd build
 REM CF = Compiler Flags
 REM LF = Linker Flags
 
-set VULKAN_SDK= ..\VulkanSDK\1.3.280.0
+set VULKAN_SDK= ..\VulkanSDK\1.3.268.0
 
-set CF_DEFAULT= -MD -nologo -Gm- -GR- -EHa- -Od -Oi -FC -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\stb /I..\ -DSHADERS
+set CF_DEFAULT= -MD -nologo -Gm- -GR- -EHa- -Od -Oi -FC -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\stb /I..\ /I..\qlib -DSHADERS 
 set CF_SDL= /I..\sdl-vc\include -DSDL
 set CF_OPENGL= /I..\glad -DOPENGL
 set CF_VULKAN= /I%VULKAN_SDK%\Include -DVULKAN
@@ -24,7 +24,7 @@ set LF_VULKAN= %VULKAN_SDK%\Lib\vulkan-1.lib
 set LF_DX12= D3d12.lib D3DCompiler.lib dxgi.lib
 set LF_STEAM= ..\steam\redistributable_bin\win64\steam_api64.lib
 
-cl %CF_DEFAULT% %CF_SDL% %CF_VULKAN% %CF_STEAM% -DOS_WINDOWS -DDEBUG ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_VULKAN% %LF_SHADERS% %LF_STEAM% /out:play_nine.exe
+cl %CF_DEFAULT% %CF_SDL% %CF_VULKAN% %CF_STEAM% -DOS_WINDOWS -DDEBUG ../play_nine.cpp /link %LF_DEFAULT% %LF_SDL% %LF_VULKAN% %LF_SHADERS% %LF_STEAM% /out:play_nine.exe
 REM cl %CF_DEFAULT% %CF_SDL% %CF_OPENGL% %CF_VULKAN% %CF_STEAM% -DOS_WINDOWS -DDEBUG ../glad/gl.c ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_OPENGL% %LF_SHADERS% %LF_STEAM% /out:play_nine.exe
 
 IF NOT EXIST SDL2.dll copy ..\sdl-vc\lib\x64\SDL2.dll
