@@ -2307,6 +2307,13 @@ void vulkan_immediate_vertex(Vertex_XNU vertex) {
 	vulkan_info.dynamic_buffer.offset += sizeof(Vertex_XNU);
 }
 
+void vulkan_immediate_vertex(Vertex_XU vertex) {
+	float32 data[4];
+	data[0] = vertex.position.x; data[1] = vertex.position.y; data[2] = vertex.uv.x; data[3] = vertex.uv.y;
+	vulkan_update_buffer(&vulkan_info, &vulkan_info.dynamic_buffer.handle, &vulkan_info.dynamic_buffer.memory, data, sizeof(Vertex_XU), vulkan_info.dynamic_buffer.offset);
+	vulkan_info.dynamic_buffer.offset += sizeof(Vertex_XU);
+}
+
 void test_draw_rect() {
     VkDeviceSize offsets[] = { vulkan_info.dynamic_buffer.offset };
     vulkan_immediate_vertex(Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} });
@@ -2550,9 +2557,9 @@ Descriptor vulkan_get_descriptor_set_index(u32 layout_id, u32 return_index) {
 	    ASSERT(0);
 
 	if (return_index < layout->sets_in_use) {
-	logprint("vulkan_get_descriptor_set()", "descriptor could already be in use\n");
+		logprint("vulkan_get_descriptor_set()", "descriptor could already be in use\n");
 	} else {
-	layout->sets_in_use = return_index + 1; // jump to after this set
+		layout->sets_in_use = return_index + 1; // jump to after this set
 	}
 
 	Descriptor desc = {};

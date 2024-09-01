@@ -142,7 +142,7 @@ intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
 }
 
 internal Triangle_v4*
-init_triangles(Model *model) {
+init_triangles(Model *model, Descriptor *desc) {
     u32 triangle_count = 0;
     for (u32 i = 0; i < model->meshes_count; i++) {
         Mesh *mesh = &model->meshes[i];
@@ -178,8 +178,8 @@ init_triangles(Model *model) {
     u32 size = sizeof(Triangle_v4) * triangle_count;
     memcpy((char*)vulkan_info.triangle_buffer.data, triangles, size);
 
-    Descriptor tri_desc = render_get_descriptor_set_index(7, 0);
-    vulkan_set_storage_buffer(tri_desc, size);
+    *desc = render_get_descriptor_set(GFX_ID_RAY_TRIANGLE);
+    vulkan_set_storage_buffer(*desc, size);
 #endif // VULKAN
 
     return triangles;
@@ -228,16 +228,17 @@ mouse_ray_model_intersections_cpu(bool8 *selected, Ray mouse_ray, Game_Draw *dra
 #if VULKAN
 
 internal void
-mouse_ray_model_intersections(bool8 selected[GI_SIZE], Ray mouse_ray, Game_Draw *draw, Model *card_model, u32 active_player) {
+mouse_ray_model_intersections(bool8 selected[GI_SIZE], Ray mouse_ray, Descriptor *triangle_desc, Game_Draw *draw, Model *card_model, u32 active_player) {
     vulkan_start_compute();
     
     gfx_bind_shader("RAY");
     
-    Descriptor ray_desc = vulkan_get_descriptor_set(6);
-    Descriptor tri_desc = render_get_descriptor_set_index(7, 0);
-    Descriptor out_desc = vulkan_get_descriptor_set(8);
-    Descriptor object_desc = vulkan_get_descriptor_set(9);
-
+    //Descriptor tri_desc = render_get_descriptor_set(GFX_ID_RAY_TRIANGLE);
+    
+    Descriptor ray_desc = vulkan_get_descriptor_set(GFX_ID_RAY_VERTEX);
+    Descriptor out_desc = vulkan_get_descriptor_set(GFX_ID_RAY_INTERSECTION);
+    Descriptor object_desc = vulkan_get_descriptor_set(GFX_ID_RAY_MODELS);
+    
     Ray_v4 ray_v4 = {
         { mouse_ray.origin.x, mouse_ray.origin.y, mouse_ray.origin.z, 0.0f },
         { mouse_ray.direction.x, mouse_ray.direction.y, mouse_ray.direction.z, 0.0f },
@@ -272,8 +273,9 @@ mouse_ray_model_intersections(bool8 selected[GI_SIZE], Ray mouse_ray, Game_Draw 
 
     memset((char*)vulkan_info.storage_buffer.data, 0, 10 * 48);
 
+    vulkan_bind_descriptor_set(*triangle_desc);
+    
     vulkan_bind_descriptor_set(ray_desc);
-    vulkan_bind_descriptor_set(tri_desc);
     vulkan_bind_descriptor_set(out_desc);
     vulkan_bind_descriptor_set(object_desc);
 

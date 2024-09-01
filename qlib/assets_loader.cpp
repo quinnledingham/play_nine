@@ -52,6 +52,8 @@ load_asset_file(Assets *assets, s32 *asset_indices, u32 type, Asset_Load *load) 
 internal bool8
 load_asset_files(Assets *assets, Assets_Load *loads, u32 loads_count) {
 
+    assets->num_of_assets = 0;
+
     for (u32 i = 0; i < loads_count; i++) {
         assets->types[loads[i].type].num_of_assets = loads[i].count;
         assets->num_of_assets += loads[i].count;
@@ -75,8 +77,9 @@ load_asset_files(Assets *assets, Assets_Load *loads, u32 loads_count) {
 }
 
 // returns true if loading the assets fails
+// loads assets from the individual files specified in load asset files
 internal bool8
-load_assets(Assets *assets) {
+load_assets_from_files(Assets *assets) {
     for (u32 i = 0; i < assets->num_of_assets; i++) {
         Asset *asset = &assets->data[i];
         Asset_Files *files = &assets->files[i];
@@ -455,4 +458,61 @@ get_assets_size(Assets *assets) {
     }
 
     return size;
+}
+
+internal void
+convert_to_one_channel(Bitmap *bitmap) {
+    u8 *new_memory = (u8*)platform_malloc(bitmap->width * bitmap->height * 1);
+
+    for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
+        u8 *src_ptr = bitmap->memory + (i * 4);
+        u8 *dest_ptr = new_memory + i;
+        *dest_ptr = src_ptr[3];
+    }
+    
+    platform_free(bitmap->memory);
+    bitmap->memory = new_memory;
+    bitmap->channels = 1;
+    bitmap->pitch = bitmap->width * bitmap->channels;
+};
+
+internal bool8
+load_assets(Assets *assets, Assets_Load *loads, u32 loads_count, bool8 force_full_reload) {
+
+    if (assets->loaded) {
+        logprint("load_assets()", "already loaded\n");
+        return 1;
+    }
+    
+    bool8 load_failed = false;
+    const char *files_save_filepath = "files.save";
+    const char *assets_save_filepath = "assets.save";
+    u32 offset = 0;
+
+    if (load_saved_assets(assets, assets_save_filepath, offset)) {
+        load_failed = true; 
+    }
+    
+    if (load_failed || force_full_reload) {
+#if DEBUG
+        load_asset_files(assets, loads, loads_count);
+        save_asset_files(assets, files_save_filepath);
+#endif // DEBUG
+        
+        load_saved_asset_files(assets, files_save_filepath);
+        
+        if (load_assets_from_files(assets))
+            return true;
+        convert_to_one_channel(find_bitmap(assets, "BOT"));
+
+        // Save Assets File
+        FILE *file = fopen(assets_save_filepath, "wb");
+        save_assets(assets, file);
+        fclose(file);
+    }
+    
+    init_assets(assets);
+
+    assets->loaded = true;
+    return 0;
 }

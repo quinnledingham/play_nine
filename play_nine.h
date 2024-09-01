@@ -142,6 +142,8 @@ struct State {
     MUTEX selected_mutex;
 
     bool8 pass_selected;
+
+    Descriptor triangle_desc;
     
     // Drawing
     Scene scene;
@@ -150,7 +152,6 @@ struct State {
     Descriptor scene_ortho_set;
     
     Camera camera;
-    s32 indices[16];
 
     Loading_Icon loading_icon;
     
@@ -161,3 +162,4 @@ enum Online_Mode *global_mode;
 global s8 deck[DECK_SIZE];
 GUI gui = {};
 
+global Texture_Atlas atlas;

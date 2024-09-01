@@ -244,15 +244,43 @@ init_card_bitmaps(Bitmap *bitmaps, Font *font) {
     platform_free(circle_bitmap.memory);
 }
 
+inline Bitmap*
+get_card_bitmap(Assets *assets, u32 index) {
+    return &assets->types[ASSET_TYPE_BITMAP].data[index + BITMAP_COUNT].bitmap;
+}
+
 internal void
-draw_card_bitmaps(Bitmap bitmaps[14], Vector2_s32 window_dim) {
+draw_card_bitmaps(Assets *assets, Vector2_s32 window_dim) {
+    Bitmap *temp = get_card_bitmap(assets, 0);
+    
     Vector2 dim = { window_dim.x / 14.0f, 0 };
-    float32 percent = dim.x / bitmaps[0].width;
-    dim.y = bitmaps[0].height * percent;
+    float32 percent = dim.x / temp->width;
+    dim.y = temp->height * percent;
     //Vector2 pos = { 0, window_dim.y - dim.y };
     Vector2 pos = { 0, 0 };
     for (u32 i = 0; i < 14; i++) {
         pos.x = i * dim.x;
-        draw_rect(pos, 0, dim, &bitmaps[i]);
+        draw_rect(pos, 0, dim, get_card_bitmap(assets, i));
+    }
+}
+
+internal void
+write_card_bitmaps(Bitmap bitmaps[14]) {
+    for (u32 i = 0; i < 14; i++) {
+        const char *tag = "card";
+        
+        char card_number[3];
+        platform_memory_set(card_number, 0, 3);
+        s32_to_char_array(card_number, 3, i);
+
+        const char *file_name = char_array_concat(tag, card_number);
+        const char *bitmap_filepath = char_array_concat(asset_folders[ASSET_TYPE_BITMAP], file_name);
+        const char *bitmap_filepath_ext = char_array_concat(bitmap_filepath, ".png");
+        
+        write_bitmap(&bitmaps[i], bitmap_filepath_ext);
+        
+        platform_free((void*)bitmap_filepath);
+        platform_free((void*)bitmap_filepath_ext);
+        platform_free((void*)file_name);
     }
 }

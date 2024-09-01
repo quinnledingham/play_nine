@@ -5,7 +5,6 @@
 #define DRAW_SIGNALS_AMOUNT 6
 #define CARD_MODEL_HEIGHT 0.101767f
 
-global Bitmap card_bitmaps[14];
 global Vector2 hand_coords[8];
 global float32 hand_width;
 
@@ -19,7 +18,12 @@ const Vector4 highlight_colors[3] = { play_nine_yellow, play_nine_light_yellow, 
 global Font *default_font;
 Draw_Style default_style = {};
 
-Descriptor texture_desc = {}; // card textures
+//Descriptor texture_desc = {}; // card textures
+
+struct Texture_Array {
+    Descriptor desc;
+    u32 indices[16];
+};
 
 struct Rotation {
     bool8 signal;
@@ -121,6 +125,8 @@ struct Game_Draw_Info {
     float32 x_hand_position; // where hand on x_axis is location
     float32 player_hand_rads[MAX_PLAYERS];
     Vector3 hand_positions[MAX_PLAYERS];
+
+    Texture_Array texture_array;
 };
 
 struct Game_Draw {
@@ -151,6 +157,7 @@ struct Game_Draw {
     u32 animations_count;
     Card_Animation animations[max_card_animations];
 };
+
 
 //
 // Card Designs

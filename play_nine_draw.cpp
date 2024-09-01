@@ -229,7 +229,7 @@ load_game_draw_info(Game *game, Game_Draw_Info *info) {
 // Drawing
 //
 
-void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 back_index, Matrix_4x4 model_matrix, bool8 flipped) {
+void draw_card_model(Model *model, Descriptor color_set, Texture_Array *tex_array, s32 front_index, Matrix_4x4 model_matrix, bool8 flipped) {
     u32 draw[3] = { 1, 0, 2 };
     u32 flipped_draw[3] = { 2, 0, 1 };
 
@@ -240,7 +240,7 @@ void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 ba
 
         Object object = {};
         object.model = model_matrix;
-        object.index = back_index;
+        object.index = tex_array->indices[14];
 
         switch(draw_index) {
             case 0: { 
@@ -252,7 +252,7 @@ void draw_card_model(Model *model, Descriptor color_set, s32 front_index, s32 ba
                 object.index = front_index;
             case 2: 
                 gfx_bind_shader("BASIC3D");
-                render_bind_descriptor_set(texture_desc);
+                render_bind_descriptor_set(tex_array->desc);
             break;
         }
 
@@ -277,7 +277,7 @@ void draw_highlight(Model *model, Render_Pipeline *color_pipeline, Vector4 color
 }
 
 internal void
-draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color, bool8 flipped) {
+draw_card(Model *card_model, Descriptor color_set, Texture_Array *tex_array, u32 number, Matrix_4x4 model, bool8 highlight, Vector4 highlight_color, bool8 flipped) {
     u32 bitmap_index = number;
     if (number == -5)
         bitmap_index = 13;
@@ -290,7 +290,7 @@ draw_card(Model *card_model, Descriptor color_set, s32 indices[16], u32 number, 
     }
 
     render_bind_descriptor_set(light_set);
-    draw_card_model(card_model, color_set, indices[bitmap_index], indices[14], model, flipped);
+    draw_card_model(card_model, color_set, tex_array, tex_array->indices[bitmap_index], model, flipped);
 } 
 
 internal Vector4
@@ -304,7 +304,8 @@ get_highlight_color(Game_Draw *draw, u32 index) {
 }
 
 internal void
-draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 indices[16]) {
+draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight) {
+    Texture_Array *tex_array = &draw->info.texture_array;
     Player *active_player = &game->players[game->active_player];
     enum Turn_Stages stage = game->turn_stage;
 
@@ -315,20 +316,20 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 
 
     {
         bool8 h = stage == SELECT_PILE && highlight;
-        draw_card(card_model, color_set, indices, deck[game->pile[game->top_of_pile]], draw->top_of_pile_model, h, get_highlight_color(draw, GI_PICKUP_PILE), false);
+        draw_card(card_model, color_set, tex_array, deck[game->pile[game->top_of_pile]], draw->top_of_pile_model, h, get_highlight_color(draw, GI_PICKUP_PILE), false);
     }
 
     if (game->top_of_discard_pile != 0 && !draw->moving_card) {
         Matrix_4x4 model = draw->top_of_discard_pile_model;
         s32 card = deck[game->discard_pile[game->top_of_discard_pile - 1]];
         bool8 h = ((stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE) && highlight;
-        draw_card(card_model, color_set, indices, card, model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
+        draw_card(card_model, color_set, tex_array, card, model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
     }
 
     if (draw->moving_card && game->top_of_discard_pile > 1) {
         s32 card = deck[game->discard_pile[game->top_of_discard_pile - 2]];
         bool8 h = ((stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE) && highlight;
-        draw_card(card_model, color_set, indices, card, draw->top_of_discard_pile_model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
+        draw_card(card_model, color_set, tex_array, card, draw->top_of_discard_pile_model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
     }
     
     for (u32 player_index = 0; player_index < game->num_of_players; player_index++) {
@@ -337,7 +338,7 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 
             if (stage == FLIP_CARD && active_player->flipped[card_index]) h = false;
 
             s32 card = deck[game->players[player_index].cards[card_index]];
-            draw_card(card_model, color_set, indices, card, draw->hand_models[player_index][card_index], h, get_highlight_color(draw, card_index), game->players[player_index].flipped[card_index]);
+            draw_card(card_model, color_set, tex_array, card, draw->hand_models[player_index][card_index], h, get_highlight_color(draw, card_index), game->players[player_index].flipped[card_index]);
         }
     }
 
@@ -345,13 +346,13 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight, s32 
         Matrix_4x4 model = draw->moving_card_model;
         s32 card = deck[game->discard_pile[game->top_of_discard_pile - 1]];
         bool8 h = ((stage == SELECT_CARD && game->pile_card) || stage == SELECT_PILE) && highlight;
-        draw_card(card_model, color_set, indices, card, model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
+        draw_card(card_model, color_set, tex_array, card, model, h, get_highlight_color(draw, GI_DISCARD_PILE), true);
     }
     
     // always draw new card on top
     if (stage == SELECT_CARD) {
         s32 card = deck[game->new_card];
-        draw_card(card_model, color_set, indices, card, draw->selected_card_model, false, play_nine_yellow, true);
+        draw_card(card_model, color_set, tex_array, card, draw->selected_card_model, false, play_nine_yellow, true);
     }
 }
 
@@ -459,7 +460,8 @@ draw_triangle_indicator(Game *game, Game_Draw *draw) {
 // 270        90
 //       0
 internal void
-draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[16]) {
+draw_game(State *state, Assets *assets, Shader *shader, Game *game) {
+    Texture_Array *tex_array = &state->game_draw.info.texture_array;
     render_depth_test(true);
     
     gfx_bind_shader("BASIC3D");    
@@ -472,11 +474,11 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     // Table
     gfx_bind_shader("BASIC3D");
     //render_bind_pipeline(&texture_shader->pipeline);
-    render_bind_descriptor_set(texture_desc);
+    render_bind_descriptor_set(tex_array->desc);
 
     Object object = {};
     object.model = create_transform_m4x4({ 0, -0.1f - 0.1f, 0 }, get_rotation(0, { 0, 1, 0 }), {15.6f, 2.0f, 15.6f});
-    object.index = indices[15];
+    object.index = tex_array->indices[15];
     render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 
     Model *model = find_model(assets, "TABLE");
@@ -498,7 +500,7 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     // Cards
     gfx_bind_shader("BASIC3D");
     //render_bind_pipeline(&texture_shader->pipeline);
-    render_bind_descriptor_set(texture_desc);
+    render_bind_descriptor_set(tex_array->desc);
 
     Model *card_model = find_model(assets, "CARD");
 
@@ -508,7 +510,7 @@ draw_game(State *state, Assets *assets, Shader *shader, Game *game, s32 indices[
     if (state->game.round_type == HOLE_OVER || !highlight)
         render_depth_test(true);
     
-    draw_cards(game, &state->game_draw, card_model, highlight, indices);
+    draw_cards(game, &state->game_draw, card_model, highlight);
 
     render_depth_test(false);
 }

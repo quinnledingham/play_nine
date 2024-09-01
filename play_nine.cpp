@@ -38,7 +38,7 @@ do_mouse_selected_update(State *state, App *app, bool8 selected[GI_SIZE]) {
     set_ray_coords(&mouse_ray, state->camera, state->scene, app->input.mouse, app->window.dim);
 
     #if VULKAN
-    mouse_ray_model_intersections(draw->highlight_hover, mouse_ray, draw, card_model, game->active_player);
+    mouse_ray_model_intersections(draw->highlight_hover, mouse_ray, &state->triangle_desc, draw, card_model, game->active_player);
     #elif OPENGL
     mouse_ray_model_intersections_cpu(draw->highlight_hover, mouse_ray, draw, card_model, game->active_player);
     #endif // VULKAN / OPENGL
@@ -384,8 +384,6 @@ draw(App *app, State *state) {
         gfx.layouts[i].reset();
     }
     
-    texture_desc = render_get_descriptor_set_index(GFX_ID_TEXT, 0);
-
     state->scene_set = render_get_descriptor_set(GFX_ID_SCENE);
     render_update_ubo(state->scene_set, (void*)&state->scene);
 
@@ -436,7 +434,7 @@ draw(App *app, State *state) {
             if (on_up(state->controller.pause)) {
                 state->menu_list.toggle(IN_GAME, PAUSE_MENU);
             }
-            draw_game(state, &state->assets, basic_3D, &state->game, state->indices);
+            draw_game(state, &state->assets, basic_3D, &state->game);
             //test_draw_rect();
             draw_game_hud(state, app->window.dim, &app->input, full_menu);
         } break;
@@ -497,21 +495,6 @@ update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
 https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f
 */
 
-internal void
-convert_to_one_channel(Bitmap *bitmap) {
-    u8 *new_memory = (u8*)platform_malloc(bitmap->width * bitmap->height * 1);
-
-    for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
-        u8 *src_ptr = bitmap->memory + (i * 4);
-        u8 *dest_ptr = new_memory + i;
-        *dest_ptr = src_ptr[3];
-    }
-    
-    platform_free(bitmap->memory);
-    bitmap->memory = new_memory;
-    bitmap->channels = 1;
-    bitmap->pitch = bitmap->width * bitmap->channels;
-};
 
 
 bool8 init_data(App *app) {
@@ -520,69 +503,32 @@ bool8 init_data(App *app) {
     *state = {};
     state->assets = {};
 
-    bool8 load_failed = false;
-    const char *assets_save_filepath = "assets.save";
-    u32 offset = 0;
-
-    if (load_saved_assets(&state->assets, assets_save_filepath, offset)) {
-        load_failed = true; 
+    if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), false)) {
+        logprint("init_data()", "load_assets failed\n");
+        return 1;
     }
-    
-    if (load_failed) {
-#if DEBUG
-        load_asset_files(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load));
-        save_asset_files(&state->assets, "files.save");
-#endif // DEBUG
-        
-        load_saved_asset_files(&state->assets, "files.save");
-        
-        if (load_assets(&state->assets))
-            return true;
-        convert_to_one_channel(find_bitmap(&state->assets, "BOT"));
 
-    }
-    
-    init_assets(&state->assets);
     global_assets = &state->assets;
-
-    // must check again because the card assets use a font for their creation
-    if (load_failed) {
-        // Load card bitmaps
-        Font *card_font = find_font(&state->assets, "CASLON");
+    
+    bool8 reload_card_bitmaps = false;
+    if (reload_card_bitmaps) {
+        Bitmap card_bitmaps[14];                    
+        Font *card_font = find_font(global_assets, "CASLON");
         init_card_bitmaps(card_bitmaps, card_font); 
         clear_font_bitmap_cache(card_font);
-        
-        Asset *card_assets = ARRAY_MALLOC(Asset, 14);
-        for (u32 i = 0; i < 14; i++) {
-            Asset *asset = &card_assets[i];
-            asset->type = ASSET_TYPE_BITMAP;
-            asset->bitmap = card_bitmaps[i];
-            asset->tag = (const char *)platform_malloc(5);
-            asset->tag_length = 4;
-            platform_memory_set((void*)asset->tag, 0, 5);
-            const char *tag = "card";
-            platform_memory_copy((void*)asset->tag, (void*)tag, 4);
-        };
-        add_assets(&state->assets, card_assets, 14);
-
-        print_assets(&state->assets);
-
-        // Save Assets File
-        FILE *file = fopen(assets_save_filepath, "wb");
-        save_assets(&state->assets, file);
-        fclose(file);
-    } else {
-        for (u32 i = 0; i < 14; i++) {
-            card_bitmaps[i] = state->assets.types[0].data[i + 8].bitmap; // + 8 to go after bitmaps loaded before the card bitmaps
-        }
+        write_card_bitmaps(card_bitmaps);
     }
-
+    
     default_font = find_font(&state->assets, "CASLON");
     global_mode = &state->mode;
     
 #if DEBUG
     print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 #endif // DEBUG
+    
+    gfx.layouts = ARRAY_MALLOC(Layout, 11);
+    platform_memory_set(gfx.layouts, 0, sizeof(Layout) * 11);
+    init_layouts(gfx.layouts, find_bitmap(&state->assets, "BACK"));
     
     init_pipelines(&state->assets);
     init_shapes(&state->assets);
@@ -688,16 +634,17 @@ bool8 init_data(App *app) {
     state->selected_mutex = os_create_mutex();
 
     // General Game
-    Descriptor texture_desc = render_get_descriptor_set_index(2, 0);
+    Texture_Array *tex_array = &state->game_draw.info.texture_array;    
+    tex_array->desc = render_get_descriptor_set(GFX_ID_TEXT);
 
     for (u32 j = 0; j < 14; j++) {
-        state->indices[j] = render_set_bitmap(&texture_desc, &card_bitmaps[j]);
+        tex_array->indices[j] = render_set_bitmap(&tex_array->desc, get_card_bitmap(&state->assets, j));
     }
-    state->indices[14] = render_set_bitmap(&texture_desc, find_bitmap(&state->assets, "BACK"));
+    tex_array->indices[14] = render_set_bitmap(&tex_array->desc, find_bitmap(&state->assets, "BACK"));
     Model *model = find_model(&state->assets, "TABLE");
-    state->indices[15] = render_set_bitmap(&texture_desc, &model->meshes[0].material.diffuse_map);
+    tex_array->indices[15] = render_set_bitmap(&tex_array->desc, &model->meshes[0].material.diffuse_map);
 
-    init_triangles(find_model(&state->assets, "CARD")); // Fills array on graphics card
+    init_triangles(find_model(&state->assets, "CARD"), &state->triangle_desc); // Fills array on graphics card
     init_deck();
 
     state->game_draw.bot_bitmap = find_bitmap(&state->assets, "BOT");
@@ -711,6 +658,13 @@ bool8 init_data(App *app) {
     File file = load_file("prompt.png");
     keyboard_prompt_texture = load_bitmap(file, false);
     render_create_texture(&keyboard_prompt_texture, TEXTURE_PARAMETERS_CHAR);
+
+    atlas = create_texture_atlas();
+    texture_atlas_add(&atlas, "../xelu/Xbox Series/XboxSeriesX_A.png");
+    texture_atlas_add(&atlas, "../assets/bitmaps/david.jpg");
+    texture_atlas_add(&atlas, "../xelu/Xbox Series/XboxSeriesX_B.png");
+    write_bitmap(&atlas.bitmap, "atlas_test.png");
+    render_create_texture(&atlas.bitmap, TEXTURE_PARAMETERS_CHAR);
     
     return false;
 }

@@ -44,6 +44,21 @@ Asset_Load bitmaps_to_load[] = {
   { "FRONT12", "front12.png" },
   { "BOT", "bot.png" },
   { "LOADING", "loading.png" },
+  
+  { "card0", "card0.png" },
+  { "card1", "card1.png" },
+  { "card2", "card2.png" },
+  { "card3", "card3.png" },
+  { "card4", "card4.png" },
+  { "card5", "card5.png" },
+  { "card6", "card6.png" },
+  { "card7", "card7.png" },
+  { "card8", "card8.png" },
+  { "card9", "card9.png" },
+  { "card10", "card10.png" },
+  { "card11", "card11.png" },
+  { "card12", "card12.png" },
+  { "card13", "card13.png" },
 };
 
 Asset_Load fonts_to_load[] = {

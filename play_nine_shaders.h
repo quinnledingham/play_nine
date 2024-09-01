@@ -103,9 +103,6 @@ init_prompt_layout(Layout_Set *set, Layout *layouts) {
 
 bool8 init_pipelines(Assets *assets) {
 
-    gfx.layouts = ARRAY_MALLOC(Layout, 11);
-    platform_memory_set(gfx.layouts, 0, sizeof(Layout) * 11);
-    init_layouts(gfx.layouts, find_bitmap(assets, "BACK"));
 
 #if DEBUG
 #if VULKAN

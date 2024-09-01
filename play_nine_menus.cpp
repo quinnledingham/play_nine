@@ -53,7 +53,8 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
         return true;
 
 #ifdef DEBUG
-    draw_card_bitmaps(card_bitmaps, window_dim);
+    draw_card_bitmaps(&state->assets, window_dim);
+    texture_atlas_draw(&atlas, 1, { 100, 100 }, { 50, 50 });
 #endif // DEBUG
 
     menu->end();

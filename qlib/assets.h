@@ -228,10 +228,13 @@ struct Descriptor {
 };
 
 struct Layout {
-    static const u32 max_bindings = 10;
-    static const u32 max_sets = 512;
+    static const u32 max_bindings = 4;
+    static const u32 max_sets = 164;
 
     u32 id;
+
+    bool8 resetted;
+    u32 sets_reset_amount; // Descriptors got before layout is reseted the first time won't get overwritten
     u32 sets_in_use;
 
     Layout_Binding bindings[max_bindings]; // array_index != binding location
@@ -254,7 +257,11 @@ struct Layout {
     }
 
     void reset() {
-        sets_in_use = 0;
+        if (!resetted) {
+            sets_reset_amount = sets_in_use;
+            resetted = true;
+        }
+        sets_in_use = sets_reset_amount;
     }
 };
 
@@ -325,6 +332,28 @@ struct Bitmap {
 
     void *gpu_info;
     Descriptor *descriptor;
+};
+
+/*
+####p2
+######
+p1####
+*/
+struct Texture_Coords {
+    Vector2 p1;
+    Vector2 p2;
+};
+
+struct Texture_Atlas {
+    Bitmap bitmap;
+    Descriptor desc;
+
+    static const u32 max_textures = 100;
+    u32 texture_count;
+    Texture_Coords texture_coords[100]; 
+    
+    Vector2_s32 insert_position;
+    s32 row_height;
 };
 
 //
@@ -458,6 +487,7 @@ struct Asset_Array {
 };
 
 struct Assets {
+    bool8 loaded;
     u32 num_of_assets;
 
     Asset_Files *files;
