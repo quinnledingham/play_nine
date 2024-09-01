@@ -432,24 +432,26 @@ create_texture_atlas() {
     atlas.descs[0] = render_get_descriptor_set(2);
     atlas.descs[1] = render_get_descriptor_set(2);
     
+    atlas.created = true;
     return atlas;
 }
 
 internal u32
 texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
-    atlas->created = true;
+    Vector2_s32 padding = { 1, 1 };
+    
 
-  Vector2_s32 position = {};
-  if (atlas->insert_position.x + bitmap->width < atlas->bitmap.width) {
-    position = atlas->insert_position;
-  } else if (atlas->insert_position.y + atlas->row_height + bitmap->height < atlas->bitmap.height) {
-    position = { 0, atlas->insert_position.y + atlas->row_height };
-    atlas->row_height = 0;
-  } else {
-    // @TODO make atlas bigger
-    logprint("texture_atlas_add()", "not enough room for bitmap->n");
-    return 0;
-  }
+    Vector2_s32 position = {};
+    if (atlas->insert_position.x + padding.x + bitmap->width < atlas->bitmap.width) {
+        position = atlas->insert_position;
+    } else if (atlas->insert_position.y + atlas->row_height + padding.y + bitmap->height < atlas->bitmap.height) {
+        position = { 0, atlas->insert_position.y + atlas->row_height + padding.y };
+        atlas->row_height = 0;
+    } else {
+        // @TODO make atlas bigger
+        logprint("texture_atlas_add()", "not enough room for bitmap\n");
+        return 0;
+    }
 
   copy_blend_bitmap(atlas->bitmap, *bitmap, position, { 255, 255, 255 });
 
@@ -462,9 +464,11 @@ texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
   if (bitmap->height > atlas->row_height) {
     atlas->row_height = bitmap->height;
   }
-  atlas->insert_position = { position.x + bitmap->width, position.y };
+  atlas->insert_position = { position.x + padding.x + bitmap->width, position.y };
 
-    atlas->updated = true;
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        atlas->refresh_required[i] = true;
+    }
 
   return index;
 }
@@ -474,6 +478,20 @@ texture_atlas_add(Texture_Atlas *atlas, const char *file_path) {
     File file = load_file(file_path);
     Bitmap bitmap = load_bitmap(file, false);
     texture_atlas_add(atlas, &bitmap);
+}
+
+internal void
+texture_atlas_refresh(Texture_Atlas *atlas) {
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (atlas->refresh_required[i] && i == gfx.current_frame) {
+            atlas->refresh_required[i] = false;
+            void *gpu_handle = atlas->gpu_handles[gfx.current_frame];
+            render_destroy_texture(gpu_handle);
+            atlas->gpu_handles[gfx.current_frame] = render_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
+            atlas->descs[gfx.current_frame].texture_index = 0;
+            render_set_texture(&atlas->descs[gfx.current_frame], atlas->gpu_handles[gfx.current_frame]);
+        }
+    }
 }
 
 //

@@ -399,16 +399,7 @@ draw(App *app, State *state) {
     if (render_start_frame(&app->window))
         return 0;
 
-    Texture_Atlas *atlas = &default_font->cache->atlas;
-
-    if (atlas->updated) {
-        atlas->updated = false;
-        void *gpu_handle = atlas->gpu_handles[gfx.current_frame];
-        render_destroy_texture(gpu_handle);
-        atlas->gpu_handles[gfx.current_frame] = render_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
-        atlas->descs[gfx.current_frame].texture_index = 0;
-        render_set_texture(&atlas->descs[gfx.current_frame], atlas->gpu_handles[gfx.current_frame]);
-    }
+    texture_atlas_refresh(&default_font->cache->atlas);
     
     render_set_viewport(render_context.resolution.width, render_context.resolution.height);
     render_context.scissor_stack_index = 0;
