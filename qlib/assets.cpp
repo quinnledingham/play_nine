@@ -191,6 +191,65 @@ bitmap_convert(Bitmap bitmap) {
     }
 }
 
+internal Vector4
+get_color(u8 *ptr, u32 channels, Vector3 color) {
+    switch(channels) {
+        case 1: return { color.r, color.g, color.b, float32(*ptr) }; break;
+        case 3: return { float32(ptr[0]), float32(ptr[1]), float32(ptr[2]), 0xFF }; break;
+        case 4: return { float32(ptr[0]), float32(ptr[1]), float32(ptr[2]), float32(ptr[3]) }; break;
+    }
+
+    return { 0, 0, 0, 0 };
+}
+
+internal u8
+blend_alpha(u8 a1, u8 a2) {
+    return 255 - ((255 - a1) * (255 - a2) / 255);
+}
+
+internal Vector4
+get_color(Vector4 c1, Vector4 c2) {
+    float32 alpha = 255 - ((255 - c1.E[3]) * (255 - c2.E[3]) / 255);
+    float32 red   = (c1.E[0] * (255 - c2.E[3]) + c2.E[0] * c2.E[3]) / 255;
+    float32 green = (c1.E[1] * (255 - c2.E[3]) + c2.E[1] * c2.E[3]) / 255;
+    float32 blue  = (c1.E[2] * (255 - c2.E[3]) + c2.E[2] * c2.E[3]) / 255;
+    return {red, green, blue, alpha};
+}
+
+// color contains what to fill conversion from 1 channel to 4 channels with
+internal void
+copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position, Vector3 color) {
+    if (src.width == 0)
+        return;
+
+    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
+    u8 *src_ptr = src.memory;
+    for (s32 y = 0; y <= src.height; y++) {
+        for (s32 x = 0; x < src.width; x++) { 
+            if (dest.channels == 1) {
+                *dest_ptr = blend_alpha(*dest_ptr, *src_ptr);
+            } else if (dest.channels == 4) { 
+                Vector4 src_color = get_color(src_ptr, src.channels, color);
+                Vector4 dest_color = get_color(dest_ptr, dest.channels, color);
+                Vector4 blend_color = get_color(dest_color, src_color);
+
+                dest_ptr[0] = (u8)blend_color.r;
+                dest_ptr[1] = (u8)blend_color.g;
+                dest_ptr[2] = (u8)blend_color.b;
+                dest_ptr[3] = (u8)blend_color.a;
+            }
+            dest_ptr += dest.channels;
+            src_ptr += src.channels;
+        }   
+
+        dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (y * dest.pitch);
+        src_ptr = src.memory + (y * src.pitch);
+
+        if (dest_ptr > dest.memory + (dest.width * dest.channels) + (dest.height * dest.pitch) + (y * dest.pitch))
+            ASSERT(0);
+    }
+}
+
 //
 // Shader
 //
@@ -347,6 +406,77 @@ clean_shader(Shader *shader) {
 }
 
 //
+// Texture Atlas
+//
+
+internal Bitmap
+blank_bitmap(u32 width, u32 height, u32 channels) {
+    Bitmap bitmap = {};
+    bitmap.width = width;
+    bitmap.height = height;
+    bitmap.channels = channels;
+    bitmap.pitch = bitmap.width * bitmap.channels;
+    
+    u32 bitmap_size = bitmap.width * bitmap.height * bitmap.channels;
+    bitmap.memory = (u8 *)platform_malloc(bitmap_size);
+    platform_memory_set(bitmap.memory, 0, bitmap_size);
+
+    return bitmap;
+}
+
+internal Texture_Atlas
+create_texture_atlas() {
+    Texture_Atlas atlas = {};
+    atlas.bitmap = blank_bitmap(1000, 1000, 4);
+
+    atlas.descs[0] = render_get_descriptor_set(2);
+    atlas.descs[1] = render_get_descriptor_set(2);
+    
+    return atlas;
+}
+
+internal u32
+texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
+    atlas->created = true;
+
+  Vector2_s32 position = {};
+  if (atlas->insert_position.x + bitmap->width < atlas->bitmap.width) {
+    position = atlas->insert_position;
+  } else if (atlas->insert_position.y + atlas->row_height + bitmap->height < atlas->bitmap.height) {
+    position = { 0, atlas->insert_position.y + atlas->row_height };
+    atlas->row_height = 0;
+  } else {
+    // @TODO make atlas bigger
+    logprint("texture_atlas_add()", "not enough room for bitmap->n");
+    return 0;
+  }
+
+  copy_blend_bitmap(atlas->bitmap, *bitmap, position, { 255, 255, 255 });
+
+  Vector2 tex_coords_p1 = { float32(position.x) / atlas->bitmap.width, float32(position.y) / atlas->bitmap.height };
+  Vector2 tex_coords_p2 = { float32(position.x + bitmap->width) / atlas->bitmap.width, float32(position.y + bitmap->height) / atlas->bitmap.height };
+  atlas->texture_coords[atlas->texture_count].p1 = tex_coords_p1;
+  atlas->texture_coords[atlas->texture_count].p2 = tex_coords_p2;
+  u32 index = atlas->texture_count++;
+
+  if (bitmap->height > atlas->row_height) {
+    atlas->row_height = bitmap->height;
+  }
+  atlas->insert_position = { position.x + bitmap->width, position.y };
+
+    atlas->updated = true;
+
+  return index;
+}
+
+internal void
+texture_atlas_add(Texture_Atlas *atlas, const char *file_path) {
+    File file = load_file(file_path);
+    Bitmap bitmap = load_bitmap(file, false);
+    texture_atlas_add(atlas, &bitmap);
+}
+
+//
 // Font
 //
 
@@ -362,6 +492,8 @@ init_font(Font *font, File file) {
 
     stbtt_InitFont(info, (u8*)file.memory, stbtt_GetFontOffsetForIndex((u8*)file.memory, 0));
     stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
+
+    font->cache->atlas = create_texture_atlas();
 }
 
 internal Font_Char *
@@ -428,6 +560,9 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     char_bitmap->bitmap.pitch = char_bitmap->bitmap.width * char_bitmap->bitmap.channels;
 
     stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, char_bitmap->scale, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
+
+    Texture_Atlas *atlas = &font->cache->atlas;
+    char_bitmap->index = texture_atlas_add(atlas, &char_bitmap->bitmap);
 
     if (codepoint == 32)
         return char_bitmap;

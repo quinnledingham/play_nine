@@ -48,6 +48,8 @@ typedef double float64;
 #define PI       3.141592653593f
 #define EPSILON  0.00001f
 
+#define MAX_FRAMES_IN_FLIGHT  2
+
 #define ASSERT(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #define ARRAY_COUNT(n)     (sizeof(n) / sizeof(n[0]))
 #define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t))) // WARNING!!!! Make sure n is in brackets if operation

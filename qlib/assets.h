@@ -345,8 +345,11 @@ struct Texture_Coords {
 };
 
 struct Texture_Atlas {
+    bool8 created;
+    bool8 updated;
     Bitmap bitmap;
-    Descriptor desc;
+    void *gpu_handles[MAX_FRAMES_IN_FLIGHT]; // too allow for dynamic updating
+    Descriptor descs[MAX_FRAMES_IN_FLIGHT];
 
     static const u32 max_textures = 100;
     u32 texture_count;
@@ -376,6 +379,7 @@ struct Font_Char_Bitmap {
     Font_Char *font_char;
     float32 scale; // scale factor
     Bitmap bitmap;
+    u32 index;
 
     Vector2_s32 bb_0; // bounding box coord 0 
     Vector2_s32 bb_1; // bounding box coord 1
@@ -397,6 +401,8 @@ struct Font_Cache {
     Font_Char font_chars[255];
     Font_Char_Bitmap bitmaps[1000];
     Font_GFX gfxs[5];
+
+    Texture_Atlas atlas;
 };
 
 struct Font {

@@ -76,60 +76,10 @@ draw_input_prompt(Vector3 coords, Button button) {
   render_draw_mesh(&shapes.rect_mesh);
 }
 
-internal Texture_Atlas
-create_texture_atlas() {
-  Texture_Atlas atlas = {};
-  atlas.bitmap.width = 1000;
-  atlas.bitmap.height = 1000;
-  atlas.bitmap.channels = 4;
-  atlas.bitmap.pitch = atlas.bitmap.width * atlas.bitmap.channels;
-  u32 bitmap_size = atlas.bitmap.width * atlas.bitmap.height * atlas.bitmap.channels;
-  atlas.bitmap.memory = (u8 *)platform_malloc(bitmap_size);
-  platform_memory_set(atlas.bitmap.memory, 0, bitmap_size);
-
-  return atlas;
-}
-
-internal void
-texture_atlas_add(Texture_Atlas *atlas, const char *file_path) {
-  File file = load_file(file_path);
-  Bitmap bitmap = load_bitmap(file, false);
-
-  Vector2_s32 position = {};
-  if (atlas->insert_position.x + bitmap.width < atlas->bitmap.width) {
-    position = atlas->insert_position;
-  } else if (atlas->insert_position.y + atlas->row_height + bitmap.height < atlas->bitmap.height) {
-    position = { 0, atlas->insert_position.y + atlas->row_height };
-    atlas->row_height = 0;
-  } else {
-    // @TODO make atlas bigger
-    logprint("texture_atlas_add()", "not enough room for bitmap\n");
-    return;
-  }
-
-  copy_blend_bitmap(atlas->bitmap, bitmap, position, { 255, 255, 255 });
-
-  Vector2 tex_coords_p1 = { float32(position.x) / atlas->bitmap.width, float32(position.y) / atlas->bitmap.height };
-  Vector2 tex_coords_p2 = { float32(position.x + bitmap.width) / atlas->bitmap.width, float32(position.y + bitmap.height) / atlas->bitmap.height };
-  atlas->texture_coords[atlas->texture_count].p1 = tex_coords_p1;
-  atlas->texture_coords[atlas->texture_count].p2 = tex_coords_p2;
-  atlas->texture_count++;
-
-  if (bitmap.height > atlas->row_height) {
-    atlas->row_height = bitmap.height;
-  }
-  atlas->insert_position = { position.x + bitmap.width, position.y };
-}
-
 internal void
 texture_atlas_draw(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {
-  Object object = {};
-  Bitmap *bitmap = &atlas->bitmap;
-      
   gfx_bind_shader("TEXTURE");
-  Descriptor desc = render_get_descriptor_set(3);
-  object.index = render_set_bitmap(&desc, bitmap);
-  render_bind_descriptor_set(desc);
+  render_bind_descriptor_set(atlas->descs[0]);
   
   VkDeviceSize offsets[] = { vulkan_info.dynamic_buffer.offset };
 
@@ -143,6 +93,7 @@ texture_atlas_draw(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim)
   vulkan_immediate_vertex(Vertex_XU{ { coords.x + dim.x, coords.y }, {tex_coord.p2.x, tex_coord.p1.y} });
   vulkan_immediate_vertex(Vertex_XU{ coords + dim, tex_coord.p2 });
   
+  Object object = {};
   object.model = identity_m4x4();
   render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
   

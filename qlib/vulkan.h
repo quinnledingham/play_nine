@@ -37,6 +37,7 @@ struct Vulkan_Swap_Chain_Support_Details {
 struct Vulkan_Buffer {
 	VkBuffer handle;
 	VkDeviceMemory memory;
+	VkDeviceSize size;
 	u32 offset; // where to enter new bytes
 	void *data; // if the memory is mapped
 };
@@ -131,7 +132,7 @@ struct Vulkan_Info {
 	Arr<VkFramebuffer> draw_framebuffers;
 	Arr<VkFramebuffer> swap_chain_framebuffers; // framebuffers for the swap_chain
 	
-	u32 current_frame; // which frame to fill ie. MAX_FRAMES_IN_FLIGHT = 2 either 0 or 1
+	//u32 current_frame; // which frame to fill ie. MAX_FRAMES_IN_FLIGHT = 2 either 0 or 1
 	// Set at the start of the frame for the current frame.
  	// What frame buffer that should be used for that frame.
 	u32 image_index; 

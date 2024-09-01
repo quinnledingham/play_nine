@@ -15,7 +15,6 @@ Descriptor light_set;
 Descriptor light_set_2;
 
 #define TEXTURE_ARRAY_SIZE   16
-#define MAX_FRAMES_IN_FLIGHT  2
 
 struct Light {
     Vector4 position;
@@ -61,9 +60,11 @@ RENDER_FUNC(void, create_graphics_pipeline, Shader *shader);
 RENDER_FUNC(void, create_compute_pipeline, Shader *shader);
 RENDER_FUNC(void, pipeline_cleanup, Render_Pipeline *pipe);
 RENDER_FUNC(void, bind_pipeline, Render_Pipeline *pipeline);
-RENDER_FUNC(void, create_texture, Bitmap *bitmap, u32 texture_parameters);
+RENDER_FUNC(void*, create_texture, Bitmap *bitmap, u32 texture_parameters);
 RENDER_FUNC(void, delete_texture, Bitmap *bitmap);
+RENDER_FUNC(void, destroy_texture, void *gpu_handle);
 RENDER_FUNC(u32, set_bitmap, Descriptor *desc, Bitmap *bitmap);
+RENDER_FUNC(u32, set_texture, Descriptor *desc, void *gpu_handle);
 RENDER_FUNC(void, init_mesh, Mesh *mesh);
 RENDER_FUNC(void, draw_mesh, Mesh *mesh);
 RENDER_FUNC(void, set_viewport, u32 window_width, u32 window_height);
@@ -111,6 +112,8 @@ struct Render {
     u32 active_shader_id;
     bool8 recording_frame = FALSE;
     Layout *layouts;
+
+    u32 current_frame;
 
     // Scissor
     u32 scissor_stack_index = 0;

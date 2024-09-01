@@ -528,7 +528,9 @@ void draw_shape(Shape shape) {
 // String
 //
 
-void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color) {
+void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color);
+
+void draw_string_a(Font *font, const char *string, Vector2 coords, float32 pixel_height, Vector4 color) {
     float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
     if (scale == 0.0f)
         return;

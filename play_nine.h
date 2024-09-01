@@ -9,6 +9,9 @@ TODO
 - change hud buttons to use other controller buttons
 - controller with textboxs?
 
+Join Menu
+- don't process user click on join if already processing one 
+
 Scoreboard
 - make scoreboard look better
 - add scrolling to scoreboard
@@ -31,7 +34,6 @@ Slight Problems
 
 Render.cpp
 - Add wireframe toggle
-- Clean up global pipelines, lights, and layout sets
 - add target frame rate
 
 vulkan.h

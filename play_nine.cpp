@@ -399,6 +399,17 @@ draw(App *app, State *state) {
     if (render_start_frame(&app->window))
         return 0;
 
+    Texture_Atlas *atlas = &default_font->cache->atlas;
+
+    if (atlas->updated) {
+        atlas->updated = false;
+        void *gpu_handle = atlas->gpu_handles[gfx.current_frame];
+        render_destroy_texture(gpu_handle);
+        atlas->gpu_handles[gfx.current_frame] = render_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
+        atlas->descs[gfx.current_frame].texture_index = 0;
+        render_set_texture(&atlas->descs[gfx.current_frame], atlas->gpu_handles[gfx.current_frame]);
+    }
+    
     render_set_viewport(render_context.resolution.width, render_context.resolution.height);
     render_context.scissor_stack_index = 0;
     render_context.scissor_push({ 0, 0 }, cv2(app->window.dim));
@@ -503,6 +514,12 @@ bool8 init_data(App *app) {
     *state = {};
     state->assets = {};
 
+    Bitmap blank_layout_bitmap = blank_bitmap(32, 32, 4);
+    render_create_texture(&blank_layout_bitmap, TEXTURE_PARAMETERS_DEFAULT);
+    gfx.layouts = ARRAY_MALLOC(Layout, 11);
+    platform_memory_set(gfx.layouts, 0, sizeof(Layout) * 11);
+    init_layouts(gfx.layouts, &blank_layout_bitmap);
+    
     if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), false)) {
         logprint("init_data()", "load_assets failed\n");
         return 1;
@@ -525,10 +542,6 @@ bool8 init_data(App *app) {
 #if DEBUG
     print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 #endif // DEBUG
-    
-    gfx.layouts = ARRAY_MALLOC(Layout, 11);
-    platform_memory_set(gfx.layouts, 0, sizeof(Layout) * 11);
-    init_layouts(gfx.layouts, find_bitmap(&state->assets, "BACK"));
     
     init_pipelines(&state->assets);
     init_shapes(&state->assets);
@@ -664,7 +677,8 @@ bool8 init_data(App *app) {
     texture_atlas_add(&atlas, "../assets/bitmaps/david.jpg");
     texture_atlas_add(&atlas, "../xelu/Xbox Series/XboxSeriesX_B.png");
     write_bitmap(&atlas.bitmap, "atlas_test.png");
-    render_create_texture(&atlas.bitmap, TEXTURE_PARAMETERS_CHAR);
+    render_create_texture(&atlas.bitmap, TEXTURE_PARAMETERS_CHAR); 
+    render_set_bitmap(&atlas.descs[0], &atlas.bitmap);
     
     return false;
 }
