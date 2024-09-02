@@ -82,6 +82,9 @@ RENDER_FUNC(void, update_ubo, Descriptor desc, void *data);
 RENDER_FUNC(Descriptor, get_descriptor_set, u32 layout_id);
 RENDER_FUNC(Descriptor, get_descriptor_set_index, u32 layout_id, u32 return_index);
 
+RENDER_FUNC(void, immediate_vertex, Vertex_XU vertex);
+RENDER_FUNC(void, draw_immediate, u32 vertices);
+
 #define GFX_FUNC(r, n, ...) r API3D_EXT(n)(__VA_ARGS__); r (*gfx_##n)(__VA_ARGS__) = &API3D_EXT(n)
 
 GFX_FUNC(void, bind_shader, const char *tag);

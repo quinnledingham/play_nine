@@ -250,6 +250,21 @@ copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position, Vector3 c
     }
 }
 
+internal Bitmap
+blank_bitmap(u32 width, u32 height, u32 channels) {
+    Bitmap bitmap = {};
+    bitmap.width = width;
+    bitmap.height = height;
+    bitmap.channels = channels;
+    bitmap.pitch = bitmap.width * bitmap.channels;
+    
+    u32 bitmap_size = bitmap.width * bitmap.height * bitmap.channels;
+    bitmap.memory = (u8 *)platform_malloc(bitmap_size);
+    platform_memory_set(bitmap.memory, 0, bitmap_size);
+
+    return bitmap;
+}
+
 //
 // Shader
 //
@@ -409,28 +424,13 @@ clean_shader(Shader *shader) {
 // Texture Atlas
 //
 
-internal Bitmap
-blank_bitmap(u32 width, u32 height, u32 channels) {
-    Bitmap bitmap = {};
-    bitmap.width = width;
-    bitmap.height = height;
-    bitmap.channels = channels;
-    bitmap.pitch = bitmap.width * bitmap.channels;
-    
-    u32 bitmap_size = bitmap.width * bitmap.height * bitmap.channels;
-    bitmap.memory = (u8 *)platform_malloc(bitmap_size);
-    platform_memory_set(bitmap.memory, 0, bitmap_size);
-
-    return bitmap;
-}
-
 internal Texture_Atlas
-create_texture_atlas() {
+create_texture_atlas(u32 width, u32 height, u32 channels, u32 layout_id) {
     Texture_Atlas atlas = {};
-    atlas.bitmap = blank_bitmap(500, 500, 1);
+    atlas.bitmap = blank_bitmap(width, height, channels);
 
-    atlas.descs[0] = render_get_descriptor_set(2);
-    atlas.descs[1] = render_get_descriptor_set(2);
+    atlas.gpu[0].desc = render_get_descriptor_set(layout_id);
+    atlas.gpu[1].desc = render_get_descriptor_set(layout_id);
     
     atlas.created = true;
     return atlas;
@@ -453,21 +453,27 @@ texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
     Vector2_s32 padding = { 1, 1 };
     
     Vector2_s32 position = {};
-    if (atlas->insert_position.x + padding.x + bitmap->width < atlas->bitmap.width) {
+
+    // Check if bitmap fits next in line
+    if (atlas->insert_position.x + bitmap->width  + padding.x < atlas->bitmap.width &&
+        atlas->insert_position.y + bitmap->height + padding.y < atlas->bitmap.height) {
         position = atlas->insert_position;
-    } else if (atlas->insert_position.y + atlas->row_height + padding.y + bitmap->height < atlas->bitmap.height) {
+    // Check if the bitmap fits on the next line
+    } else if (atlas->insert_position.y + atlas->row_height + bitmap->height + padding.y < atlas->bitmap.height) {
         position = { 0, atlas->insert_position.y + atlas->row_height + padding.y };
         atlas->row_height = 0;
+    // No more space reset atlas
     } else {
-        // @TODO make atlas bigger
         texture_atlas_reset(atlas);
         logprint("texture_atlas_add()", "not enough room for bitmap\n");
     }
 
     copy_blend_bitmap(atlas->bitmap, *bitmap, position, { 255, 0, 255 });
 
-    Vector2 tex_coords_p1 = { (float32)position.x / (float32)atlas->bitmap.width, float32(position.y) / (float32)atlas->bitmap.height };
-    Vector2 tex_coords_p2 = { float32(position.x + bitmap->width) / (float32)atlas->bitmap.width, float32(position.y + bitmap->height) / (float32)atlas->bitmap.height };
+    Vector2 tex_coords_p1 = { (float32)position.x / (float32)atlas->bitmap.width, 
+                              (float32)position.y / (float32)atlas->bitmap.height };
+    Vector2 tex_coords_p2 = { float32(position.x + bitmap->width)  / (float32)atlas->bitmap.width, 
+                              float32(position.y + bitmap->height) / (float32)atlas->bitmap.height };
 
     if (tex_coords_p1.x < EPSILON)
         tex_coords_p1.x = 0.0f;
@@ -489,7 +495,7 @@ texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
     atlas->insert_position = { position.x + padding.x + bitmap->width, position.y };
 
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        atlas->refresh_required[i] = true;
+        atlas->gpu[i].refresh_required = true;
     }
 
   return index;
@@ -503,19 +509,54 @@ texture_atlas_add(Texture_Atlas *atlas, const char *file_path) {
 }
 
 internal void
+texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
+    render_destroy_texture(atlas->gpu[frame_index].handle);
+    atlas->gpu[frame_index].handle = render_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
+    atlas->gpu[frame_index].desc.texture_index = 0;
+    render_set_texture(&atlas->gpu[frame_index].desc, atlas->gpu[frame_index].handle);
+}
+
+internal void
 texture_atlas_refresh(Texture_Atlas *atlas) {
+    if (atlas->gpu[gfx.current_frame].refresh_required) {
+        atlas->gpu[gfx.current_frame].refresh_required = false;
+        texture_atlas_init_gpu_frame(atlas, gfx.current_frame);
+    }    
+}
+
+internal void
+texture_atlas_init_gpu(Texture_Atlas *atlas) {
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (atlas->refresh_required[i] && i == gfx.current_frame) {
-            atlas->refresh_required[i] = false;
-            void *gpu_handle = atlas->gpu_handles[gfx.current_frame];
-            render_destroy_texture(gpu_handle);
-            atlas->gpu_handles[gfx.current_frame] = render_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
-            atlas->descs[gfx.current_frame].texture_index = 0;
-            render_set_texture(&atlas->descs[gfx.current_frame], atlas->gpu_handles[gfx.current_frame]);
-        }
+        texture_atlas_init_gpu_frame(atlas, i);
     }
 }
 
+// @Warning shader and desc binded before
+internal void
+texture_atlas_draw_rect(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {  
+  Texture_Coords tex_coord = atlas->texture_coords[index];
+  
+  render_immediate_vertex(Vertex_XU{ coords, tex_coord.p1 });
+  render_immediate_vertex(Vertex_XU{ coords + dim, tex_coord.p2 });
+  render_immediate_vertex(Vertex_XU{ { coords.x, coords.y + dim.y }, {tex_coord.p1.x, tex_coord.p2.y} });
+  
+  render_immediate_vertex(Vertex_XU{ coords, tex_coord.p1 });
+  render_immediate_vertex(Vertex_XU{ { coords.x + dim.x, coords.y }, {tex_coord.p2.x, tex_coord.p1.y} });
+  render_immediate_vertex(Vertex_XU{ coords + dim, tex_coord.p2 });
+  
+  Object object = {};
+  object.model = identity_m4x4();
+  render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+
+  render_draw_immediate(6);
+}
+
+internal void
+texture_atlas_draw(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {
+    gfx_bind_shader("TEXTURE");
+    render_bind_descriptor_set(atlas->gpu[gfx.current_frame].desc);
+    texture_atlas_draw_rect(atlas, index, coords, dim);
+}
 
 //
 // Font
@@ -534,7 +575,7 @@ init_font(Font *font, File file) {
     stbtt_InitFont(info, (u8*)file.memory, stbtt_GetFontOffsetForIndex((u8*)file.memory, 0));
     stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
 
-    font->cache->atlas = create_texture_atlas();
+    font->cache->atlas = create_texture_atlas(1000, 1000, 1, 2);
 }
 
 internal Font_Char *

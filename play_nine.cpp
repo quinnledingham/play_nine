@@ -497,8 +497,6 @@ update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
 https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f
 */
 
-
-
 bool8 init_data(App *app) {
     app->data = platform_malloc(sizeof(State));
     State *state = (State *)app->data;
@@ -656,21 +654,9 @@ bool8 init_data(App *app) {
     state->notifications.font = default_font;
     state->notifications.text_color = { 255, 255, 255, 1 };
 
-    create_input_prompt_texture(keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
+    //create_input_prompt_texture(keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
     create_input_prompt_texture(xbox_prompts, ARRAY_COUNT(xbox_prompts), "../xelu/Xbox Series/XboxSeriesX_", ".png", "xbox_prompt.png");
-
-    File file = load_file("prompt.png");
-    keyboard_prompt_texture = load_bitmap(file, false);
-    render_create_texture(&keyboard_prompt_texture, TEXTURE_PARAMETERS_CHAR);
-
-    atlas = create_texture_atlas();
-    texture_atlas_add(&atlas, "../xelu/Xbox Series/XboxSeriesX_A.png");
-    texture_atlas_add(&atlas, "../assets/bitmaps/david.jpg");
-    texture_atlas_add(&atlas, "../xelu/Xbox Series/XboxSeriesX_B.png");
-    write_bitmap(&atlas.bitmap, "atlas_test.png");
-    render_create_texture(&atlas.bitmap, TEXTURE_PARAMETERS_CHAR); 
-    render_set_bitmap(&atlas.descs[0], &atlas.bitmap);
-    
+        
     return false;
 }
 

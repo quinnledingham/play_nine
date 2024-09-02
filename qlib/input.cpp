@@ -2,20 +2,8 @@ Bitmap keyboard_prompt_texture;
 
 internal void
 create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts, const char *folder_path, const char *key_type, const char *filename) {
-  u32 columns = 10;
-  u32 rows = (u32)ceilf(float32(num_of_prompts) / float32(columns));
   
-  Bitmap bitmap = {};
-  bitmap.width = 100 * columns; // each prompt bitmap is 100; so 10 per row
-  bitmap.height = 100 * rows;
-  bitmap.channels = 4;
-  bitmap.pitch = bitmap.width * bitmap.channels;
-  u32 bitmap_size = bitmap.width * bitmap.height * bitmap.channels;
-  bitmap.memory = (u8 *)platform_malloc(bitmap_size);
-  platform_memory_set(bitmap.memory, 0, bitmap_size);
-
-  //const char *key_type = "_Key_Dark.png";
-  //char *folder_path = "../xelu/Keyboard & Mouse/Dark/";
+  atlas = create_texture_atlas(500, 500, 4, GFX_ID_TEXTURE);
   
   u32 folder_path_length = get_length(folder_path);
   char filepath[100];
@@ -35,12 +23,11 @@ create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts, const cha
     File file = load_file(filepath);
     Bitmap prompt_bitmap = load_bitmap(file, false);
 
-    Vector2_s32 position = { ((s32)prompt_index % 10) * 100, ((s32)prompt_index / 10) * 100 };
-    copy_blend_bitmap(bitmap, prompt_bitmap, position, { 255, 255, 255 });
+    texture_atlas_add(&atlas, &prompt_bitmap);
   }
 
-  write_bitmap(&bitmap, filename);
-
+  write_bitmap(&atlas.bitmap, filename);
+  texture_atlas_init_gpu(&atlas);
 }
 
 internal u32
@@ -76,27 +63,3 @@ draw_input_prompt(Vector3 coords, Button button) {
   render_draw_mesh(&shapes.rect_mesh);
 }
 
-internal void
-texture_atlas_draw(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {
-  gfx_bind_shader("TEXTURE");
-  render_bind_descriptor_set(atlas->descs[0]);
-  
-  VkDeviceSize offsets[] = { vulkan_info.dynamic_buffer.offset };
-
-  Texture_Coords tex_coord = atlas->texture_coords[index];
-  
-  vulkan_immediate_vertex(Vertex_XU{ coords, tex_coord.p1 });
-  vulkan_immediate_vertex(Vertex_XU{ coords + dim, tex_coord.p2 });
-  vulkan_immediate_vertex(Vertex_XU{ { coords.x, coords.y + dim.y }, {tex_coord.p1.x, tex_coord.p2.y} });
-  
-  vulkan_immediate_vertex(Vertex_XU{ coords, tex_coord.p1 });
-  vulkan_immediate_vertex(Vertex_XU{ { coords.x + dim.x, coords.y }, {tex_coord.p2.x, tex_coord.p1.y} });
-  vulkan_immediate_vertex(Vertex_XU{ coords + dim, tex_coord.p2 });
-  
-  Object object = {};
-  object.model = identity_m4x4();
-  render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
-  
-  vkCmdBindVertexBuffers(VK_CMD(vulkan_info), 0, 1, &vulkan_info.dynamic_buffer.handle, offsets);
-  vkCmdDraw(VK_CMD(vulkan_info), 6, 1, 0, 0);
-}

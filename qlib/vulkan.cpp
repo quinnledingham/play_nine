@@ -2299,6 +2299,12 @@ void vulkan_immediate_vertex(Vertex_XU vertex) {
 	vulkan_info.dynamic_buffer.offset += sizeof(Vertex_XU);
 }
 
+void vulkan_draw_immediate(u32 vertices) {
+  VkDeviceSize offsets[] = { vulkan_info.dynamic_buffer.offset - (vertices * sizeof(Vertex_XU)) };
+  vkCmdBindVertexBuffers(VK_CMD(vulkan_info), 0, 1, &vulkan_info.dynamic_buffer.handle, offsets);
+  vkCmdDraw(VK_CMD(vulkan_info), vertices, 1, 0, 0);
+}
+
 void test_draw_rect() {
     VkDeviceSize offsets[] = { vulkan_info.dynamic_buffer.offset };
     vulkan_immediate_vertex(Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} });
