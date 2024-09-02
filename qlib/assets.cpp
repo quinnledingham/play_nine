@@ -427,7 +427,7 @@ blank_bitmap(u32 width, u32 height, u32 channels) {
 internal Texture_Atlas
 create_texture_atlas() {
     Texture_Atlas atlas = {};
-    atlas.bitmap = blank_bitmap(1000, 1000, 4);
+    atlas.bitmap = blank_bitmap(500, 500, 1);
 
     atlas.descs[0] = render_get_descriptor_set(2);
     atlas.descs[1] = render_get_descriptor_set(2);
@@ -436,11 +436,22 @@ create_texture_atlas() {
     return atlas;
 }
 
+internal void
+texture_atlas_reset(Texture_Atlas *atlas) {
+    u32 bitmap_size = atlas->bitmap.width * atlas->bitmap.height * atlas->bitmap.channels;
+    platform_memory_set(atlas->bitmap.memory, 0, bitmap_size);
+
+    atlas->texture_count = 0;
+    atlas->insert_position = { 0, 0 };
+    atlas->row_height = 0;
+
+    atlas->resetted = true;
+}
+
 internal u32
 texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
     Vector2_s32 padding = { 1, 1 };
     
-
     Vector2_s32 position = {};
     if (atlas->insert_position.x + padding.x + bitmap->width < atlas->bitmap.width) {
         position = atlas->insert_position;
@@ -449,22 +460,33 @@ texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
         atlas->row_height = 0;
     } else {
         // @TODO make atlas bigger
+        texture_atlas_reset(atlas);
         logprint("texture_atlas_add()", "not enough room for bitmap\n");
-        return 0;
     }
 
-  copy_blend_bitmap(atlas->bitmap, *bitmap, position, { 255, 255, 255 });
+    copy_blend_bitmap(atlas->bitmap, *bitmap, position, { 255, 0, 255 });
 
-  Vector2 tex_coords_p1 = { float32(position.x) / atlas->bitmap.width, float32(position.y) / atlas->bitmap.height };
-  Vector2 tex_coords_p2 = { float32(position.x + bitmap->width) / atlas->bitmap.width, float32(position.y + bitmap->height) / atlas->bitmap.height };
-  atlas->texture_coords[atlas->texture_count].p1 = tex_coords_p1;
-  atlas->texture_coords[atlas->texture_count].p2 = tex_coords_p2;
-  u32 index = atlas->texture_count++;
+    Vector2 tex_coords_p1 = { (float32)position.x / (float32)atlas->bitmap.width, float32(position.y) / (float32)atlas->bitmap.height };
+    Vector2 tex_coords_p2 = { float32(position.x + bitmap->width) / (float32)atlas->bitmap.width, float32(position.y + bitmap->height) / (float32)atlas->bitmap.height };
 
-  if (bitmap->height > atlas->row_height) {
-    atlas->row_height = bitmap->height;
-  }
-  atlas->insert_position = { position.x + padding.x + bitmap->width, position.y };
+    if (tex_coords_p1.x < EPSILON)
+        tex_coords_p1.x = 0.0f;
+    if (tex_coords_p1.y < EPSILON)
+        tex_coords_p1.y = 0.0f;
+    if (tex_coords_p2.x < EPSILON)
+        tex_coords_p2.x = 0.0f;
+    if (tex_coords_p2.y < EPSILON)
+        tex_coords_p2.y = 0.0f;
+    
+    atlas->texture_coords[atlas->texture_count].p1 = tex_coords_p1;
+    atlas->texture_coords[atlas->texture_count].p2 = tex_coords_p2;
+    
+    u32 index = atlas->texture_count++;
+
+    if (bitmap->height > atlas->row_height) {
+        atlas->row_height = bitmap->height;
+    }
+    atlas->insert_position = { position.x + padding.x + bitmap->width, position.y };
 
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         atlas->refresh_required[i] = true;
@@ -493,6 +515,7 @@ texture_atlas_refresh(Texture_Atlas *atlas) {
         }
     }
 }
+
 
 //
 // Font
@@ -548,7 +571,13 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
         return 0;
     }
 
+    Texture_Atlas *atlas = &font->cache->atlas;
     stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
+
+    if (atlas->resetted) {
+        atlas->resetted = false;
+        font->cache->bitmaps_cached = 0;
+    }
 
     // search cache for font char
     for (s32 i = 0; i < font->cache->bitmaps_cached; i++) {
@@ -561,32 +590,18 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     Font_Char_Bitmap *char_bitmap = &font->cache->bitmaps[font->cache->bitmaps_cached++];
     if (font->cache->bitmaps_cached >= ARRAY_COUNT(font->cache->bitmaps)) 
         font->cache->bitmaps_cached = 0;
-
-    // free bitmap if one is being overwritten
-    if (char_bitmap->scale != 0) { 
-        stbtt_FreeBitmap(char_bitmap->bitmap.memory, info->userdata);
-        render_delete_texture(&char_bitmap->bitmap);
-        char_bitmap->bitmap.memory = 0;
-    }
-
+    
     memset(char_bitmap, 0, sizeof(Font_Char_Bitmap));
     char_bitmap->font_char = load_font_char(font, codepoint);
     char_bitmap->scale = scale;
-
     char_bitmap->bitmap.memory = stbtt_GetGlyphBitmapSubpixel(info, 0, char_bitmap->scale, 0, 0, char_bitmap->font_char->glyph_index, &char_bitmap->bitmap.width, &char_bitmap->bitmap.height, 0, 0);
     char_bitmap->bitmap.channels = 1;
     char_bitmap->bitmap.pitch = char_bitmap->bitmap.width * char_bitmap->bitmap.channels;
 
     stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, char_bitmap->scale, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
 
-    Texture_Atlas *atlas = &font->cache->atlas;
     char_bitmap->index = texture_atlas_add(atlas, &char_bitmap->bitmap);
-
-    if (codepoint == 32)
-        return char_bitmap;
     
-    render_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
-
     return char_bitmap;
 }
 

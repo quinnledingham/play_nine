@@ -55,7 +55,7 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
 #ifdef DEBUG
     draw_card_bitmaps(&state->assets, window_dim);
     //texture_atlas_draw(&atlas, 1, { 100, 100 }, { 50, 50 });
-    draw_string_a(default_font, "LMFAO", { 200, 200 }, 72.0f, { 255, 0, 0, 1 });
+    //draw_string_a(default_font, "LMFAO", { 200, 200 }, 72.0f, { 255, 0, 0, 1 });
 #endif // DEBUG
 
     menu->end();

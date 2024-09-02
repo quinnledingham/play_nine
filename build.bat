@@ -31,7 +31,7 @@ set V_CF= %CF_DEFAULT% %CF_SDL% %CF_VULKAN% %CF_STEAM%
 set V_LF= %LF_DEFAULT% %LF_SDL% %LF_VULKAN% %LF_SHADERS% %LF_STEAM%
 
 cl %V_CF% ../play_nine.cpp /link %V_LF% /out:play_nine.exe
-REM cl %CF_DEFAULT% %CF_SDL% %CF_OPENGL% %CF_VULKAN% %CF_STEAM% -DOS_WINDOWS -DDEBUG ../glad/gl.c ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_OPENGL% %LF_SHADERS% %LF_STEAM% /out:play_nine.exe
+REM cl %CF_DEFAULT% %CF_SDL% %CF_OPENGL% %CF_VULKAN% %CF_STEAM% -DOS_WINDOWS -DDEBUG2 ../glad/gl.c ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_OPENGL% %LF_SHADERS% %LF_STEAM% /out:play_nine.exe
 
 IF NOT EXIST SDL2.dll copy %SDL_SDK%\lib\x64\SDL2.dll
 

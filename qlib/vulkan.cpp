@@ -1625,14 +1625,14 @@ vulkan_create_sampler(VkSampler *sampler, u32 texture_parameters, u32 mip_levels
 	sampler_info.unnormalizedCoordinates = VK_FALSE;
 	sampler_info.compareEnable = VK_FALSE;
 	sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
-	sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 	sampler_info.mipLodBias = 0.0f;
 	sampler_info.minLod = 0.0f;
 	sampler_info.maxLod = (float32)mip_levels;
 
 	if (vkCreateSampler(vulkan_info.device, &sampler_info, nullptr, sampler) != VK_SUCCESS) {
-        logprint("vulkan_create_sampler()", "failed to create sampler\n");
-    }
+		logprint("vulkan_create_sampler()", "failed to create sampler\n");
+	}
 }
 
 void* vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
@@ -1705,7 +1705,6 @@ vulkan_cleanup_swap_chain(Vulkan_Info *info) {
 	for (u32 i = 0; i < info->swap_chain_textures.get_size(); i++) {
 		vkDestroyImageView(info->device, info->swap_chain_textures[i].image_view, nullptr);
 		vulkan_destroy_texture(&info->draw_textures[i]);
-		vkDestroySampler(vulkan_info.device, info->draw_textures[i].sampler, nullptr);
 	}
 
 	vkDestroySwapchainKHR(info->device, info->swap_chains[0], nullptr);

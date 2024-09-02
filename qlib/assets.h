@@ -346,15 +346,16 @@ struct Texture_Coords {
 
 struct Texture_Atlas {
     bool8 created;
+    bool8 resetted;
     Bitmap bitmap;
     
     void *gpu_handles[MAX_FRAMES_IN_FLIGHT]; // too allow for dynamic updating
     Descriptor descs[MAX_FRAMES_IN_FLIGHT];
     bool8 refresh_required[MAX_FRAMES_IN_FLIGHT];
 
-    static const u32 max_textures = 100;
+    static const u32 max_textures = 1000;
     u32 texture_count;
-    Texture_Coords texture_coords[100]; 
+    Texture_Coords texture_coords[max_textures]; 
     
     Vector2_s32 insert_position;
     s32 row_height;
