@@ -493,10 +493,6 @@ update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
     ortho_scene->projection = orthographic_projection(0.0f, (float32)window_dim.width, 0.0f, (float32)window_dim.height, -3.0f, 3.0f);
 }
 
-/*
-https://www.freepik.com/free-vector/simple-realistic-wood-texture_1008177.htm#query=cartoon%20wood%20texture&position=3&from_view=keyword&track=ais&uuid=3c2d0918-a699-4f9b-b835-791d1dd2e14f
-*/
-
 bool8 init_data(App *app) {
     app->data = platform_malloc(sizeof(State));
     State *state = (State *)app->data;

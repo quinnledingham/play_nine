@@ -3,7 +3,7 @@ Bitmap keyboard_prompt_texture;
 internal void
 create_input_prompt_texture(Input_Prompt *prompts, u32 num_of_prompts, const char *folder_path, const char *key_type, const char *filename) {
   
-  atlas = create_texture_atlas(500, 500, 4, GFX_ID_TEXTURE);
+  atlas = create_texture_atlas(506, 506, 4, GFX_ID_TEXTURE);
   
   u32 folder_path_length = get_length(folder_path);
   char filepath[100];
