@@ -42,3 +42,16 @@ internal void
 WIN32_FUNC(wait_for_thread)(s64 handle) {
     WaitForSingleObject((HANDLE)handle, INFINITE);
 }
+
+internal bool8
+WIN32_FUNC(thread_in_use)(s64 handle) {
+    if (!handle)
+        return false;
+    
+    DWORD wait_result = WaitForSingleObject((HANDLE)handle, 0);
+    if (wait_result == WAIT_TIMEOUT) {
+        return true;
+    }
+    
+    return false;
+}

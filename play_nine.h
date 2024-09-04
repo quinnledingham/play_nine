@@ -1,16 +1,14 @@
 /*
 TODO
-- Show keyboard controls
 - More music/sounds
-- Add game settings (Any others)
+- Show keyboard controls
+- Skybox
 
+- Controller
 - improve how controller moves hover around in game
 - make it easier to see what card is hovered
 - change hud buttons to use other controller buttons
 - controller with textboxs?
-
-Join Menu
-- don't process user click on join if already processing one 
 
 Scoreboard
 - make scoreboard look better

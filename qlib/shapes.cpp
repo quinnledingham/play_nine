@@ -409,17 +409,14 @@ Mesh get_cube_mesh(bool32 out) {
     mesh.indices_count = 6 * 6; // 6 indices per side (rects), 6 sides
     mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
     
-    if (out)
-    {
+    if (out) {
         init_rect_indices(mesh.indices + 0,  3, 1, 2, 0); // back
         init_rect_indices(mesh.indices + 6,  5, 7, 4, 6); // front
         init_rect_indices(mesh.indices + 12, 1, 3, 5, 7); // top
         init_rect_indices(mesh.indices + 18, 4, 6, 0, 2); // bottom
         init_rect_indices(mesh.indices + 24, 1, 5, 0, 4); // left
         init_rect_indices(mesh.indices + 30, 7, 3, 6, 2); // right
-    }
-    else
-    {
+    } else {
         init_rect_indices(mesh.indices + 0,  1, 3, 0, 2); // back
         init_rect_indices(mesh.indices + 6,  7, 5, 6, 4); // front
         init_rect_indices(mesh.indices + 12, 5, 7, 1, 3); // top
@@ -434,6 +431,57 @@ Mesh get_cube_mesh(bool32 out) {
     return mesh;
 }
 Mesh get_cube_mesh() { return get_cube_mesh(true); }
+
+internal void
+init_skybox_rect(Mesh *mesh, Vector3 top_left, Vector2) {
+
+}
+
+Mesh get_skybox_mesh() {
+    Mesh mesh = {};
+    
+    mesh.vertices_count = 4 * 6;
+    mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+    Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
+
+    mesh.indices_count = 6 * 6; // 6 indices per side (rects), 6 sides
+    mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+    
+    Vector3 back_bottom_left  = {-0.5, -0.5, -0.5};
+    Vector3 back_top_left     = {-0.5,  0.5, -0.5};
+    Vector3 back_bottom_right = { 0.5, -0.5, -0.5};
+    Vector3 back_top_right    = { 0.5,  0.5, -0.5};
+    Vector3 front_bottom_left  = {-0.5, -0.5, 0.5};
+    Vector3 front_top_left     = {-0.5,  0.5, 0.5};
+    Vector3 front_bottom_right = { 0.5, -0.5, 0.5};
+    Vector3 front_top_right    = { 0.5,  0.5, 0.5};
+
+    // Back
+    vertices[0] = { back_bottom_left,  { 0, 0, 1}, {0, 0} }; // bottom left
+    vertices[1] = { back_top_left,     { 0, 0, 1}, {0, 1} }; // top left
+    vertices[2] = { back_bottom_right, { 0, 0, 1}, {1, 0} }; // bottom right
+    vertices[3] = { back_top_right,    { 0, 0, 1}, {1, 1} }; // top right
+
+    init_rect_indices(mesh.indices + 0,  1, 3, 0, 2); // back
+    
+    //Left
+    vertices[0] = { front_bottom_left, { 1, 0, 0}, {0, 0} }; // bottom left
+    vertices[1] = { front_top_left,    { 1, 0, 0}, {0, 1} }; // top left
+    vertices[2] = { back_bottom_right, { 1, 0, 0}, {1, 0} }; // bottom right
+    vertices[3] = { back_top_right,    { 1, 0, 0}, {1, 1} }; // top right
+    
+    
+    init_rect_indices(mesh.indices + 6,  7, 5, 6, 4); // front
+    init_rect_indices(mesh.indices + 12, 5, 7, 1, 3); // top
+    init_rect_indices(mesh.indices + 18, 0, 2, 4, 6); // bottom
+    init_rect_indices(mesh.indices + 24, 5, 1, 4, 0); // left
+    init_rect_indices(mesh.indices + 30, 3, 7, 2, 6); // right
+    
+    mesh.vertex_info = get_vertex_xnu_info();
+    render_init_mesh(&mesh);
+    
+    return mesh;
+}
 
 void draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
 /*

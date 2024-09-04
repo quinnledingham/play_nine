@@ -262,7 +262,7 @@ void draw_card_model(Model *model, Descriptor color_set, Texture_Array *tex_arra
 }
 
 // drawing highlight
-void draw_highlight(Model *model, Render_Pipeline *color_pipeline, Vector4 color, Matrix_4x4 model_matrix) {
+void draw_highlight(Model *model, Vector4 color, Matrix_4x4 model_matrix) {
     gfx_bind_shader("COLOR3D");
 
     Descriptor color_set = render_get_descriptor_set(5);
@@ -283,10 +283,13 @@ draw_card(Model *card_model, Descriptor color_set, Texture_Array *tex_array, u32
         bitmap_index = 13;
 
     if (highlight) {
+        // hover card
+        if (highlight_color == highlight_colors[1])
+            model.F[13] += 0.05f;
+        
         Matrix_4x4 model_scale = m4x4_scale(model, { 1.06f, 1.06f, 1.06f });
         render_bind_descriptor_set(light_set_2);
-        Shader *shader = find_shader(global_assets, "COLOR3D");
-        draw_highlight(card_model, &shader->pipeline, highlight_color, model_scale);
+        draw_highlight(card_model, highlight_color, model_scale);
     }
 
     render_bind_descriptor_set(light_set);

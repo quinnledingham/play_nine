@@ -429,7 +429,9 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
 
     local_persist THREAD join_thread = 0;
     if (menu_button(menu, "Join", { 0, 3 }, { 1, 1 })) {
-        join_thread = os_create_thread(play_nine_client_join, (void*)state);
+        if (!os_thread_in_use(join_thread)) {
+            join_thread = os_create_thread(play_nine_client_join, (void*)state);
+        }
     }
     if (menu_button(menu, "Back", { 1, 3 }, { 1, 1 }) || on_up(state->controller.pause)) {
         state->menu_list.update_close(MAIN_MENU);
