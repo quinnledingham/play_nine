@@ -3,12 +3,13 @@ TODO
 - More music/sounds
 - Show keyboard controls
 - Skybox
+- Multithreading
 
 - Controller
 - improve how controller moves hover around in game
 - make it easier to see what card is hovered
 - change hud buttons to use other controller buttons
-- controller with textboxs?
+- controller with textboxs? (number of holes / ip / port)
 
 Scoreboard
 - make scoreboard look better
@@ -20,7 +21,6 @@ Scoreboard
 
 Assets
 - Put mtl and map_Kd files into asset file
-- make opengl output glsl files to proper folder
 
 Bot
 - Add look ahead, so the bot doesnt give pairs to next player
@@ -35,7 +35,7 @@ Render.cpp
 - add target frame rate
 
 vulkan.h
-- (sRGB) fix ethan's color issue - okay this is more of an issue
+- make sure surface formats are loading correctly (target and order on gpu)
 */
 
 enum Direction {

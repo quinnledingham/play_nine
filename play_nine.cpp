@@ -230,6 +230,7 @@ bool8 update_game(State *state, App *app) {
         bool8 selected[GI_SIZE] = {};
         
         if (state->is_active) {
+            print("LMAO: %d\n", app->input.active);
             if (app->input.active == MOUSE_INPUT)
                 do_mouse_selected_update(state, app, selected);
             else if (app->input.active == KEYBOARD_INPUT)
@@ -263,7 +264,7 @@ bool8 update_game(State *state, App *app) {
             
             if (*time > 10.0f) {
                 *time = 0.0f;
-                do_auto_selected_update(selected, game);
+                //do_auto_selected_update(selected, game);
             };
         }
         
