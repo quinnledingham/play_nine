@@ -12,8 +12,6 @@ struct Button_ID {
 struct Button {    
     Button_ID ids[3];
     u32 num_of_ids;
-
-    u32 bitmaps[15]; // max amount of types of controllers (older sdl did not have a set way)
     
     bool8 current_state;
     bool8 previous_state;
@@ -61,19 +59,6 @@ on_up(Button button) {
 struct Input_Prompt {
     u32 id;
     const char *filename;
-};
-
-Input_Prompt xbox_prompts[] = {
-    { SDL_CONTROLLER_BUTTON_A, "A" },
-    { SDL_CONTROLLER_BUTTON_B, "B" },
-    { SDL_CONTROLLER_BUTTON_X, "X" },
-    { SDL_CONTROLLER_BUTTON_Y, "Y" },
-    { SDL_CONTROLLER_BUTTON_DPAD_DOWN, "Dpad_Down" },
-    { SDL_CONTROLLER_BUTTON_DPAD_LEFT, "Dpad_Left" },
-    { SDL_CONTROLLER_BUTTON_DPAD_RIGHT, "Dpad_Right" },
-    { SDL_CONTROLLER_BUTTON_DPAD_UP, "Dpad_Up" },
-    { SDL_CONTROLLER_BUTTON_LEFTSHOULDER, "LB" },
-    { SDL_CONTROLLER_BUTTON_LEFTSTICK, "Left_Stick_Click" },
 };
 
 // Matches sdl keycodes to files in the xelu prompt bitmap folder
@@ -162,3 +147,28 @@ Input_Prompt keyboard_prompts[] = {
     { SDLK_BACKQUOTE, "Tilda" },
     { SDLK_APPLICATION, "Win" },
 };
+
+Input_Prompt xbox_prompts[] = {
+    { SDL_CONTROLLER_BUTTON_A, "A" },
+    { SDL_CONTROLLER_BUTTON_B, "B" },
+    { SDL_CONTROLLER_BUTTON_X, "X" },
+    { SDL_CONTROLLER_BUTTON_Y, "Y" },
+    { SDL_CONTROLLER_BUTTON_DPAD_DOWN, "Dpad_Down" },
+    { SDL_CONTROLLER_BUTTON_DPAD_LEFT, "Dpad_Left" },
+    { SDL_CONTROLLER_BUTTON_DPAD_RIGHT, "Dpad_Right" },
+    { SDL_CONTROLLER_BUTTON_DPAD_UP, "Dpad_Up" },
+    { SDL_CONTROLLER_BUTTON_LEFTSHOULDER, "LB" },
+    { SDL_CONTROLLER_BUTTON_LEFTSTICK, "Left_Stick_Click" },
+    { SDL_CONTROLLER_BUTTON_START, "Menu" },
+};
+
+enum Input_Prompt_Types {
+    PROMPT_KEYBOARD,
+    PROMPT_XBOX_SERIES,
+
+    PROMPT_COUNT
+};
+
+global Texture_Atlas input_prompt_atlases[PROMPT_COUNT];
+
+App_Input *app_input;

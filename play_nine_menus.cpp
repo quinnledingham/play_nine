@@ -54,11 +54,13 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
 
 #ifdef DEBUG
     draw_card_bitmaps(&state->assets, window_dim);
-    texture_atlas_draw(&atlas, 1, { 100, 100 }, { 50, 50 });
 #endif // DEBUG
 
     menu->end();
-
+    
+    Vector2 prompt_dim = get_input_prompt_dim("Select", menu->gui.font, { 50, 50 });
+    draw_input_prompt("Select", menu->gui.font, state->controller.select, cv2(window_dim) - prompt_dim, { 50, 50 });
+    
     return false;
 }
 
@@ -75,18 +77,14 @@ draw_bot_icon(Menu *menu, Vector2_s32 section_coords, Vector2_s32 draw_dim) {
     coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
     coords.y += bot_dim.y / 2.0f;
 
-    //Shader *shader = find_shader(global_assets, "TEXT");
-    //render_bind_pipeline(&shader->pipeline);
     vulkan_bind_shader("TEXT");
 
-    //Descriptor v_color_set = render_get_descriptor_set_id(&shader->set, 4);
     Descriptor v_color_set = vulkan_get_descriptor_set(4);
     render_bind_descriptor_sets(v_color_set, (void *)&play_nine_green);
 
     Object object = {};
 
     Descriptor desc = vulkan_get_descriptor_set(2);
-   // Descriptor desc = render_get_descriptor_set_id(&shader->set, 2);
     object.index = render_set_bitmap(&desc, find_bitmap(global_assets, "BOT"));
     render_bind_descriptor_set(desc);
 
@@ -415,17 +413,17 @@ internal void
 draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window_dim), 0.5f, 0.5f);
 
-    menu->sections = { 2, 4 };
+    menu->sections = { 1, 4 };
     menu->interact_region[0] = { 0, 0 };
-    menu->interact_region[1] = { 2, 4 };
+    menu->interact_region[1] = { 1, 4 };
     
     menu->start();
         
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
-    menu_textbox(menu, "Name:", state->join_name, { 0, 0 }, { 2, 1 });
-    menu_textbox(menu, "IP:",   state->join_ip,   { 0, 1 }, { 2, 1 });
-    menu_textbox(menu, "Port:", state->join_port, { 0, 2 }, { 2, 1 });
+    menu_textbox(menu, "Name:", state->join_name, { 0, 0 }, { 1, 1 });
+    menu_textbox(menu, "IP:",   state->join_ip,   { 0, 1 }, { 1, 1 });
+    menu_textbox(menu, "Port:", state->join_port, { 0, 2 }, { 1, 1 });
 
     local_persist THREAD join_thread = 0;
     if (menu_button(menu, "Join", { 0, 3 }, { 1, 1 })) {
@@ -433,7 +431,7 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
             join_thread = os_create_thread(play_nine_client_join, (void*)state);
         }
     }
-    if (menu_button(menu, "Back", { 1, 3 }, { 1, 1 }) || on_up(state->controller.pause)) {
+    if (on_up(state->controller.pause)) {
         state->menu_list.update_close(MAIN_MENU);
 
         if (join_thread) {
@@ -443,6 +441,8 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     }
     menu->end();
 
+    draw_input_prompt(state->controller.pause, { 100, 100 }, { 50, 50 });
+    
     state->loading_icon.draw(window_dim);
 }
 

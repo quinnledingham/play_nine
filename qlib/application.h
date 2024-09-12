@@ -52,8 +52,8 @@ get_seconds_elapsed(App_Time *time, s64 start, s64 end) {
 
 enum Input_Type {
 	KEYBOARD_INPUT,
-	MOUSE_INPUT,
 	CONTROLLER_INPUT,
+	MOUSE_INPUT,
 };
 
 struct App_Input {

@@ -229,7 +229,7 @@ struct Descriptor {
 
 struct Layout {
     static const u32 max_bindings = 4;
-    static const u32 max_sets = 32;
+    static const u32 max_sets = 64;
 
     u32 id;
 
@@ -350,7 +350,6 @@ struct Texture_Atlas_GPU {
 };
 
 struct Texture_Atlas {
-    bool8 created;
     bool8 resetted;
     Bitmap bitmap;
     
@@ -360,6 +359,7 @@ struct Texture_Atlas {
     u32 texture_count;
     Texture_Coords texture_coords[max_textures]; 
     
+    // variables for adding new textures
     Vector2_s32 insert_position;
     s32 row_height;
 };

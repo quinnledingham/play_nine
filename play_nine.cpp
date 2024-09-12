@@ -230,7 +230,6 @@ bool8 update_game(State *state, App *app) {
         bool8 selected[GI_SIZE] = {};
         
         if (state->is_active) {
-            print("LMAO: %d\n", app->input.active);
             if (app->input.active == MOUSE_INPUT)
                 do_mouse_selected_update(state, app, selected);
             else if (app->input.active == KEYBOARD_INPUT)
@@ -651,9 +650,12 @@ bool8 init_data(App *app) {
     state->notifications.font = default_font;
     state->notifications.text_color = { 255, 255, 255, 1 };
 
-    //create_input_prompt_texture(keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
-    create_input_prompt_texture(xbox_prompts, ARRAY_COUNT(xbox_prompts), "../xelu/Xbox Series/XboxSeriesX_", ".png", "xbox_prompt.png");
+    create_input_prompt_atlas(&input_prompt_atlases[PROMPT_KEYBOARD], keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
+    create_input_prompt_atlas(&input_prompt_atlases[PROMPT_XBOX_SERIES], xbox_prompts, ARRAY_COUNT(xbox_prompts), "../xelu/Xbox Series/XboxSeriesX_", ".png", "xbox_prompt.png");
         
+    texture_atlas_init(&input_prompt_atlases[PROMPT_KEYBOARD], GFX_ID_TEXTURE);
+    texture_atlas_init(&input_prompt_atlases[PROMPT_XBOX_SERIES], GFX_ID_TEXTURE);
+    
     return false;
 }
 
@@ -663,8 +665,9 @@ controller_process_input(Controller *controller, s32 id, bool8 state, u8 type) {
         // loop through all ids associated with button
         for (u32 id_index = 0; id_index < controller->buttons[button_index].num_of_ids; id_index++) {
             Button_ID *button_id = &controller->buttons[button_index].ids[id_index];
-            if (id == button_id->id && type == button_id->type) 
+            if (id == button_id->id && type == button_id->type)  {
                 controller->buttons[button_index].current_state = state;
+            }
         }
     }
 }

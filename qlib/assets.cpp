@@ -424,15 +424,12 @@ clean_shader(Shader *shader) {
 // Texture Atlas
 //
 
+// create a blank texture atlas
 internal Texture_Atlas
-create_texture_atlas(u32 width, u32 height, u32 channels, u32 layout_id) {
+create_texture_atlas(u32 width, u32 height, u32 channels) {
     Texture_Atlas atlas = {};
     atlas.bitmap = blank_bitmap(width, height, channels);
 
-    atlas.gpu[0].desc = render_get_descriptor_set(layout_id);
-    atlas.gpu[1].desc = render_get_descriptor_set(layout_id);
-    
-    atlas.created = true;
     return atlas;
 }
 
@@ -531,6 +528,14 @@ texture_atlas_init_gpu(Texture_Atlas *atlas) {
     }
 }
 
+internal void
+texture_atlas_init(Texture_Atlas *atlas, u32 layout_id) {
+    atlas->gpu[0].desc = render_get_descriptor_set(layout_id);
+    atlas->gpu[1].desc = render_get_descriptor_set(layout_id);
+
+    texture_atlas_init_gpu(atlas);
+}
+
 // @Warning shader and desc binded before
 internal void
 texture_atlas_draw_rect(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {  
@@ -575,7 +580,8 @@ init_font(Font *font, File file) {
     stbtt_InitFont(info, (u8*)file.memory, stbtt_GetFontOffsetForIndex((u8*)file.memory, 0));
     stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
 
-    font->cache->atlas = create_texture_atlas(1000, 1000, 1, 2);
+    font->cache->atlas = create_texture_atlas(1000, 1000, 1);
+    texture_atlas_init(&font->cache->atlas, 2);
 }
 
 internal Font_Char *

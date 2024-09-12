@@ -2502,7 +2502,7 @@ Descriptor vulkan_get_descriptor_set(Layout *layout) {
 		ASSERT(0);
 	}
 	
-  if (layout->sets_in_use + 1 > layout->max_sets) {
+  if (layout->sets_in_use + 1 > layout->max_sets / 2) {
 		logprint("vulkan_get_descriptor_set()", "used all sets\n");
 		ASSERT(0);
   }

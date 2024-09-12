@@ -161,5 +161,3 @@ struct State {
 enum Online_Mode *global_mode;
 global s8 deck[DECK_SIZE];
 GUI gui = {};
-
-global Texture_Atlas atlas;
