@@ -638,4 +638,11 @@ inverse(Matrix_4x4 m) {
     return inverse;
 }
 
+//
+// Colors
+//
+
+inline Color_RGB get_color(Vector3 v) { return { u8(v.r), u8(v.g), u8(v.b) }; }
+inline Color_RGBA get_color(Vector4 v) { return { u8(v.r), u8(v.g), u8(v.b), u8(v.a) }; }
+
 #endif // TYPES_MATH_H

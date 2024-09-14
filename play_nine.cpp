@@ -515,27 +515,18 @@ bool8 init_data(App *app) {
         texture_atlas_write(&atlases[PROMPT_XBOX_SERIES], "xbox_series.png", "xbox_series.tco");
     }
     
-    bool8 reload_card_bitmaps = false;
-    if (reload_card_bitmaps) {
-        Bitmap card_bitmaps[14];                    
-        Font *card_font = find_font(global_assets, "CASLON");
-        init_card_bitmaps(card_bitmaps, card_font); 
-        clear_font_bitmap_cache(card_font);
-        write_card_bitmaps(card_bitmaps);
-    }
-
-    bool8 reload_bot_bitmap = false;
+    bool8 reload_bot_bitmap = true;
     if (reload_bot_bitmap) {
-        File bot_file = load_file("../assets/bitmaps/bot.png");
+        File bot_file = load_file("../assets/bitmaps/bot_original.png");
         Bitmap bot_bitmap = load_bitmap(bot_file, false); 
-        convert_to_one_channel(&bot_bitmap);
+        bitmap_convert_channels(&bot_bitmap, 1);
         write_bitmap(&bot_bitmap, "../assets/bitmaps/bot.png");
     }
     
     print("Asset Size; %d\nBitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Asset), sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 #endif // DEBUG
 
-    if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), false)) {
+    if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), true)) {
         logprint("init_data()", "load_assets failed\n");
         return 1;
     }
@@ -544,6 +535,15 @@ bool8 init_data(App *app) {
     default_font = find_font(&state->assets, "CASLON");
     global_mode = &state->mode;
     
+    bool8 reload_card_bitmaps = true;
+    if (reload_card_bitmaps) {
+        Bitmap card_bitmaps[14];                    
+        Font *card_font = find_font(global_assets, "CASLON");
+        init_card_bitmaps(card_bitmaps, card_font); 
+        clear_font_bitmap_cache(card_font);
+        write_card_bitmaps(card_bitmaps);
+    }
+
     init_pipelines(&state->assets);
     init_shapes(&state->assets);
     update_scenes(&state->scene, &state->ortho_scene, app->window.dim);

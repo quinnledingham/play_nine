@@ -375,18 +375,13 @@ load_name_plates(Game *game, Game_Draw *draw) {
         if (!game->players[i].is_bot)
             draw->name_plates[i] = string_bitmap;
         else {
-            Bitmap bitmap {};
-            bitmap.width = draw->bot_bitmap->width + string_bitmap.width;
-            bitmap.height = string_bitmap.height;
-            bitmap.channels = 1;
-            bitmap.pitch = bitmap.width * bitmap.channels;
-            bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-            memset(bitmap.memory, 0x00, bitmap.width * bitmap.height * bitmap.channels);
-            copy_blend_bitmap(bitmap, *draw->bot_bitmap, { 0, 0 }, { 255, 255, 255 });
-            copy_blend_bitmap(bitmap, string_bitmap, { draw->bot_bitmap->width, 0 }, { 255, 255, 255 });
+            Bitmap bitmap = blank_bitmap(draw->bot_bitmap->width + string_bitmap.width, string_bitmap.height, 1);
+            copy_blend_bitmap(bitmap, *draw->bot_bitmap, { 0, 0 });
+            copy_blend_bitmap(bitmap, string_bitmap, { draw->bot_bitmap->width, 0 });
             draw->name_plates[i] = bitmap;
             platform_free(string_bitmap.memory);
         }
+        
         if (draw->name_plates[i].height != 0) // height because bot bitmap is set with string height and string height can be zero
             render_create_texture(&draw->name_plates[i], TEXTURE_PARAMETERS_CHAR);
     }

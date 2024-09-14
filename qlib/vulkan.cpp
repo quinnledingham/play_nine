@@ -1561,6 +1561,9 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 
 	if (bitmap->channels == 1) {
 		texture->image_format = VK_FORMAT_R8_UNORM;
+	} else if (bitmap->channels == 3) {
+    bitmap_convert_channels(bitmap, 4);
+		//texture->image_format = VK_FORMAT_R8G8B8_SRGB;
 	}
 
   VkDeviceSize image_size = bitmap->width * bitmap->height * bitmap->channels;

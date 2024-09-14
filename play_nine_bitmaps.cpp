@@ -3,18 +3,10 @@
 //
 
 internal Bitmap
-create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
-    Bitmap bitmap = {};
-    
+create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {    
     float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
     String_Draw_Info draw_info = get_string_draw_info(font, str, -1, pixel_height);
-
-    bitmap.width = (s32)ceilf(draw_info.dim.x);
-    bitmap.height = (s32)ceilf(draw_info.dim.y);
-    bitmap.channels = 1;
-    bitmap.pitch = bitmap.width * bitmap.channels;
-    bitmap.memory = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0x00, bitmap.width * bitmap.height * bitmap.channels);
+    Bitmap bitmap = blank_bitmap((s32)ceilf(draw_info.dim.x), (s32)ceilf(draw_info.dim.y), 1);
 
     float32 current_point = 0.0f;
     u32 i = 0;
@@ -26,7 +18,7 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
             draw_info.baseline.x + current_point + (font_char->lsb * scale), 
             draw_info.baseline.y + (float32)fbitmap->bb_0.y
         };
-        copy_blend_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords), { 0, 0, 0 });
+        copy_blend_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords));
 
         s32 kern = get_codepoint_kern_advance(font->info, str[i], str[i + 1]);
         current_point += scale * (kern + font_char->ax);
@@ -39,14 +31,7 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
 
 internal Bitmap
 create_circle_bitmap(Vector2_s32 dim) {
-    Bitmap bitmap   = {};
-    bitmap.width    = dim.x;
-    bitmap.height   = dim.y;
-    bitmap.channels = 1;
-    bitmap.pitch    = bitmap.width * bitmap.channels;
-    bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0x00, bitmap.width * bitmap.height * bitmap.channels);
-
+    Bitmap bitmap = blank_bitmap(dim.x, dim.y, 1);
     u8 *dest_ptr = bitmap.memory;
 
     s32 x1 = dim.x / 2;
@@ -78,7 +63,7 @@ add_balls_line(Bitmap bitmap, Bitmap circle_bitmap, s32 x, s32 number, Vector3 c
     float32 up = bitmap.height * (1 - dots_height_percent) / 2.0f;
     for (s32 i = 1; i <= number; i++) {
         float32 y = (dots_height * (float32(i) / float32(number + 1))) - radius + up;
-        copy_blend_bitmap(bitmap, circle_bitmap, { x, s32(y) }, color);
+        bitmap_copy_text(bitmap, circle_bitmap, { x, s32(y) }, get_color(color));
     }
 }
 
@@ -110,14 +95,7 @@ add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
 
 internal Bitmap
 create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
-    Bitmap bitmap   = {};
-    bitmap.width    = 1000;
-    bitmap.height   = 1600;
-    bitmap.channels = 4;
-    bitmap.pitch    = bitmap.width * bitmap.channels;
-    bitmap.memory   = (u8*)platform_malloc(bitmap.width * bitmap.height * bitmap.channels);
-    memset(bitmap.memory, 0xFF, bitmap.width * bitmap.height * bitmap.channels);
-
+    Bitmap bitmap = blank_bitmap(1000, 1600, 4);    
     Bitmap *front = find_bitmap(global_assets, "FRONT");
     platform_memory_copy(bitmap.memory, front->memory, front->width * front->height * front->channels);
 
@@ -133,10 +111,10 @@ create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
 
     if (front_bit != 0) {
         Vector2_s32 center = {
-            (bitmap.width / 2) - (front_bit->width / 2),
+            (bitmap.width  / 2) - (front_bit->width  / 2),
             (bitmap.height / 2) - (front_bit->height / 2),
         };
-        copy_blend_bitmap(bitmap, *front_bit, center, { 255, 255, 0 });
+        copy_blend_bitmap(bitmap, *front_bit, center);
     }
 
     if (number == 13)
@@ -163,8 +141,11 @@ create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
         bitmap.width - str_bitmap.width - padding,
         bitmap.height - str_bitmap.height - padding
     };
-    copy_blend_bitmap(bitmap, str_bitmap, { padding, padding }, text_color);
-    copy_blend_bitmap(bitmap, str_bitmap, bottom_right, text_color);
+
+    bitmap_convert_channels(&str_bitmap, 4);
+    
+    copy_blend_bitmap(bitmap, str_bitmap, { padding, padding });
+    copy_blend_bitmap(bitmap, str_bitmap, bottom_right);
 
     render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
 
