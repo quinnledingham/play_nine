@@ -1,7 +1,7 @@
 internal void
 create_input_prompt_atlas(Texture_Atlas *atlas, Input_Prompt *prompts, u32 num_of_prompts, const char *folder_path, const char *key_type, const char *filename) {
   
-  *atlas = create_texture_atlas(2000, 2000, 4);
+  *atlas = create_texture_atlas(1500, 1000, 4);
   
   u32 folder_path_length = get_length(folder_path);
   char filepath[100];
@@ -22,10 +22,7 @@ create_input_prompt_atlas(Texture_Atlas *atlas, Input_Prompt *prompts, u32 num_o
     Bitmap prompt_bitmap = load_bitmap(file, false);
 
     texture_atlas_add(atlas, &prompt_bitmap);
-  }
-
-  write_bitmap(&atlas->bitmap, filename);
-  
+  }  
 }
 
 internal u32
@@ -59,7 +56,7 @@ draw_input_prompt(Button button, Vector2 coords, Vector2 dim) {
   } else if (app_input->active == CONTROLLER_INPUT) {
     index = find_input_prompt_index(button.ids[id_index].id, xbox_prompts, ARRAY_COUNT(xbox_prompts));
   }
-  texture_atlas_draw(&input_prompt_atlases[atlas_index], index, coords, dim);
+  texture_atlas_draw(input_prompt_atlases[atlas_index], index, coords, dim);
 }
 
 internal Vector2

@@ -76,12 +76,18 @@ Asset_Load audios_to_load[] = {
   { "MORNING", "Morning.ogg" },
 };
 
+Asset_Load atlases_to_load[] = {
+  { "KEYBOARD_PROMPT", "keyboard.png", "keyboard.tco" },
+  { "XBOX_SERIES_PROMPT", "xbox_series.png", "xbox_series.tco" }
+};
+
 Assets_Load assets_to_load[] = {
   { ASSET_TYPE_SHADER, ARRAY_COUNT(shaders_to_load), shaders_to_load },
   { ASSET_TYPE_BITMAP, ARRAY_COUNT(bitmaps_to_load), bitmaps_to_load },
   { ASSET_TYPE_FONT, ARRAY_COUNT(fonts_to_load), fonts_to_load },
   { ASSET_TYPE_MODEL, ARRAY_COUNT(models_to_load), models_to_load },
   { ASSET_TYPE_AUDIO, ARRAY_COUNT(audios_to_load), audios_to_load },
+  { ASSET_TYPE_ATLAS, ARRAY_COUNT(atlases_to_load), atlases_to_load },
 };
 
 Audio_Player *audio_player; // play_sound & play_music

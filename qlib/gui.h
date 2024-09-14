@@ -168,28 +168,30 @@ struct Menu {
 
     GUI gui;
 
-    void start() {
-        if (hover_section.y < interact_region[0].y)
-            hover_section_updated = interact_region[0];
-        else
-            hover_section_updated = hover_section;
-
-        gui.start();
-    }
-
-    void end() {
-        hover_section = hover_section_updated;
-        gui.end();
-    
-        if (gui.close_at_end) {
-            button_confirm_active = 0;
-            gui.close_at_end = false;
-            hover_section = interact_region[0];
-            gui.close();
-        }
-    }
+    void start();
+    void end();
 };
 
+void Menu::start() {
+    if (hover_section.y < interact_region[0].y)
+        hover_section_updated = interact_region[0];
+    else
+        hover_section_updated = hover_section;
+
+    gui.start();
+}
+
+void Menu::end() {
+    hover_section = hover_section_updated;
+    gui.end();
+
+    if (gui.close_at_end) {
+        button_confirm_active = 0;
+        gui.close_at_end = false;
+        hover_section = interact_region[0];
+        gui.close();
+    }
+}
 //
 // Misc
 //

@@ -1,13 +1,4 @@
 internal void
-init_types_array(Asset *data, Asset_Array *types) {
-    u32 running_total_of_assets = 0;
-    for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++) {
-        types[i].data = data + (running_total_of_assets);
-        running_total_of_assets += types[i].num_of_assets;
-    }
-}
-
-internal void
 load_asset_file(Assets *assets, s32 *asset_indices, u32 type, Asset_Load *load) {
     u32 asset_array_index = asset_indices[type]++;   
     Asset *asset = &assets->types[type].data[asset_array_index];
@@ -46,6 +37,23 @@ load_asset_file(Assets *assets, s32 *asset_indices, u32 type, Asset_Load *load) 
             }
         } break;
 
+        case ASSET_TYPE_ATLAS: {
+            files->num_of_files = 2;
+            const char *bitmap_file_path = char_array_concat(asset_folders[asset->type], load->E[1]);
+            const char *tex_coord_file_path = char_array_concat(asset_folders[asset->type], load->E[2]);
+            files->data[0] = load_file(bitmap_file_path);
+            files->data[1] = load_file(tex_coord_file_path);
+        } break;
+
+    }
+}
+
+internal void
+init_types_array(Asset *data, Asset_Array *types) {
+    u32 running_total_of_assets = 0;
+    for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++) {
+        types[i].data = data + (running_total_of_assets);
+        running_total_of_assets += types[i].num_of_assets;
     }
 }
 
@@ -59,10 +67,8 @@ load_asset_files(Assets *assets, Assets_Load *loads, u32 loads_count) {
         assets->num_of_assets += loads[i].count;
     }
     
-    assets->files = ARRAY_MALLOC(Asset_Files, assets->num_of_assets);
-    assets->data = ARRAY_MALLOC(Asset, assets->num_of_assets);
-    platform_memory_set(assets->data, 0, sizeof(Asset) * assets->num_of_assets);
-    platform_memory_set(assets->files, 0, sizeof(Asset_Files) * assets->num_of_assets);
+    assets->files = ARRAY_MALLOC_CLEAR(Asset_Files, assets->num_of_assets);
+    assets->data = ARRAY_MALLOC_CLEAR(Asset, assets->num_of_assets);
     init_types_array(assets->data, assets->types);
 
     s32 asset_indices[ASSET_TYPE_AMOUNT] = {};
@@ -90,89 +96,18 @@ load_assets_from_files(Assets *assets) {
             case ASSET_TYPE_MODEL: asset->model = load_obj(files->data[0]); break;
             case ASSET_TYPE_SHADER: {
                 for (u32 shader_index = 0; shader_index < SHADER_STAGES_AMOUNT; shader_index++) {
-                    //asset->shader.files[shader_index].filepath = files->data[shader_index].filepath;
                     asset->shader.files[shader_index] = files->data[shader_index];
                 }
-                //load_shader(&asset->shader);
                 spirv_compile_shader(&asset->shader);
             } break;
-
+            case ASSET_TYPE_ATLAS: {
+                asset->atlas.bitmap = load_bitmap(files->data[0], false);
+                platform_memory_copy(asset->atlas.texture_coords, files->data[1].memory, sizeof(Texture_Coords) * asset->atlas.max_textures);
+            } break;
         }
     }
     
     return 0;
-}
-
-internal bool8
-add_assets(Assets *assets, Asset *new_assets, u32 num_of_assets) {
-    Asset *new_data = ARRAY_MALLOC(Asset, (assets->num_of_assets + num_of_assets));
-    platform_memory_set(new_data, 0, sizeof(Asset) * (assets->num_of_assets + num_of_assets));
-    
-    Asset_Array new_types[ASSET_TYPE_AMOUNT];
-
-    for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++)
-        new_types[i].num_of_assets = assets->types[i].num_of_assets;
-
-    for (u32 i = 0; i < num_of_assets; i++) {
-        Asset *asset = &new_assets[i];
-        new_types[asset->type].num_of_assets++;
-    }
-
-    init_types_array(new_data, new_types);
-
-    s32 indexes[ASSET_TYPE_AMOUNT];
-    for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++) {
-        for (u32 j = 0; j < assets->types[i].num_of_assets; j++) {
-            new_types[i].data[j] = assets->types[i].data[j];
-        }
-        indexes[i] = assets->types[i].num_of_assets;
-    }
-
-    for (u32 i = 0; i < num_of_assets; i++) {
-        Asset asset = new_assets[i];
-        new_types[asset.type].data[indexes[asset.type]++] = asset;
-    }
-
-    platform_free(assets->data);
-
-    assets->num_of_assets += num_of_assets;
-    assets->data = new_data;
-    for (u32 i = 0; i < ASSET_TYPE_AMOUNT; i++)
-        assets->types[i] = new_types[i];
-
-    return 0;
-}
-
-internal u32
-get_asset_size(Asset *asset) {
-    u32 size = 0;
-
-    switch(asset->type) {
-        //case ASSET_TYPE_FONT:   init_font(&asset->font);               break;
-        case ASSET_TYPE_BITMAP: {
-            size += asset->bitmap.width * asset->bitmap.height * asset->bitmap.channels;
-        } break;
-        //case ASSET_TYPE_SHADER: clean_shader(&asset->shader); break;
-
-        case ASSET_TYPE_MODEL: {
-            size += asset->model.meshes_count * sizeof(Mesh);
-            for (u32 i = 0; i < asset->model.meshes_count; i++) {
-                size += asset->model.meshes[i].vertex_info.size * asset->model.meshes[i].vertices_count;
-                size += sizeof(u32) * asset->model.meshes[i].indices_count;
-            }
-
-        } break;
-    }
-
-    return size;
-}
-
-internal void
-print_assets(Assets *assets) {
-    for (u32 i = 0; i < assets->num_of_assets; i++) {
-        u32 size = get_asset_size(&assets->data[i]);
-        print("type: %d, tag: %s, size: %d\n", assets->data[i].type, assets->data[i].tag, size);
-    }
 }
 
 //
@@ -251,8 +186,6 @@ const char *temp = "temp/filepath.test";
 internal void
 save_assets(Assets *assets, FILE *file)
 {
-    //FILE *file = fopen(filename, "wb");
-    //fseek(file, offset, SEEK_SET);
     fwrite(assets, sizeof(Assets), 1, file);
     fwrite(assets->data, sizeof(Asset), assets->num_of_assets, file);
     
@@ -275,9 +208,14 @@ save_assets(Assets *assets, FILE *file)
             
             case ASSET_TYPE_AUDIO: fwrite(asset->audio.buffer, asset->audio.length, 1, file); break;
 
-            case ASSET_TYPE_MODEL:{
+            case ASSET_TYPE_MODEL: {
                 for (u32 i = 0; i < asset->model.meshes_count; i++) 
                     save_mesh(asset->model.meshes[i], file);
+            } break;
+
+            case ASSET_TYPE_ATLAS: {
+                save_bitmap_memory(asset->atlas.bitmap, file);
+                fwrite(asset->atlas.texture_coords, sizeof(Texture_Coords) * asset->atlas.max_textures, 1, file);
             } break;
         }
     }
@@ -298,10 +236,8 @@ load_saved_asset_files(Assets *assets, const char *file_path) {
     }
     
     fread(assets, sizeof(Assets), 1, file);
-    assets->data = ARRAY_MALLOC(Asset, assets->num_of_assets);
-    assets->files = ARRAY_MALLOC(Asset_Files, assets->num_of_assets);
-    platform_memory_set(assets->data, 0, sizeof(Asset) * assets->num_of_assets);
-    platform_memory_set(assets->files, 0, sizeof(Asset_Files) * assets->num_of_assets);
+    assets->data = ARRAY_MALLOC_CLEAR(Asset, assets->num_of_assets);
+    assets->files = ARRAY_MALLOC_CLEAR(Asset_Files, assets->num_of_assets);
     fread(assets->data, sizeof(Asset), assets->num_of_assets, file);
     fread(assets->files, sizeof(Asset_Files), assets->num_of_assets, file);
     
@@ -387,6 +323,11 @@ load_saved_assets(Assets *assets, const char *filename, u32 offset) // returns 0
                     asset->model.meshes[i] = load_mesh(file);
                 }
             } break;
+
+            case ASSET_TYPE_ATLAS: {
+                load_bitmap_memory(&asset->atlas.bitmap, file);
+                fread((void *)asset->atlas.texture_coords, sizeof(Texture_Coords) * asset->atlas.max_textures, 1, file);
+            } break;
         }
     }
     
@@ -411,6 +352,7 @@ init_assets(Assets *assets) {
             //case ASSET_TYPE_SHADER: render_compile_shader(&asset->shader); break;
             case ASSET_TYPE_AUDIO:                                         break;
             case ASSET_TYPE_MODEL:  init_model(&asset->model);             break;
+            case ASSET_TYPE_ATLAS: texture_atlas_init(&asset->atlas, 3); break;
         }
     }
 }
@@ -429,6 +371,68 @@ clean_assets(Assets *assets) {
     }
 }
 
+internal bool8
+load_assets(Assets *assets, Assets_Load *loads, u32 loads_count, bool8 force_full_reload) {
+    if (assets->loaded) {
+        logprint("load_assets()", "already loaded\n");
+        return 1;
+    }
+    
+    bool8 load_failed = false;
+    const char *files_save_filepath = "files.save";
+    const char *assets_save_filepath = "assets.save";
+    u32 offset = 0;
+
+    if (load_saved_assets(assets, assets_save_filepath, offset)) {
+        load_failed = true; 
+    }
+    
+    if (load_failed || force_full_reload) {
+#if DEBUG
+        load_asset_files(assets, loads, loads_count);
+        save_asset_files(assets, files_save_filepath);
+#endif // DEBUG
+        
+        load_saved_asset_files(assets, files_save_filepath);
+        
+        if (load_assets_from_files(assets))
+            return true;
+
+        // Save Assets File
+        FILE *file = fopen(assets_save_filepath, "wb");
+        save_assets(assets, file);
+        fclose(file);
+    }
+    
+    init_assets(assets);
+
+    assets->loaded = true;
+    return 0;
+}
+
+internal u32
+get_asset_size(Asset *asset) {
+    u32 size = 0;
+
+    switch(asset->type) {
+        //case ASSET_TYPE_FONT:   init_font(&asset->font);               break;
+        case ASSET_TYPE_BITMAP: {
+            size += asset->bitmap.width * asset->bitmap.height * asset->bitmap.channels;
+        } break;
+        //case ASSET_TYPE_SHADER: clean_shader(&asset->shader); break;
+
+        case ASSET_TYPE_MODEL: {
+            size += asset->model.meshes_count * sizeof(Mesh);
+            for (u32 i = 0; i < asset->model.meshes_count; i++) {
+                size += asset->model.meshes[i].vertex_info.size * asset->model.meshes[i].vertices_count;
+                size += sizeof(u32) * asset->model.meshes[i].indices_count;
+            }
+
+        } break;
+    }
+
+    return size;
+}
 
 internal u32
 get_assets_size(Assets *assets) {
@@ -461,58 +465,9 @@ get_assets_size(Assets *assets) {
 }
 
 internal void
-convert_to_one_channel(Bitmap *bitmap) {
-    u8 *new_memory = (u8*)platform_malloc(bitmap->width * bitmap->height * 1);
-
-    for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
-        u8 *src_ptr = bitmap->memory + (i * 4);
-        u8 *dest_ptr = new_memory + i;
-        *dest_ptr = src_ptr[3];
+print_assets(Assets *assets) {
+    for (u32 i = 0; i < assets->num_of_assets; i++) {
+        u32 size = get_asset_size(&assets->data[i]);
+        print("type: %d, tag: %s, size: %d\n", assets->data[i].type, assets->data[i].tag, size);
     }
-    
-    platform_free(bitmap->memory);
-    bitmap->memory = new_memory;
-    bitmap->channels = 1;
-    bitmap->pitch = bitmap->width * bitmap->channels;
-};
-
-internal bool8
-load_assets(Assets *assets, Assets_Load *loads, u32 loads_count, bool8 force_full_reload) {
-
-    if (assets->loaded) {
-        logprint("load_assets()", "already loaded\n");
-        return 1;
-    }
-    
-    bool8 load_failed = false;
-    const char *files_save_filepath = "files.save";
-    const char *assets_save_filepath = "assets.save";
-    u32 offset = 0;
-
-    if (load_saved_assets(assets, assets_save_filepath, offset)) {
-        load_failed = true; 
-    }
-    
-    if (load_failed || force_full_reload) {
-#if DEBUG
-        load_asset_files(assets, loads, loads_count);
-        save_asset_files(assets, files_save_filepath);
-#endif // DEBUG
-        
-        load_saved_asset_files(assets, files_save_filepath);
-        
-        if (load_assets_from_files(assets))
-            return true;
-        convert_to_one_channel(find_bitmap(assets, "BOT"));
-
-        // Save Assets File
-        FILE *file = fopen(assets_save_filepath, "wb");
-        save_assets(assets, file);
-        fclose(file);
-    }
-    
-    init_assets(assets);
-
-    assets->loaded = true;
-    return 0;
 }

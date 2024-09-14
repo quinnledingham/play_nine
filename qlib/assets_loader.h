@@ -1,12 +1,13 @@
 #ifndef ASSETS_LOADER_H
 #define ASSETS_LOADER_H
 
-const char *asset_folders[5] = {
+const char *asset_folders[ASSET_TYPE_AMOUNT] = {
     "../assets/bitmaps/",
     "../assets/fonts/",
     "../assets/shaders/",
     "../assets/audios/",
-    "../assets/objs/"
+    "../assets/objs/",
+    "../assets/atlases/",
 };
 
 union Asset_Load {

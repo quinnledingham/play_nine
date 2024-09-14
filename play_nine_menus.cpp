@@ -118,7 +118,6 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     }
     
     draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
-    //draw_rect(menu->gui.rect.coords, 0, menu->gui.rect.dim, { 255, 0, 0, 1 });
 
     float32 x_section = menu->gui.rect.dim.x / menu->sections.x;
     float32 y_section = menu->gui.rect.dim.y / menu->sections.y;

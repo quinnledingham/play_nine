@@ -191,6 +191,11 @@ bitmap_convert(Bitmap bitmap) {
     }
 }
 
+internal u8
+blend_alpha(u8 a1, u8 a2) {
+    return 255 - ((255 - a1) * (255 - a2) / 255);
+}
+
 internal Vector4
 get_color(u8 *ptr, u32 channels, Vector3 color) {
     switch(channels) {
@@ -202,11 +207,6 @@ get_color(u8 *ptr, u32 channels, Vector3 color) {
     return { 0, 0, 0, 0 };
 }
 
-internal u8
-blend_alpha(u8 a1, u8 a2) {
-    return 255 - ((255 - a1) * (255 - a2) / 255);
-}
-
 internal Vector4
 get_color(Vector4 c1, Vector4 c2) {
     float32 alpha = 255 - ((255 - c1.E[3]) * (255 - c2.E[3]) / 255);
@@ -216,21 +216,58 @@ get_color(Vector4 c1, Vector4 c2) {
     return {red, green, blue, alpha};
 }
 
+internal void
+convert_to_one_channel(Bitmap *bitmap) {
+    u8 *new_memory = (u8*)platform_malloc(bitmap->width * bitmap->height * 1);
+
+    for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
+        u8 *src_ptr = bitmap->memory + (i * 4);
+        u8 *dest_ptr = new_memory + i;
+        *dest_ptr = src_ptr[3];
+    }
+    
+    platform_free(bitmap->memory);
+    bitmap->memory = new_memory;
+    bitmap->channels = 1;
+    bitmap->pitch = bitmap->width * bitmap->channels;
+};
+
+internal void
+convert_to_four_channel(Bitmap *bitmap) {
+    u32 new_channels = 4;
+    u8 *new_memory = (u8*)platform_malloc(bitmap->width * bitmap->height * new_channels);
+
+    for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
+        u8 *src_ptr = bitmap->memory + (i * bitmap->channels);
+        u8 *dest_ptr = new_memory + (i * new_channels);
+
+        //for (
+        *dest_ptr = src_ptr[3];
+    }
+    
+    platform_free(bitmap->memory);
+    bitmap->memory = new_memory;
+    bitmap->channels = new_channels;
+    bitmap->pitch = bitmap->width * bitmap->channels;
+}
+
 // color contains what to fill conversion from 1 channel to 4 channels with
 internal void
 copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position, Vector3 color) {
-    if (src.width == 0)
+    if (src.width == 0 || src.height == 0)
         return;
 
     u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
     u8 *src_ptr = src.memory;
     for (s32 y = 0; y <= src.height; y++) {
         for (s32 x = 0; x < src.width; x++) { 
+            
             if (dest.channels == 1) {
                 *dest_ptr = blend_alpha(*dest_ptr, *src_ptr);
             } else if (dest.channels == 4) { 
                 Vector4 src_color = get_color(src_ptr, src.channels, color);
                 Vector4 dest_color = get_color(dest_ptr, dest.channels, color);
+                
                 Vector4 blend_color = get_color(dest_color, src_color);
 
                 dest_ptr[0] = (u8)blend_color.r;
@@ -238,6 +275,7 @@ copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position, Vector3 c
                 dest_ptr[2] = (u8)blend_color.b;
                 dest_ptr[3] = (u8)blend_color.a;
             }
+            
             dest_ptr += dest.channels;
             src_ptr += src.channels;
         }   
@@ -561,6 +599,21 @@ texture_atlas_draw(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim)
     gfx_bind_shader("TEXTURE");
     render_bind_descriptor_set(atlas->gpu[gfx.current_frame].desc);
     texture_atlas_draw_rect(atlas, index, coords, dim);
+}
+
+internal void
+texture_atlas_write(Texture_Atlas *atlas, const char *bitmap_file_name, const char *tex_coord_file_name) {
+    const char *bitmap_file_path = char_array_concat(asset_folders[ASSET_TYPE_ATLAS], bitmap_file_name);
+    const char *texture_coords_file_path = char_array_concat(asset_folders[ASSET_TYPE_ATLAS], tex_coord_file_name);
+    
+    write_bitmap(&atlas->bitmap, bitmap_file_path);
+    
+    FILE *file = fopen(texture_coords_file_path, "wb");
+    fwrite(atlas->texture_coords, sizeof(Texture_Coords) * atlas->max_textures, 1, file);
+    fclose(file);
+
+    platform_free(bitmap_file_path);
+    platform_free(texture_coords_file_path);
 }
 
 //

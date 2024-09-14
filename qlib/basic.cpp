@@ -117,14 +117,24 @@ void platform_memory_set(void *dest, s32 value, u32 num_of_bytes);
 void *platform_malloc(u32 size) { 
     return SDL_malloc(size); 
 }
-void platform_free(void *ptr)   { 
+
+void platform_free_impl(void *ptr)   { 
     SDL_free(ptr); 
 }
+
+#define platform_free(p) platform_free_impl((void*)p)
+
 void platform_memory_copy(void *dest, const void *src, u32 num_of_bytes) { 
     SDL_memcpy(dest, src, num_of_bytes); 
 }
 void platform_memory_set(void *dest, s32 value, u32 num_of_bytes) { 
     SDL_memset(dest, value, num_of_bytes); 
+}
+
+void *platform_malloc_clear(u32 size) {
+    void *mem = platform_malloc(size);
+    platform_memory_set(mem, 0, size);
+    return mem; 
 }
 
 #endif // SDL

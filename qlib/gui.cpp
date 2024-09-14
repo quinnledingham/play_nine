@@ -657,11 +657,9 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
 
     String_Draw_Info info = get_string_draw_info(menu->gui.font, text, -1, pixel_height);
     Vector2 text_coords = coords + get_centered_text_coords(info, dim, menu->gui.text_align);
-    //render_set_scissor((s32)floor(coords.x), (s32)floor(coords.y), (u32)ceil(dim.x), (u32)ceil(dim.y) );
     render_context.scissor_push(coords, dim);
     draw_string(menu->gui.font, text, text_coords, pixel_height, color);
     render_context.scissor_pop();
-    //render_set_scissor(0, 0, window_dim.x, window_dim.y);
 }
 
 internal bool8

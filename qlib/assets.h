@@ -467,6 +467,7 @@ enum Asset_Types {
     ASSET_TYPE_SHADER,
     ASSET_TYPE_AUDIO,
     ASSET_TYPE_MODEL,
+    ASSET_TYPE_ATLAS,
 
     ASSET_TYPE_AMOUNT
 };
@@ -487,6 +488,7 @@ struct Asset {
         Shader shader;
         Audio audio;
         Model model;
+        Texture_Atlas atlas;
 
         void *memory;
     };  
@@ -534,5 +536,6 @@ inline Font*   find_font  (Assets *assets, const char *tag) { return (Font*)   f
 inline Shader* find_shader(Assets *assets, const char *tag) { return (Shader*) find_asset(assets, ASSET_TYPE_SHADER, tag); }
 inline Model*  find_model (Assets *assets, const char *tag) { return (Model*)  find_asset(assets, ASSET_TYPE_MODEL,  tag); }
 inline Audio*  find_audio (Assets *assets, const char *tag) { return (Audio*)  find_asset(assets, ASSET_TYPE_AUDIO,  tag); }
+inline Texture_Atlas*  find_texture_atlas (Assets *assets, const char *tag) { return (Texture_Atlas*)  find_asset(assets, ASSET_TYPE_ATLAS,  tag); }
 
 #endif // ASSETS_H

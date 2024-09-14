@@ -501,16 +501,19 @@ bool8 init_data(App *app) {
 
     Bitmap blank_layout_bitmap = blank_bitmap(32, 32, 4);
     render_create_texture(&blank_layout_bitmap, TEXTURE_PARAMETERS_DEFAULT);
-    gfx.layouts = ARRAY_MALLOC(Layout, 11);
-    platform_memory_set(gfx.layouts, 0, sizeof(Layout) * 11);
+    gfx.layouts = ARRAY_MALLOC_CLEAR(Layout, 11);
     init_layouts(gfx.layouts, &blank_layout_bitmap);
-    
-    if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), false)) {
-        logprint("init_data()", "load_assets failed\n");
-        return 1;
-    }
 
-    global_assets = &state->assets;
+#if DEBUG
+    bool8 recreate_input_prompt_atlases = false;
+    if (recreate_input_prompt_atlases) {
+        Texture_Atlas atlases[PROMPT_COUNT];
+        create_input_prompt_atlas(&atlases[PROMPT_KEYBOARD], keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
+        create_input_prompt_atlas(&atlases[PROMPT_XBOX_SERIES], xbox_prompts, ARRAY_COUNT(xbox_prompts), "../xelu/Xbox Series/XboxSeriesX_", ".png", "xbox_prompt.png");
+
+        texture_atlas_write(&atlases[PROMPT_KEYBOARD], "keyboard.png", "keyboard.tco");
+        texture_atlas_write(&atlases[PROMPT_XBOX_SERIES], "xbox_series.png", "xbox_series.tco");
+    }
     
     bool8 reload_card_bitmaps = false;
     if (reload_card_bitmaps) {
@@ -520,13 +523,26 @@ bool8 init_data(App *app) {
         clear_font_bitmap_cache(card_font);
         write_card_bitmaps(card_bitmaps);
     }
+
+    bool8 reload_bot_bitmap = false;
+    if (reload_bot_bitmap) {
+        File bot_file = load_file("../assets/bitmaps/bot.png");
+        Bitmap bot_bitmap = load_bitmap(bot_file, false); 
+        convert_to_one_channel(&bot_bitmap);
+        write_bitmap(&bot_bitmap, "../assets/bitmaps/bot.png");
+    }
     
+    print("Asset Size; %d\nBitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Asset), sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
+#endif // DEBUG
+
+    if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), false)) {
+        logprint("init_data()", "load_assets failed\n");
+        return 1;
+    }
+
+    global_assets = &state->assets;
     default_font = find_font(&state->assets, "CASLON");
     global_mode = &state->mode;
-    
-#if DEBUG
-    print("Bitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
-#endif // DEBUG
     
     init_pipelines(&state->assets);
     init_shapes(&state->assets);
@@ -650,11 +666,8 @@ bool8 init_data(App *app) {
     state->notifications.font = default_font;
     state->notifications.text_color = { 255, 255, 255, 1 };
 
-    create_input_prompt_atlas(&input_prompt_atlases[PROMPT_KEYBOARD], keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
-    create_input_prompt_atlas(&input_prompt_atlases[PROMPT_XBOX_SERIES], xbox_prompts, ARRAY_COUNT(xbox_prompts), "../xelu/Xbox Series/XboxSeriesX_", ".png", "xbox_prompt.png");
-        
-    texture_atlas_init(&input_prompt_atlases[PROMPT_KEYBOARD], GFX_ID_TEXTURE);
-    texture_atlas_init(&input_prompt_atlases[PROMPT_XBOX_SERIES], GFX_ID_TEXTURE);
+    input_prompt_atlases[PROMPT_KEYBOARD] = find_texture_atlas(&state->assets, "KEYBOARD_PROMPT");
+    input_prompt_atlases[PROMPT_XBOX_SERIES] = find_texture_atlas(&state->assets, "XBOX_SERIES_PROMPT");
     
     return false;
 }

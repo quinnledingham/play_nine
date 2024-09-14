@@ -169,6 +169,6 @@ enum Input_Prompt_Types {
     PROMPT_COUNT
 };
 
-global Texture_Atlas input_prompt_atlases[PROMPT_COUNT];
+global Texture_Atlas *input_prompt_atlases[PROMPT_COUNT];
 
 App_Input *app_input;

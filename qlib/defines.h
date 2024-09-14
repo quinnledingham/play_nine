@@ -52,7 +52,8 @@ typedef double float64;
 
 #define ASSERT(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #define ARRAY_COUNT(n)     (sizeof(n) / sizeof(n[0]))
-#define ARRAY_MALLOC(t, n) ((t*)platform_malloc(n * sizeof(t))) // WARNING!!!! Make sure n is in brackets if operation
+#define ARRAY_MALLOC(t, n)       ((t*)platform_malloc      (n * sizeof(t))) // WARNING!!!! Make sure n is in brackets if operation
+#define ARRAY_MALLOC_CLEAR(t, n) ((t*)platform_malloc_clear(n * sizeof(t))) // WARNING!!!! Make sure n is in brackets if operation
 
 #define X_AXIS { 1, 0, 0 }
 #define Y_AXIS { 0, 1, 0 }
