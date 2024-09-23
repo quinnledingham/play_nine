@@ -13,7 +13,7 @@ const char *asset_folders[ASSET_TYPE_AMOUNT] = {
 union Asset_Load {
     const char *E[7];
     struct {
-      const char *tag;
+      const char *tag_shader;
       const char *vertex;
       const char *control;
       const char *evaluation;

@@ -44,3 +44,9 @@ void LINUX_FUNC(terminate_thread)(THREAD handle) {
   }
 }
 
+bool8 LINUX_FUNC(thread_in_use)(s64 handle) {
+  // IMPLEMENT FUNCTION
+  logprint("thread_in_use", "IMPLEMENT thread_in_use for Linux\n");
+  ASSERT(0);
+  return false;
+}

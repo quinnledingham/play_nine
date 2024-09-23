@@ -399,7 +399,7 @@ vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
 		print("(vulkan) format: %d, color space: %d\n", formats[i].format, formats[i].colorSpace);
 	}
 
-	return formats[0];
+	return formats[1];
 }
 
 // VSYNC SETTINGS AREA
