@@ -1,5 +1,5 @@
 internal void
-dx_get_hardware_adapter(IDXGIFactory1 *p_factory, IDXGIAdapter1 **pp_adapter, bool request_high_performance_adapter) {
+d3d12_get_hardware_adapter(IDXGIFactory1 *p_factory, IDXGIAdapter1 **pp_adapter, bool request_high_performance_adapter) {
   *pp_adapter = nullptr;
   ComPtr<IDXGIAdapter1> adapter;
   ComPtr<IDXGIFactory6> factory6;
@@ -50,7 +50,7 @@ dx_get_hardware_adapter(IDXGIFactory1 *p_factory, IDXGIAdapter1 **pp_adapter, bo
 }
 
 internal void
-dx_init(DX_State *state, HWND window_handle, Vector2_s32 window_dim) {
+d3d12_init(D3D12_State *state, HWND window_handle, Vector2_s32 window_dim) {
   state->frame_index = 0;
   state->rtv_descriptor_size = 0;
   
@@ -70,24 +70,24 @@ dx_init(DX_State *state, HWND window_handle, Vector2_s32 window_dim) {
   // Create the factory
   ComPtr<IDXGIFactory4> factory;
   if (FAILED(CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&factory)))) {
-      win32_print_str("dx_init(): CreateDXGIFactory2() failed\n");
+      win32_print_str("d3d12_init(): CreateDXGIFactory2() failed\n");
   }
 
   if (state->use_warp_device) {
     ComPtr<IDXGIAdapter> warp_adapter;
     if (FAILED(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp_adapter)))) {
-      win32_print_str("dx_init(): EnumWarpAdapter() failed");
+      win32_print_str("d3d12_init(): EnumWarpAdapter() failed");
     }
 
     if (FAILED(D3D12CreateDevice(warp_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&state->device)))) {
-      win32_print_str("dx_init(): D3D12CreateDevice() warp adapter failed");
+      win32_print_str("d3d12_init(): D3D12CreateDevice() warp adapter failed");
     }
   } else {
     ComPtr<IDXGIAdapter1> hardware_adapter;
-    dx_get_hardware_adapter(factory.Get(), &hardware_adapter, true);
+    d3d12_get_hardware_adapter(factory.Get(), &hardware_adapter, true);
 
     if (FAILED(D3D12CreateDevice(hardware_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&state->device)))) {
-      win32_print_str("dx_init(): D3D12CreateDevice() hardware adapter failed");
+      win32_print_str("d3d12_init(): D3D12CreateDevice() hardware adapter failed");
     }
   }
 
@@ -106,13 +106,15 @@ dx_init(DX_State *state, HWND window_handle, Vector2_s32 window_dim) {
   swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
   swap_chain_desc.SampleDesc.Count = 1;
+  if (!gfx.vsync)
+    swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
   ComPtr<IDXGISwapChain1> swap_chain;
   if (FAILED(factory->CreateSwapChainForHwnd(state->command_queue.Get(), window_handle, &swap_chain_desc, nullptr, nullptr, &swap_chain))) {
-    win32_print_str("dx_init(): CreateSwapChainForHwnd() failed\n");
+    win32_print_str("d3d12_init(): CreateSwapChainForHwnd() failed\n");
   }
   if (FAILED(swap_chain.As(&state->swap_chain))) {
-    win32_print_str("dx_init(): swap_chain.As() failed\n");
+    win32_print_str("d3d12_init(): swap_chain.As() failed\n");
   }
 
   state->frame_index = state->swap_chain->GetCurrentBackBufferIndex();
@@ -123,7 +125,7 @@ dx_init(DX_State *state, HWND window_handle, Vector2_s32 window_dim) {
   rtv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
   rtv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
   if (FAILED(state->device->CreateDescriptorHeap(&rtv_heap_desc, IID_PPV_ARGS(&state->rtv_heap)))) {
-    win32_print_str("dx_init(): CreateDescriptorHeap()\n");
+    win32_print_str("d3d12_init(): CreateDescriptorHeap()\n");
   }
   state->rtv_descriptor_size = state->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
@@ -132,7 +134,7 @@ dx_init(DX_State *state, HWND window_handle, Vector2_s32 window_dim) {
   // Create a RTV for each frame.
   for (UINT n = 0; n < state->frame_count; n++) {
     if (FAILED(state->swap_chain->GetBuffer(n, IID_PPV_ARGS(&state->render_targets[n])))) {
-      win32_print_str("dx_init(): GetBuffer() failed\n");
+      win32_print_str("d3d12_init(): GetBuffer() failed\n");
     }
     state->device->CreateRenderTargetView(state->render_targets[n].Get(), nullptr, rtvHandle);
     rtvHandle.Offset(1, state->rtv_descriptor_size);
@@ -165,7 +167,7 @@ dx_init(DX_State *state, HWND window_handle, Vector2_s32 window_dim) {
 }
 
 internal bool8
-dx_compile_shader(DX_Shader *shader) {
+d3d12_compile_shader(D3D12_Shader *shader) {
 #ifdef DEBUG
   // Enable better shader debugging with the graphics debugging tools.
   UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
@@ -188,7 +190,7 @@ dx_compile_shader(DX_Shader *shader) {
 }
 
 internal void 
-dx_create_pipeline(DX_State *state, DX_Pipeline *pipeline) {
+d3d12_create_pipeline(D3D12_State *state, D3D12_Pipeline *pipeline) {
   // Create an empty root signature
   CD3DX12_ROOT_SIGNATURE_DESC root_signature_desc;
   root_signature_desc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -196,7 +198,7 @@ dx_create_pipeline(DX_State *state, DX_Pipeline *pipeline) {
   ComPtr<ID3DBlob> signature;
   ComPtr<ID3DBlob> error;
   if (FAILED(D3D12SerializeRootSignature(&root_signature_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error))) {
-    win32_print_str("dx_load_pipeline(): D3D12SerializeRootSignature() failed\n");
+    win32_print_str("d3d12_load_pipeline(): D3D12SerializeRootSignature() failed\n");
   }
   if (FAILED(state->device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&state->root_signature)))) {
     win32_print_str("load_assets(): CreateRootSignature() failed\n");
@@ -227,30 +229,30 @@ dx_create_pipeline(DX_State *state, DX_Pipeline *pipeline) {
   pso_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
   pso_desc.SampleDesc.Count = 1;
   if (FAILED(state->device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pipeline->state)))) {
-    win32_print_str("dx_load_pipeline(): CreateGraphicsPipelineState() failed\n");
+    win32_print_str("d3d12_load_pipeline(): CreateGraphicsPipelineState() failed\n");
   }
 }
 
 // Wait for pending GPU work to complete.
 internal void 
-dx_wait_for_gpu(DX_State *state) {
-    // Schedule a Signal command in the queue.
-    if (FAILED(state->command_queue->Signal(state->fence.Get(), state->fence_values[state->frame_index]))) {
-      win32_print_str("dx12_wait_for_gpu(): Signal() failed\n");
-    }
+d3d12_wait_for_gpu(D3D12_State *state) {
+  // Schedule a Signal command in the queue.
+  if (FAILED(state->command_queue->Signal(state->fence.Get(), state->fence_values[state->frame_index]))) {
+    win32_print_str("d3d12_wait_for_gpu(): Signal() failed\n");
+  }
 
-    // Wait until the fence has been processed.
-    if (FAILED(state->fence->SetEventOnCompletion(state->fence_values[state->frame_index], state->fence_event))) {
-      win32_print_str("dx12_wait_for_gpu(): SetEventOnCompletion() failed\n");
-    }
-    WaitForSingleObjectEx(state->fence_event, INFINITE, FALSE);
+  // Wait until the fence has been processed.
+  if (FAILED(state->fence->SetEventOnCompletion(state->fence_values[state->frame_index], state->fence_event))) {
+    win32_print_str("d3d12_wait_for_gpu(): SetEventOnCompletion() failed\n");
+  }
+  WaitForSingleObjectEx(state->fence_event, INFINITE, FALSE);
 
-    // Increment the fence value for the current frame.
-    state->fence_values[state->frame_index]++;
+  // Increment the fence value for the current frame.
+  state->fence_values[state->frame_index]++;
 }
 
 internal void
-dx_init_mesh(DX_State *state, Mesh *mesh) {
+d3d12_init_mesh(D3D12_State *state, Mesh *mesh) {
   u32 vertex_size = vertex_info_get_size(&mesh->vertex_info);
   const UINT vertex_buffer_size = vertex_size * mesh->vertices_count;
 
@@ -287,42 +289,54 @@ dx_init_mesh(DX_State *state, Mesh *mesh) {
   // Wait for the command list to execute; we are reusing the same command 
   // list in our main loop but for now, we just want to wait for setup to 
   // complete before continuing.
-  dx_wait_for_gpu(state);
+  d3d12_wait_for_gpu(state);
 }
 
 internal void
-dx12_draw_mesh(Mesh *mesh) {
-  gfx.dx12.command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  gfx.dx12.command_list->IASetVertexBuffers(0, 1, &mesh->gpu.vertex_buffer_view);
-  gfx.dx12.command_list->DrawInstanced(3, 1, 0, 0);
+d3d12_draw_mesh(Mesh *mesh) {
+  gfx.d3d12.command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  gfx.d3d12.command_list->IASetVertexBuffers(0, 1, &mesh->gpu.vertex_buffer_view);
+  gfx.d3d12.command_list->DrawInstanced(3, 1, 0, 0);
 }
 
 internal void
-dx12_set_viewport(u32 window_width, u32 window_height) {
+d3d12_set_viewport(u32 window_width, u32 window_height) {
   CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(window_width), static_cast<float>(window_height));
-  gfx.dx12.command_list->RSSetViewports(1, &viewport);
+  gfx.d3d12.command_list->RSSetViewports(1, &viewport);
 }
 
 internal void
-dx12_set_scissor(s32 x, s32 y, u32 width, u32 height) {
+d3d12_set_scissor(s32 x, s32 y, u32 width, u32 height) {
   CD3DX12_RECT scissor = CD3DX12_RECT(0, 0, static_cast<LONG>(gfx.window_dim.width), static_cast<LONG>(gfx.window_dim.height));
-  gfx.dx12.command_list->RSSetScissorRects(1, &scissor);
+  gfx.d3d12.command_list->RSSetScissorRects(1, &scissor);
 }
 
 internal void
-dx_start_frame(DX_State *state, DX_Pipeline *pipeline) {
+d3d12_clear_color(Vector4 color) {
+  
+}
+
+internal void
+d3d12_bind_pipeline(D3D12_Pipeline *pipeline) {
+  gfx.d3d12.command_list->SetPipelineState(pipeline->state.Get());
+}
+
+internal void
+d3d12_start_frame() {
+  D3D12_State *state = &gfx.d3d12;
+  
   // Command list allocators can only be reset when the associated 
   // command lists have finished execution on the GPU; apps should use 
   // fences to determine GPU execution progress.
   if (FAILED(state->command_allocators[state->frame_index]->Reset())) {
-    win32_print_str("dx_populate_command_list(): command allocator Reset() failed");
+    win32_print_str("d3d12_start_frame(): command allocator Reset() failed\n");
   }
   
   // However, when ExecuteCommandList() is called on a particular command 
   // list, that command list can then be reset at any time and must be before 
   // re-recording.
-  if (FAILED(state->command_list->Reset(state->command_allocators[state->frame_index].Get(), pipeline->state.Get()))) {
-    win32_print_str("dx_populate_command_list(): command list Reset() failed");
+  if (FAILED(state->command_list->Reset(state->command_allocators[state->frame_index].Get(), nullptr))) {
+    win32_print_str("d3d12_start_frame(): command list Reset() failed\n");
   }
 
   // Set necessary state.
@@ -336,17 +350,19 @@ dx_start_frame(DX_State *state, DX_Pipeline *pipeline) {
   state->command_list->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
   
   const float clear_color[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-  state->command_list->ClearRenderTargetView(rtvHandle, clear_color, 0, nullptr);
+  gfx.d3d12.command_list->ClearRenderTargetView(rtvHandle, clear_color, 0, nullptr);
 }
 
 internal void
-dx_end_frame(DX_State *state) {
+d3d12_end_frame() {
+  D3D12_State *state = &gfx.d3d12;
+  
   // Indicate that the back buffer will now be used to present.
   auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(state->render_targets[state->frame_index].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
   state->command_list->ResourceBarrier(1, &barrier);
 
   if (FAILED(state->command_list->Close())) {
-    win32_print_str("dx_populate_command_list(): Close() failed");
+    win32_print_str("d3d12_populate_command_list(): Close() failed");
   }
   
   // Execute the command list.
@@ -354,15 +370,20 @@ dx_end_frame(DX_State *state) {
   state->command_queue->ExecuteCommandLists(_countof(pp_command_lists), pp_command_lists);
 
   // Present the frame.
-  if (FAILED(state->swap_chain->Present(1, 0))) {
-    win32_print_str("dx_on_render(): Present() failed");
+  u32 present_flags = 0;
+  if (!gfx.vsync)
+    present_flags |= DXGI_PRESENT_ALLOW_TEARING;
+  
+  if (FAILED(state->swap_chain->Present(0, present_flags))) {
+    win32_print_str("d3d12_on_render(): Present() failed\n");
+    win32_print_last_error();
   }
 
   // Move to next frame
   // Schedule a Signal command in the queue.
   const u64 current_fence_value = state->fence_values[state->frame_index];
   if (FAILED(state->command_queue->Signal(state->fence.Get(), current_fence_value))) {
-    win32_print_str("dx12_move_to_next_frame(): Signal() failed");
+    win32_print_str("d3d12_move_to_next_frame(): Signal() failed");
   }
 
   // Update the frame index.
@@ -371,7 +392,7 @@ dx_end_frame(DX_State *state) {
   // If the next frame is not ready to be rendered yet, wait until it is ready.
   if (state->fence->GetCompletedValue() < state->fence_values[state->frame_index]) {
       if (FAILED(state->fence->SetEventOnCompletion(state->fence_values[state->frame_index], state->fence_event))) {
-        win32_print_str("dx_move_to_next_frame(): SetEventOnCompletion() failed");
+        win32_print_str("d3d12_move_to_next_frame(): SetEventOnCompletion() failed");
       }
       WaitForSingleObjectEx(state->fence_event, INFINITE, FALSE);
   }
@@ -381,7 +402,7 @@ dx_end_frame(DX_State *state) {
 }
 
 internal void
-dx_destroy(DX_State *state) {
-  dx_wait_for_gpu(state);
+d3d12_destroy(D3D12_State *state) {
+  d3d12_wait_for_gpu(state);
   CloseHandle(state->fence_event);
 }

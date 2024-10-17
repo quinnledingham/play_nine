@@ -1,4 +1,4 @@
-struct DX_State {
+struct D3D12_State {
   static const u32 frame_count = 2;
   u32 frame_index;
   
@@ -26,17 +26,17 @@ struct DX_State {
   CD3DX12_RECT scissor;
 };
 
-struct DX_Shader {
+struct D3D12_Shader {
   ComPtr<ID3DBlob> vertex;
   ComPtr<ID3DBlob> pixel;
 };
 
-struct DX_Pipeline {
+struct D3D12_Pipeline {
     ComPtr<ID3D12PipelineState> state;
-    DX_Shader *shader;
+    D3D12_Shader *shader;
 };
 
-struct DX_Mesh {
+struct D3D12_Mesh {
   ComPtr<ID3D12Resource> vertex_buffer;
   D3D12_VERTEX_BUFFER_VIEW vertex_buffer_view;
 };

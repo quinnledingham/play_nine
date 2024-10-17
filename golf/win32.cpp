@@ -1,4 +1,3 @@
-
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <wingdi.h>
@@ -21,6 +20,39 @@ using Microsoft::WRL::ComPtr;
 
 void print(const char *msg, ...);
 void logprint(const char *where, const char *msg, ...);
+inline void*
+iru_malloc(u32 size) {
+  return malloc(size);
+}
+
+inline void
+iru_free(void *ptr) {
+  free(ptr);
+}
+
+inline void*
+iru_memcpy(void *dest, void *src, u32 size) {
+  return memcpy(dest, src, size);
+}
+
+inline void*
+iru_memset(void *dest, u32 value, u32 size) {
+  return memset(dest, value, size);
+}
+
+#include "str.h"
+
+#include "assets.h"
+#include "asset_loader.h"
+#include "golf_assets.h"
+
+enum
+{
+    PRINT_DEFAULT,
+    PRINT_ERROR,
+    PRINT_WARNING,
+};
+
 
 inline void
 win32_print_str(const char *str) {
@@ -35,12 +67,40 @@ win32_print_last_error() {
                  buf, (sizeof(buf) / sizeof(wchar_t)), NULL);
 }
 
+
+#include "print.cpp"
 #include "dx12.cpp"
+#include "assets.cpp"
+#include "asset_loader.cpp"
 #include "golf.cpp"
 
 // win32
 
 bool8 global_running = true;
+
+internal s64
+win32_get_ticks() {
+  LARGE_INTEGER result;
+  if (!QueryPerformanceCounter(&result)) {
+    win32_print_last_error();
+  }
+  return result.QuadPart;
+}
+
+internal s64
+win32_performance_frequency() {
+  LARGE_INTEGER result;
+  if (!QueryPerformanceFrequency(&result)) {
+    win32_print_last_error();
+  }
+  return result.QuadPart;
+}
+
+internal float64
+win32_get_seconds_elapsed(s64 start, s64 end, s64 frequency) {
+  float64 result = ((float64)(end - start) / (float64)frequency);
+  return result;
+}
 
 internal void
 win32_process_pending_messages(HWND *hwnd) {
@@ -113,20 +173,27 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int sho
   gfx.window_dim.height = client_rect.bottom - client_rect.top;
   gfx.aspect_ratio = (float32)gfx.window_dim.width / (float32)gfx.window_dim.height;
 
-  dx_init(&gfx.dx12, window_handle, gfx.window_dim);
-
+  d3d12_init(&gfx.d3d12, window_handle, gfx.window_dim);
+  
   App app = {};
-
   event_handler(&app, APP_INIT);
+  
+  s64 performance_count_frequency = win32_performance_frequency();
+  s64 last_frame_time = win32_get_ticks();
   
   while(global_running) {
     win32_process_pending_messages(&window_handle);
-
-
     event_handler(&app, APP_UPDATE);
+
+    s64 this_frame_time = win32_get_ticks();
+    float64 seconds_elapsed = win32_get_seconds_elapsed(last_frame_time, this_frame_time, performance_count_frequency);
+    last_frame_time = this_frame_time;
+
+    //printf("%f\n", 1.0f / seconds_elapsed);
   }
 
-  dx_destroy(&gfx.dx12);
+  d3d12_destroy(&gfx.d3d12);
   
   return 0;
 }
+

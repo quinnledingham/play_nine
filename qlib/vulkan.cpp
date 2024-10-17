@@ -2187,13 +2187,13 @@ bool8 vulkan_start_frame(App_Window *window) {
 
 void vulkan_end_frame(Assets *assets, App_Window *window) {
 	gfx.recording_frame = FALSE;
-		;
+	
 	Vulkan_Frame *frame = &vulkan_info.frames[gfx.current_frame];
 	frame->dynamic_offset_end = vulkan_info.dynamic_uniform_buffer.offset;
 
 	vkCmdEndRenderPass(VK_CMD(vulkan_info));
 
-		// Draw Render Pass
+	// Draw Render Pass
 	if (render_context.resolution_scaling && !window->resized) {
 		VkImageSubresourceLayers sub = {};
 		sub.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;

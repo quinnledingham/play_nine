@@ -1,4 +1,3 @@
-
 struct Rect {
   union {
     Vector2 p1;
@@ -16,18 +15,14 @@ struct GFX {
   Rect viewport;
   Rect scissor;
 
+  bool8 vsync = true;
+
   // API3D
-  DX_State dx12;
+  D3D12_State d3d12;
+  //Vulkan_State vulkan;
 };
 
 GFX gfx = {};
-
-
-struct GFX_Mesh {
-#ifdef DX12
-  DX_Mesh gpu;
-#endif // DX12
-};
 
 typedef enum {
   VECTOR2_TYPE,
@@ -78,6 +73,6 @@ struct Mesh {
   u32 *indices;
   u32 indices_count;
 
-  DX_Mesh gpu;
+  D3D12_Mesh gpu;
 };
 

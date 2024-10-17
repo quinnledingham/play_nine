@@ -3,21 +3,22 @@ struct App {
 };
 
 struct Golf_State {
-  DX_Shader shader;
-  DX_Pipeline pipeline;
+  D3D12_Shader shader;
+  D3D12_Pipeline pipeline;
   Mesh mesh;
 };
 
 internal void
 update(App *app) {
   Golf_State *state = (Golf_State *)app->data;
-  dx_start_frame(&gfx.dx12, &state->pipeline);
 
-  dx12_set_viewport(gfx.window_dim.width, gfx.window_dim.height);
-  dx12_set_scissor(0, 0, gfx.window_dim.width, gfx.window_dim.height);
-  dx12_draw_mesh(&state->mesh);
+  d3d12_start_frame();
+  d3d12_bind_pipeline(&state->pipeline);
+  d3d12_set_viewport(gfx.window_dim.width, gfx.window_dim.height);
+  d3d12_set_scissor(0, 0, gfx.window_dim.width, gfx.window_dim.height);
+  d3d12_draw_mesh(&state->mesh);
 
-  dx_end_frame(&gfx.dx12);
+  d3d12_end_frame();
 }
 
 enum App_Event {
@@ -26,7 +27,6 @@ enum App_Event {
   APP_EXIT
 };
 
-  
 s32 event_handler(App *app, App_Event event) {
   switch(event) {
     case APP_INIT: {
@@ -34,12 +34,12 @@ s32 event_handler(App *app, App_Event event) {
       memset(app->data, 0, sizeof(Golf_State));
       Golf_State *state = (Golf_State *)app->data;
       
-      if(dx_compile_shader(&state->shader)) {
+      if(d3d12_compile_shader(&state->shader)) {
         return 1;
       }
 
       state->pipeline.shader = &state->shader;
-      dx_create_pipeline(&gfx.dx12, &state->pipeline);
+      d3d12_create_pipeline(&gfx.d3d12, &state->pipeline);
 
       Vertex_PC triangle_vertices[] =
       {
@@ -51,7 +51,11 @@ s32 event_handler(App *app, App_Event event) {
       state->mesh.vertices_count = 3;
       state->mesh.vertex_info.attributes = Vector_PC_Attributes;
       state->mesh.vertex_info.attributes_count = 2;
-      dx_init_mesh(&gfx.dx12, &state->mesh);
+      d3d12_init_mesh(&gfx.d3d12, &state->mesh);
+
+      Assets assets = {};
+      assets.loads[ASSET_TYPE_BITMAP] = array_bitmaps;
+      load_assets(&assets);
     } break;
 
     case APP_UPDATE: {
