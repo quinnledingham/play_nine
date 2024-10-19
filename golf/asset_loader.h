@@ -35,12 +35,17 @@ struct Array {
   u32 element_size;
   u32 size;
   u32 max_size;
+
+  void *get(u32 i) {
+    return (char *)data + (element_size * i);
+  }
 };
-#define ARRAY(a) Array array_##a = { a, ARRAY_COUNT(a), ARRAY_COUNT(a) }
+#define ARRAY(a) Array array_##a = { a, sizeof(a[0]), ARRAY_COUNT(a), ARRAY_COUNT(a) }
 
 struct Asset {
   u32 type;
   u32 tag;
+  File files[5];
 
   union {
     Bitmap bitmap;
@@ -56,8 +61,8 @@ typedef Array Asset_Files_Array;
 
 struct Assets {
   Array loads[ASSET_TYPE_COUNT];
-  Asset_Files_Array files;
-  
+
+  u32 count;
   Asset *data;
   Asset_Array types[ASSET_TYPE_COUNT];
 };

@@ -28,6 +28,10 @@ Asset_Load fonts[] = {
 };
 
 Asset_Load bitmaps[] = {
-  { BITMAP_CARD_BACK, "back" },
+  { BITMAP_CARD_BACK, "back.png" },
 };
 ARRAY(bitmaps);
+
+const char *asset_folders[ASSET_TYPE_COUNT] = {
+  "../../assets/bitmaps/",
+};

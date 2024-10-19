@@ -36,7 +36,8 @@ load_bitmap(File file, bool8 flip_on_load) {
 
   // 4 arg always get filled in with the original amount of channels the image had.
   // Currently forcing it to have 4 channels.
-  unsigned char *data = stbi_load_from_memory((stbi_uc const *)file.memory, file.size, &bitmap.width, &bitmap.height, &bitmap.channels, 0);
+  unsigned char *data = stbi_load_from_memory((stbi_uc const *)file.memory, file.size, &bitmap.width, &bitmap.height, &bitmap.channels, 4);
+  bitmap.channels = 4;
   u32 data_size = bitmap.width * bitmap.height * bitmap.channels;
   bitmap.memory = (u8 *)iru_malloc(data_size);
   iru_memcpy(bitmap.memory, data, data_size);

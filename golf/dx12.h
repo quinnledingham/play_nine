@@ -8,6 +8,7 @@ struct D3D12_State {
   ComPtr<IDXGISwapChain3> swap_chain;
   
   ComPtr<ID3D12DescriptorHeap> rtv_heap;
+  ComPtr<ID3D12DescriptorHeap> srv_heap;
   u32 rtv_descriptor_size;
 
   ComPtr<ID3D12Resource> render_targets[frame_count];
@@ -39,4 +40,15 @@ struct D3D12_Pipeline {
 struct D3D12_Mesh {
   ComPtr<ID3D12Resource> vertex_buffer;
   D3D12_VERTEX_BUFFER_VIEW vertex_buffer_view;
+};
+
+struct D3D12_Buffer {
+  ComPtr<ID3D12Resource> resource;
+  u8 *data_begin;
+  u8 *data_cursor;
+  u8 *data_end;
+};
+
+struct D3D12_Texture {
+  ComPtr<ID3D12Resource> resource;
 };

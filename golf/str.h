@@ -90,3 +90,20 @@ float_to_str(float32 f, char *buffer, u32 buffer_size) {
     }
     if (ret >= buffer_size) logprint("float_to_char_array(float32 f, char *buffer, u32 buffer_size)", "ftos(): result was truncated\n");
 }
+
+internal const char*
+str_concat(const char *left, const char *right) {
+    u32 left_length = str_length(left);
+    u32 right_length = str_length(right);
+    u32 total_length = left_length + right_length;
+    char *result = (char *)iru_malloc(total_length + 1);
+
+    u32 result_index = 0;
+    for (u32 index = 0; index < left_length; index++)
+        result[result_index++] = left[index];
+    for (u32 index = 0; index < right_length; index++)
+        result[result_index++] = right[index];
+
+    result[result_index] = 0;
+    return result;
+}

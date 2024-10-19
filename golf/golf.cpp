@@ -27,6 +27,8 @@ enum App_Event {
   APP_EXIT
 };
 
+Assets assets = {};
+
 s32 event_handler(App *app, App_Event event) {
   switch(event) {
     case APP_INIT: {
@@ -40,22 +42,36 @@ s32 event_handler(App *app, App_Event event) {
 
       state->pipeline.shader = &state->shader;
       d3d12_create_pipeline(&gfx.d3d12, &state->pipeline);
-
+      /*
       Vertex_PC triangle_vertices[] =
       {
           { {   0.0f,  0.25f * gfx.aspect_ratio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
           { {  0.25f, -0.25f * gfx.aspect_ratio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
           { { -0.25f, -0.25f * gfx.aspect_ratio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
       };
+      */
+     Vertex_PU triangle_vertices[] =
+      {
+          { { 0.0f,  0.0f  * gfx.aspect_ratio, 0.0f }, { 0.0f, 0.0f } },
+          { { 0.0f,  0.25f * gfx.aspect_ratio, 0.0f }, { 0.0f, 1.0f } },
+          { { 0.25f, 0.0f  * gfx.aspect_ratio, 0.0f }, { 1.0f, 0.0f } },
+          
+          { { 0.25f, 0.0f  * gfx.aspect_ratio, 0.0f }, { 1.0f, 0.0f } },
+          { { 0.0f,  0.25f * gfx.aspect_ratio, 0.0f }, { 0.0f, 1.0f } },
+          { { 0.25f, 0.25f * gfx.aspect_ratio, 0.0f }, { 1.0f, 1.0f } },
+      };
       state->mesh.vertices = (void *)triangle_vertices;
-      state->mesh.vertices_count = 3;
-      state->mesh.vertex_info.attributes = Vector_PC_Attributes;
+      state->mesh.vertices_count = 6;
+      state->mesh.vertex_info.attributes = Vector_PU_Attributes;
       state->mesh.vertex_info.attributes_count = 2;
       d3d12_init_mesh(&gfx.d3d12, &state->mesh);
 
-      Assets assets = {};
+      d3d12_start_commands();
+      d3d12_bind_pipeline(&state->pipeline);
       assets.loads[ASSET_TYPE_BITMAP] = array_bitmaps;
       load_assets(&assets);
+      d3d12_end_commands();
+      d3d12_wait_for_gpu(&gfx.d3d12);
     } break;
 
     case APP_UPDATE: {

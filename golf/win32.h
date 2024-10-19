@@ -63,7 +63,17 @@ Vertex_Attribute Vector_PC_Attributes[] = {
   { VECTOR3_TYPE, offsetof(Vertex_PC, position) },
   { VECTOR4_TYPE, offsetof(Vertex_PC, color) }
 };
+
+struct Vertex_PU {
+  Vector3 position;
+  Vector2 tex_coords;
+};
   
+Vertex_Attribute Vector_PU_Attributes[] = {
+  { VECTOR3_TYPE, offsetof(Vertex_PU, position) },
+  { VECTOR2_TYPE, offsetof(Vertex_PU, tex_coords) }
+};
+
 struct Mesh {
   Vertex_Info vertex_info;
     

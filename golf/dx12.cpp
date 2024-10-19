@@ -58,8 +58,8 @@ d3d12_init(D3D12_State *state, HWND window_handle, Vector2_s32 window_dim) {
   UINT dxgi_factory_flags = 0;
 #ifdef GOLF_DEBUG
 
-  ID3D12Debug *debug_controller;
-  if (SUCCEEDED(D3D12GetDebugInterface(&debug_controller))) {
+  ComPtr<ID3D12Debug> debug_controller;
+  if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_controller)))) {
     debug_controller->EnableDebugLayer();
   }
 
@@ -129,9 +129,18 @@ d3d12_init(D3D12_State *state, HWND window_handle, Vector2_s32 window_dim) {
   }
   state->rtv_descriptor_size = state->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-  CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(state->rtv_heap->GetCPUDescriptorHandleForHeapStart());
-
+  // Describe and create a shader resource view (SRV) heap for the texture
+  D3D12_DESCRIPTOR_HEAP_DESC srv_heap_desc = {};
+  srv_heap_desc.NumDescriptors = 1;
+  srv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+  srv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+  if (FAILED(state->device->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&state->srv_heap)))) {
+    win32_print_str("d3d12_init(): srv CreateDescriptorHeap()\n");
+  }
+  
   // Create a RTV for each frame.
+  CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(state->rtv_heap->GetCPUDescriptorHandleForHeapStart());
+  
   for (UINT n = 0; n < state->frame_count; n++) {
     if (FAILED(state->swap_chain->GetBuffer(n, IID_PPV_ARGS(&state->render_targets[n])))) {
       win32_print_str("d3d12_init(): GetBuffer() failed\n");
@@ -175,7 +184,7 @@ d3d12_compile_shader(D3D12_Shader *shader) {
   UINT compileFlags = 0;
 #endif
   //const char *file = (const char *)read_file_terminated("../shaders.hlsl").memory;
-  LPCWSTR file = L"../shaders.hlsl";
+  LPCWSTR file = L"../tex.hlsl";
 
   if (FAILED(D3DCompileFromFile(file, nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &shader->vertex, nullptr))) {
     win32_print_str("load_assets(): D3DCompileFromFile() failed\n");
@@ -192,6 +201,7 @@ d3d12_compile_shader(D3D12_Shader *shader) {
 internal void 
 d3d12_create_pipeline(D3D12_State *state, D3D12_Pipeline *pipeline) {
   // Create an empty root signature
+  /*
   CD3DX12_ROOT_SIGNATURE_DESC root_signature_desc;
   root_signature_desc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -203,14 +213,60 @@ d3d12_create_pipeline(D3D12_State *state, D3D12_Pipeline *pipeline) {
   if (FAILED(state->device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&state->root_signature)))) {
     win32_print_str("load_assets(): CreateRootSignature() failed\n");
   }
+  */
+  D3D12_FEATURE_DATA_ROOT_SIGNATURE feature_data = {};
+
+  // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+  feature_data.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+  if (FAILED(state->device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature_data, sizeof(feature_data)))) {
+    feature_data.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+  }
+
+  CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+  ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+  CD3DX12_ROOT_PARAMETER1 root_parameters[1];
+  root_parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+
+  D3D12_STATIC_SAMPLER_DESC sampler = {};
+  sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+  sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+  sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+  sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+  sampler.MipLODBias = 0;
+  sampler.MaxAnisotropy = 0;
+  sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+  sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+  sampler.MinLOD = 0.0f;
+  sampler.MaxLOD = D3D12_FLOAT32_MAX;
+  sampler.ShaderRegister = 0;
+  sampler.RegisterSpace = 0;
+  sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+  CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC root_signature_desc;
+  root_signature_desc.Init_1_1(_countof(root_parameters), root_parameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+  ComPtr<ID3DBlob> signature;
+  ComPtr<ID3DBlob> error;
+  if (FAILED(D3DX12SerializeVersionedRootSignature(&root_signature_desc, feature_data.HighestVersion, &signature, &error))) {
+    win32_print_str("d3d12_load_pipeline(): D3D12SerializeRootSignature() failed\n");
+  }
+  if (FAILED(state->device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&state->root_signature)))) {
+    win32_print_str("load_assets(): CreateRootSignature() failed\n");
+  }
 
   // Create pipeline state
   
   // Define the vertex input layout.
-  D3D12_INPUT_ELEMENT_DESC input_element_descs[] =
-  {
-      { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-      { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+  //D3D12_INPUT_ELEMENT_DESC input_element_descs[] = {
+  //    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+  //    { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+  //};
+
+  D3D12_INPUT_ELEMENT_DESC input_element_descs[] = {
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
   };
 
   // Describe and create the graphics pipeline state object (PSO).
@@ -292,11 +348,106 @@ d3d12_init_mesh(D3D12_State *state, Mesh *mesh) {
   d3d12_wait_for_gpu(state);
 }
 
+internal HRESULT
+d3d12_init_buffer(D3D12_Buffer *buffer, u32 size) {
+  HRESULT hr = gfx.d3d12.device->CreateCommittedResource(
+                 &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), 
+                 D3D12_HEAP_FLAG_NONE,
+                 &CD3DX12_RESOURCE_DESC::Buffer(size),
+                 D3D12_RESOURCE_STATE_GENERIC_READ,
+                 nullptr,
+                 IID_PPV_ARGS(&buffer->resource));
+
+  if (SUCCEEDED(hr)) {
+    void *data;
+    // No CPU reads will be done from the resource
+    CD3DX12_RANGE readRange(0, 0);
+    buffer->resource->Map(0, &readRange, &data);
+    buffer->data_cursor = buffer->data_begin = reinterpret_cast<u8*>(data);
+    buffer->data_end = buffer->data_begin + size;
+  }
+
+  return hr;
+}
+
+u64 d3d12_align(u64 location, u64 align) {
+  if ((0 == align) || (align & (align - 1))) {
+    logprint("d3d12_align()", "non-pow2 alignment\n");
+  }
+
+  return ((location + (align - 1)) & ~(align - 1));
+}
+
+internal HRESULT
+d3d12_suballocate_from_buffer(D3D12_Buffer *buffer, u32 size, u64 align) {
+  buffer->data_cursor = reinterpret_cast<u8*>(d3d12_align(reinterpret_cast<u64>(buffer->data_cursor), align));
+  return (buffer->data_cursor + size > buffer->data_end) ? E_INVALIDARG : S_OK;
+}
+
+
+ComPtr<ID3D12Resource> texture_upload_heap;
+
+internal void
+d3d12_init_bitmap(D3D12_Texture *texture, Bitmap *bitmap) {
+  D3D12_RESOURCE_DESC texture_desc = {};
+  texture_desc.MipLevels = 1;
+  texture_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+  texture_desc.Width = bitmap->width;
+  texture_desc.Height = bitmap->height;
+  texture_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+  texture_desc.DepthOrArraySize = 1;
+  texture_desc.SampleDesc.Count = 1;
+  texture_desc.SampleDesc.Quality = 0;
+  texture_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+  HRESULT hr = gfx.d3d12.device->CreateCommittedResource(
+    &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+    D3D12_HEAP_FLAG_NONE,
+    &texture_desc,
+    D3D12_RESOURCE_STATE_COPY_DEST,
+    nullptr,
+    IID_PPV_ARGS(&texture->resource));
+  if (FAILED(hr)) {
+    logprint("d3d12_init_bitmap()", "failed to create committed resource\n");
+  }
+
+  const u64 upload_buffer_size = GetRequiredIntermediateSize(texture->resource.Get(), 0, 1);
+
+  // create the CPU upload buffer
+  hr = gfx.d3d12.device->CreateCommittedResource(
+    &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+    D3D12_HEAP_FLAG_NONE,
+    &CD3DX12_RESOURCE_DESC::Buffer(upload_buffer_size),
+    D3D12_RESOURCE_STATE_GENERIC_READ,
+    nullptr,
+    IID_PPV_ARGS(&texture_upload_heap));
+  if (FAILED(hr)) {
+    logprint("d3d12_init_bitmap()", "failed to create upload buffer\n");
+  }
+
+  // copy data to the intermediate upload heap and then schedule a copy from the upload heap to the texture2D
+  D3D12_SUBRESOURCE_DATA texture_data = {};
+  texture_data.pData = bitmap->memory;
+  texture_data.RowPitch = bitmap->pitch;
+  texture_data.SlicePitch = texture_data.RowPitch * bitmap->height;
+
+  UpdateSubresources(gfx.d3d12.command_list.Get(), texture->resource.Get(), texture_upload_heap.Get(), 0, 0, 1, &texture_data);
+  gfx.d3d12.command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture->resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+  // Describe and create a srv for the texture
+  D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+  srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+  srv_desc.Format = texture_desc.Format;
+  srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  srv_desc.Texture2D.MipLevels = 1;
+  gfx.d3d12.device->CreateShaderResourceView(texture->resource.Get(), &srv_desc, gfx.d3d12.srv_heap->GetCPUDescriptorHandleForHeapStart());
+}
+
 internal void
 d3d12_draw_mesh(Mesh *mesh) {
   gfx.d3d12.command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   gfx.d3d12.command_list->IASetVertexBuffers(0, 1, &mesh->gpu.vertex_buffer_view);
-  gfx.d3d12.command_list->DrawInstanced(3, 1, 0, 0);
+  gfx.d3d12.command_list->DrawInstanced(6, 1, 0, 0);
 }
 
 internal void
@@ -319,6 +470,38 @@ d3d12_clear_color(Vector4 color) {
 internal void
 d3d12_bind_pipeline(D3D12_Pipeline *pipeline) {
   gfx.d3d12.command_list->SetPipelineState(pipeline->state.Get());
+}
+
+internal void
+d3d12_start_commands() {
+  D3D12_State *state = &gfx.d3d12;
+  // Command list allocators can only be reset when the associated 
+  // command lists have finished execution on the GPU; apps should use 
+  // fences to determine GPU execution progress.
+  if (FAILED(state->command_allocators[state->frame_index]->Reset())) {
+    win32_print_str("d3d12_start_frame(): command allocator Reset() failed\n");
+  }
+  
+  // However, when ExecuteCommandList() is called on a particular command 
+  // list, that command list can then be reset at any time and must be before 
+  // re-recording.
+  if (FAILED(state->command_list->Reset(state->command_allocators[state->frame_index].Get(), nullptr))) {
+    win32_print_str("d3d12_start_frame(): command list Reset() failed\n");
+  }
+  
+  state->command_list->SetGraphicsRootSignature(state->root_signature.Get());
+}
+
+internal void
+d3d12_end_commands() {
+  D3D12_State *state = &gfx.d3d12;
+  if (FAILED(state->command_list->Close())) {
+    win32_print_str("d3d12_populate_command_list(): Close() failed");
+  }
+  
+  // Execute the command list.
+  ID3D12CommandList* pp_command_lists[] = { state->command_list.Get() };
+  state->command_queue->ExecuteCommandLists(_countof(pp_command_lists), pp_command_lists);
 }
 
 internal void
@@ -351,6 +534,10 @@ d3d12_start_frame() {
   
   const float clear_color[] = { 0.0f, 0.2f, 0.4f, 1.0f };
   gfx.d3d12.command_list->ClearRenderTargetView(rtvHandle, clear_color, 0, nullptr);
+
+  ID3D12DescriptorHeap* heaps[] = { gfx.d3d12.srv_heap.Get() };
+  gfx.d3d12.command_list->SetDescriptorHeaps(_countof(heaps), heaps);
+  gfx.d3d12.command_list->SetGraphicsRootDescriptorTable(0, gfx.d3d12.srv_heap->GetGPUDescriptorHandleForHeapStart());
 }
 
 internal void
@@ -363,6 +550,7 @@ d3d12_end_frame() {
 
   if (FAILED(state->command_list->Close())) {
     win32_print_str("d3d12_populate_command_list(): Close() failed");
+    win32_print_last_error();
   }
   
   // Execute the command list.
