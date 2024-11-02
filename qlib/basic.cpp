@@ -146,6 +146,8 @@ void *platform_malloc_clear(u32 size) {
 #include "assets_loader.h"
 #include "data_structs.h"
 
+Assets *global_assets;
+
 #include "thread.h"
 #ifdef OS_WINDOWS
 #include "win32_thread.h"
@@ -155,18 +157,27 @@ void *platform_malloc_clear(u32 size) {
 
 #include "shapes.h"
 #include "application.h"
+#include "vulkan.h"
 #include "render.h"
+
+//
+// Defining render functions
+//
+
+// create identifier and then set function pointer
+// t = api, n = name, a == args
+//#define RENDER_FUNC(r, n, ...) r (*render_##n)(__VA_ARGS__) = &API3D_EXT(n)
+
 #include "input.h"
 #include "gui.h"
 #include "qsock.h"
 
 #include "print.cpp"
-#include "assets.cpp"
-#include "obj.cpp"
-#include "assets_loader.cpp"
-#include "shapes.cpp"
-#include "render.cpp"
-#include "gui.cpp"
+//#include "assets.cpp"
+//#include "obj.cpp"
+//#include "assets_loader.cpp"
+//#include "shapes.cpp"
+//#include "gui.cpp"
 //#include "input.cpp"
 
 #ifdef OPENGL
@@ -176,7 +187,6 @@ void *platform_malloc_clear(u32 size) {
 
 #elif VULKAN
 
-#include "vulkan.h"
 #include "vulkan.cpp"
 
 #elif DX12
@@ -193,5 +203,10 @@ void *platform_malloc_clear(u32 size) {
 #include "isteammatchmaking.h"
 
 #endif // STEAM
+
+#include "render.cpp"
+
+global Render render_context = {};
+#define gfx render_context
 
 #include "sdl_application.cpp"

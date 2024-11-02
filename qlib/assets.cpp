@@ -1,3 +1,13 @@
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image.h>
+#include <stb_image_resize.h>
+#include <stb_image_write.h>
+#include <stb_truetype.h>
+#include <stb_vorbis.c>
+
 //
 // File
 //
@@ -186,7 +196,7 @@ blend_color(u8 c1, u8 c2, u8 alpha) {
     return (c1 * (255 - alpha) + c2 * alpha) / 255;
 }
 
-internal void
+void
 bitmap_convert_channels(Bitmap *bitmap, u32 new_channels) {    
     if (new_channels != 1 && new_channels != 3 && new_channels != 4) {
         logprint("bitmap_convert_channels()", "not valid conversion (channels %d)\n", new_channels);
@@ -558,7 +568,7 @@ texture_atlas_add(Texture_Atlas *atlas, const char *file_path) {
 
 internal void
 texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
-    render_destroy_texture(atlas->gpu[frame_index].handle);
+    GFX::destroy_texture(atlas->gpu[frame_index].handle);
     atlas->gpu[frame_index].handle = render_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
     atlas->gpu[frame_index].desc.texture_index = 0;
     render_set_texture(&atlas->gpu[frame_index].desc, atlas->gpu[frame_index].handle);
@@ -566,9 +576,10 @@ texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
 
 internal void
 texture_atlas_refresh(Texture_Atlas *atlas) {
-    if (atlas->gpu[gfx.current_frame].refresh_required) {
-        atlas->gpu[gfx.current_frame].refresh_required = false;
-        texture_atlas_init_gpu_frame(atlas, gfx.current_frame);
+    u32 current_frame = gfx_get_current_frame();
+    if (atlas->gpu[current_frame].refresh_required) {
+        atlas->gpu[current_frame].refresh_required = false;
+        texture_atlas_init_gpu_frame(atlas, current_frame);
     }    
 }
 
@@ -610,7 +621,7 @@ texture_atlas_draw_rect(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2
 internal void
 texture_atlas_draw(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {
     gfx_bind_shader("TEXTURE");
-    render_bind_descriptor_set(atlas->gpu[gfx.current_frame].desc);
+    render_bind_descriptor_set(atlas->gpu[gfx_get_current_frame()].desc);
     texture_atlas_draw_rect(atlas, index, coords, dim);
 }
 

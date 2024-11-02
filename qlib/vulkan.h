@@ -38,6 +38,7 @@ struct Vulkan_Buffer {
 	VkBuffer handle;
 	VkDeviceMemory memory;
 	VkDeviceSize size;
+	
 	u32 offset; // where to enter new bytes
 	void *data; // if the memory is mapped
 };
@@ -123,9 +124,12 @@ struct Vulkan_Info {
 	Shader *active_shader;
 		
 	// swap_chain
+	bool8 swap_chain_created;
 	VkSwapchainKHR swap_chains[1];
+
+	VkExtent2D draw_extent;
 	VkExtent2D swap_chain_extent; // size of window, size of swap_chain_images, the value returned by vulkan_choose_swap_extent
-	
+
 	Arr<Vulkan_Texture> draw_textures; // where the frame gets drawn before swap chain buffer
 	Arr<Vulkan_Texture> swap_chain_textures;
 	
@@ -159,17 +163,19 @@ struct Vulkan_Info {
 	// Presentation
 	VkClearValue clear_values[2];
 	VkPipelineStageFlags wait_stages[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkCommandBufferBeginInfo begin_info;
-	VkRenderPassBeginInfo draw_render_pass_info;
-	VkRenderPassBeginInfo present_render_pass_info;
-	VkSubmitInfo submit_info;
-	VkSubmitInfo compute_submit_info;
-	VkPresentInfoKHR present_info;
 
 	u32 allocated_descriptors_uniform_buffer;
 	u32 allocated_descriptors_sampler;
 	u32 allocated_descriptors_storage_buffer;
+
+	bool8 recording_frame = FALSE;
+	u32 active_shader_id;
+	u32 current_frame;
+
+	bool8 sdl_init(SDL_Window *window);
 };
+
+#define Vulkan Vulkan_Info
 
 struct Vulkan_Mesh {
     u32 vertices_offset;
@@ -192,5 +198,3 @@ struct Vulkan_Version {
 #define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 1000000
 #define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 100000
 
-global Vulkan_Info vulkan_info = {};
-Render_Pipeline present_pipeline;

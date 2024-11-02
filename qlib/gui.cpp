@@ -36,9 +36,9 @@ draw_button(const Draw_Style style, const u32 state, Rect rect, const char *labe
         Vector2 text_coords = rect.coords + get_centered_text_coords(info, rect.dim, text_align);
         Vector4 text_color = style.text_colors[state];
 
-        render_context.scissor_push(rect.coords, rect.dim);
+        gfx_scissor_push(rect.coords, rect.dim);
         draw_string(font, label, text_coords, pixel_height, text_color); // text
-        render_context.scissor_pop();
+        gfx_scissor_pop();
     }
 }
 
@@ -56,9 +56,9 @@ draw_slider(const Draw_Style style, const u32 state, Rect rect, float32 value, c
     Vector2 text_coords = text_rect.coords + get_centered_text_coords(info, text_rect.dim, ALIGN_CENTER);
     Vector4 text_color = style.text_colors[state];
 
-    render_context.scissor_push(text_rect.coords, text_rect.dim);
+    gfx_scissor_push(text_rect.coords, text_rect.dim);
     draw_string(font, label, text_coords, pixel_height, text_color); // text
-    render_context.scissor_pop();
+    gfx_scissor_pop();
 
     Rect slide_rect = rect;
     slide_rect.coords.y += text_rect.dim.y;
@@ -81,7 +81,7 @@ draw_checkbox(const Draw_Style style, const u32 state, bool8 value, Rect rect, c
     Vector4 text_color = style.text_colors[state];
     draw_rect(rect, back_color); // back
 
-    render_context.scissor_push(rect.coords, rect.dim);
+    gfx_scissor_push(rect.coords, rect.dim);
     Rect checkbox = {};
     checkbox.coords = rect.coords;
     checkbox.dim.x = rect.dim.y;
@@ -102,7 +102,7 @@ draw_checkbox(const Draw_Style style, const u32 state, bool8 value, Rect rect, c
         draw_string(font, label, text_coords, pixel_height, text_color); // text
     };
     
-    render_context.scissor_pop();
+    gfx_scissor_pop();
 }
 
 internal float32
@@ -154,9 +154,9 @@ draw_textbox(Draw_Textbox textbox) {
     //draw_string_draw_info(&string_info, text_coords);
     
     // Text
-    render_context.scissor_push(textbox.coords, textbox.dim);
+    gfx_scissor_push(textbox.coords, textbox.dim);
     draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
-    render_context.scissor_pop();
+    gfx_scissor_pop();
 
     // Cursor
     if (textbox.state == GUI_ACTIVE) // clicked on
@@ -657,9 +657,9 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
 
     String_Draw_Info info = get_string_draw_info(menu->gui.font, text, -1, pixel_height);
     Vector2 text_coords = coords + get_centered_text_coords(info, dim, menu->gui.text_align);
-    render_context.scissor_push(coords, dim);
+    gfx_scissor_push(coords, dim);
     draw_string(menu->gui.font, text, text_coords, pixel_height, color);
-    render_context.scissor_pop();
+    gfx_scissor_pop();
 }
 
 internal bool8

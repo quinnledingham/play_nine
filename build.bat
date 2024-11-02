@@ -9,8 +9,8 @@ REM CF = Compiler Flags
 REM LF = Linker Flags
 
 REM Change these directories to where the SDKs are on your computer
-set SDL_SDK= ..\sdl-vc
-set VULKAN_SDK= ..\VulkanSDK\1.3.268.0
+set SDL_SDK= C:\Users\quinn\libs\SDL2-devel-2.30.8-VC
+set VULKAN_SDK= C:\VulkanSDK\1.3.296.0
 set STEAM_SDK= ..\steam
 
 set CF_DEFAULT= -MD -nologo -Gm- -GR- -EHa- -Od -Oi -FC -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\stb /I..\ /I..\qlib -DSHADERS -DOS_WINDOWS -DDEBUG
@@ -30,7 +30,7 @@ set LF_STEAM= %STEAM_SDK%\redistributable_bin\win64\steam_api64.lib
 set V_CF= %CF_DEFAULT% %CF_SDL% %CF_VULKAN% %CF_STEAM%  
 set V_LF= %LF_DEFAULT% %LF_SDL% %LF_VULKAN% %LF_SHADERS% %LF_STEAM%
 
-cl %V_CF% ../play_nine.cpp /link %V_LF% /out:play_nine.exe
+cl %V_CF% ../test.cpp  /link %V_LF% /out:play_nine.exe
 REM cl %CF_DEFAULT% %CF_SDL% %CF_OPENGL% %CF_VULKAN% %CF_STEAM% -DOS_WINDOWS -DDEBUG2 ../glad/gl.c ../qlib/sdl_application.cpp /link %LF_DEFAULT% %LF_SDL% %LF_OPENGL% %LF_SHADERS% %LF_STEAM% /out:play_nine.exe
 
 IF NOT EXIST SDL2.dll copy %SDL_SDK%\lib\x64\SDL2.dll

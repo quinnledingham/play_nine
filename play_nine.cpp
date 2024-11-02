@@ -526,7 +526,7 @@ bool8 init_data(App *app) {
     print("Asset Size; %d\nBitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Asset), sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 #endif // DEBUG
 
-    if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), true)) {
+    if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), false)) {
         logprint("init_data()", "load_assets failed\n");
         return 1;
     }
@@ -727,7 +727,7 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
                 close_server();
             }
 
-            vulkan_cleanup_layouts(gfx.layouts, GFX_ID_COUNT);
+            gfx_cleanup_layouts(gfx.layouts, GFX_ID_COUNT);
             render_assets_cleanup(&state->assets);
 
             unload_name_plates(&state->game_draw);

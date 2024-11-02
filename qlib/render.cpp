@@ -49,6 +49,8 @@ update_camera_with_keys(Camera *camera, Vector3 target, Vector3 up_v, Vector3 ma
     if (down)     camera->position.y -= magnitude.y;
 }
 
+// API3D
+
 //
 // GFX
 //
@@ -72,8 +74,18 @@ get_resolution(Vector2_s32 in_resolution, float32 scale) {
     return out_resolution;
 }
 
+Vector2_s32 GFX::get_resolution(float32 scale) {
+    Vector2 new_resolution = cv2(window_dim) * scale;
+    Vector2_s32 out_resolution = { s32(new_resolution.x), s32(new_resolution.y) };
+    return out_resolution;
+}
+
+void GFX::set_resolution(Vector2_s32 new_resolution) {
+    resolution = new_resolution;
+}
+
 void GFX::update_resolution() {
-    resolution = get_resolution(window_dim, resolution_scale);
+    resolution = get_resolution(resolution_scale);
 
     if (resolution == window_dim) {
         resolution_scaling = FALSE;
@@ -81,6 +93,11 @@ void GFX::update_resolution() {
         resolution_scaling = TRUE;
     }
 }
+
+void GFX::set_window_dim(Vector2_s32 dim) {
+    window_dim = dim;
+}
+
 
 void GFX::scissor_push(Vector2 coords, Vector2 dim) {
     Vector2 factor = {
@@ -91,11 +108,66 @@ void GFX::scissor_push(Vector2 coords, Vector2 dim) {
     Rect *rect = &scissor_stack[scissor_stack_index++];
     rect->coords = coords * factor;
     rect->dim = dim * factor;
-    render_set_scissor((s32)rect->coords.x, (s32)rect->coords.y, (s32)rect->dim.x, (s32)rect->dim.y);
+    set_scissor((s32)rect->coords.x, (s32)rect->coords.y, (s32)rect->dim.x, (s32)rect->dim.y);
 }
 
 void GFX::scissor_pop() {
     scissor_stack_index--;
     Rect rect = scissor_stack[scissor_stack_index - 1];
-    render_set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);
+    set_scissor((s32)rect.coords.x, (s32)rect.coords.y, (u32)rect.dim.x, (u32)rect.dim.y);
+}
+
+u8 GFX::get_flags() {
+    u8 flags = 0;
+    if (vsync)
+        flags |= GFX_VSYNC;
+    if (anti_aliasing)
+        flags |= GFX_ANTI_ALIASING;
+    return flags;
+}
+
+Descriptor GFX::descriptor_set(u32 layout_id) {
+    if (!vulkan_info.recording_frame) {
+        // if we are not in the middle of recording commands for a frame, don't check active
+        // shader for the layout.
+        return get_descriptor_set(&layouts[layout_id]);
+    }
+
+    Shader *shader = &assets->data[vulkan_info.active_shader_id].shader;
+    Layout_Set *set = &shader->set;
+    
+    for (u32 i = 0; i < set->layouts_count; i++) {
+        if (set->layouts[i]->id == layout_id) {
+            return get_descriptor_set(set->layouts[i]);
+        }
+    }
+        
+    logprint("gfx_get_descriptor_set()", "no layout in set with id in shader: %d\n", vulkan_info.active_shader_id);
+    ASSERT(0);
+    return {};
+}
+
+Descriptor GFX::descriptor_set_index(u32 layout_id, u32 return_index) {
+    Layout *layout = &layouts[layout_id];
+    
+    if (layout->sets_in_use + 1 > layout->max_sets)
+        ASSERT(0);
+
+    if (return_index < layout->sets_in_use) {
+        logprint("gfx_get_descriptor_set()", "descriptor could already be in use\n");
+    } else {
+        layout->sets_in_use = return_index + 1; // jump to after this set
+    }
+
+    Descriptor desc = {};
+    desc.binding = layout->bindings[0];
+    desc.offset = layout->offsets[return_index];
+    desc.set_number = layout->set_number;
+    desc.vulkan_set = &layout->descriptor_sets[return_index];
+
+    return desc;
+}
+
+void GFX::create_swap_chain() {
+    recreate_swap_chain(&vulkan_info, window_dim, resolution, get_flags(), assets);
 }

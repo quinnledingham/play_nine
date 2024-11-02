@@ -1,15 +1,6 @@
 #ifndef ASSETS_H
 #define ASSETS_H
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#define STB_TRUETYPE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image.h>
-#include <stb_image_resize.h>
-#include <stb_image_write.h>
-#include <stb_truetype.h>
-#include <stb_vorbis.c>
 /*
 ../assets/bitmaps/test.png
 
@@ -333,6 +324,8 @@ struct Bitmap {
     void *gpu_info;
 };
 
+void bitmap_convert_channels(Bitmap *bitmap, u32 new_channels);
+
 /*
 ####p2
 ######
@@ -508,8 +501,6 @@ struct Assets {
     Asset *data;
     Asset_Array types[ASSET_TYPE_AMOUNT];
 };
-
-Assets *global_assets;
 
 internal void*
 find_asset(Assets *assets, u32 type, const char *tag) {

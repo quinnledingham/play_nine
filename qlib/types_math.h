@@ -257,7 +257,7 @@ inline Vector4 operator*(const Vector4 &l, const Vector4 &r) { return { l.x * r.
 inline Vector4 operator*(const Vector4 &l, float     r) { return { l.x * r, l.y * r, l.z * r, l.w * r }; }
 inline float32 length_squared(const Vector4 &v) { return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w; }
 inline bool operator==(const Vector4 &l, const Vector4 &r) { if (l.x == r.x && l.y == r.y && l.z == r.z && l.w == r.w) return true; return false; }
-float32 v4_dot_product(const Vector4 l, const Vector4 r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z) + (l.w * r.w); }
+inline float32 v4_dot_product(const Vector4 l, const Vector4 r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z) + (l.w * r.w); }
 
 //
 // Quaternion
@@ -491,7 +491,7 @@ m4x4_scale(Matrix_4x4 m, Vector3 scale) {
     return m;
 }
 
-Vector4 m4x4_get_row(Matrix_4x4 m, u32 i) {
+inline Vector4 m4x4_get_row(Matrix_4x4 m, u32 i) {
     Vector4 row;
     row.E[0] = m.E[0][i];
     row.E[1] = m.E[1][i];
@@ -500,7 +500,7 @@ Vector4 m4x4_get_row(Matrix_4x4 m, u32 i) {
     return row;
 }
 
-Vector4 m4x4_mul_v4(Matrix_4x4 m, Vector4 v) {
+inline Vector4 m4x4_mul_v4(Matrix_4x4 m, Vector4 v) {
     
     Vector4 result =  {
         v4_dot_product(m4x4_get_row(m, 0), v),
@@ -511,7 +511,7 @@ Vector4 m4x4_mul_v4(Matrix_4x4 m, Vector4 v) {
     return result;
 }
 
-Matrix_4x4 m4x4_mul_float32(Matrix_4x4 m, float32 f) {
+inline Matrix_4x4 m4x4_mul_float32(Matrix_4x4 m, float32 f) {
     Matrix_4x4 result = {};
     u32 row = 0;
     u32 column = 0;

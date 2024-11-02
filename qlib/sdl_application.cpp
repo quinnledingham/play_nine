@@ -93,12 +93,12 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
 
                         window->width  = window_event->data1;
                         window->height = window_event->data2;
-                        render_context.window_dim = window->dim;
+                        gfx.set_window_dim(window->dim);
 
-                        render_context.update_resolution();
+                        gfx.update_resolution();
                     #ifdef OPENGL
                         //opengl_update_window(window);
-                        render_context.resolution = window->dim;
+                        gfx_resolution = window->dim;
                     #elif VULKAN
                     #elif DX12
                         dx12_resize_window(&dx12_renderer, window);
@@ -257,6 +257,10 @@ sdl_set_icon(Bitmap *icon, SDL_Window *sdl_window) {
 
 int main(int argc, char *argv[]) {
     print("(sdl) starting application...\n");
+
+    SDL_version sdl_version = {};
+    SDL_GetVersion(&sdl_version);
+    print("(sdl) version: %d.%d.%d\n", sdl_version.major, sdl_version.minor, sdl_version.patch);
     
     App app = {};
     app_input = &app.input;
@@ -312,14 +316,24 @@ int main(int argc, char *argv[]) {
     SDL_SetRelativeMouseMode(SDL_FALSE);
     SDL_StopTextInput();
 
-    render_context.window_dim = app.window.dim;
-    render_context.resolution = app.window.dim;
-    
-    if (render_sdl_init(sdl_window)) {
+    //gfx.sdl_init = &vulkan_sdl_init;
+    GFX_FUNC(sdl_init);
+    gfx.set_scissor = &vulkan_set_scissor;
+    gfx.clear_color = &vulkan_clear_color;
+    gfx.start_frame = &vulkan_start_frame;
+    gfx.end_frame = &vulkan_end_frame;
+    gfx.recreate_swap_chain = &vulkan_recreate_swap_chain;
+
+    gfx.vsync = TRUE;
+    if (gfx.sdl_init(sdl_window, gfx.get_flags())) {
         logprint("(sdl) main()", "Failed to init renderer\n");
         return 1;
     }
-    
+
+    gfx.set_window_dim(app.window.dim);
+    gfx.set_resolution(app.window.dim);
+    gfx.create_swap_chain();
+
     if (event_handler(&app, APP_INIT, 0))
         return 1;
 
@@ -366,9 +380,9 @@ int main(int argc, char *argv[]) {
             break;
     }
 
-    render_wait_frame();
+    //render_wait_frame();
     event_handler(&app, APP_EXIT, 0) ;
-    render_cleanup();
+    //render_cleanup();
 
 #ifdef STEAM
 

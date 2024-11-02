@@ -484,7 +484,7 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
 
 internal void
 menu_fill_resolution(char *buffer, float32 scale) {
-    Vector2_s32 resolution = get_resolution(render_context.window_dim, scale);
+    Vector2_s32 resolution = gfx.get_resolution(scale);
     u32 digits_x = get_digits(resolution.x);
     u32 digits_y = get_digits(resolution.y);
     s32_to_char_array(buffer +  6 + (4 - digits_x), 5, resolution.x);

@@ -34,6 +34,9 @@ struct Shapes {
 
 Shapes shapes = {};
 
+Descriptor light_set;
+Descriptor light_set_2;
+
 void init_shapes(Shader *color, Shader *texture, Shader *text);
 void draw_shape(Shape shape);
 
@@ -585,7 +588,7 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     
     gfx_bind_shader("TEXT");
     render_bind_descriptor_sets(shapes_color_descriptor, &color);
-    render_bind_descriptor_set(atlas->gpu[gfx.current_frame].desc);
+    render_bind_descriptor_set(atlas->gpu[gfx_get_current_frame()].desc);
 
     Object object = {};
     Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });

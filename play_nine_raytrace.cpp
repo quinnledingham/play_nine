@@ -141,7 +141,7 @@ intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
     return result;
 }
 
-internal Triangle_v4*
+internal void
 init_triangles(Model *model, Descriptor *desc) {
     u32 triangle_count = 0;
     for (u32 i = 0; i < model->meshes_count; i++) {
@@ -173,16 +173,16 @@ init_triangles(Model *model, Descriptor *desc) {
             triangles[triangle_index++] = triangle;
         }
     }
+
     
-#ifdef VULKAN
-    u32 size = sizeof(Triangle_v4) * triangle_count;
-    memcpy((char*)vulkan_info.triangle_buffer.data, triangles, size);
-
+    GFX_Buffer buffer;
+    buffer.data = (void *)triangles;
+    buffer.size = triangle_count * sizeof(Triangle_v4);
+    
+    gfx_create_buffer(&buffer);
+    
     *desc = render_get_descriptor_set(GFX_ID_RAY_TRIANGLE);
-    vulkan_set_storage_buffer(*desc, size);
-#endif // VULKAN
-
-    return triangles;
+    gfx_set_storage_buffer(&buffer, *desc);
 }
 
 internal void
@@ -227,25 +227,35 @@ mouse_ray_model_intersections_cpu(bool8 *selected, Ray mouse_ray, Game_Draw *dra
 
 #if VULKAN
 
+GFX_Buffer output_buffer;
+
 internal void
 mouse_ray_model_intersections(bool8 selected[GI_SIZE], Ray mouse_ray, Descriptor *triangle_desc, Game_Draw *draw, Model *card_model, u32 active_player) {
-    vulkan_start_compute();
+    if (output_buffer.size == 0) {
+        output_buffer.size = 500;
+        gfx_create_buffer(&output_buffer);
+    }
+    
+    gfx_start_compute();
     
     gfx_bind_shader("RAY");
     
     //Descriptor tri_desc = render_get_descriptor_set(GFX_ID_RAY_TRIANGLE);
     
-    Descriptor ray_desc = vulkan_get_descriptor_set(GFX_ID_RAY_VERTEX);
-    Descriptor out_desc = vulkan_get_descriptor_set(GFX_ID_RAY_INTERSECTION);
-    Descriptor object_desc = vulkan_get_descriptor_set(GFX_ID_RAY_MODELS);
+    Descriptor ray_desc = render_get_descriptor_set(GFX_ID_RAY_VERTEX);
+    Descriptor out_desc = render_get_descriptor_set(GFX_ID_RAY_INTERSECTION);
+    Descriptor object_desc = render_get_descriptor_set(GFX_ID_RAY_MODELS);
     
     Ray_v4 ray_v4 = {
         { mouse_ray.origin.x, mouse_ray.origin.y, mouse_ray.origin.z, 0.0f },
         { mouse_ray.direction.x, mouse_ray.direction.y, mouse_ray.direction.z, 0.0f },
     };
 
-    vulkan_update_ubo(ray_desc, &ray_v4);
-    vulkan_set_storage_buffer1(out_desc, 10 * 48);
+    render_update_ubo(ray_desc, &ray_v4);
+
+    output_buffer.size = 10 * 48;
+    gfx_set_storage_buffer(&output_buffer, out_desc);
+    //vulkan_set_storage_buffer1(out_desc, 10 * 48);
 
     // load ubo buffer
     Matrix_4x4 object[10];
@@ -262,7 +272,8 @@ mouse_ray_model_intersections(bool8 selected[GI_SIZE], Ray mouse_ray, Descriptor
     
     // 48 is the size of Ray_Intersection in glsl
     for (u32 i = 0; i < 10; i++) {
-        Ray_Intersection *p = ((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (sizeof(Ray_Intersection) * i)));
+        //Ray_Intersection *p = ((Ray_Intersection*)((u8*)vulkan_info.storage_buffer.data + out_desc.offset + (sizeof(Ray_Intersection) * i)));
+        Ray_Intersection *p = ((Ray_Intersection*)((u8*)output_buffer.data + out_desc.offset + (sizeof(Ray_Intersection) * i)));
         if (p->number_of_intersections != 0) {
             //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
             selected[i] = true;
@@ -271,16 +282,17 @@ mouse_ray_model_intersections(bool8 selected[GI_SIZE], Ray mouse_ray, Descriptor
         }
     }
 
-    memset((char*)vulkan_info.storage_buffer.data, 0, 10 * 48);
+    //memset((char*)vulkan_info.storage_buffer.data, 0, 10 * 48);
+    memset((char *)output_buffer.data, 0, 10 * 48);
 
-    vulkan_bind_descriptor_set(*triangle_desc);
+    render_bind_descriptor_set(*triangle_desc);
     
-    vulkan_bind_descriptor_set(ray_desc);
-    vulkan_bind_descriptor_set(out_desc);
-    vulkan_bind_descriptor_set(object_desc);
+    render_bind_descriptor_set(ray_desc);
+    render_bind_descriptor_set(out_desc);
+    render_bind_descriptor_set(object_desc);
 
-    vulkan_dispatch(16, 1, 1);
-    vulkan_end_compute();
+    gfx_dispatch(16, 1, 1);
+    gfx_end_compute();
 
 }
 
