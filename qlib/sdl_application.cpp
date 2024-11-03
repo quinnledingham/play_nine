@@ -89,7 +89,7 @@ sdl_process_input(App *app, App_Window *window, App_Input *input, SDL_Window *sd
                 switch(window_event->event) {
                     //case SDL_WINDOWEVENT_RESIZED:
                     case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                        window->resized = true;
+                        gfx.resized = true;
 
                         window->width  = window_event->data1;
                         window->height = window_event->data2;
@@ -316,16 +316,7 @@ int main(int argc, char *argv[]) {
     SDL_SetRelativeMouseMode(SDL_FALSE);
     SDL_StopTextInput();
 
-    //gfx.sdl_init = &vulkan_sdl_init;
-    GFX_FUNC(sdl_init);
-    gfx.set_scissor = &vulkan_set_scissor;
-    gfx.clear_color = &vulkan_clear_color;
-    gfx.start_frame = &vulkan_start_frame;
-    gfx.end_frame = &vulkan_end_frame;
-    gfx.recreate_swap_chain = &vulkan_recreate_swap_chain;
-
-    gfx.vsync = TRUE;
-    if (gfx.sdl_init(sdl_window, gfx.get_flags())) {
+    if (gfx.sdl_init(sdl_window)) {
         logprint("(sdl) main()", "Failed to init renderer\n");
         return 1;
     }
@@ -380,9 +371,9 @@ int main(int argc, char *argv[]) {
             break;
     }
 
-    //render_wait_frame();
+    gfx.wait_frame();
     event_handler(&app, APP_EXIT, 0) ;
-    //render_cleanup();
+    gfx.cleanup();
 
 #ifdef STEAM
 

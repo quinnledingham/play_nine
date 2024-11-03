@@ -5,7 +5,7 @@
 internal Bitmap
 create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {    
     float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
-    String_Draw_Info draw_info = get_string_draw_info(font, str, -1, pixel_height);
+    String_Draw_Info draw_info = gfx.get_string_draw_info(font, str, -1, pixel_height);
     Bitmap bitmap = blank_bitmap((s32)ceilf(draw_info.dim.x), (s32)ceilf(draw_info.dim.y), 1);
 
     float32 current_point = 0.0f;
@@ -96,7 +96,7 @@ add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
 internal Bitmap
 create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
     Bitmap bitmap = blank_bitmap(1000, 1600, 4);    
-    Bitmap *front = find_bitmap(global_assets, "FRONT");
+    Bitmap *front = find_bitmap(global_assets, BITMAP_FRONT);
     platform_memory_copy(bitmap.memory, front->memory, front->width * front->height * front->channels);
 
     if (number < 11 || number == 13)
@@ -104,9 +104,9 @@ create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
 
     Bitmap *front_bit = 0;
     switch(number) {
-        case  0: front_bit = find_bitmap(global_assets, "FRONT0");  break;
-        case 11: front_bit = find_bitmap(global_assets, "FRONT11"); break;
-        case 12: front_bit = find_bitmap(global_assets, "FRONT12"); break;
+        case  0: front_bit = find_bitmap(global_assets, BITMAP_FRONT0);  break;
+        case 11: front_bit = find_bitmap(global_assets, BITMAP_FRONT11); break;
+        case 12: front_bit = find_bitmap(global_assets, BITMAP_FRONT12); break;
     }
 
     if (front_bit != 0) {
@@ -147,7 +147,7 @@ create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
     copy_blend_bitmap(bitmap, str_bitmap, { padding, padding });
     copy_blend_bitmap(bitmap, str_bitmap, bottom_right);
 
-    render_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
+    gfx.create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
 
     platform_free(str_bitmap.memory);
     //platform_free(bitmap.memory);
@@ -168,7 +168,7 @@ init_card_bitmaps(Bitmap *bitmaps, Font *font) {
 
 inline Bitmap*
 get_card_bitmap(Assets *assets, u32 index) {
-    return &assets->types[ASSET_TYPE_BITMAP].data[index + BITMAP_COUNT].bitmap;
+    return &assets->types[ASSET_TYPE_BITMAP].data[index + (BITMAP_CARD0 - BITMAP_BACK)].bitmap;
 }
 
 internal void
@@ -182,7 +182,7 @@ draw_card_bitmaps(Assets *assets, Vector2_s32 window_dim) {
     Vector2 pos = { 0, 0 };
     for (u32 i = 0; i < 14; i++) {
         pos.x = i * dim.x;
-        draw_rect(pos, 0, dim, get_card_bitmap(assets, i));
+        gfx.draw_rect(pos, 0, dim, get_card_bitmap(assets, i));
     }
 }
 

@@ -63,7 +63,7 @@ internal Vector2
 get_input_prompt_dim(const char *string, Font *font, Vector2 dim) {
   float32 pixel_height = float32(dim.y);
   Vector2 padding = {5.0f, 0.0f};
-  String_Draw_Info string_info = get_string_draw_info(font, string, -1, pixel_height);
+  String_Draw_Info string_info = gfx.get_string_draw_info(font, string, -1, pixel_height);
   return dim + string_info.dim + padding;
 }
 
@@ -74,9 +74,9 @@ draw_input_prompt(const char *string, Font *font, Button button, Vector2 coords,
 
   draw_input_prompt(button, coords, dim);
 
-  String_Draw_Info string_info = get_string_draw_info(font, string, -1, pixel_height);
+  String_Draw_Info string_info = gfx.get_string_draw_info(font, string, -1, pixel_height);
   coords.x += dim.x + 5.0f;
   coords.y += (dim.y / 2.0f) - (string_info.dim.y / 2.0f);
   coords.y += string_info.baseline.y;
-  draw_string(font, string, coords, pixel_height, color);
+  gfx.draw_string(font, string, coords, pixel_height, color);
 }

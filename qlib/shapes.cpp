@@ -618,25 +618,6 @@ void draw_string(Font *font, const char *string, Vector2 coords, float32 pixel_h
     
 }
 
-/*
-(0, 0)
- -> ###############################
-    #   #                         #
-    # r #            r            #
-    # b #                         #  
-    #   #                         #
-    ###############################
-    # r #            r            #
-    ############################### 
-*/
-struct String_Draw_Info {
-    Vector2 dim;
-    Vector2 baseline;
-
-    Vector2 font_dim; // biggest char in font
-    Vector2 font_baseline; // baseline for biggest char
-};
-
 // if length != -1 than the dim only includes chars up to the length position
 internal String_Draw_Info
 get_string_draw_info(Font *font, const char *string, s32 length, float32 pixel_height) {

@@ -27,50 +27,50 @@ get_centered_text_coords(String_Draw_Info string_info, Vector2 dim, u32 text_ali
 internal void
 draw_button(const Draw_Style style, const u32 state, Rect rect, const char *label, Font *font, const u32 text_align) {
     Vector4 back_color = style.background_colors[state];
-    draw_rect(rect.coords, 0, rect.dim, back_color); // back
+    gfx.draw_rect(rect.coords, 0, rect.dim, back_color); // back
     
     if (label) {
         float32 pixel_height = rect.dim.y * 0.8f;
 
-        String_Draw_Info info = get_string_draw_info(font, label, -1, pixel_height);
+        String_Draw_Info info = gfx.get_string_draw_info(font, label, -1, pixel_height);
         Vector2 text_coords = rect.coords + get_centered_text_coords(info, rect.dim, text_align);
         Vector4 text_color = style.text_colors[state];
 
-        gfx_scissor_push(rect.coords, rect.dim);
-        draw_string(font, label, text_coords, pixel_height, text_color); // text
-        gfx_scissor_pop();
+        gfx.scissor_push(rect.coords, rect.dim);
+        gfx.draw_string(font, label, text_coords, pixel_height, text_color); // text
+        gfx.scissor_pop();
     }
 }
 
 internal void
 draw_slider(const Draw_Style style, const u32 state, Rect rect, float32 value, const char *label, Font *font) {
     Vector4 back_color = style.background_colors[state];
-    draw_rect(rect.coords, 0, rect.dim, back_color); // back
+    gfx.draw_rect(rect.coords, 0, rect.dim, back_color); // back
 
     Rect text_rect = rect;
     text_rect.dim.y *= (1.0f / 2.0f);
     
     float32 pixel_height = text_rect.dim.y * 0.8f;
 
-    String_Draw_Info info = get_string_draw_info(font, label, -1, pixel_height);
+    String_Draw_Info info = gfx.get_string_draw_info(font, label, -1, pixel_height);
     Vector2 text_coords = text_rect.coords + get_centered_text_coords(info, text_rect.dim, ALIGN_CENTER);
     Vector4 text_color = style.text_colors[state];
 
-    gfx_scissor_push(text_rect.coords, text_rect.dim);
-    draw_string(font, label, text_coords, pixel_height, text_color); // text
-    gfx_scissor_pop();
+    gfx.scissor_push(text_rect.coords, text_rect.dim);
+    gfx.draw_string(font, label, text_coords, pixel_height, text_color); // text
+    gfx.scissor_pop();
 
     Rect slide_rect = rect;
     slide_rect.coords.y += text_rect.dim.y;
     slide_rect.dim.y *= (1.0f / 2.0f);
 
     Rect slide_bar_rect = get_centered_rect(slide_rect, 1.0f, 1.0f / 3.0f);
-    draw_rect(slide_bar_rect, text_color);
+    gfx.draw_rect(slide_bar_rect, text_color);
 
     Rect slide_node_rect = slide_rect;
     slide_node_rect.dim.x = slide_node_rect.dim.y;
     slide_node_rect.coords.x += value * slide_rect.dim.x - (slide_node_rect.dim.x / 2.0f);
-    draw_circle(slide_node_rect.coords, 0.0f, slide_node_rect.dim.x, text_color);
+    gfx.draw_circle(slide_node_rect.coords, 0.0f, slide_node_rect.dim.x, text_color);
 }
 
 // state = active, hover, pressed
@@ -79,30 +79,30 @@ internal void
 draw_checkbox(const Draw_Style style, const u32 state, bool8 value, Rect rect, const char *label, Font *font) {
     Vector4 back_color = style.background_colors[state];
     Vector4 text_color = style.text_colors[state];
-    draw_rect(rect, back_color); // back
+    gfx.draw_rect(rect, back_color); // back
 
-    gfx_scissor_push(rect.coords, rect.dim);
+    gfx.scissor_push(rect.coords, rect.dim);
     Rect checkbox = {};
     checkbox.coords = rect.coords;
     checkbox.dim.x = rect.dim.y;
     checkbox.dim.y = rect.dim.y;
     Rect checkbox_in = get_centered_rect(checkbox, 0.8f, 0.8f);
 
-    draw_rect(checkbox_in, text_color);
+    gfx.draw_rect(checkbox_in, text_color);
     if (value) {
-        draw_rect(get_centered_rect(checkbox_in, 0.7f, 0.7f), back_color);
+        gfx.draw_rect(get_centered_rect(checkbox_in, 0.7f, 0.7f), back_color);
     } 
 
     if (label) {
         float32 pixel_height = rect.dim.y * 0.8f;
 
-        String_Draw_Info info = get_string_draw_info(font, label, -1, pixel_height);
+        String_Draw_Info info = gfx.get_string_draw_info(font, label, -1, pixel_height);
         Vector2 text_coords = rect.coords + get_centered_text_coords(info, rect.dim, ALIGN_LEFT);
         text_coords.x += checkbox.dim.x;
-        draw_string(font, label, text_coords, pixel_height, text_color); // text
+        gfx.draw_string(font, label, text_coords, pixel_height, text_color); // text
     };
     
-    gfx_scissor_pop();
+    gfx.scissor_pop();
 }
 
 internal float32
@@ -116,10 +116,10 @@ draw_textbox(Draw_Textbox textbox) {
     Vector4 back_color = textbox.style.background_colors[textbox.state];
     Vector4 text_color = textbox.style.text_colors[textbox.state];
 
-    String_Draw_Info string_info = get_string_draw_info(textbox.font, textbox.text, -1, pixel_height);
+    String_Draw_Info string_info = gfx.get_string_draw_info(textbox.font, textbox.text, -1, pixel_height);
     Vector2 text_coords = textbox.coords + get_centered_text_coords(string_info, textbox.dim, textbox.text_align);
 
-    String_Draw_Info string_info_cursor = get_string_draw_info(textbox.font, textbox.text, textbox.cursor_position, pixel_height);
+    String_Draw_Info string_info_cursor = gfx.get_string_draw_info(textbox.font, textbox.text, textbox.cursor_position, pixel_height);
     Vector2 cursor_coords = text_coords;
     cursor_coords.x += string_info_cursor.dim.x;
     cursor_coords.y = textbox.coords.y;
@@ -140,27 +140,27 @@ draw_textbox(Draw_Textbox textbox) {
         shift = 0.0f;
 
     // Back
-    draw_rect(textbox.coords, 0, textbox.dim, back_color);
+    gfx.draw_rect(textbox.coords, 0, textbox.dim, back_color);
 
     // Label
     if (textbox.label != 0) {
         Vector4 label_text_color = text_color;
         label_text_color.a = 0.8f;
-        String_Draw_Info label_info = get_string_draw_info(textbox.font, textbox.label, -1, label_height);
+        String_Draw_Info label_info = gfx.get_string_draw_info(textbox.font, textbox.label, -1, label_height);
         label_coords.y += label_info.baseline.y;
-        draw_string(textbox.font, textbox.label, label_coords, label_height, label_text_color);
+        gfx.draw_string(textbox.font, textbox.label, label_coords, label_height, label_text_color);
     }
 
-    //draw_string_draw_info(&string_info, text_coords);
+    //gfx.draw_string_draw_info(&string_info, text_coords);
     
     // Text
-    gfx_scissor_push(textbox.coords, textbox.dim);
-    draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
-    gfx_scissor_pop();
+    gfx.scissor_push(textbox.coords, textbox.dim);
+    gfx.draw_string(textbox.font, textbox.text, text_coords, pixel_height, text_color);
+    gfx.scissor_pop();
 
     // Cursor
     if (textbox.state == GUI_ACTIVE) // clicked on
-        draw_rect(cursor_coords, 0.0f, { textbox.cursor_width, textbox.dim.y }, textbox.cursor_color); // cursor
+        gfx.draw_rect(cursor_coords, 0.0f, { textbox.cursor_width, textbox.dim.y }, textbox.cursor_color); // cursor
 
     return shift;
 }
@@ -416,7 +416,7 @@ get_textbox_cursor_position(const Draw_Textbox *box, Vector2_s32 mouse_coords) {
     u32 cursor_pos = 0;
     while(1) {
         //Vector2 cursor_dim = get_string_dim(box->font, box->text, cursor_pos, box->dim.y);
-        String_Draw_Info string_info = get_string_draw_info(box->font, box->text, cursor_pos, box->dim.y);
+        String_Draw_Info string_info = gfx.get_string_draw_info(box->font, box->text, cursor_pos, box->dim.y);
         if (mouse_coords.x <= (s32)string_info.dim.x + box->coords.x || cursor_pos >= max_length)
             break;
         else
@@ -581,7 +581,7 @@ get_screen_dim(Menu *menu, Vector2_s32 draw_dim) {
 
 inline void
 menu_rect(Menu *menu, Vector2_s32 section_coords, Vector2_s32 section_dim, Vector4 color) {
-    draw_rect(get_screen_coords(menu, section_coords), 0, get_screen_dim(menu, section_dim), color );
+    gfx.draw_rect(get_screen_coords(menu, section_coords), 0, get_screen_dim(menu, section_dim), color );
 }
 
 internal bool8
@@ -655,11 +655,11 @@ menu_text(Menu *menu, const char *text, Vector4 color, Vector2_s32 section_coord
         pixel_height = dim.x;
     pixel_height *= 0.8f;
 
-    String_Draw_Info info = get_string_draw_info(menu->gui.font, text, -1, pixel_height);
+    String_Draw_Info info = gfx.get_string_draw_info(menu->gui.font, text, -1, pixel_height);
     Vector2 text_coords = coords + get_centered_text_coords(info, dim, menu->gui.text_align);
-    gfx_scissor_push(coords, dim);
-    draw_string(menu->gui.font, text, text_coords, pixel_height, color);
-    gfx_scissor_pop();
+    gfx.scissor_push(coords, dim);
+    gfx.draw_string(menu->gui.font, text, text_coords, pixel_height, color);
+    gfx.scissor_pop();
 }
 
 internal bool8
@@ -831,14 +831,14 @@ draw_onscreen_notifications(Onscreen_Notifications *n, Vector2_s32 window_dim, f
     float32 above_text_coord = 0.0f;
     for (u32 i = 0; i < n->lines; i++) {
         //Vector2 text_dim = get_string_dim(n->font, n->memory[i], pixel_height, n->text_color);
-        String_Draw_Info string_info = get_string_draw_info(n->font, n->memory[i], -1, pixel_height);
+        String_Draw_Info string_info = gfx.get_string_draw_info(n->font, n->memory[i], -1, pixel_height);
         Vector2 text_coords = {};
         text_coords.x = (window_dim.x / 2.0f) - (string_info.dim.x / 2.0f) + string_info.baseline.x;
         text_coords.y = above_text_coord + string_info.baseline.y + 10.0f;
 
         Vector4 color = n->colors[i];
         clamp(&color.a, 0.0f, 1.0f);
-        draw_string(n->font, n->memory[i], text_coords, pixel_height, color);
+        gfx.draw_string(n->font, n->memory[i], text_coords, pixel_height, color);
 
         above_text_coord = text_coords.y;
     }

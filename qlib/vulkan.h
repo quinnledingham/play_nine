@@ -171,11 +171,7 @@ struct Vulkan_Info {
 	bool8 recording_frame = FALSE;
 	u32 active_shader_id;
 	u32 current_frame;
-
-	bool8 sdl_init(SDL_Window *window);
 };
-
-#define Vulkan Vulkan_Info
 
 struct Vulkan_Mesh {
     u32 vertices_offset;
@@ -198,3 +194,4 @@ struct Vulkan_Version {
 #define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 1000000
 #define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 100000
 
+global Vulkan_Info vulkan_info = {};

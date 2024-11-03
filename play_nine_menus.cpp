@@ -33,7 +33,7 @@ draw_main_menu(State *state, Menu *menu, Vector2_s32 window_dim) {
     
     menu->start();
 
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );    
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );    
     menu_text(menu, "play_nine", play_nine_yellow, { 0, 0 }, { 1, 2 }); 
 
     if (menu_button(menu, "Local", { 0, 2 }, { 1, 1 })) {
@@ -77,25 +77,25 @@ draw_bot_icon(Menu *menu, Vector2_s32 section_coords, Vector2_s32 draw_dim) {
     coords.y += (dim.y / 2.0f) - (bot_dim.y / 2.0f);
     coords.y += bot_dim.y / 2.0f;
 
-    vulkan_bind_shader("TEXT");
+    gfx.bind_shader(SHADER_TEXT);
 
-    Descriptor v_color_set = vulkan_get_descriptor_set(4);
-    render_bind_descriptor_sets(v_color_set, (void *)&play_nine_green);
+    Descriptor v_color_set = gfx.descriptor_set(4);
+    gfx.bind_descriptor_sets(v_color_set, (void *)&play_nine_green);
 
     Object object = {};
 
-    Descriptor desc = vulkan_get_descriptor_set(2);
-    object.index = render_set_bitmap(&desc, find_bitmap(global_assets, "BOT"));
-    render_bind_descriptor_set(desc);
+    Descriptor desc = gfx.descriptor_set(2);
+    object.index = gfx.set_bitmap(&desc, find_bitmap(global_assets, BITMAP_BOT));
+    gfx.bind_descriptor_set(desc);
 
     Vector3 coords_v3 = { coords.x, coords.y, 0 };
     Quaternion rotation_quat = get_rotation(0, { 0, 0, 1 });
     Vector3 dim_v3 = { bot_dim.width, bot_dim.height, 1 };
     object.model = create_transform_m4x4(coords_v3, rotation_quat, dim_v3);
 
-    render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+    gfx.push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 
-    render_draw_mesh(&shapes.rect_mesh);
+    gfx.draw_mesh(&gfx.rect_mesh);
 }
 
 internal s32
@@ -117,13 +117,13 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
         state->menu_list.update_close(state->menu_list.previous_mode);
     }
     
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     float32 x_section = menu->gui.rect.dim.x / menu->sections.x;
     float32 y_section = menu->gui.rect.dim.y / menu->sections.y;
     Vector2 dark_rect_coords = { menu->gui.rect.coords.x, menu->gui.rect.coords.y + (1 * y_section) };
     Vector2 dark_rect_dim = { menu->gui.rect.dim.x - (2 * x_section), menu->gui.rect.dim.y - (1 * y_section) };
-    draw_rect(dark_rect_coords, 0, dark_rect_dim, { 0, 0, 0, 0.2f} );
+    gfx.draw_rect(dark_rect_coords, 0, dark_rect_dim, { 0, 0, 0, 0.2f} );
 
     const char *lobby_name;
     const char *back_label;
@@ -260,7 +260,7 @@ draw_pause_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
     }
 
     menu->start();
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window_dim), { 0, 0, 0, 0.5f} );
 
     s32 menu_row = 0;
 
@@ -317,8 +317,8 @@ draw_scoreboard(Menu *menu, State *state, bool8 full_menu, Vector2_s32 window_di
         state->menu_list.update_close(IN_GAME);
     }
     
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
-    draw_rect(menu->gui.rect, { 0, 0, 0, 0.2f} );
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
+    gfx.draw_rect(menu->gui.rect, { 0, 0, 0, 0.2f} );
 
     // columns
     for (s32 i = 0; i < menu->sections.x; i++) {
@@ -391,7 +391,7 @@ draw_host_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     
     menu->start();
         
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green);
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green);
     
     if (menu_textbox(menu, "Port:", state->host_port, { 0, 0 }, { 2, 1 })) {
 
@@ -418,7 +418,7 @@ draw_join_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     
     menu->start();
         
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     menu_textbox(menu, "Name:", state->join_name, { 0, 0 }, { 1, 1 });
     menu_textbox(menu, "IP:",   state->join_ip,   { 0, 1 }, { 1, 1 });
@@ -460,7 +460,7 @@ draw_settings_menu(Menu *menu, State *state, Vector2_s32 window_dim) {
     
     menu->start();
     
-    draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window_dim), play_nine_green );
 
     s32 y_index = 0;
     menu_text(menu, "Settings", play_nine_yellow, { 0, y_index++ }, { 1, 1 }); 
@@ -501,7 +501,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     
     menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window->dim), 0.5f, 0.5f);
     menu->start();
-    draw_rect({ 0, 0 }, 0, cv2(window->dim), play_nine_green);
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window->dim), play_nine_green);
 
     if (on_up(state->controller.pause)) {
         if (menu->gui.active == 0) {
@@ -515,11 +515,11 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
 
     menu_text(menu, "Video Settings", play_nine_yellow, { 0, 0 }, { 1, 1 }); 
     
-    if (menu_checkbox(menu, "VSync", &render_context.vsync, { 0, 2 }, { 1, 1 })) {
-        window->resized = true;
+    if (menu_checkbox(menu, "VSync", &gfx.vsync, { 0, 2 }, { 1, 1 })) {
+        gfx.resized = true;
     }
-    if (menu_checkbox(menu, "Anti-aliasing", &render_context.anti_aliasing, { 0, 3 }, { 1, 1 })) {
-        window->resized = true;
+    if (menu_checkbox(menu, "Anti-aliasing", &gfx.anti_aliasing, { 0, 3 }, { 1, 1 })) {
+        gfx.resized = true;
     }
     if (menu_button(menu, "Back", { 0, 5 }, { 1, 1 })) {
         state->menu_list.update_close(SETTINGS_MENU);
@@ -541,15 +541,15 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
         menu_fill_resolution(resolution_chars[i], get_resolution_scale(i));
     }
     
-    if (menu_dropdown(menu, (const char **)resolution_chars, 4, &render_context.resolution_mode, { 0, 4 }, { 1, 1 })) {
-        window->resized = true;
-        switch(render_context.resolution_mode) {
-            case RESOLUTION_480P:  render_context.resolution_scale = 0.25f; break;
-            case RESOLUTION_720P:  render_context.resolution_scale = 0.5f;  break;
-            case RESOLUTION_1080P: render_context.resolution_scale = 0.75f; break;
-            case RESOLUTION_2160P: render_context.resolution_scale = 1.0f;  break;
+    if (menu_dropdown(menu, (const char **)resolution_chars, 4, &gfx.resolution_mode, { 0, 4 }, { 1, 1 })) {
+        gfx.resized = true;
+        switch(gfx.resolution_mode) {
+            case RESOLUTION_480P:  gfx.resolution_scale = 0.25f; break;
+            case RESOLUTION_720P:  gfx.resolution_scale = 0.5f;  break;
+            case RESOLUTION_1080P: gfx.resolution_scale = 0.75f; break;
+            case RESOLUTION_2160P: gfx.resolution_scale = 1.0f;  break;
         }
-        render_context.update_resolution();
+        gfx.update_resolution();
     }
     
     const char *fullscreen_modes[3] = {
@@ -559,7 +559,7 @@ draw_video_settings_menu(Menu *menu, State *state, App_Window *window) {
     };
     if (menu_dropdown(menu, fullscreen_modes, 3, (u32*)&window->display_mode, { 0, 1 }, { 1, 1 })) {
         window->new_display_mode = true;
-        window->resized = true;
+        gfx.resized = true;
     }
     menu->end();
 
@@ -579,7 +579,7 @@ draw_audio_settings_menu(Menu *menu, State *state, Audio_Player *player, App_Win
     
     menu->gui.rect = get_centered_rect({ 0, 0 }, cv2(window->dim), 0.5f, 0.5f);
     menu->start();
-    draw_rect({ 0, 0 }, 0, cv2(window->dim), play_nine_green);
+    gfx.draw_rect({ 0, 0 }, 0, cv2(window->dim), play_nine_green);
 
     if (on_up(state->controller.pause)) {
         if (menu->gui.active == 0) {
@@ -591,7 +591,7 @@ draw_audio_settings_menu(Menu *menu, State *state, Audio_Player *player, App_Win
 
     menu_slider(menu, &player->music_volume, 6, "Music", { 0, 1 }, { 1, 2 });
     if (menu_slider(menu, &player->sound_effects_volume, 6, "Sound Effects", { 0, 3 }, { 1, 2 })) {
-        play_sound("TAP");
+        play_sound(SOUND_TAP);
     }
 
     if (menu_button(menu, "Back", { 0, 5 }, { 1, 1 })) {

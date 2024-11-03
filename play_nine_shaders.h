@@ -47,9 +47,9 @@ init_layouts(Layout *layouts, Bitmap *bitmap) {
 
     for (u32 i = 0; i < GFX_ID_COUNT; i++) {
         layouts[i].id = i;
-        render_create_set_layout(&layouts[i]);
-        render_allocate_descriptor_set(&layouts[i]);
-        render_init_layout_offsets(&layouts[i], bitmap);
+        gfx.create_set_layout(&layouts[i]);
+        gfx.allocate_descriptor_set(&layouts[i]);
+        gfx.init_layout_offsets(&layouts[i], bitmap);
     }
 }
 
@@ -112,59 +112,59 @@ bool8 init_pipelines(Assets *assets) {
 
     Shader *shader;
 
-    shader = find_shader(assets, "TEXT");
+    shader = find_shader(assets, SHADER_TEXT);
     shader->pipeline.depth_test = false;
     shader->vertex_info = get_vertex_xu_info();
-    init_basic_vert_layout(&shader->set, gfx_get_layouts());
-    init_text_frag_layout(shader, gfx_get_layouts());
-    render_create_graphics_pipeline(shader);
+    init_basic_vert_layout(&shader->set, gfx.get_layouts());
+    init_text_frag_layout(shader, gfx.get_layouts());
+    gfx.create_graphics_pipeline(shader);
 
-    shader = find_shader(assets, "COLOR");
+    shader = find_shader(assets, SHADER_COLOR);
     shader->pipeline.depth_test = false;
     shader->vertex_info = get_vertex_xu_info();
-    init_basic_vert_layout(&shader->set, gfx_get_layouts());
-    init_color_frag_layout(shader, gfx_get_layouts());
-    render_create_graphics_pipeline(shader);
+    init_basic_vert_layout(&shader->set, gfx.get_layouts());
+    init_color_frag_layout(shader, gfx.get_layouts());
+    gfx.create_graphics_pipeline(shader);
         
-    shader = find_shader(assets, "TEXTURE");
+    shader = find_shader(assets, SHADER_TEXTURE);
     shader->pipeline.depth_test = false;
     shader->vertex_info = get_vertex_xu_info();
-    init_basic_vert_layout(&shader->set, gfx_get_layouts());
-    init_texture_frag_layout(shader, gfx_get_layouts());
-    render_create_graphics_pipeline(shader);
+    init_basic_vert_layout(&shader->set, gfx.get_layouts());
+    init_texture_frag_layout(shader, gfx.get_layouts());
+    gfx.create_graphics_pipeline(shader);
     
-    shader = find_shader(assets, "BASIC3D");
+    shader = find_shader(assets, SHADER_BASIC3D);
     shader->pipeline.depth_test = true;
     shader->vertex_info = get_vertex_xnu_info();
-    init_basic_vert_layout(&shader->set, gfx_get_layouts());
-    init_basic_frag_layout(shader, gfx_get_layouts());
-    render_create_graphics_pipeline(shader);
+    init_basic_vert_layout(&shader->set, gfx.get_layouts());
+    init_basic_frag_layout(shader, gfx.get_layouts());
+    gfx.create_graphics_pipeline(shader);
 
-    shader = find_shader(assets, "COLOR3D");
+    shader = find_shader(assets, SHADER_COLOR3D);
     shader->pipeline.depth_test = true;
     shader->vertex_info = get_vertex_xnu_info();
-    init_basic_vert_layout(&shader->set, gfx_get_layouts());
-    init_color3D_frag_layout(shader, gfx_get_layouts());
-    render_create_graphics_pipeline(shader);
+    init_basic_vert_layout(&shader->set, gfx.get_layouts());
+    init_color3D_frag_layout(shader, gfx.get_layouts());
+    gfx.create_graphics_pipeline(shader);
     
-    shader = find_shader(assets, "TEXT3D");
+    shader = find_shader(assets, SHADER_TEXT3D);
     shader->pipeline.depth_test = true;
     shader->vertex_info = get_vertex_xnu_info();
-    init_basic_vert_layout(&shader->set, gfx_get_layouts());
-    init_text_frag_layout(shader, gfx_get_layouts());
-    render_create_graphics_pipeline(shader);
+    init_basic_vert_layout(&shader->set, gfx.get_layouts());
+    init_text_frag_layout(shader, gfx.get_layouts());
+    gfx.create_graphics_pipeline(shader);
 
-    shader = find_shader(assets, "RAY");
+    shader = find_shader(assets, SHADER_RAY);
     shader->pipeline.compute = true;
-    init_ray_comp_layout(&shader->set, gfx_get_layouts());
-    render_create_compute_pipeline(shader);
+    init_ray_comp_layout(&shader->set, gfx.get_layouts());
+    gfx.create_compute_pipeline(shader);
 
-    shader = find_shader(assets, "PROMPT");
+    shader = find_shader(assets, SHADER_PROMPT);
     shader->pipeline.depth_test = false;
     shader->vertex_info = get_vertex_xu_info();
-    init_basic_vert_layout(&shader->set, gfx_get_layouts());
-    init_prompt_layout(&shader->set, gfx_get_layouts());
-    render_create_graphics_pipeline(shader);
+    init_basic_vert_layout(&shader->set, gfx.get_layouts());
+    init_prompt_layout(&shader->set, gfx.get_layouts());
+    gfx.create_graphics_pipeline(shader);
         
     return false;
 }

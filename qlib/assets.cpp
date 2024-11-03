@@ -568,15 +568,15 @@ texture_atlas_add(Texture_Atlas *atlas, const char *file_path) {
 
 internal void
 texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
-    GFX::destroy_texture(atlas->gpu[frame_index].handle);
-    atlas->gpu[frame_index].handle = render_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
+    gfx.destroy_texture(atlas->gpu[frame_index].handle);
+    atlas->gpu[frame_index].handle = gfx.create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
     atlas->gpu[frame_index].desc.texture_index = 0;
-    render_set_texture(&atlas->gpu[frame_index].desc, atlas->gpu[frame_index].handle);
+    gfx.set_texture(&atlas->gpu[frame_index].desc, atlas->gpu[frame_index].handle);
 }
 
 internal void
 texture_atlas_refresh(Texture_Atlas *atlas) {
-    u32 current_frame = gfx_get_current_frame();
+    u32 current_frame = gfx.get_current_frame();
     if (atlas->gpu[current_frame].refresh_required) {
         atlas->gpu[current_frame].refresh_required = false;
         texture_atlas_init_gpu_frame(atlas, current_frame);
@@ -592,8 +592,8 @@ texture_atlas_init_gpu(Texture_Atlas *atlas) {
 
 internal void
 texture_atlas_init(Texture_Atlas *atlas, u32 layout_id) {
-    atlas->gpu[0].desc = render_get_descriptor_set(layout_id);
-    atlas->gpu[1].desc = render_get_descriptor_set(layout_id);
+    atlas->gpu[0].desc = gfx.descriptor_set(layout_id);
+    atlas->gpu[1].desc = gfx.descriptor_set(layout_id);
 
     texture_atlas_init_gpu(atlas);
 }
@@ -603,25 +603,25 @@ internal void
 texture_atlas_draw_rect(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {  
   Texture_Coords tex_coord = atlas->texture_coords[index];
   
-  render_immediate_vertex(Vertex_XU{ coords, tex_coord.p1 });
-  render_immediate_vertex(Vertex_XU{ coords + dim, tex_coord.p2 });
-  render_immediate_vertex(Vertex_XU{ { coords.x, coords.y + dim.y }, {tex_coord.p1.x, tex_coord.p2.y} });
+  gfx.immediate_vertex_xu(Vertex_XU{ coords, tex_coord.p1 });
+  gfx.immediate_vertex_xu(Vertex_XU{ coords + dim, tex_coord.p2 });
+  gfx.immediate_vertex_xu(Vertex_XU{ { coords.x, coords.y + dim.y }, {tex_coord.p1.x, tex_coord.p2.y} });
   
-  render_immediate_vertex(Vertex_XU{ coords, tex_coord.p1 });
-  render_immediate_vertex(Vertex_XU{ { coords.x + dim.x, coords.y }, {tex_coord.p2.x, tex_coord.p1.y} });
-  render_immediate_vertex(Vertex_XU{ coords + dim, tex_coord.p2 });
+  gfx.immediate_vertex_xu(Vertex_XU{ coords, tex_coord.p1 });
+  gfx.immediate_vertex_xu(Vertex_XU{ { coords.x + dim.x, coords.y }, {tex_coord.p2.x, tex_coord.p1.y} });
+  gfx.immediate_vertex_xu(Vertex_XU{ coords + dim, tex_coord.p2 });
   
   Object object = {};
   object.model = identity_m4x4();
-  render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+  gfx.push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 
-  render_draw_immediate(6);
+  gfx.draw_immediate(6);
 }
 
 internal void
 texture_atlas_draw(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {
-    gfx_bind_shader("TEXTURE");
-    render_bind_descriptor_set(atlas->gpu[gfx_get_current_frame()].desc);
+    gfx.bind_shader(SHADER_TEXTURE);
+    gfx.bind_descriptor_set(atlas->gpu[gfx.get_current_frame()].desc);
     texture_atlas_draw_rect(atlas, index, coords, dim);
 }
 
@@ -735,7 +735,7 @@ clear_font_bitmap_cache(Font *font) {
     for (s32 i = 0; i < font->cache->bitmaps_cached; i++) {
         stbtt_FreeBitmap(font->cache->bitmaps[i].bitmap.memory, info->userdata);
         font->cache->bitmaps[i].bitmap.memory = 0;
-        render_delete_texture(&font->cache->bitmaps[i].bitmap);
+        gfx.delete_texture(&font->cache->bitmaps[i].bitmap);
         platform_memory_set(&font->cache->bitmaps[i], 0, sizeof(Font_Char_Bitmap));
     }
 
@@ -800,11 +800,11 @@ load_font_gfx(Font *font, float32 scale) {
 void init_model(Model *model) {
     for (u32 mesh_index = 0; mesh_index < model->meshes_count; mesh_index++) {
         Mesh *mesh = &model->meshes[mesh_index];
-        render_init_mesh(mesh);
+        gfx.init_mesh(mesh);
         //platform_free(mesh->vertices);
         //platform_free(mesh->indices);
         if (mesh->material.diffuse_map.memory != 0)
-            render_create_texture(&mesh->material.diffuse_map, TEXTURE_PARAMETERS_DEFAULT);
+            gfx.create_texture(&mesh->material.diffuse_map, TEXTURE_PARAMETERS_DEFAULT);
             //free_bitmap(mesh->material.diffuse_map);
     }
 }
@@ -1030,4 +1030,16 @@ no_music_playing(Audio_Player *player) {
     }
     
     return no_music_playing;
+}
+
+internal void
+play_sound(u32 id) {
+    Audio *audio = find_audio(global_assets, id);
+    play_audio(audio_player, audio, AUDIO_TYPE_SOUND_EFFECT); 
+}
+
+internal void
+play_music(u32 id) {
+    Audio *audio = find_audio(global_assets, id);
+    play_audio(audio_player, audio, AUDIO_TYPE_MUSIC); 
 }

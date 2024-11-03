@@ -326,7 +326,7 @@ THREAD_RETURN play_nine_client_join(void *parameters) {
     State *state = (State *)parameters;
     
     os_wait_mutex(state->mutex);
-    state->loading_icon.enable(find_bitmap(&state->assets, "LOADING"));
+    state->loading_icon.enable(find_bitmap(&state->assets, BITMAP_LOADING));
     os_release_mutex(state->mutex);
     
     if (qsock_client(&online.sock, state->join_ip, state->join_port, TCP)) {

@@ -17,7 +17,6 @@ struct App_Window {
 	};
 	float32 aspect_ratio;
 	
-	bool8 resized; // gets set back to false by the graphics code, when it updates its state
 	bool8 minimized;
 
 	bool8 new_display_mode;

@@ -1,5 +1,3 @@
-global Vulkan_Info vulkan_info = {};
-
 //
 // Vulkan Debug
 //
@@ -368,6 +366,7 @@ vulkan_create_logical_device(Vulkan_Info *info) {
 		create_info.enabledLayerCount = 0;
 	}
 
+	info->device = {};
 	if (vkCreateDevice(info->physical_device, &create_info, nullptr, &info->device) != VK_SUCCESS) {
 		logprint("vulkan_create_logical_device", "failed to create logical device\n");
 	}
@@ -385,23 +384,24 @@ vulkan_create_logical_device(Vulkan_Info *info) {
 internal VkSurfaceFormatKHR
 vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
 	VkFormat vulkan_target_formats[2] = {
-		VK_FORMAT_B8G8R8A8_SRGB,
+		VK_FORMAT_B8G8R8A8_UNORM,
 		VK_FORMAT_R8G8B8A8_SRGB
 	}; 
 	
-/*	for (u32 i = 3; i < count; i++) {
-		if ((formats[i].format == vulkan_target_formats[0] || formats[i].format == vulkan_target_formats[1])
-		    && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-			return formats[i];
+	for (u32 target_index = 0; target_index < ARRAY_COUNT(vulkan_target_formats); target_index++) {
+		for (u32 i = 0; i < count; i++) {
+			if ((formats[i].format == vulkan_target_formats[target_index]) && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+				return formats[i];
+			}
 		}
-	}*/
+	}
 
 	logprint("(vulkan) choose_swap_surface_format", "Picking default format\n(vulkan) Other formats available:\n");
 	for (u32 i = 0; i < count; i++) {
 		print("(vulkan) format: %d, color space: %d\n", formats[i].format, formats[i].colorSpace);
 	}
 
-	return formats[1];
+	return formats[0];
 }
 
 // VSYNC SETTINGS AREA
@@ -863,7 +863,7 @@ vulkan_create_buffer(GFX_Buffer *buffer) {
 	                     buffer->vulkan.handle, 
 	                     buffer->vulkan.memory);
 	vkMapMemory(vulkan_info.device, buffer->vulkan.memory, 0, VK_WHOLE_SIZE, 0, &buffer->data);
-  memcpy((char*)buffer->vulkan.data, buffer->data, buffer->size);
+  	//memcpy((char*)buffer->vulkan.data, buffer->data, buffer->size);
 }
 
 internal VkCommandBuffer
@@ -1085,7 +1085,7 @@ vulkan_bool(bool8 in) {
 	else    return VK_FALSE;
 }
 
-bool8 vulkan_create_graphics_pipeline(Shader *shader, VkRenderPass render_pass) {
+bool8 vulkan_create_graphics_pipeline2(Shader *shader, VkRenderPass render_pass) {
 	GFX_Pipeline *pipeline = &shader->pipeline;
 
 	u32 shader_stages_index = 0;
@@ -1270,7 +1270,7 @@ bool8 vulkan_create_graphics_pipeline(Shader *shader, VkRenderPass render_pass) 
 	return false;
 }
 void vulkan_create_graphics_pipeline(Shader *shader) {
-	vulkan_create_graphics_pipeline(shader, vulkan_info.draw_render_pass);
+	vulkan_create_graphics_pipeline2(shader, vulkan_info.draw_render_pass);
 }
 
 void vulkan_create_compute_pipeline(Shader *shader) {
@@ -1581,7 +1581,7 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 	if (bitmap->channels == 1) {
 		texture->image_format = VK_FORMAT_R8_UNORM;
 	} else if (bitmap->channels == 3) {
-    //bitmap_convert_channels(bitmap, 4);
+    	bitmap_convert_channels(bitmap, 4);
 		//texture->image_format = VK_FORMAT_R8G8B8_SRGB;
 	}
 
@@ -1895,8 +1895,9 @@ void vulkan_cleanup() {
 	vkDestroyInstance(info->instance, nullptr);
 }
 
-bool8 vulkan_sdl_init(SDL_Window *sdl_window, u8 flags) {
+bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 	Vulkan_Info *info = &vulkan_info;
+	//*info = {};
 
 	if (info->validation_layers.enable && !vulkan_check_validation_layer_support(info->validation_layers)) {
 		logprint("vulkan_init()", "validation layers requested, but not avaiable\n");
@@ -2025,11 +2026,11 @@ void vulkan_set_scissor(s32 x, s32 y, u32 width, u32 height) {
 	vkCmdSetScissor(VK_CMD(vulkan_info), 0, 1, &scissor);
 }
 
-void vulkan_bind_shader(const char *tag) {
-	u32 id = find_asset_id(global_assets, tag);
-	vulkan_info.active_shader_id = id;
+void vulkan_bind_shader(u32 id) {
+	u32 shader_id = global_assets->find_asset_id(id);
+	vulkan_info.active_shader_id = shader_id;
 
-	Shader *shader = &global_assets->data[id].shader;
+	Shader *shader = &global_assets->data[shader_id].shader;
 	vulkan_info.pipeline_layout = shader->pipeline.layout; // to use when binding sets later
 	if (!shader->pipeline.compute) {
 		vkCmdBindPipeline(VK_CMD(vulkan_info), VK_PIPELINE_BIND_POINT_GRAPHICS, shader->pipeline.handle);
@@ -2254,7 +2255,7 @@ void vulkan_depth_test(bool32 enable) {
 	vkCmdSetDepthTestEnable(VK_CMD(vulkan_info), vulkan_bool(enable));
 }
 
-void vulkan_immediate_vertex(Vertex_XNU vertex) {
+void vulkan_immediate_vertex_xnu(Vertex_XNU vertex) {
 	float32 data[8];
 	data[0] = vertex.position.x; data[1] = vertex.position.y; data[2] = vertex.position.z;
 	data[3] = vertex.normal.x; data[4] = vertex.normal.y; data[5] = vertex.normal.z;
@@ -2263,7 +2264,7 @@ void vulkan_immediate_vertex(Vertex_XNU vertex) {
 	vulkan_info.dynamic_buffer.offset += sizeof(Vertex_XNU);
 }
 
-void vulkan_immediate_vertex(Vertex_XU vertex) {
+void vulkan_immediate_vertex_xu(Vertex_XU vertex) {
 	float32 data[4];
 	data[0] = vertex.position.x; data[1] = vertex.position.y; data[2] = vertex.uv.x; data[3] = vertex.uv.y;
 	memcpy((char*)vulkan_info.dynamic_buffer.data + vulkan_info.dynamic_buffer.offset, data, sizeof(Vertex_XU));

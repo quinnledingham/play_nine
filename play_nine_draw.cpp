@@ -244,35 +244,35 @@ void draw_card_model(Model *model, Descriptor color_set, Texture_Array *tex_arra
 
         switch(draw_index) {
             case 0: { 
-                gfx_bind_shader("COLOR3D");
-                render_bind_descriptor_set(color_set);
+                gfx.bind_shader(SHADER_COLOR3D);
+                gfx.bind_descriptor_set(color_set);
             } break;
 
             case 1:
                 object.index = front_index;
             case 2: 
-                gfx_bind_shader("BASIC3D");
-                render_bind_descriptor_set(tex_array->desc);
+                gfx.bind_shader(SHADER_BASIC3D);
+                gfx.bind_descriptor_set(tex_array->desc);
             break;
         }
 
-        render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-        render_draw_mesh(&model->meshes[draw_index]);
+        gfx.push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+        gfx.draw_mesh(&model->meshes[draw_index]);
     }
 }
 
 // drawing highlight
 void draw_highlight(Model *model, Vector4 color, Matrix_4x4 model_matrix) {
-    gfx_bind_shader("COLOR3D");
+    gfx.bind_shader(SHADER_COLOR3D);
 
-    Descriptor color_set = render_get_descriptor_set(5);
-    render_update_ubo(color_set, (void *)&color);
-    render_bind_descriptor_set(color_set);
+    Descriptor color_set = gfx.descriptor_set(5);
+    gfx.update_ubo(color_set, (void *)&color);
+    gfx.bind_descriptor_set(color_set);
 
-    render_push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));
+    gfx.push_constants(SHADER_STAGE_VERTEX, (void *)&model_matrix, sizeof(Matrix_4x4));
 
     for (u32 i = 0; i < model->meshes_count; i++) {
-        render_draw_mesh(&model->meshes[i]);
+        gfx.draw_mesh(&model->meshes[i]);
     }
 }
 
@@ -288,11 +288,11 @@ draw_card(Model *card_model, Descriptor color_set, Texture_Array *tex_array, u32
             model.F[13] += 0.05f;
         
         Matrix_4x4 model_scale = m4x4_scale(model, { 1.06f, 1.06f, 1.06f });
-        render_bind_descriptor_set(light_set_2);
+        gfx.bind_descriptor_set(light_set_2);
         draw_highlight(card_model, highlight_color, model_scale);
     }
 
-    render_bind_descriptor_set(light_set);
+    gfx.bind_descriptor_set(light_set);
     draw_card_model(card_model, color_set, tex_array, tex_array->indices[bitmap_index], model, flipped);
 } 
 
@@ -312,10 +312,10 @@ draw_cards(Game *game, Game_Draw *draw, Model *card_model, bool8 highlight) {
     Player *active_player = &game->players[game->active_player];
     enum Turn_Stages stage = game->turn_stage;
 
-    gfx_bind_shader("COLOR3D");
-    Descriptor color_set = render_get_descriptor_set(5);
+    gfx.bind_shader(SHADER_COLOR3D);
+    Descriptor color_set = gfx.descriptor_set(5);
     Vector4 color = { 150, 150, 150, 1 };
-    render_update_ubo(color_set, &color);
+    gfx.update_ubo(color_set, &color);
 
     {
         bool8 h = stage == SELECT_PILE && highlight;
@@ -368,7 +368,7 @@ load_name_plates(Game *game, Game_Draw *draw) {
     for (u32 i = 0; i < game->num_of_players; i++) {
         if (draw->name_plates[i].gpu_info != 0) {
             platform_free(draw->name_plates[i].memory);
-            render_delete_texture(&draw->name_plates[i]);
+            gfx.delete_texture(&draw->name_plates[i]);
         }
 
         Bitmap string_bitmap = create_string_into_bitmap(default_font, 350.0f, game->players[i].name);
@@ -383,14 +383,14 @@ load_name_plates(Game *game, Game_Draw *draw) {
         }
         
         if (draw->name_plates[i].height != 0) // height because bot bitmap is set with string height and string height can be zero
-            render_create_texture(&draw->name_plates[i], TEXTURE_PARAMETERS_CHAR);
+            gfx.create_texture(&draw->name_plates[i], TEXTURE_PARAMETERS_CHAR);
     }
 
 }
 
 internal void
 unload_name_plate(Game_Draw *draw, u32 index) {
-    render_delete_texture(&draw->name_plates[index]);
+    gfx.delete_texture(&draw->name_plates[index]);
     
     u32 dest_index = index;
     u32 src_index = index + 1;
@@ -402,13 +402,13 @@ unload_name_plate(Game_Draw *draw, u32 index) {
 internal void
 unload_name_plates(Game_Draw *draw) {
     for (u32 i = 0; i < MAX_PLAYERS; i++) {
-        render_delete_texture(&draw->name_plates[i]);
+        gfx.delete_texture(&draw->name_plates[i]);
     }
 }
 
 internal void
 draw_name_plates(Game *game, Game_Draw *draw) {
-    Descriptor color_set_2 = render_get_descriptor_set(4);
+    Descriptor color_set_2 = gfx.descriptor_set(4);
 
     for (u32 i = 0; i < game->num_of_players; i++) {
         if (draw->name_plates[i].gpu_info == 0)
@@ -419,11 +419,11 @@ draw_name_plates(Game *game, Game_Draw *draw) {
         Vector4 name_plates_color = { 255, 255, 255, 1 };
         Object object = {};
 
-        Descriptor bitmap_desc = render_get_descriptor_set(2);
-        object.index = render_set_bitmap(&bitmap_desc, &draw->name_plates[i]);
-        render_bind_descriptor_set(bitmap_desc);
+        Descriptor bitmap_desc = gfx.descriptor_set(2);
+        object.index = gfx.set_bitmap(&bitmap_desc, &draw->name_plates[i]);
+        gfx.bind_descriptor_set(bitmap_desc);
 
-        render_bind_descriptor_sets(color_set_2, &name_plates_color);
+        gfx.bind_descriptor_sets(color_set_2, &name_plates_color);
 
         Vector3 position = get_hand_position(draw->info.radius, draw->info.degrees_between_players, i);
         position += normalized(position) * 4.1f;
@@ -434,9 +434,9 @@ draw_name_plates(Game *game, Game_Draw *draw) {
         Quaternion rot = get_rotation(-90.0f * DEG2RAD, { 1, 0, 0 });
         rot = rot * get_rotation(rad, { 0, 1, 0 });
         object.model = create_transform_m4x4(position, rot, scale);
-        render_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+        gfx.push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
-        render_draw_mesh(&shapes.rect_3D_mesh);
+        gfx.draw_mesh(&gfx.rect_3D_mesh);
     }
 }
 
@@ -451,7 +451,7 @@ draw_triangle_indicator(Game *game, Game_Draw *draw) {
     float32 rads = (degrees - draw->camera_rotation.degrees) * DEG2RAD;
     rotate_coords(&triangle_coords, rads);
     rads -= 135.0f * DEG2RAD; // to align the triangle mesh the way it is set up (bottom left corner)
-    draw_triangle(triangle_coords, { -90.0f * DEG2RAD, rads, 0 }, { 0.5f, 0.5f, 1 }, { 255, 255, 255, 1 });
+    gfx.draw_triangle(triangle_coords, { -90.0f * DEG2RAD, rads, 0 }, { 0.5f, 0.5f, 1 }, { 255, 255, 255, 1 });
 }
 
 //      180
@@ -460,57 +460,57 @@ draw_triangle_indicator(Game *game, Game_Draw *draw) {
 internal void
 draw_game(State *state, Assets *assets, Shader *shader, Game *game) {
     Texture_Array *tex_array = &state->game_draw.info.texture_array;
-    render_depth_test(true);
+    gfx.depth_test(true);
     
-    gfx_bind_shader("BASIC3D");    
-    render_bind_descriptor_set(state->scene_set);
-    render_bind_descriptor_set(light_set);
+    gfx.bind_shader(SHADER_BASIC3D);    
+    gfx.bind_descriptor_set(state->scene_set);
+    gfx.bind_descriptor_set(light_set);
     
     // Skybox
-    draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
+    gfx.draw_cube({ 0, 0, 0 }, 0.0f, { 100, 100, 100 }, { 30, 20, 10, 1 });
 
     // Table
-    gfx_bind_shader("BASIC3D");
-    //render_bind_pipeline(&texture_shader->pipeline);
-    render_bind_descriptor_set(tex_array->desc);
+    gfx.bind_shader(SHADER_BASIC3D);
+    //gfx.bind_pipeline(&texture_shader->pipeline);
+    gfx.bind_descriptor_set(tex_array->desc);
 
     Object object = {};
     object.model = create_transform_m4x4({ 0, -0.1f - 0.1f, 0 }, get_rotation(0, { 0, 1, 0 }), {15.6f, 2.0f, 15.6f});
     object.index = tex_array->indices[15];
-    render_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+    gfx.push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 
-    Model *model = find_model(assets, "TABLE");
+    Model *model = find_model(assets, MODEL_TABLE);
     for (u32 i = 0; i < model->meshes_count; i++) { 
-        render_draw_mesh(&model->meshes[i]);
+        gfx.draw_mesh(&model->meshes[i]);
     }
 
     //Shader *text_shader = find_shader(global_assets, "TEXT3D");
-    //render_bind_pipeline(&text_shader->pipeline);
-    gfx_bind_shader("TEXT3D");
+    //gfx.bind_pipeline(&text_shader->pipeline);
+    gfx.bind_shader(SHADER_TEXT3D);
 
     // Name Plate
     draw_name_plates(game, &state->game_draw);
 
-    render_depth_test(true);
+    gfx.depth_test(true);
 
     draw_triangle_indicator(&state->game, &state->game_draw);
 
     // Cards
-    gfx_bind_shader("BASIC3D");
-    //render_bind_pipeline(&texture_shader->pipeline);
-    render_bind_descriptor_set(tex_array->desc);
+    gfx.bind_shader(SHADER_BASIC3D);
+    //gfx.bind_pipeline(&texture_shader->pipeline);
+    gfx.bind_descriptor_set(tex_array->desc);
 
-    Model *card_model = find_model(assets, "CARD");
+    Model *card_model = find_model(assets, MODEL_CARD);
 
-    render_depth_test(false);
+    gfx.depth_test(false);
     bool8 highlight = state->is_active && state->game.round_type != HOLE_OVER && !state->game_draw.camera_rotation.rotating;
     
     if (state->game.round_type == HOLE_OVER || !highlight)
-        render_depth_test(true);
+        gfx.depth_test(true);
     
     draw_cards(game, &state->game_draw, card_model, highlight);
 
-    render_depth_test(false);
+    gfx.depth_test(false);
 }
 
 // Hole 11
@@ -535,7 +535,7 @@ draw_timer(float32 time, Vector2_s32 window_dim) {
         char buffer[20];
         float_to_char_array(time_left, buffer, 20);
         
-        String_Draw_Info info = get_string_draw_info(default_font, buffer, -1, pixel_height);
+        String_Draw_Info info = gfx.get_string_draw_info(default_font, buffer, -1, pixel_height);
         float32 x_coords = ((float32)window_dim.width / 2.0f) - (info.dim.width / 2.0f);
         draw_string_tl(default_font, buffer, { x_coords, 40.0f }, pixel_height, { 255, 255, 255, 1 });
     }
@@ -544,9 +544,9 @@ draw_timer(float32 time, Vector2_s32 window_dim) {
 internal void
 draw_game_hud(State *state, Vector2_s32 window_dim, App_Input *input, bool8 full_menu) {
     // depth test already off from draw_game()
-    render_bind_descriptor_set(state->scene_ortho_set);
+    gfx.bind_descriptor_set(state->scene_ortho_set);
 
-    Font *font = find_font(&state->assets, "CASLON");
+    Font *font = find_font(&state->assets, FONT_CASLON);
     float32 hole_pixel_height = window_dim.x / 30.0f;
     float32 pixel_height = window_dim.x / 20.0f;
     float32 padding = 10.0f;
@@ -562,8 +562,8 @@ draw_game_hud(State *state, Vector2_s32 window_dim, App_Input *input, bool8 full
         round_type_text = "Game Over";
     }
     
-    String_Draw_Info hole_string_info = get_string_draw_info(font, hole_text, -1, hole_pixel_height);
-    String_Draw_Info string_info = get_string_draw_info(font, round_type_text, -1, pixel_height);
+    String_Draw_Info hole_string_info = gfx.get_string_draw_info(font, hole_text, -1, hole_pixel_height);
+    String_Draw_Info string_info = gfx.get_string_draw_info(font, round_type_text, -1, pixel_height);
 
     Vector2 hole_coords = { padding, padding };
     Vector2 round_coords = hole_coords + Vector2{ 0.0f, 2.0f + hole_string_info.dim.y };
@@ -624,7 +624,7 @@ draw_game_hud(State *state, Vector2_s32 window_dim, App_Input *input, bool8 full
                     platform_memory_copy(buffer, tie_string, 3);
                 }
                 
-                String_Draw_Info string_info = get_string_draw_info(font, buffer, -1, pixel_height);
+                String_Draw_Info string_info = gfx.get_string_draw_info(font, buffer, -1, pixel_height);
                 Vector2 winner_coords = { 0, 10 };
                 winner_coords.x = center(float32(window_dim.x), string_info.dim.x);
                 draw_string_tl(font, buffer, winner_coords, pixel_height, { 255, 255, 255, 1 });
@@ -809,7 +809,7 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
                     0.0f,
                     -draw->info.rotation_speed
                 };
-                play_sound("WOOSH");
+                play_sound(SOUND_WOOSH);
 
             } break;
             
@@ -828,7 +828,7 @@ do_draw_signals(Draw_Signal *signals, Game *game, Game_Draw *draw) {
                 animation.add_movement(position, middle, position, 0.5f); 
                 animation.add_rotation(180.0f, 0.0f, -draw->info.card_flipping_speed);
                 add_card_animation(draw, animation);
-                play_sound("TAP");
+                play_sound(SOUND_TAP);
             } break;
 
             case SIGNAL_REPLACE: {
@@ -923,5 +923,5 @@ void Loading_Icon::draw(Vector2_s32 window_dim) {
         
     Vector2 dim = { size, size };
     Vector2 coords = { window_dim.x - dim.x, window_dim.y - dim.y };
-    draw_rect(coords, rotation, dim, bitmap);
+    gfx.draw_rect(coords, rotation, dim, bitmap);
 }

@@ -1,7 +1,6 @@
 #include "basic.cpp"
 
 #include "play_nine_game.h"
-#include "play_nine_assets.h"
 #include "play_nine_raytrace.h"
 #include "play_nine_shaders.h"
 #include "play_nine_input.h"
@@ -10,6 +9,7 @@
 #include "play_nine_render.h"
 #include "play_nine_online.h"
 
+#include "assets_loader.cpp"
 #include "play_nine_score.cpp"
 #include "play_nine_init.cpp"
 #include "play_nine_game.cpp"
@@ -32,7 +32,7 @@ internal void
 do_mouse_selected_update(State *state, App *app, bool8 selected[GI_SIZE]) {
     Game *game = &state->game;
     Game_Draw *draw = &state->game_draw;
-    Model *card_model = find_model(&state->assets, "CARD");
+    Model *card_model = find_model(&state->assets, MODEL_CARD);
 
     Ray mouse_ray;
     set_ray_coords(&mouse_ray, state->camera, state->scene, app->input.mouse, app->window.dim);
@@ -384,37 +384,32 @@ draw(App *app, State *state) {
         gfx.layouts[i].reset();
     }
     
-    state->scene_set = render_get_descriptor_set(GFX_ID_SCENE);
-    render_update_ubo(state->scene_set, (void*)&state->scene);
+    state->scene_set = gfx.descriptor_set(GFX_ID_SCENE);
+    gfx.update_ubo(state->scene_set, (void*)&state->scene);
 
-    state->scene_ortho_set = render_get_descriptor_set(GFX_ID_SCENE);
-    render_update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
+    state->scene_ortho_set = gfx.descriptor_set(GFX_ID_SCENE);
+    gfx.update_ubo(state->scene_ortho_set, (void*)&state->ortho_scene);
 
-    light_set = render_get_descriptor_set(GFX_ID_LIGHT);
-    render_update_ubo(light_set, (void*)&global_light);
+    light_set = gfx.descriptor_set(GFX_ID_LIGHT);
+    gfx.update_ubo(light_set, (void*)&global_light);
 
-    light_set_2 = render_get_descriptor_set(GFX_ID_LIGHT);
-    render_update_ubo(light_set_2, (void*)&global_light_2);
+    light_set_2 = gfx.descriptor_set(GFX_ID_LIGHT);
+    gfx.update_ubo(light_set_2, (void*)&global_light_2);
 
-    if (render_start_frame(&app->window))
+    if (gfx.start_frame())
         return 0;
 
     texture_atlas_refresh(&default_font->cache->atlas);
-    
-    render_set_viewport(render_context.resolution.width, render_context.resolution.height);
-    render_context.scissor_stack_index = 0;
-    render_context.scissor_push({ 0, 0 }, cv2(app->window.dim));
-    render_depth_test(false);
+    gfx.depth_test(false);
 
     if (state->menu_list.mode != IN_GAME && state->menu_list.mode != PAUSE_MENU) {
-        Shader *shader = find_shader(&state->assets, "COLOR");
-        render_bind_pipeline(&shader->pipeline);
-        render_bind_descriptor_set(state->scene_ortho_set);
+        gfx.bind_shader(SHADER_COLOR);
+        gfx.bind_descriptor_set(state->scene_ortho_set);
     }
     
     bool8 full_menu = state->mode != MODE_CLIENT;
-    Shader *basic_3D = find_shader(&state->assets, "BASIC3D");
-    Shader *color_3D = find_shader(&state->assets, "COLOR3D");
+    Shader *basic_3D = find_shader(&state->assets, SHADER_BASIC3D);
+    Shader *color_3D = find_shader(&state->assets, SHADER_COLOR3D);
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {
@@ -451,7 +446,7 @@ draw(App *app, State *state) {
     draw_string_tl(default_font, buffer, { 10, (float32)app->window.dim.height - 40 }, 40.0f, { 255, 50, 50, 1 });
 #endif // DEBUG
 
-    render_end_frame(&state->assets, &app->window);
+    gfx.end_frame(gfx.get_flags());
 
     return 0;
 }
@@ -463,7 +458,7 @@ bool8 update(App *app) {
     
     state->is_active = (state->client_game_index == state->game.active_player || state->mode == MODE_LOCAL) && !state->game.players[state->game.active_player].is_bot;
 
-    shapes_color_descriptor = render_get_descriptor_set(4);
+    shapes_color_descriptor = gfx.descriptor_set(4);
     // Update
     if (state->menu_list.mode == IN_GAME) {
         update_game(state, app);        
@@ -471,7 +466,7 @@ bool8 update(App *app) {
     
     // Audio plaing
     if (no_music_playing(&app->player))
-        play_music("MORNING");
+        play_music(MUSIC_MORNING);
     mix_audio(&app->player, (float32)app->time.frame_time_s);
     queue_audio(&app->player);
 
@@ -500,7 +495,7 @@ bool8 init_data(App *app) {
     state->assets = {};
 
     Bitmap blank_layout_bitmap = blank_bitmap(32, 32, 4);
-    render_create_texture(&blank_layout_bitmap, TEXTURE_PARAMETERS_DEFAULT);
+    gfx.create_texture(&blank_layout_bitmap, TEXTURE_PARAMETERS_DEFAULT);
     gfx.layouts = ARRAY_MALLOC_CLEAR(Layout, 11);
     init_layouts(gfx.layouts, &blank_layout_bitmap);
 
@@ -526,26 +521,27 @@ bool8 init_data(App *app) {
     print("Asset Size; %d\nBitmap Size: %d\nFont Size: %d\nShader Size: %d\nAudio Size: %d\nModel Size: %d\n", sizeof(Asset), sizeof(Bitmap), sizeof(Font), sizeof(Shader), sizeof(Audio), sizeof(Model));
 #endif // DEBUG
 
-    if (load_assets(&state->assets, assets_to_load, ARRAY_COUNT(assets_to_load), false)) {
+    if (load_assets(&state->assets, assets_decl, ARRAY_COUNT(assets_decl))) {
         logprint("init_data()", "load_assets failed\n");
         return 1;
     }
 
     global_assets = &state->assets;
-    default_font = find_font(&state->assets, "CASLON");
+    gfx.assets = &state->assets;
+    default_font = find_font(&state->assets, FONT_CASLON);
     global_mode = &state->mode;
     
-    bool8 reload_card_bitmaps = true;
+    bool8 reload_card_bitmaps = false;
     if (reload_card_bitmaps) {
         Bitmap card_bitmaps[14];                    
-        Font *card_font = find_font(global_assets, "CASLON");
+        Font *card_font = find_font(global_assets, FONT_CASLON);
         init_card_bitmaps(card_bitmaps, card_font); 
         clear_font_bitmap_cache(card_font);
         write_card_bitmaps(card_bitmaps);
     }
 
     init_pipelines(&state->assets);
-    init_shapes(&state->assets);
+    gfx.init_shapes();
     update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
 
     // Input
@@ -649,25 +645,25 @@ bool8 init_data(App *app) {
 
     // General Game
     Texture_Array *tex_array = &state->game_draw.info.texture_array;    
-    tex_array->desc = render_get_descriptor_set(GFX_ID_TEXT);
+    tex_array->desc = gfx.descriptor_set(GFX_ID_TEXT);
 
     for (u32 j = 0; j < 14; j++) {
-        tex_array->indices[j] = render_set_bitmap(&tex_array->desc, get_card_bitmap(&state->assets, j));
+        tex_array->indices[j] = gfx.set_bitmap(&tex_array->desc, get_card_bitmap(&state->assets, j));
     }
-    tex_array->indices[14] = render_set_bitmap(&tex_array->desc, find_bitmap(&state->assets, "BACK"));
-    Model *model = find_model(&state->assets, "TABLE");
-    tex_array->indices[15] = render_set_bitmap(&tex_array->desc, &model->meshes[0].material.diffuse_map);
+    tex_array->indices[14] = gfx.set_bitmap(&tex_array->desc, find_bitmap(&state->assets, BITMAP_BACK));
+    Model *model = find_model(&state->assets, MODEL_TABLE);
+    tex_array->indices[15] = gfx.set_bitmap(&tex_array->desc, &model->meshes[0].material.diffuse_map);
 
-    init_triangles(find_model(&state->assets, "CARD"), &state->triangle_desc); // Fills array on graphics card
+    init_triangles(find_model(&state->assets, MODEL_CARD), &state->triangle_desc); // Fills array on graphics card
     init_deck();
 
-    state->game_draw.bot_bitmap = find_bitmap(&state->assets, "BOT");
+    state->game_draw.bot_bitmap = find_bitmap(&state->assets, BITMAP_BOT);
 
     state->notifications.font = default_font;
     state->notifications.text_color = { 255, 255, 255, 1 };
 
-    input_prompt_atlases[PROMPT_KEYBOARD] = find_texture_atlas(&state->assets, "KEYBOARD_PROMPT");
-    input_prompt_atlases[PROMPT_XBOX_SERIES] = find_texture_atlas(&state->assets, "XBOX_SERIES_PROMPT");
+    input_prompt_atlases[PROMPT_KEYBOARD] = find_texture_atlas(&state->assets, ATLAS_KEYBOARD);
+    input_prompt_atlases[PROMPT_XBOX_SERIES] = find_texture_atlas(&state->assets, ATLAS_XBOX);
     
     return false;
 }
@@ -701,11 +697,11 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
 
     switch(event) {
         case APP_INIT: {
-            render_clear_color(Vector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+            gfx.clear_color(Vector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
             // draw loading screen
-            render_start_frame(&app->window);
-            render_end_frame(global_assets, &app->window);
+            gfx.start_frame();
+            gfx.end_frame(gfx.get_flags());
 
             audio_player = &app->player;
             init_audio_player(&app->player);
@@ -716,7 +712,7 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
                 return 1;
             state = (State *)app->data; // init data allocates new memory for data
             
-            app->icon = find_bitmap(&state->assets, "ICON");
+            app->icon = find_bitmap(&state->assets, BITMAP_ICON);
         } break;
 
         case APP_EXIT: {
@@ -727,15 +723,15 @@ s32 event_handler(App *app, App_System_Event event, u32 arg) {
                 close_server();
             }
 
-            gfx_cleanup_layouts(gfx.layouts, GFX_ID_COUNT);
-            render_assets_cleanup(&state->assets);
+            gfx.cleanup_layouts(gfx.layouts, GFX_ID_COUNT);
+            gfx.assets_cleanup(&state->assets);
 
             unload_name_plates(&state->game_draw);
         } break;
 
         case APP_RESIZED: {
             update_scenes(&state->scene, &state->ortho_scene, app->window.dim);
-        }
+        } break;
 
         case APP_KEYUP:
         case APP_KEYDOWN: {

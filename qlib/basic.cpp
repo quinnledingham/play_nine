@@ -143,10 +143,11 @@ void *platform_malloc_clear(u32 size) {
 #include "types_math.h"
 #include "char_array.h"
 #include "assets.h"
-#include "assets_loader.h"
 #include "data_structs.h"
+#include "assets_loader.h"
 
 Assets *global_assets;
+Audio_Player *audio_player; // play_sound & play_music
 
 #include "thread.h"
 #ifdef OS_WINDOWS
@@ -158,26 +159,20 @@ Assets *global_assets;
 #include "shapes.h"
 #include "application.h"
 #include "vulkan.h"
-#include "render.h"
-
-//
-// Defining render functions
-//
-
-// create identifier and then set function pointer
-// t = api, n = name, a == args
-//#define RENDER_FUNC(r, n, ...) r (*render_##n)(__VA_ARGS__) = &API3D_EXT(n)
+#include "gfx.h"
 
 #include "input.h"
 #include "gui.h"
 #include "qsock.h"
 
+global GFX gfx = {};
+
 #include "print.cpp"
-//#include "assets.cpp"
-//#include "obj.cpp"
-//#include "assets_loader.cpp"
+#include "play_nine_assets.h"
+#include "assets.cpp"
+#include "obj.cpp"
 //#include "shapes.cpp"
-//#include "gui.cpp"
+#include "gui.cpp"
 //#include "input.cpp"
 
 #ifdef OPENGL
@@ -204,9 +199,6 @@ Assets *global_assets;
 
 #endif // STEAM
 
-#include "render.cpp"
-
-global Render render_context = {};
-#define gfx render_context
+#include "gfx.cpp"
 
 #include "sdl_application.cpp"
