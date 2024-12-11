@@ -699,6 +699,7 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
     stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
 
     if (atlas->resetted) {
+        print("HERE\n");
         atlas->resetted = false;
         font->cache->bitmaps_cached = 0;
     }

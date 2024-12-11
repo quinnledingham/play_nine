@@ -5,3 +5,6 @@
 /.idea
 *.sublime-project
 *.sublime-workspace
+*.10x
+
+/rewrite/build
