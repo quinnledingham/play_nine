@@ -18,6 +18,25 @@ enum shader_stages {
   SHADER_STAGES_COUNT
 };
 
+const char *shader_file_types[] = {
+  ".vert",
+  ".tcs",
+  ".tes",
+  ".gs",
+  ".frag",
+  ".compute",
+};
+
+// lines up with enum shader_stages
+const u32 shaderc_glsl_file_types[] = { 
+  shaderc_glsl_vertex_shader,
+  shaderc_glsl_tess_control_shader ,
+  shaderc_glsl_tess_evaluation_shader,
+  shaderc_glsl_geometry_shader,
+  shaderc_glsl_fragment_shader,
+  shaderc_glsl_compute_shader,
+};
+
 struct Shader_File {
   const char *filename;
   u32 stage;

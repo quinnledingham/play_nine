@@ -26,6 +26,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 
 #include "defines.h"
 #include "types.h"
+#include "str.h"
 #include "assets.h"
 #include "app.h"
 

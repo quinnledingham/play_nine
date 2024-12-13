@@ -15,10 +15,17 @@ bool8 update() {
 void init() {
   app.update = update;
 
+  // initialize shader asset array
+  // kinda like setting the enums for each type of shader
+  allocate_assets(ASSET_TYPE_SHADER, SHADER_COUNT);
+  allocate_assets(ASSET_TYPE_BITMAP, BITMAP_COUNT);
+
   add_asset(ASSET_TYPE_SHADER, SHADER_COLOR, "2D.vert");
   add_asset(ASSET_TYPE_SHADER, SHADER_COLOR, "color.frag");
 
   load_assets(&app.assets);
+
+  Shader *test = (Shader *)app.assets.arrays[ASSET_TYPE_SHADER].memory;
 }
 
 void quit() {
