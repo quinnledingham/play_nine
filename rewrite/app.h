@@ -19,14 +19,6 @@ enum Input_Types {
   INPUT_TYPE_COUNT
 };
 
-enum Input_Modes {
-  INPUT_MODE_MENU,
-  INPUT_MODE_ONSCREEN_MENU,
-  INPUT_MODE_IN_GAME,
-
-  INPUT_MODE_COUNT
-};
-
 struct App_Input {
 
 };

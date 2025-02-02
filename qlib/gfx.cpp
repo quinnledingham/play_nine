@@ -110,6 +110,7 @@ bool8 GFX::sdl_init(SDL_Window *window) {
 bool8 GFX::start_frame() {
     if (resized) {
         create_swap_chain();
+        vulkan_recreate_pipelines(global_assets);
         resized = false;
     }
 

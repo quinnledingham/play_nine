@@ -640,6 +640,13 @@ texture_atlas_write(Texture_Atlas *atlas, const char *bitmap_file_name, const ch
     platform_free(texture_coords_file_path);
 }
 
+internal void
+texture_atlas_destroy(Texture_Atlas *atlas) {
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        gfx.destroy_texture(atlas->gpu[i].handle);
+    }
+}
+
 //
 // Font
 //

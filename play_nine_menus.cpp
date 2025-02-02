@@ -214,9 +214,11 @@ draw_local_menu(State *state, Menu *menu, bool8 full_menu, Vector2_s32 window_di
                     server_send_menu_mode(state->menu_list.mode);
                 }
 #if STEAM
+/*
                 u32 port;
                 char_array_to_u32(state->host_port, &port);
                 SteamMatchmaking()->SetLobbyGameServer(steam_manager->lobby_id, 0x7f000001, (u16)port, k_steamIDNil);
+*/
 #endif // STEAM
             } else {
                 add_onscreen_notification(&state->notifications, "Not enough players");

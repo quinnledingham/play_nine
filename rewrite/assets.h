@@ -111,3 +111,19 @@ what type of asset it is.
 Should be able to access it now using the id and proper find_<type> function
 
 */
+
+/*
+Asset Manager Philosophy
+
+Assets holds arrays of each of the assets that can be accessed from using
+enums that are specified. This may mean there is some unused space, not really
+though as long as you don't specify a bunch of unused enums.
+
+Assets are centralized so that they are easy to export to a asset file. It should
+be easy to save all of the files and assets since they are all managed in similar
+ways in the assets struct.
+
+These assets arrays also makes it easy to say reload all of the shaders when
+the swap chain has been recreated or any other time you want to iterate over
+a kind of asset.
+*/

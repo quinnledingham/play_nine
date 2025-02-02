@@ -143,6 +143,8 @@ struct Vulkan_Info {
 
 	Vulkan_Frame frames[MAX_FRAMES_IN_FLIGHT];
 
+	u32 dynamic_buffer_index = 0; // keeps track of what frame the buffer is fill (0 - 2). On 3 it does back to 0
+
 	// Buffers	
 	union {
 		struct {

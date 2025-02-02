@@ -408,8 +408,6 @@ draw(App *app, State *state) {
     }
     
     bool8 full_menu = state->mode != MODE_CLIENT;
-    Shader *basic_3D = find_shader(&state->assets, SHADER_BASIC3D);
-    Shader *color_3D = find_shader(&state->assets, SHADER_COLOR3D);
 
     switch(state->menu_list.mode) {
         case MAIN_MENU: {
@@ -431,7 +429,7 @@ draw(App *app, State *state) {
             if (on_up(state->controller.pause)) {
                 state->menu_list.toggle(IN_GAME, PAUSE_MENU);
             }
-            draw_game(state, &state->assets, basic_3D, &state->game);
+            draw_game(state, &state->assets, &state->game);
             //test_draw_rect();
             draw_game_hud(state, app->window.dim, &app->input, full_menu);
         } break;

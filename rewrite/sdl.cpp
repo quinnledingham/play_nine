@@ -27,6 +27,10 @@ bool8 sdl_process_input() {
 
 int main(int argc, char *argv[]) {
   printf("(sdl) starting sdl application...\n");
+
+  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    fprintf(stderr, "(sdl) error: could not initialize SDL: %s\n", SDL_GetError());
+  }
   
   SDL_version sdl_version = {};
   SDL_GetVersion(&sdl_version);
@@ -45,7 +49,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (gfx.init(sdl_window)) {
-    printf("(sdl) couldn't init gfx\n");
+    fprintf(stderr, "(sdl) couldn't init gfx\n");
     return 1;
   }
 

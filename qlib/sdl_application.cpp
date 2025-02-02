@@ -304,9 +304,10 @@ int main(int argc, char *argv[]) {
     }
     const char *name = SteamFriends()->GetPersonaName();
 
+/*
     Steam_Manager local_steam_manager;
     steam_manager = &local_steam_manager;
-    
+  */  
 #endif // STEAM
 
     if (SDL_HasScreenKeyboardSupport() == SDL_TRUE)

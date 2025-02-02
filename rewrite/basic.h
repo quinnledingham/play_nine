@@ -3,11 +3,13 @@
 #include <vector>
 
 // Compiling to SPIR in code
+#ifdef DEBUG
 #include <shaderc/env.h>
 #include <shaderc/shaderc.h>
 #include <shaderc/shaderc.hpp>
 #include <shaderc/status.h>
 #include <shaderc/visibility.h>
+#endif // DEBUG
 
 #include <spirv_cross/spirv_cross_c.h>
 
@@ -15,7 +17,7 @@
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_enum_string_helper.h>
+//#include <vulkan/vk_enum_string_helper.h>
 
 // Provided by VK_EXT_shader_object
 VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)

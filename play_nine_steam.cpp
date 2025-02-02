@@ -13,14 +13,14 @@ struct Steam_Manager {
 Steam_Manager *steam_manager;
 
 void Steam_Manager::on_game_overlay_activated(GameOverlayActivated_t *pCallback) {
-  State *state = (State *)app.data;
+  //State *state = (State *)app.data;
 
   if (pCallback->m_bActive) {
-      print("Steam overlay now active\n");
+    print("Steam overlay now active\n");
 
-    if (state->menu_list.mode == IN_GAME) {
-      state->menu_list.mode = PAUSE_MENU;
-    }      
+    //if (state->menu_list.mode == IN_GAME) {
+    //  state->menu_list.mode = PAUSE_MENU;
+    //}      
   } else {
       print("Steam overlay now inactive\n");
   }

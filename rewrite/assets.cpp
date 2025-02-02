@@ -61,6 +61,37 @@ void compile_glsl_to_spirv(Shader_File *file, shaderc_compiler_t compiler, u32 s
   }
 }
 
+void spirv_reflection(Shader_File *file) {
+  spvc_context context = NULL;
+  spvc_parsed_ir ir = NULL;
+  spvc_compiler compiler_glsl = NULL;
+  spvc_resources resources = NULL;
+  const spvc_reflected_resource *list = NULL;
+  const char *result = NULL;
+  size_t count;
+  size_t i;
+
+  spvc_context_create(&context);
+  //spvc_context_set_error_callback(context, &spir_reflection_callback, 0);
+  spvc_context_parse_spirv(context, (const SpvId *)file->spirv.memory, file->spirv.size / 4, &ir);
+  spvc_context_create_compiler(context, SPVC_BACKEND_GLSL, ir, SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, &compiler_glsl);
+
+  // Do some basic reflection.
+  spvc_compiler_create_shader_resources(compiler_glsl, &resources);
+  spvc_resources_get_resource_list_for_type(resources, SPVC_RESOURCE_TYPE_PUSH_CONSTANT, &list, &count);
+
+  for (i = 0; i < count; i++)
+  {
+    printf("ID: %u, BaseTypeID: %u, TypeID: %u, Name: %s\n", list[i].id, list[i].base_type_id, list[i].type_id,
+           list[i].name);
+    printf("  Set: %u, Binding: %u\n",
+           spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationDescriptorSet),
+           spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationBinding));
+  }
+
+  spvc_context_destroy(context);
+}
+
 void spirv_compile_shader(Shader *shader) {
   shaderc_compiler_t compiler = shaderc_compiler_initialize();
   shaderc_compile_options_t options = shaderc_compile_options_initialize();
@@ -71,6 +102,7 @@ void spirv_compile_shader(Shader *shader) {
       continue; // file was not loaded
     
     compile_glsl_to_spirv(file, compiler, shaderc_glsl_file_types[i], options);
+    spirv_reflection(file);
   }
 
   shaderc_compile_options_release(options);

@@ -26,6 +26,7 @@ void init() {
   load_assets(&app.assets);
 
   Shader *test = (Shader *)app.assets.arrays[ASSET_TYPE_SHADER].memory;
+  spirv_compile_shader(test);
 }
 
 void quit() {

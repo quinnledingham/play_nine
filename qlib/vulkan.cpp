@@ -685,13 +685,13 @@ vulkan_create_draw_framebuffers(Vulkan_Info *info, u8 flags) {
   framebuffer_info.pAttachments    = attachments;
   framebuffer_info.attachmentCount = 3;
   if (flags & GFX_RESOLUTION_SCALING) {
-    textures = &info->draw_textures;
-	framebuffer_info.width           = info->draw_extent.width;
-  	framebuffer_info.height          = info->draw_extent.height;
+		textures = &info->draw_textures;
+		framebuffer_info.width           = info->draw_extent.width;
+		framebuffer_info.height          = info->draw_extent.height;
   } else {
-  	textures = &info->swap_chain_textures;
-	framebuffer_info.width           = info->swap_chain_extent.width;
-	framebuffer_info.height          = info->swap_chain_extent.height;
+		textures = &info->swap_chain_textures;
+		framebuffer_info.width           = info->swap_chain_extent.width;
+		framebuffer_info.height          = info->swap_chain_extent.height;
   }
   framebuffer_info.layers          = 1;
   
@@ -1812,6 +1812,9 @@ void vulkan_assets_cleanup(Assets *assets) {
 					for (s32 j = 0; j < ARRAY_COUNT(font->cache->bitmaps); j++) {
 		    		vulkan_delete_texture(&font->cache->bitmaps[j].bitmap);
 		  		}
+		  		
+		    	Texture_Atlas *atlas = (Texture_Atlas *)&font->cache->atlas;
+		    	texture_atlas_destroy(atlas);
 				} break;
 
 		    case ASSET_TYPE_BITMAP: {
@@ -1832,6 +1835,11 @@ void vulkan_assets_cleanup(Assets *assets) {
 		    		vulkan_pipeline_cleanup(&shader->pipeline);
 		    } break;
 		    case ASSET_TYPE_AUDIO: break;
+
+		    case ASSET_TYPE_ATLAS: {
+		    	Texture_Atlas *atlas = (Texture_Atlas *)&asset->atlas;
+		    	texture_atlas_destroy(atlas);
+		    } break;
 		}
 	}
 }
@@ -1868,7 +1876,7 @@ void vulkan_cleanup() {
 	vulkan_cleanup_swap_chain(info);
 
 	vulkan_destroy_texture(&info->depth_texture);
-	vulkan_destroy_texture(&info->color_texture);
+	vulkan_destroy_texture(&info->color_texture);	
 
 	vkDestroyDescriptorPool(vulkan_info.device, vulkan_info.descriptor_pool, nullptr);
 
@@ -2091,10 +2099,16 @@ void vulkan_end_compute() {
 bool8 vulkan_start_frame() {
 	Vulkan_Frame *frame = &vulkan_info.frames[vulkan_info.current_frame];
 
-	vulkan_info.dynamic_buffer.offset = 0;
 
-	if (vulkan_info.current_frame == 0)
+	if (vulkan_info.current_frame == 0) {
+
+	}
+
+	if (vulkan_info.dynamic_buffer_index == 0) {
+		vulkan_info.dynamic_buffer.offset = 0;
 		vulkan_info.dynamic_uniform_buffer.offset = 0;
+
+	}
 
 	frame->dynamic_offset_start = vulkan_info.dynamic_uniform_buffer.offset;
 
@@ -2216,6 +2230,11 @@ void vulkan_end_frame(u8 flags) {
 	}
 
 	vulkan_info.current_frame = (vulkan_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+	
+	vulkan_info.dynamic_buffer_index++;
+	if (vulkan_info.dynamic_buffer_index == 3) {
+		vulkan_info.dynamic_buffer_index = 0;
+	}
 }
 
 //

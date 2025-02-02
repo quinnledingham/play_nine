@@ -458,7 +458,8 @@ draw_triangle_indicator(Game *game, Game_Draw *draw) {
 // 270        90
 //       0
 internal void
-draw_game(State *state, Assets *assets, Shader *shader, Game *game) {
+draw_game(State *state, Assets *assets, Game *game) {
+    Shader *shader = find_shader(assets, SHADER_BASIC3D);
     Texture_Array *tex_array = &state->game_draw.info.texture_array;
     gfx.depth_test(true);
     
