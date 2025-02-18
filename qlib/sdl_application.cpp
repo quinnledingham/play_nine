@@ -274,7 +274,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    qsock_init_qsock();
+    //qsock_init_qsock();
 
     u32 sdl_window_flags = SDL_WINDOW_RESIZABLE;
 #ifdef OPENGL

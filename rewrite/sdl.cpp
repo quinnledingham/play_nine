@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if (gfx.init(sdl_window)) {
+  if (gfx.sdl_init(sdl_window)) {
     fprintf(stderr, "(sdl) couldn't init gfx\n");
     return 1;
   }

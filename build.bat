@@ -10,16 +10,16 @@ REM LF = Linker Flags
 
 REM Change these directories to where the SDKs are on your computer
 set SDL_SDK= C:\Users\quinn\libs\SDL2-devel-2.30.8-VC
-set VULKAN_SDK= C:\VulkanSDK\1.3.296.0
+REM set VULKAN_SDK= C:\VulkanSDK\1.3.296.0
 set STEAM_SDK= ..\lib\steam
 
-set CF_DEFAULT= -MD -nologo -Gm- -GR- -EHa- -Od -Oi -FC -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\lib\stb /I..\ /I..\qlib -DSHADERS -DOS_WINDOWS -DDEBUG
+set CF_DEFAULT= -MD -nologo -Gm- /std:c++17 -GR- -EHa- -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\lib\stb /I..\ /I..\qlib -DSHADERS -DOS_WINDOWS -DDEBUG
 set CF_SDL= /I%SDL_SDK%\include -DSDL
 set CF_VULKAN= /I%VULKAN_SDK%\Include -DVULKAN
 set CF_OPENGL= /I..\lib\glad -DOPENGL /I%VULKAN_SDK%\Include
 set CF_STEAM= /I%STEAM_SDK% -DSTEAM
 
-set LF_DEFAULT= -incremental:no -opt:ref -subsystem:windows
+set LF_DEFAULT= -incremental:no -opt:ref -subsystem:console
 set LF_SDL= shell32.lib %SDL_SDK%\lib\x64\SDL2main.lib %SDL_SDK%\lib\x64\SDL2.lib
 set LF_SHADERS= %VULKAN_SDK%\Lib\spirv-cross-c-shared.lib %VULKAN_SDK%\Lib\shaderc_combined.lib
 set LF_OPENGL= opengl32.lib 

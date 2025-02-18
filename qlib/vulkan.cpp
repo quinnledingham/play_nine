@@ -384,8 +384,8 @@ vulkan_create_logical_device(Vulkan_Info *info) {
 internal VkSurfaceFormatKHR
 vulkan_choose_swap_surface_format(VkSurfaceFormatKHR *formats, u32 count) {
 	VkFormat vulkan_target_formats[2] = {
+		VK_FORMAT_R8G8B8A8_SRGB,
 		VK_FORMAT_B8G8R8A8_UNORM,
-		VK_FORMAT_R8G8B8A8_SRGB
 	}; 
 	
 	for (u32 target_index = 0; target_index < ARRAY_COUNT(vulkan_target_formats); target_index++) {
@@ -1953,7 +1953,7 @@ bool8 vulkan_sdl_init(SDL_Window *sdl_window) {
 
 	vulkan_create_buffer(&info->static_buffer, info->device, info->physical_device, VULKAN_STATIC_BUFFER_SIZE, 
 											 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-											 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+											 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	
 	vulkan_create_buffer(&info->dynamic_buffer, info->device, info->physical_device, VULKAN_STATIC_BUFFER_SIZE, 
 											 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
@@ -2232,7 +2232,7 @@ void vulkan_end_frame(u8 flags) {
 	vulkan_info.current_frame = (vulkan_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 	
 	vulkan_info.dynamic_buffer_index++;
-	if (vulkan_info.dynamic_buffer_index == 3) {
+	if (vulkan_info.dynamic_buffer_index == 4) {
 		vulkan_info.dynamic_buffer_index = 0;
 	}
 }

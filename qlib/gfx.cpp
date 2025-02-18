@@ -100,7 +100,6 @@ bool8 GFX::sdl_init(SDL_Window *window) {
     GFX_FUNC(wait_frame);
     GFX_FUNC(cleanup);
 
-
     if (vulkan_sdl_init(window))
         return 1;
 
@@ -115,7 +114,7 @@ bool8 GFX::start_frame() {
     }
 
     if (vulkan_start_frame())
-        return 0;
+        return 1;
 
     set_viewport(resolution.width, resolution.height);
     scissor_stack_index = 0;
