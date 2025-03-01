@@ -56,17 +56,6 @@ struct Vertex_XU {
   Shader
 */
 
-enum shader_stages {
-  SHADER_STAGE_VERTEX,
-  SHADER_STAGE_TESSELLATION_CONTROL,
-  SHADER_STAGE_TESSELLATION_EVALUATION,
-  SHADER_STAGE_GEOMETRY,
-  SHADER_STAGE_FRAGMENT,
-  SHADER_STAGE_COMPUTE,
-
-  SHADER_STAGES_COUNT
-};
-
 const char *shader_file_types[6][2] = {
   {".vs",      ".vert" },
   {".tcs",     ".cont" },
@@ -112,6 +101,8 @@ struct Shader {
   bool8 compiled   = FALSE;
 
   Vertex_Info vertex_info;
+
+  GFX_Layout_Set set;
 };
 
 typedef Shader Pipeline;

@@ -27,7 +27,7 @@ struct GFX : Vulkan_Context {
   void create_frame_resources();
   void default_viewport() { set_viewport(window.dim.width, window.dim.height); }
   void default_scissor() { set_scissor(0, 0, window.dim.width, window.dim.height); }
-  void descriptor(u32 gfx_layout_id);
+  Descriptor descriptor(u32 gfx_layout_id);
 
   void bind_pipeline(u32 id);
 };
@@ -45,4 +45,9 @@ enum Texture_Parameters {
 struct Scene {
     Matrix_4x4 view;
     Matrix_4x4 projection;
+};
+
+struct Object {
+    Matrix_4x4 model;
+    s32 index;
 };

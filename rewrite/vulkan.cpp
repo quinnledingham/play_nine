@@ -1411,12 +1411,26 @@ s32 Vulkan_Context::create_graphics_pipeline(Shader *shader, VkRenderPass render
 
 	// define shader descriptor sets
 	
+	VkDescriptorSetLayout descriptor_set_layouts[5] = {};
+	for (u32 i = 0; i < shader->set.layouts_count; i++) {
+		descriptor_set_layouts[i] = shader->set.layouts[i]->descriptor_set_layout;
+	}
+
+	VkPushConstantRange push_constant_ranges[5] = {};
+	for (u32 i = 0; i < shader->set.push_constants_count; i++) {
+		VkPushConstantRange range = {};
+		range.stageFlags = vulkan_convert_shader_stage(shader->set.push_constants[i].shader_stage);
+		range.offset = 0;
+		range.size = shader->set.push_constants[i].size;
+		push_constant_ranges[i] = range;
+	}
+
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount         = 0; 
-	//pipeline_layout_info.pSetLayouts            = descriptor_set_layouts;      
-	pipeline_layout_info.pushConstantRangeCount = 0; 
-	//pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;          
+	pipeline_layout_info.setLayoutCount         = shader->set.layouts_count; 
+	pipeline_layout_info.pSetLayouts            = descriptor_set_layouts;      
+	pipeline_layout_info.pushConstantRangeCount = shader->set.push_constants_count; 
+	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;          
 
 	if (vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &shader->layout) != VK_SUCCESS) {
 		printf("vulkan_create_graphics_pipeline(): failed to create pipeline layout\n");
@@ -1427,7 +1441,7 @@ s32 Vulkan_Context::create_graphics_pipeline(Shader *shader, VkRenderPass render
 	VkDynamicState dynamic_states[] = { 
 		VK_DYNAMIC_STATE_VIEWPORT, 
 		VK_DYNAMIC_STATE_SCISSOR,
-		//VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE
+		VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE
 	};
 	
 	VkPipelineDynamicStateCreateInfo dynamic_state = {};
@@ -1460,7 +1474,7 @@ s32 Vulkan_Context::create_graphics_pipeline(Shader *shader, VkRenderPass render
 	
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
 	vertex_input_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertex_input_info.vertexBindingDescriptionCount   = 0;
+	vertex_input_info.vertexBindingDescriptionCount   = 1;
 	vertex_input_info.pVertexBindingDescriptions      = &binding_description;         // Optional
 	vertex_input_info.vertexAttributeDescriptionCount = shader->vertex_info.attributes_count;
 	vertex_input_info.pVertexAttributeDescriptions    = attribute_descriptions;       // Optional
@@ -1499,7 +1513,7 @@ s32 Vulkan_Context::create_graphics_pipeline(Shader *shader, VkRenderPass render
 	
 	VkPipelineColorBlendAttachmentState color_blend_attachment = {};
 	color_blend_attachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	color_blend_attachment.blendEnable         = VK_TRUE;
+	color_blend_attachment.blendEnable         = VK_FALSE;
 	color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 	color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	color_blend_attachment.colorBlendOp        = VK_BLEND_OP_ADD;
@@ -1561,6 +1575,10 @@ s32 Vulkan_Context::create_graphics_pipeline(Shader *shader, VkRenderPass render
 	return 0;
 }
 
+void Vulkan_Context::depth_test(bool32 enable) {
+	vkCmdSetDepthTestEnable(*active_command_buffer, vulkan_bool(enable));
+}
+
 void Vulkan_Context::set_viewport(u32 window_width, u32 window_height) {
 	VkViewport viewport;
 	viewport.x = 0.0f;
@@ -1582,6 +1600,7 @@ void Vulkan_Context::set_scissor(s32 x, s32 y, u32 width, u32 height) {
 }
 
 void Vulkan_Context::bind_pipeline(Pipeline *pipeline) {
+		pipeline_layout = pipeline->layout; // to use when binding sets later
 		vkCmdBindPipeline(*active_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle);
 }
 
@@ -1591,7 +1610,7 @@ void Vulkan_Context::bind_pipeline(Pipeline *pipeline) {
 
 void Vulkan_Context::create_set_layout(GFX_Layout *layout) {
 
-	if (layout->bindings_count = 0) {
+	if (layout->bindings_count == 0) {
 		log_error("(vulkan) vulkan_create_set_layout()", "no bindings set\n");
 	}
 
@@ -1753,6 +1772,54 @@ void Vulkan_Context::init_layout_offsets(GFX_Layout *layout) {
 	}
 	*/
 }
+
+Descriptor Vulkan_Context::get_descriptor_set(GFX_Layout *layout) {
+	if (!layout) {
+		vulkan_log_error("get_descriptor_set(): layout is null\n");
+		ASSERT(0);
+	}
+
+	if (layout->sets_in_use + 1 > layout->max_sets / 2) {
+		vulkan_log_error("get_descriptor_set(): used all sets\n");
+		ASSERT(0);
+	}
+
+  u32 return_index = layout->sets_in_use++;
+  if (current_frame == 1)
+    return_index += layout->max_sets / 2;
+
+	Descriptor desc = {};
+	desc.binding = layout->bindings[0];
+	desc.offset = layout->offsets[return_index];
+	desc.set_number = layout->set_number;
+	desc.vulkan_set = &layout->descriptor_sets[return_index];
+
+  return desc;
+}
+
+void Vulkan_Context::update_ubo(Descriptor desc, void *data) {
+	if (desc.binding.descriptor_type != DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+		vulkan_log_error("vulkan_update_ubo(): tried to update non static buffer in static way\n");
+		return;
+	}
+
+	memcpy((char*)static_uniform_buffer.data + desc.offset, data, desc.binding.size);
+}
+
+void Vulkan_Context::push_constants(u32 shader_stage, void *data, u32 data_size) {
+	vkCmdPushConstants(*active_command_buffer, pipeline_layout, vulkan_convert_shader_stage(shader_stage), 0, data_size, data);
+}
+
+void Vulkan_Context::bind_descriptor_set(Descriptor desc) {
+	if (desc.binding.stages[0] == SHADER_STAGE_COMPUTE)
+		vkCmdBindDescriptorSets(*active_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
+	else
+		vkCmdBindDescriptorSets(*active_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, desc.set_number, 1, desc.vulkan_set, 0, nullptr);
+}
+
+//
+// Vulkan_Buffer
+//
 
 void Vulkan_Context::create_buffer(Vulkan_Buffer *buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
 	buffer->size = size;

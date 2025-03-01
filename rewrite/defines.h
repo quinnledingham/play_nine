@@ -33,5 +33,6 @@ typedef double float64;
 #define ASSERT(Expression) if(!(Expression)) {*(int *)0 = 0;}
 
 #define PI       3.141592653593f
+#define EPSILON  0.00001f
 
 #endif // DEFINES_H

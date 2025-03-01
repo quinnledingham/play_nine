@@ -2,6 +2,17 @@
 // GFX Layouts
 //
 
+enum shader_stages {
+  SHADER_STAGE_VERTEX,
+  SHADER_STAGE_TESSELLATION_CONTROL,
+  SHADER_STAGE_TESSELLATION_EVALUATION,
+  SHADER_STAGE_GEOMETRY,
+  SHADER_STAGE_FRAGMENT,
+  SHADER_STAGE_COMPUTE,
+
+  SHADER_STAGES_COUNT
+};
+
 enum descriptor_types {
     DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
@@ -46,6 +57,10 @@ struct GFX_Layout {
 
   u32 id;
 
+  bool8 resetted;
+  u32 sets_reset_amount; // Descriptors got before layout is reseted the first time won't get overwritten
+  u32 sets_in_use;
+
   GFX_Layout_Binding bindings[max_bindings];
   u32 bindings_count;
 
@@ -59,13 +74,41 @@ struct GFX_Layout {
     GFX_Layout_Binding *binding = &bindings[bindings_count++];
     binding->binding = in_binding;
     binding->descriptor_type = in_type;
+    binding->descriptor_count = in_descriptor_count;
     binding->stages[0] = in_stage;
     binding->stages_count = 1;
     binding->size = in_size;
   }
+
+  void reset() {
+    if (!resetted) {
+      sets_reset_amount = sets_in_use;
+      resetted = true;
+    }
+    sets_in_use = sets_reset_amount;
+  }
+};
+
+struct GFX_Push_Constant {
+    u32 shader_stage;
+    u32 size;
 };
 
 struct GFX_Layout_Set {
   GFX_Layout *layouts[5];
   u32 layouts_count;
+
+  GFX_Push_Constant push_constants[5];
+  u32 push_constants_count;
+
+  void add_layout(GFX_Layout *layout) {
+    layouts[layouts_count++] = layout;
+  }
+
+  void add_push(u32 shader_stage, u32 size) {
+    GFX_Push_Constant push = {};  
+    push.shader_stage = shader_stage;
+    push.size = size;
+    push_constants[push_constants_count++] = push;
+  }
 };

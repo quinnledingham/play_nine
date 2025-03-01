@@ -24,6 +24,13 @@ s32 load_pipelines() {
     }
 
     spirv_compile_shader(pipeline);
+    //gfx.create_graphics_pipeline(pipeline, gfx.draw_render_pass);
+  }
+
+  gfx.init();
+
+  for (u32 i = 0; i < pipeline_loads_count; i++) {
+    Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
     gfx.create_graphics_pipeline(pipeline, gfx.draw_render_pass);
   }
 
@@ -54,6 +61,11 @@ void update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
 }
 
 s32 draw() {
+  // Resets all of the descriptor sets to be reallocated on next frame
+  for (u32 i = 0; i < GFXID_COUNT; i++) {
+      gfx.layouts[i].reset();
+  }
+
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
 
   if (gfx.window.resized) {
@@ -68,11 +80,26 @@ s32 draw() {
   gfx.default_viewport();
   gfx.default_scissor();
 
-  gfx.bind_pipeline(SIMPLE_PIPELINE);
-  vkCmdDraw(*gfx.active_command_buffer, 3, 1, 0, 0);
+  //gfx.bind_pipeline(SIMPLE_PIPELINE);
+  //vkCmdDraw(*gfx.active_command_buffer, 3, 1, 0, 0);
 
   gfx.bind_pipeline(PIPELINE_2D);
+
   Descriptor scene_desc = gfx.descriptor(GFXID_SCENE);
+  gfx.update_ubo(scene_desc, &ortho_scene);
+  gfx.bind_descriptor_set(scene_desc);
+
+/*
+  Vector4 color = {1, 1, 1, 1};
+  Descriptor color_desc = gfx.descriptor(GFXID_COLOR_2D);
+  gfx.update_ubo(color_desc, (void *)&color);
+  gfx.bind_descriptor_set(color_desc);
+*/
+
+  Object object = {};
+  object.model = create_transform_m4x4({200, 200, 0}, get_rotation(0, {0, 1, 0}), {100, 100, 1});
+  object.index = 0;
+  gfx.push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
   gfx.draw_mesh(&square);
 
   gfx.end_frame(gfx.resolution_scaling, gfx.window.resized);

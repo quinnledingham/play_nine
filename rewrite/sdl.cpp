@@ -71,7 +71,7 @@ s32 SDL_Context::init() {
   }
 
   gfx.sdl_init(window);
-  gfx.init();
+  //gfx.init();
   SDL_GetWindowSize(window, &gfx.window.dim.width, &gfx.window.dim.height);
   gfx.window.resolution = gfx.window.dim;
   gfx.create_frame_resources();

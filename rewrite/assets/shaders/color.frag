@@ -41,5 +41,5 @@ void main() {
     vec4 color = vec4(norm_color, color.c.w);
     //color = to_linear(color);
 	//color = to_sRGB(color);
-    outColor = color;
+    outColor = vec4(1, 1, 1, 1);
 }

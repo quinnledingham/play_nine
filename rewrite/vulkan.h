@@ -153,6 +153,7 @@ struct Vulkan_Context {
 	VkSampleCountFlagBits msaa_samples;
 
 	VkCommandBuffer *active_command_buffer;
+	VkPipelineLayout pipeline_layout; // set this to the currently bounded layout
 
 	// Presentation
 	VkClearValue clear_values[2];
@@ -225,11 +226,16 @@ struct Vulkan_Context {
 	void set_viewport(u32 window_width, u32 window_height);
 	void set_scissor(s32 x, s32 y, u32 width, u32 height);
 	void bind_pipeline(Pipeline *pipeline);
+	void depth_test(bool32 enable);
 
 	void create_set_layout(GFX_Layout *layout);
 	void allocate_descriptor_set(GFX_Layout *layout);
 	void init_layout_offsets(GFX_Layout *layout); // @TODO add Bitmap *bitmap back
 	void init_ubos(VkDescriptorSet *sets, GFX_Layout_Binding *layout_binding, u32 num_of_sets, u32 offsets[64]);
+	Descriptor get_descriptor_set(GFX_Layout *layout);
+	void update_ubo(Descriptor desc, void *data);
+	void push_constants(u32 shader_stage, void *data, u32 data_size);
+	void bind_descriptor_set(Descriptor desc);
 
 	void copy_buffer(Vulkan_Buffer src_buffer, Vulkan_Buffer dest_buffer, VkDeviceSize size, u32 src_offset, u32 dest_offset);
 	void create_buffer(Vulkan_Buffer *buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);

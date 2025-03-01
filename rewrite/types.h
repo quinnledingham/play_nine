@@ -63,11 +63,23 @@ struct Buffer {
 
 Buffer blank_buffer(u32 size);
 
+union Quaternion {
+    struct {
+        float32 x, y, z, w;
+    };
+    struct {
+        Vector3 vector;
+        float32 scalar;
+    };
+    float32 E[4];
+};
+
 struct Matrix_4x4 {
 	union {
 		float32 E[4][4];
 		float32 F[16];
 	};
 };
+
 
 #endif // TYPES_H
