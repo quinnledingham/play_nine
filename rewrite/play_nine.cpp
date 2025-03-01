@@ -1,41 +1,91 @@
-#include "basic.h"
+#include "play_nine.h"
 
-#include "play_nine_assets.h"
+s32 load_pipelines() {
+  print("loading pipelines...\n");
 
-bool8 update() {
-  /*
-  gfx_attach_bitmap(BITMAP_BOT);
-  play_sound(SOUND_BOOP);
-  */
-  //printf("FPS: %f\n", app.time.frames_per_s);
+  u32 filenames_count = ARRAY_COUNT(pipeline_loads[0].filenames);
+  u32 pipeline_loads_count = ARRAY_COUNT(pipeline_loads);
 
-  return 0;
-}
+  prepare_asset_array(&assets.pipelines, pipeline_loads_count, sizeof(Pipeline));
 
-void init() {
-  app.update = update;
+  for (u32 i = 0; i < pipeline_loads_count; i++) {
+    Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
+    Pipeline_Load *load = &pipeline_loads[i];
 
-  // initialize shader asset array
-  // kinda like setting the enums for each type of shader
-  allocate_assets(ASSET_TYPE_SHADER, SHADER_COUNT);
-  allocate_assets(ASSET_TYPE_BITMAP, BITMAP_COUNT);
+    for (u32 file_index = 0; file_index < filenames_count; file_index++) {
+      if (!load->filenames[file_index]) {
+        continue;
+      }
 
-  add_asset(ASSET_TYPE_SHADER, SHADER_COLOR, "2D.vert");
-  add_asset(ASSET_TYPE_SHADER, SHADER_COLOR, "color.frag");
+      s32 result = load_shader_file(pipeline, load->filenames[file_index]);
+      if (result == FAILURE) {
+        return FAILURE;
+      }
+    }
 
-  load_assets(&app.assets);
-
-  Shader *test = (Shader *)app.assets.arrays[ASSET_TYPE_SHADER].memory;
-  spirv_compile_shader(test);
-}
-
-void quit() {
-  printf("QUITING\n");
-}
-
-void event_handler(u32 event) {
-  switch (event) {
-    case EVENT_INIT: init(); break;
-    case EVENT_QUIT: quit(); break;
+    spirv_compile_shader(pipeline);
+    gfx.create_graphics_pipeline(pipeline, gfx.draw_render_pass);
   }
+
+  return SUCCESS;
+}
+
+/*
+  0 = init was successfull
+  1 = init failed
+*/
+s32 init() {
+  s32 load_pipelines_result = load_pipelines();
+  if (load_pipelines_result == FAILURE) {
+    return FAILURE;
+  }
+
+  square = get_rect_mesh_2D();
+
+  return SUCCESS;
+}
+
+void update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
+    //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
+    scene->projection = perspective_projection(45.0f, (float32)window_dim.width / (float32)window_dim.height, 0.1f, 1000.0f);
+
+    ortho_scene->view = identity_m4x4();
+    ortho_scene->projection = orthographic_projection(0.0f, (float32)window_dim.width, 0.0f, (float32)window_dim.height, -3.0f, 3.0f);
+}
+
+s32 draw() {
+  update_scenes(&scene, &ortho_scene, gfx.window.dim);
+
+  if (gfx.window.resized) {
+    gfx.create_frame_resources();
+    gfx.window.resized = false;
+  }
+
+  if (gfx.start_frame()) {
+    return FAILURE;
+  }
+
+  gfx.default_viewport();
+  gfx.default_scissor();
+
+  gfx.bind_pipeline(SIMPLE_PIPELINE);
+  vkCmdDraw(*gfx.active_command_buffer, 3, 1, 0, 0);
+
+  gfx.bind_pipeline(PIPELINE_2D);
+  Descriptor scene_desc = gfx.descriptor(GFXID_SCENE);
+  gfx.draw_mesh(&square);
+
+  gfx.end_frame(gfx.resolution_scaling, gfx.window.resized);
+
+  return SUCCESS;
+}
+
+s32 update() {
+
+  s32 draw_result = draw();
+  if (draw_result == FAILURE) {
+    log_error("update(): draw failed\n");
+  }
+
+  return SUCCESS;
 }

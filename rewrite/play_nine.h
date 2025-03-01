@@ -1,41 +1,81 @@
-enum Play_Nine_Input {
-  PNI_CARD_0,
-  PNI_CARD_1,
-  PNI_CARD_2,
-  PNI_CARD_3,
-  PNI_CARD_4,
-  PNI_CARD_5,
-  PNI_CARD_6,
-  PNI_CARD_7,
+#ifdef OS_WINDOWS
 
-  PNI_PICKUP_PILE,
-  PNI_DISCARD_PILE,
-  PNI_PASS,
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 
-  PNI_COUNT
-};
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iphlpapi.h>
 
-enum Input_Modes {
-  INPUT_MODE_MENU,
-  INPUT_MODE_ONSCREEN_MENU,
-  INPUT_MODE_IN_GAME,
+//#pragma comment(lib, "Ws2_32.lib")
 
-  INPUT_MODE_COUNT
-};
+//
+// We prefer the discrete GPU in laptops where available
+//
+extern "C" {
+    __declspec(dllexport) DWORD NvOptimusEnablement = 0x01;
+    __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x01;
+}
 
-/*
-MENU:
-Controller: Navigate menu with joystick/DPAD, pop up onscreen keyboard while active
-Keyboard: Navigate with arrow keys, typing
-Mouse: Click on each button, go to keyboard for typing
+#endif // OS
 
-ON_SCREEN MENU:
-Controller: Button Prompts
-Keyboard: Button Prompts (Navigate not with array keys)
-Mouse: Clickable Buttons
+#include <SDL.h>
 
-IN_GAME:
-Controller: Used joystick/DPAD to select cards -> button prompt for pass
-Keyboard: Use individual keys for each input -> button prompt for pass
-Mouse: Click on the card or show button for pass
-*/
+#include <stdio.h>
+#include <vector>
+
+// Compiling to SPIR in code
+//#ifdef DEBUG
+#include <shaderc/env.h>
+#include <shaderc/shaderc.h>
+#include <shaderc/shaderc.hpp>
+#include <shaderc/status.h>
+#include <shaderc/visibility.h>
+//#endif // DEBUG
+
+#include <spirv_cross/spirv_cross_c.h>
+
+#ifdef API3D_VULKAN
+
+#include <SDL_vulkan.h>
+#include <vulkan/vulkan.h>
+#include <vulkan/vk_enum_string_helper.h>
+
+// Provided by VK_EXT_shader_object
+VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
+
+#define VK_USE_PLATFORM_WIN32_KHR
+
+#endif // API3D_VULKAN
+
+#define WINDOW_NAME "pinball"
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 500
+#define WINDOW_FLAGS SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
+
+#include "defines.h"
+#include "types.h"
+#include "log.h"
+#include "types_math.h"
+#include "data_structs.h"
+#include "str.h"
+#include "assets.h"
+#include "gfx_layouts.h"
+#include "vulkan.h"
+#include "gfx.h"
+
+#include "global.h"
+
+#include "play_nine_assets.h"
+
+s32 init();
+s32 update();
+
+#include "log.cpp"
+#include "assets.cpp"
+#include "vulkan.cpp"
+#include "gfx.cpp"
+#include "sdl.cpp"
+#include "shapes.cpp"

@@ -1,11 +1,13 @@
-//
-// File
-//
+/*
+  File
+*/
 
 File load_file(const char *filepath) {
   File result = {};
     
-  FILE *in = fopen(filepath, "rb");
+  //FILE *in = fopen(filepath, "rb");
+  FILE *in;
+  fopen_s(&in, filepath, "rb");
   if(in) {
     fseek(in, 0, SEEK_END);
     result.size = ftell(in);
@@ -15,15 +17,50 @@ File load_file(const char *filepath) {
     fread(result.memory, result.size, 1, in);
     fclose(in);
   } else { 
-    printf("load_file(): Cannot open file %s\n", filepath);
+    log_error("load_file(): Cannot open file %s\n", filepath);
   }
         
   return result;
 }
 
-//
-// Shader
-//
+void destroy_file(File *file) {
+  if (!file->memory)
+    return;
+
+  free(file->memory);
+  file->memory = 0;
+  file->size = 0;
+}
+
+File buffer_to_file(Buffer buffer) {
+  File result = {};
+  result.memory = buffer.memory;
+  result.size = buffer.size;
+  return result;
+}
+
+Buffer blank_buffer(u32 size) {
+  Buffer buffer = {};
+
+  buffer.size = size;
+  buffer.memory = malloc(buffer.size);
+  memset(buffer.memory, 0, buffer.size);
+
+  return buffer;
+}
+
+void destroy_buffer(Buffer *buffer) {
+  if (!buffer->memory)
+    return;
+
+  free(buffer->memory);
+  buffer->memory = 0;
+  buffer->size = 0;
+}
+
+/*
+  Shader
+*/
 
 /*
   shaderc_compile_options_set_target_env(options, shaderc_target_env_opengl, shaderc_env_version_opengl_4_5);
@@ -39,24 +76,21 @@ void compile_glsl_to_spirv(Shader_File *file, shaderc_compiler_t compiler, u32 s
 
   if (num_of_warnings != 0 || num_of_errors != 0) {
     const char *error_message = shaderc_result_get_error_message(result);
-    printf("compile_glsl_to_spirv(): %s\n", error_message);
+    log_error("compile_glsl_to_spirv(): %s\n", error_message);
   }
 
   u32 length = (u32)shaderc_result_get_length(result);
   const char *bytes = shaderc_result_get_bytes(result);
-
-  File result_file = {};
-  result_file.memory = malloc(length);
-  result_file.size = length;
-  memset(result_file.memory, 0, length);
-  memcpy(result_file.memory, (void *)bytes, length);
+  Buffer result_buffer = blank_buffer(length);
+  memcpy(result_buffer.memory, (void *)bytes, length);
 
   shaderc_result_release(result);
 
-  file->spirv = result_file;
+  destroy_file(&file->spirv);
+  file->spirv = buffer_to_file(result_buffer);
 
   if (file->spirv.size == 0) {
-    printf("compile_glsl_to_spirv() could not compile %s\n", file->filename); 
+    log_error("compile_glsl_to_spirv() could not compile %s\n", file->filename); 
     return;
   }
 }
@@ -98,121 +132,73 @@ void spirv_compile_shader(Shader *shader) {
 
   for (u32 i = 0; i < SHADER_STAGES_COUNT; i++) {
     Shader_File *file = &shader->files[i];
-    if (file->filename == 0) 
+    if (!file->loaded) 
       continue; // file was not loaded
     
     compile_glsl_to_spirv(file, compiler, shaderc_glsl_file_types[i], options);
-    spirv_reflection(file);
+    //spirv_reflection(file);
   }
 
   shaderc_compile_options_release(options);
   shaderc_compiler_release(compiler);
 }
 
-// identifies what the shader stage is based on the file extension
 u32 identify_shader_stage(const char *filename) {
-  // find end of filename
+  u32 length = get_length(filename);
   char *ptr = (char *)filename;
-  while (*ptr != 0) {
-    ptr++;
-  }
 
-  // from end find first period
-  while (*ptr != '.' && ptr > filename) {
+  ptr += length; // go to the end of string
+
+  // moving backwards until finding a period
+  while(*ptr != '.' && ptr > filename) {
     ptr--;
   }
-  
-  // compare it to various shader file type endings
-  for (u32 stage_index = 0; stage_index < SHADER_STAGES_COUNT; stage_index++) {
-    const char *stage_file = shader_file_types[stage_index];
-    if (!strcmp(ptr, stage_file))
-      return stage_index; // corresponds to a shader stage enum
+
+  // compare with saved types
+  for (u32 i = 0; i < ARRAY_COUNT(shader_file_types); i++) {
+      const char *ending_1 = shader_file_types[i][0];
+      const char *ending_2 = shader_file_types[i][1];
+
+      if (!strcmp(ptr, ending_1) || !strcmp(ptr, ending_2)) {
+        return i;
+      }
   }
 
-  printf("(assets) identify_shader_stage(): DID NOT FIND SHADER FILE TYPE (%s)\n", filename);
-  return SHADER_STAGES_COUNT;
-}
-
-//
-// Asset Manager
-//
-
-s32 allocate_assets(u32 type, u32 count) {
-  Asset_Array *array = &app.assets.arrays[type];
-  array->memory = malloc(count * asset_type_sizes[type]);
-  return 0;
-}
-
-s32 add_asset(u32 type, u32 id, const char *filename) {
-  Asset_Load_Info load = {};
-  load.type = type;
-  load.id = id;
-  load.filename = filename;
-  load.filename = get_asset_folder(type) + load.filename; // add asset type folder location
-  app.assets.load_info.push_back(load);
-
-  app.assets.arrays[type].count++;
+  log_error("identify_shader_stage(): count not find a stage that matched -> %s, returning default\n", filename);
 
   return 0;
 }
 
-s32 load_asset_files(Assets *assets) {
+s32 load_shader_file(Shader *shader, const char *filename) {
+  u32 stage = identify_shader_stage(filename);
 
-  u32 files_index = 0;
-  for (const Asset_Load_Info& load : assets->load_info) {
-    assets->files[files_index++] = load_file(load.filename.c_str());
+  String filepath = String(asset_folders[AT_SHADER], filename);
+
+  Shader_File *file = &shader->files[stage];
+
+  file->filename = filename;
+  file->stage = stage;
+
+  destroy_file(&file->glsl);
+
+  filepath.remove_ending();
+  for (u32 ending_i = 0; ending_i < 2; ending_i++) {
+      String filepath_ending = String(filepath.str(), shader_file_types[file->stage][ending_i]);
+      print("trying to load file -> %s\n", filepath_ending.str());
+      file->glsl = load_file(filepath_ending.str());
+      filepath_ending.destroy();
+
+      if (file->glsl.size != 0) {
+        file->loaded = true;
+        break;
+      }
   }
 
-  return 0;
-}
+  filepath.destroy();
 
-s32 init_assets(Assets *assets) {
-  for (u32 type_index = 0; type_index < ASSET_TYPE_COUNT; type_index++) {
-    Asset_Array *array = &assets->arrays[type_index];
-    switch (type_index) {
-      case ASSET_TYPE_SHADER: {
-        for (u32 shader_index = 0; shader_index < array->count; shader_index++) {
-          Shader *shader = ((Shader *)array->memory) + shader_index;
-        }
-      } break;
-    }
+  if (file->loaded) {
+    return SUCCESS;
+  } else {
+    return FAILURE;
   }
-  return 0;
-}
-
-s32 load_assets(Assets *assets) {
-
-  s32 file_count = (s32)assets->load_info.size();
-  printf("(assets) Num of asset files: %d\n", file_count);
-
-  assets->files = ARRAY_MALLOC(File, file_count);
-
-  load_asset_files(assets);
-
-  // This loads the files into the asset arrays.
-  // Assets in the asset arrays should be ready to use or to be sent to the gpu after this.
-  // Works becuase asset load info aligns with the file array.
-  u32 file_index = 0;
-  for (const Asset_Load_Info& load : assets->load_info) {
-    File *file = &assets->files[file_index++];
-    Asset_Array *array = &assets->arrays[load.type];
-    switch (load.type) {
-      case ASSET_TYPE_SHADER: {
-        u32 shader_stage = identify_shader_stage(load.filename.c_str());
-        Shader *shader = (Shader *)array->memory + load.id;
-
-        Shader_File *shader_file = &shader->files[shader_stage];
-        shader_file->glsl = *file;
-        shader_file->filename = load.filename.c_str();
-        shader_file->stage = shader_stage;
-      } break;
-
-      case ASSET_TYPE_BITMAP: {
-
-      } break;
-    }
-  }
-
-  return 0;
-
 }

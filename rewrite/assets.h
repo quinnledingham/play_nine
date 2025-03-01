@@ -3,9 +3,58 @@ struct File {
   u32 size;
 };
 
-struct Bitmap {
+/*
+  Vertex Type
+*/
 
+typedef enum {
+  VECTOR2,
+  VECTOR3,
+} Vector_Type;
+
+struct Vertex_Attribute {
+  Vector_Type format;
+  u32 offset;
 };
+
+struct Vertex_Info {
+  static const u32 max_attributes = 5;
+  u32 attributes_count;
+
+  Vertex_Attribute attributes[max_attributes];
+
+  u32 size; // total size of all attributes in a struct
+
+  void add(Vector_Type format, u32 offset) {
+    if (attributes_count >= max_attributes) {
+      printf("Vertex_Info add(): tried to add too many attributes\n");
+      return;
+    }
+
+    Vertex_Attribute new_attribute = {};
+    new_attribute.format = format;
+    new_attribute.offset = offset;
+
+    attributes[attributes_count++] = new_attribute;
+  }
+};
+
+struct Vertex_XU {
+  Vector2 position;
+  Vector2 uv;
+
+  static Vertex_Info get_vertex_info() {
+    Vertex_Info info = {};
+    info.add(VECTOR2, offsetof(Vertex_XU, position));
+    info.add(VECTOR2, offsetof(Vertex_XU, uv));
+    info.size = sizeof(Vertex_XU);
+    return info;
+  }
+};
+
+/*
+  Shader
+*/
 
 enum shader_stages {
   SHADER_STAGE_VERTEX,
@@ -18,13 +67,13 @@ enum shader_stages {
   SHADER_STAGES_COUNT
 };
 
-const char *shader_file_types[] = {
-  ".vert",
-  ".tcs",
-  ".tes",
-  ".gs",
-  ".frag",
-  ".compute",
+const char *shader_file_types[6][2] = {
+  {".vs",      ".vert" },
+  {".tcs",     ".cont" },
+  {".tes",     ".eval" },
+  {".gs",      ".geo"  },
+  {".fs",      ".frag" },
+  {".compute", ".comp" }
 };
 
 // lines up with enum shader_stages
@@ -39,29 +88,53 @@ const u32 shaderc_glsl_file_types[] = {
 
 struct Shader_File {
   const char *filename;
+  u32 loaded;
   u32 stage;
   File glsl;
   File spirv;
 };
 
 struct Shader {
-  Shader_File files[SHADER_STAGES_COUNT];
+  Shader_File files[SHADER_STAGES_COUNT]; // stores filename and all intermediate files
+
+  #ifdef API3D_VULKAN
+
+  VkPipelineLayout layout;
+  VkPipeline handle;
+
+  #endif //VULKAN
+
+  // flags for on create graphics pipeline
+  bool8 compute    = FALSE; // is a compute shader
+  bool8 blend      = FALSE;
+  bool8 depth_test = TRUE;
+  bool8 wireframe  = FALSE;
+  bool8 compiled   = FALSE;
+
+  Vertex_Info vertex_info;
 };
 
-//
-// Asset Manager
-//
+typedef Shader Pipeline;
 
-enum ASSET_TYPE {
-  ASSET_TYPE_SHADER,
-  ASSET_TYPE_BITMAP,
+struct Mesh {
+  Vertex_Info vertex_info;
 
-  ASSET_TYPE_COUNT
+  void *vertices;
+  u32 vertices_count;
+
+  u32 *indices;
+  u32 indices_count;
+
+  void *gpu_info;
 };
 
-u32 asset_type_sizes[] = {
-  sizeof(Shader),
-  sizeof(Bitmap),
+/*
+  Asset Manager
+*/
+
+enum Asset_Types {
+  AT_SHADER,
+  AT_BITMAP,
 };
 
 const char *asset_folders[] = {
@@ -69,61 +142,21 @@ const char *asset_folders[] = {
   "../assets/bitmaps/",
 };
 
-const char* get_asset_folder(u32 type) {
-  return asset_folders[type];
+struct Asset_Array {
+  Buffer buffer;
+  u32 count;
+};
+
+void prepare_asset_array(Asset_Array *arr, u32 count, u32 size) {
+  if (arr->count == 0) {
+    arr->count = count;
+    arr->buffer = blank_buffer(arr->count * size);
+  } else {
+    arr->buffer.clear();
+  }
 }
 
-struct Asset_Array {
-  void *memory;
-  u32 type; // ASSET_TYPE
-  u32 size; // how many bytes are allocated
-  u32 count; // how many of that asset type allocated
-};
-
-struct Asset_Load_Info {
-  u32 type;
-  u32 id;
-  std::string filename;
-};
-
 struct Assets {
-  Shader *shaders;
-  u32 shader_index;
-  u32 shaders_count;
-
-  std::vector<Asset_Load_Info> load_info; // same length as *files
-  File *files;
-
-  Asset_Array arrays[ASSET_TYPE_COUNT];
+  Asset_Array pipelines;
 };
 
-/*
-How to add a asset:
-
-1. 
-Add the asset id you want to the appropriate enum (Bitmap_IDs, Sound_IDs).
-
-2. 
-Add it to list of assets to load in init(), this relates the id to the filename, and confirms
-what type of asset it is.
-
-3.
-Should be able to access it now using the id and proper find_<type> function
-
-*/
-
-/*
-Asset Manager Philosophy
-
-Assets holds arrays of each of the assets that can be accessed from using
-enums that are specified. This may mean there is some unused space, not really
-though as long as you don't specify a bunch of unused enums.
-
-Assets are centralized so that they are easy to export to a asset file. It should
-be easy to save all of the files and assets since they are all managed in similar
-ways in the assets struct.
-
-These assets arrays also makes it easy to say reload all of the shaders when
-the swap chain has been recreated or any other time you want to iterate over
-a kind of asset.
-*/

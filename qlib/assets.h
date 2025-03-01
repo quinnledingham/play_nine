@@ -187,7 +187,7 @@ struct Layout_Binding {
     Layout_Binding(u32 in_binding, u32 in_type, u32 in_stage, u32 in_descriptor_count) {
         binding = in_binding;
         descriptor_type = in_type;
-        descriptor_count = in_descriptor_count;
+        descriptor_count = in_descriptor_count; 
         stages[0] = in_stage;
         stages_count = 1;
     }

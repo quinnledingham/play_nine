@@ -1,24 +1,48 @@
-enum GFX_Display_Mode {
-  DISPLAY_MODE_WINDOWED,
-  DISPLAY_MODE_FULLSCREEN,
-  DISPLAY_MODE_WINDOWED_FULLSCREEN,
-
-  DISPLAY_MODE_COUNT
-};
+//
+// Main GFX
+//
 
 struct GFX_Window {
   Vector2_s32 dim;
+  Vector2_s32 resolution;
   float32 aspect_ratio;
   bool8 minimized;
-  GFX_Display_Mode display_mode;
+  bool8 resized;
 };
 
-struct GFX {
-  GFX_Window window;
-  s32 (*init)(SDL_Window *sdl_window);
+/*
+Mainly inheriting the functions from the context
+*/
+struct GFX : Vulkan_Context {
+  GFX_Window window;  
+  GFX_Layout *layouts;
+
+  bool8 vsync;
+  bool8 anti_aliasing;
+  bool8 resolution_scaling;
+
+  u32 active_shader_id;
+
+  void init();
+  void create_frame_resources();
+  void default_viewport() { set_viewport(window.dim.width, window.dim.height); }
+  void default_scissor() { set_scissor(0, 0, window.dim.width, window.dim.height); }
+  void descriptor(u32 gfx_layout_id);
+
+  void bind_pipeline(u32 id);
 };
 
-GFX gfx = {
-  .init = vulkan_sdl_init,
+// used with render_create_texture function
+enum Texture_Parameters {
+    TEXTURE_PARAMETERS_DEFAULT,
+    TEXTURE_PARAMETERS_CHAR,
 };
 
+//
+// Drawing
+//
+
+struct Scene {
+    Matrix_4x4 view;
+    Matrix_4x4 projection;
+};

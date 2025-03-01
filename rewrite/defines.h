@@ -20,4 +20,18 @@ typedef double float64;
 #define ARRAY_COUNT(n) (sizeof(n) / sizeof(n[0]))
 #define ARRAY_MALLOC(t, n) ((t*)malloc(n * sizeof(t))) // WARNING!!!! Make sure n is in brackets if operation
 
+#define internal      static
+#define local_persist static
+#define global        static
+
+#define FALSE 0
+#define TRUE 1
+
+#define SUCCESS 0
+#define FAILURE 1
+
+#define ASSERT(Expression) if(!(Expression)) {*(int *)0 = 0;}
+
+#define PI       3.141592653593f
+
 #endif // DEFINES_H
