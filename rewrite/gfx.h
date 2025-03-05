@@ -24,6 +24,7 @@ struct GFX : Vulkan_Context {
   u32 active_shader_id;
 
   void init();
+  void destroy_frame_resources();
   void create_frame_resources();
   void default_viewport() { set_viewport(window.dim.width, window.dim.height); }
   void default_scissor() { set_scissor(0, 0, window.dim.width, window.dim.height); }

@@ -258,6 +258,8 @@ sdl_set_icon(Bitmap *icon, SDL_Window *sdl_window) {
 int main(int argc, char *argv[]) {
     print("(sdl) starting application...\n");
 
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d");
+
     SDL_version sdl_version = {};
     SDL_GetVersion(&sdl_version);
     print("(sdl) version: %d.%d.%d\n", sdl_version.major, sdl_version.minor, sdl_version.patch);

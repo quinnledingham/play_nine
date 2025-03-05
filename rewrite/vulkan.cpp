@@ -79,24 +79,22 @@ void Vulkan_Context::setup_debug_messenger() {
 */
 
 s32 Vulkan_Context::sdl_load_instance_extensions(SDL_Window *sdl_window) {
-  u32 loaded_instance_extensions_count;
-	if (SDL_Vulkan_GetInstanceExtensions(sdl_window, &loaded_instance_extensions_count, NULL) == SDL_FALSE) {
+	u32 count_instance_extensions;
+	const char * const *loaded_instance_extensions = SDL_Vulkan_GetInstanceExtensions(&count_instance_extensions);
+
+	if (!loaded_instance_extensions) {
 		vulkan_log_error("sdl_load_instance_extensions(): SDL_Vulkan_GetInstanceExtensions failed\n");
 		return 1;
 	}
 
-  u32 total_instance_extensions_count = loaded_instance_extensions_count + ARRAY_COUNT(extra_instance_extensions);
-  instance_extensions = ARRAY_MALLOC(const char *, total_instance_extensions_count);
+	u32 count_extensions = count_instance_extensions + ARRAY_COUNT(extra_instance_extensions);
+	instance_extensions = ARRAY_MALLOC(const char *, count_extensions);
 
-	if (SDL_Vulkan_GetInstanceExtensions(sdl_window, &loaded_instance_extensions_count, instance_extensions) == SDL_FALSE) {
-		vulkan_log_error("sdl_load_instance_extensions(): failed to get instance extensions\n");
-		return 1;
-	}
+	instance_extensions[0] =  extra_instance_extensions[0];
 
-  // adding extra instance to the end of instance extensions
-	instance_extensions[loaded_instance_extensions_count] = extra_instance_extensions[0];
-  instance_extensions_count = total_instance_extensions_count;
-  
+	memcpy(&instance_extensions[1], loaded_instance_extensions, count_instance_extensions * sizeof(const char *));
+	instance_extensions_count = count_extensions;
+
 	return 0;
 }
 
@@ -613,7 +611,7 @@ void Vulkan_Context::create_swap_chain(Vector2_s32 window_dim, bool8 vsync) {
 	}
 
 	if (vkCreateSwapchainKHR(device, &create_info, nullptr, &swap_chains[0])) {
-		printf("vulkan_create_swap_chain(): failed to create swap chain\n");
+		vulkan_log_error("vulkan_create_swap_chain(): failed to create swap chain\n");
 	}
 
 	Arr<VkImage> swap_chain_images;
@@ -1276,7 +1274,7 @@ s32 Vulkan_Context::sdl_init(SDL_Window *sdl_window) {
   create_instance();
 	setup_debug_messenger();
 	
-	if (SDL_Vulkan_CreateSurface(sdl_window, instance, &surface) == SDL_FALSE) {
+	if (SDL_Vulkan_CreateSurface(sdl_window, instance, NULL, &surface) == false) {
 		printf("(vulkan) vulkan surface failed being created\n");
 		return 1;
 	}

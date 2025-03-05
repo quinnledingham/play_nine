@@ -22,6 +22,9 @@ extern "C" {
 #endif // OS
 
 #include <SDL.h>
+#include <SDL_main.h>
+#include <SDL3_ttf/SDL_ttf.h>
+#include <SDL3_image/SDL_image.h>
 
 #include <stdio.h>
 #include <vector>
@@ -50,7 +53,14 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 
 #endif // API3D_VULKAN
 
-#define WINDOW_NAME "pinball"
+extern "C" void init_clay(SDL_Renderer *renderer, float width, float height);
+extern "C" void draw_clay();
+extern "C" void clay_set_layout(float width, float height);
+extern "C" void clay_set_pointer_state(float x, float y, bool left);
+extern "C" void clay_update_scroll_containers(float x, float y);
+extern "C" void clay_set_renderer(SDL_Renderer *renderer);
+
+#define WINDOW_NAME "play_nine"
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 500
 #define WINDOW_FLAGS SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
@@ -70,7 +80,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 
 #include "play_nine_assets.h"
 
-s32 init();
+s32 play_nine_init();
 s32 update();
 
 #include "log.cpp"

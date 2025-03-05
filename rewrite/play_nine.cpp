@@ -41,7 +41,7 @@ s32 load_pipelines() {
   0 = init was successfull
   1 = init failed
 */
-s32 init() {
+s32 play_nine_init() {
   s32 load_pipelines_result = load_pipelines();
   if (load_pipelines_result == FAILURE) {
     return FAILURE;
@@ -66,6 +66,7 @@ s32 draw() {
       gfx.layouts[i].reset();
   }
 
+  gfx.clear_color({1, 0, 1, 1});
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
 
   if (gfx.window.resized) {
@@ -79,22 +80,22 @@ s32 draw() {
 
   gfx.default_viewport();
   gfx.default_scissor();
+  gfx.depth_test(false);
 
-  //gfx.bind_pipeline(SIMPLE_PIPELINE);
-  //vkCmdDraw(*gfx.active_command_buffer, 3, 1, 0, 0);
-
+  /*
+  gfx.bind_pipeline(SIMPLE_PIPELINE);
+  vkCmdDraw(*gfx.active_command_buffer, 3, 1, 0, 0);
+*/
   gfx.bind_pipeline(PIPELINE_2D);
 
   Descriptor scene_desc = gfx.descriptor(GFXID_SCENE);
   gfx.update_ubo(scene_desc, &ortho_scene);
   gfx.bind_descriptor_set(scene_desc);
 
-/*
-  Vector4 color = {1, 1, 1, 1};
+  Vector4 color = {255, 1, 1, 1};
   Descriptor color_desc = gfx.descriptor(GFXID_COLOR_2D);
   gfx.update_ubo(color_desc, (void *)&color);
   gfx.bind_descriptor_set(color_desc);
-*/
 
   Object object = {};
   object.model = create_transform_m4x4({200, 200, 0}, get_rotation(0, {0, 1, 0}), {100, 100, 1});

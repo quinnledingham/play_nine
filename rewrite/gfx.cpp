@@ -1,4 +1,4 @@
-void GFX::create_frame_resources() {
+void GFX::destroy_frame_resources() {
   device_wait_idle();
 
   if (swap_chain_created == TRUE) {
@@ -10,6 +10,10 @@ void GFX::create_frame_resources() {
     destroy_render_pass(draw_render_pass);
     destroy_render_pass(present_render_pass);
   }
+}
+
+void GFX::create_frame_resources() {
+  destroy_frame_resources();
 
   if (anti_aliasing)
     msaa_samples = get_max_usable_sample_count();
@@ -43,7 +47,7 @@ void GFX::create_frame_resources() {
 }
 
 void GFX::init() {
-  u32 layouts_count = 1;
+  u32 layouts_count = 2;
   layouts = ARRAY_MALLOC(GFX_Layout, layouts_count);
   memset(layouts, 0, sizeof(GFX_Layout) * layouts_count);
 
@@ -51,7 +55,7 @@ void GFX::init() {
   layouts[GFXID_COLOR_2D].set_number = 1;
 
   layouts[GFXID_SCENE].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene)); // 2D.vert
-  //layouts[GFXID_COLOR_2D].add_binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, SHADER_STAGE_FRAGMENT, 1, sizeof(Vector4)); // color.frag, text.frag
+  layouts[GFXID_COLOR_2D].add_binding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Vector4)); // color.frag, text.frag
 
   for (u32 i = 0; i < layouts_count; i++) {
     gfx.create_set_layout(&layouts[i]);
@@ -64,7 +68,7 @@ void GFX::init() {
   shader->set.add_layout(&layouts[GFXID_SCENE]);
   shader->set.add_push(SHADER_STAGE_VERTEX, sizeof(Object));
 
-  //shader->set.add_layout(&layouts[GFXID_COLOR_2D]);
+  shader->set.add_layout(&layouts[GFXID_COLOR_2D]);
 }
 
 void GFX::bind_pipeline(u32 id) {
