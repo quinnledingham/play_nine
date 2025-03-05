@@ -53,12 +53,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 
 #endif // API3D_VULKAN
 
-extern "C" void init_clay(SDL_Renderer *renderer, float width, float height);
-extern "C" void draw_clay();
-extern "C" void clay_set_layout(float width, float height);
-extern "C" void clay_set_pointer_state(float x, float y, bool left);
-extern "C" void clay_update_scroll_containers(float x, float y);
-extern "C" void clay_set_renderer(SDL_Renderer *renderer);
+#include "clay/clay_iru.h"
 
 #define WINDOW_NAME "play_nine"
 #define WINDOW_WIDTH 800
