@@ -11,6 +11,8 @@ s32 play_nine_init() {
     return FAILURE;
   }
 
+  load_fonts();
+
   init_deck();
 
   test_game.players_count = 4;
@@ -26,8 +28,6 @@ void update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
     ortho_scene->view = identity_m4x4();
     ortho_scene->projection = orthographic_projection(0.0f, (float32)window_dim.width, 0.0f, (float32)window_dim.height, -3.0f, 3.0f);
 }
-
-
 
 s32 draw() {
   // Resets all of the descriptor sets to be reallocated on next frame

@@ -2,7 +2,7 @@
  * no AA or low resolution might make it appear as jagged curves) */
 static int NUM_CIRCLE_SEGMENTS = 16;
 
-Clay_Dimensions SDL_MeasureText2(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData)
+Clay_Dimensions SDL_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData)
 {
     TTF_Font **fonts = (TTF_Font **)userData;
     TTF_Font *font = fonts[config->fontId];

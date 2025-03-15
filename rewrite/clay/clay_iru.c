@@ -59,7 +59,7 @@ void init_clay(SDL_Renderer *renderer, float width, float height) {
   Clay_Arena clay_memory = Clay_CreateArenaWithCapacityAndMemory(total_memory_size, (char *)malloc(total_memory_size));
 
   Clay_Initialize(clay_memory, (Clay_Dimensions) { (float) width, (float) height }, (Clay_ErrorHandler) { handle_clay_errors });
-  Clay_SetMeasureTextFunction(SDL_MeasureText2, renderer_data.fonts);
+  Clay_SetMeasureTextFunction(SDL_MeasureText, renderer_data.fonts);
 
   demo_data = ClayVideoDemo_Initialize();
 }

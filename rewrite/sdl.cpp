@@ -38,6 +38,13 @@ struct SDL_Context {
   s32 window_event(SDL_WindowEvent *window_event);
 };
 
+struct SDL_Renderer_Data {
+  SDL_Renderer *renderer;
+  TTF_TextEngine *text_engine;
+};
+
+SDL_Renderer_Data sdl_renderer_data = {};
+
 void sdl_log(const char *msg, ...) {
   print_char_array(OUTPUT_DEFAULT, "(sdl) ");
 
@@ -98,6 +105,9 @@ s32 SDL_Context::init() {
   init_clay(renderer, (float)gfx.window.dim.width, (float)gfx.window.dim.height);
 
   srand(SDL_GetTicks());
+
+  sdl_renderer_data.renderer = renderer;
+  sdl_renderer_data.text_engine = TTF_CreateRendererTextEngine(renderer);
 
   return 0;
 }
@@ -195,8 +205,6 @@ void SDL_Context::cleanup() {
   TTF_Quit();
 }
 
-SDL_Renderer *sdl_renderer;
-
 int main(int argc, char *argv[]) {
   init_output_buffer();
   sdl_log("starting sdl application...\n");
@@ -211,8 +219,6 @@ int main(int argc, char *argv[]) {
   
   sdl_context.init();
 
-  sdl_renderer = sdl_context.renderer;
-
   while (1) {
     if (sdl_context.do_frame()) {
       break;
@@ -226,12 +232,37 @@ int main(int argc, char *argv[]) {
 }
 
 void sdl_draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
-  SDL_SetRenderDrawColor(sdl_renderer, color.r, color.g, color.b, color.a);
+  SDL_SetRenderDrawColor(sdl_renderer_data.renderer, color.r, color.g, color.b, color.a);
   SDL_FRect rect = {
     coords.x - (size.x/2.0f),
     coords.y - (size.y/2.0f),
     size.x,
     size.y
   };
-  SDL_RenderFillRect(sdl_renderer, &rect);
+  SDL_RenderFillRect(sdl_renderer_data.renderer, &rect);
+}
+
+void sdl_draw_text(Vector2 coords, const char *string, Vector4 color, u32 font_id) {
+  Font *asset_font = find_font(font_id);
+  TTF_Font *font = asset_font->ttf_font;
+  //TTF_SetFontSize(font, font_size);
+  TTF_Text *text = TTF_CreateText(sdl_renderer_data.text_engine, font, string, get_length(string));
+  TTF_SetTextColor(text, color.r, color.g, color.b, color.a);
+  TTF_DrawRendererText(text, coords.x, coords.y);
+  TTF_DestroyText(text);
+}
+
+void SDL_GFX_FUNC(draw_rect)(Vector2 coords, Vector2 size, Vector4 color) {
+  SDL_SetRenderDrawColor(sdl_renderer_data.renderer, color.r, color.g, color.b, color.a);
+  SDL_FRect rect = {
+    coords.x - (size.x/2.0f),
+    coords.y - (size.y/2.0f),
+    size.x,
+    size.y
+  };
+  SDL_RenderFillRect(sdl_renderer_data.renderer, &rect);
+}
+
+s32 SDL_GFX_FUNC(start_frame)() {
+  SDL_RenderClear(sdl_renderer_data.renderer);
 }

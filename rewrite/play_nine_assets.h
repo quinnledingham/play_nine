@@ -15,3 +15,12 @@ Pipeline_Load pipeline_loads[] = {
   { PIPELINE_2D, {"2D.vs", "color.fs"} },
 };
 
+enum Font_Ids {
+  FONT_LIMELIGHT,
+
+  FONT_COUNT
+};
+
+Pipeline_Load font_loads[] = {
+  { FONT_LIMELIGHT, {"Limelight-Regular.ttf"} },
+};

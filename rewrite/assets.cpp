@@ -253,3 +253,26 @@ s32 init_pipelines() {
 
   return SUCCESS;
 }
+
+s32 load_fonts() {
+  print("loading fonts...\n");
+
+  u32 filenames_count = ARRAY_COUNT(font_loads[0].filenames);
+  u32 font_loads_count = ARRAY_COUNT(font_loads);
+
+  prepare_asset_array(&assets.fonts, font_loads_count, sizeof(Font)); 
+
+  for (u32 i = 0; i < font_loads_count; i++) {
+    String filepath = String(asset_folders[AT_FONT], font_loads[i].filenames[0]);
+
+    Font *font = find_font(font_loads[i].id);
+    font->ttf_font = TTF_OpenFont(filepath.str(), 100);
+    if (!font->ttf_font) {
+      log_error("Failed to load font (%s): %s\n", font_loads[i].filenames[0], SDL_GetError());
+    }
+
+    filepath.destroy();
+  }
+
+  return SUCCESS;
+}

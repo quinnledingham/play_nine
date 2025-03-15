@@ -10,10 +10,14 @@ struct GFX_Window {
   bool8 resized;
 };
 
+struct Rands {
+    int skibidi;
+};
+
 /*
 Mainly inheriting the functions from the context
 */
-struct GFX : Vulkan_Context {
+struct GFX : Vulkan_Context, Rands {
   GFX_Window window;  
   GFX_Layout *layouts;
 

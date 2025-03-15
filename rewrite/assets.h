@@ -119,6 +119,10 @@ struct Mesh {
   void *gpu_info;
 };
 
+struct Font {
+  TTF_Font *ttf_font;
+};
+
 /*
   Asset Manager
 */
@@ -126,11 +130,13 @@ struct Mesh {
 enum Asset_Types {
   AT_SHADER,
   AT_BITMAP,
+  AT_FONT,
 };
 
 const char *asset_folders[] = {
   "../assets/shaders/",
   "../assets/bitmaps/",
+  "../assets/fonts/"
 };
 
 struct Asset_Array {
@@ -149,5 +155,6 @@ void prepare_asset_array(Asset_Array *arr, u32 count, u32 size) {
 
 struct Assets {
   Asset_Array pipelines;
+  Asset_Array fonts;
 };
 
