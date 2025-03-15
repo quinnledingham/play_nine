@@ -1,54 +1,21 @@
 #include "play_nine.h"
 
-s32 load_pipelines() {
-  print("loading pipelines...\n");
-
-  u32 filenames_count = ARRAY_COUNT(pipeline_loads[0].filenames);
-  u32 pipeline_loads_count = ARRAY_COUNT(pipeline_loads);
-
-  prepare_asset_array(&assets.pipelines, pipeline_loads_count, sizeof(Pipeline));
-
-  for (u32 i = 0; i < pipeline_loads_count; i++) {
-    Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
-    Pipeline_Load *load = &pipeline_loads[i];
-
-    for (u32 file_index = 0; file_index < filenames_count; file_index++) {
-      if (!load->filenames[file_index]) {
-        continue;
-      }
-
-      s32 result = load_shader_file(pipeline, load->filenames[file_index]);
-      if (result == FAILURE) {
-        return FAILURE;
-      }
-    }
-
-    spirv_compile_shader(pipeline);
-    //gfx.create_graphics_pipeline(pipeline, gfx.draw_render_pass);
-  }
-
-  gfx.init();
-
-  for (u32 i = 0; i < pipeline_loads_count; i++) {
-    Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
-    gfx.create_graphics_pipeline(pipeline, gfx.draw_render_pass);
-  }
-
-  return SUCCESS;
-}
-
 /*
   0 = init was successfull
   1 = init failed
 */
 s32 play_nine_init() {
+  // asset loading
   s32 load_pipelines_result = load_pipelines();
   if (load_pipelines_result == FAILURE) {
     return FAILURE;
   }
 
-  square = get_rect_mesh_2D();
+  init_deck();
 
+  test_game.players_count = 4;
+  start_game(&test_game);
+  
   return SUCCESS;
 }
 
@@ -60,6 +27,8 @@ void update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
     ortho_scene->projection = orthographic_projection(0.0f, (float32)window_dim.width, 0.0f, (float32)window_dim.height, -3.0f, 3.0f);
 }
 
+
+
 s32 draw() {
   // Resets all of the descriptor sets to be reallocated on next frame
   for (u32 i = 0; i < GFXID_COUNT; i++) {
@@ -70,6 +39,7 @@ s32 draw() {
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
 
   if (gfx.window.resized) {
+    gfx.destroy_frame_resources();
     gfx.create_frame_resources();
     gfx.window.resized = false;
   }
@@ -82,26 +52,7 @@ s32 draw() {
   gfx.default_scissor();
   gfx.depth_test(false);
 
-  /*
-  gfx.bind_pipeline(SIMPLE_PIPELINE);
-  vkCmdDraw(*gfx.active_command_buffer, 3, 1, 0, 0);
-*/
-  gfx.bind_pipeline(PIPELINE_2D);
-
-  Descriptor scene_desc = gfx.descriptor(GFXID_SCENE);
-  gfx.update_ubo(scene_desc, &ortho_scene);
-  gfx.bind_descriptor_set(scene_desc);
-
-  Vector4 color = {255, 1, 1, 1};
-  Descriptor color_desc = gfx.descriptor(GFXID_COLOR_2D);
-  gfx.update_ubo(color_desc, (void *)&color);
-  gfx.bind_descriptor_set(color_desc);
-
-  Object object = {};
-  object.model = create_transform_m4x4({200, 200, 0}, get_rotation(0, {0, 1, 0}), {100, 100, 1});
-  object.index = 0;
-  gfx.push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-  gfx.draw_mesh(&square);
+  draw_rect({200, 200}, {300, 300}, {255, 0, 0, 1});
 
   gfx.end_frame(gfx.resolution_scaling, gfx.window.resized);
 
@@ -110,10 +61,31 @@ s32 draw() {
 
 s32 update() {
 
+/*
+  draw_game(&test_game);
+
+  char test[50];
+  scanf("%s", test);
+  u32 input_value = atoi(test);
+
+  if (!strcmp(test, "quit")) {
+    print("QUIT\n");
+    return FAILURE;
+  }
+
+  bool8 input[GI_SIZE] = {};
+  if (input_value < GI_SIZE) {
+    input[input_value] = true;
+  }
+  update_game_with_input(&test_game, input);
+
   s32 draw_result = draw();
   if (draw_result == FAILURE) {
     log_error("update(): draw failed\n");
   }
+*/
+
+  draw_game_2D(&test_game);
 
   return SUCCESS;
 }

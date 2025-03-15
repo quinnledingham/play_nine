@@ -1,7 +1,3 @@
-struct Shapes {
-
-};
-
 Mesh get_rect_mesh_2D() {
   Mesh mesh = {};
   mesh.vertices_count = 4;
@@ -31,4 +27,26 @@ Mesh get_rect_mesh_2D() {
   gfx.init_mesh(&mesh);
 
   return mesh;
+}
+
+void draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
+  gfx.bind_pipeline(PIPELINE_2D);
+
+  Descriptor scene_desc = gfx.descriptor(GFXID_SCENE);
+  gfx.update_ubo(scene_desc, &ortho_scene);
+  gfx.bind_descriptor_set(scene_desc);
+
+  Descriptor color_desc = gfx.descriptor(GFXID_COLOR_2D);
+  gfx.update_ubo(color_desc, (void *)&color);
+  gfx.bind_descriptor_set(color_desc);
+
+  Object object = {};
+  object.model = create_transform_m4x4(coords, size);
+  object.index = 0;
+  gfx.push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  gfx.draw_mesh(&shapes.square);
+}
+
+void init_shapes() {
+  shapes.square = get_rect_mesh_2D();
 }

@@ -1,19 +1,23 @@
 void GFX::destroy_frame_resources() {
   device_wait_idle();
 
-  if (swap_chain_created == TRUE) {
-    cleanup_swap_chain();
-  
-    destroy_texture(&color_texture);
-    destroy_texture(&depth_texture);
+  cleanup_swap_chain();
 
-    destroy_render_pass(draw_render_pass);
-    destroy_render_pass(present_render_pass);
-  }
+  destroy_texture(&color_texture);
+  destroy_texture(&depth_texture);
+
+  destroy_render_pass(draw_render_pass);
+  destroy_render_pass(present_render_pass);
+
+  swap_chain_created = FALSE;
 }
 
 void GFX::create_frame_resources() {
-  destroy_frame_resources();
+  //destroy_frame_resources();
+  if (swap_chain_created) {
+    log_error("Trying to recreate swap chain when it hasnt been destroyed yet\n");
+    return;
+  }
 
   if (anti_aliasing)
     msaa_samples = get_max_usable_sample_count();

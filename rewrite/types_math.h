@@ -14,6 +14,14 @@ clamp(float32 *value, float32 low, float32 high) {
 }
 
 //
+// Vector2
+//
+
+inline Vector2 operator+(const Vector2 &l, const Vector2 &r) { return { l.x + r.x, l.y + r.y }; }
+inline Vector2 operator*(const Vector2 &l, const Vector2 &r) { return { l.x * r.x, l.y * r.y }; }
+inline Vector2 operator*(const Vector2 &l, const float32 &r) { return { l.x * r  , l.y * r   }; }
+
+//
 // Vector3
 //
 
@@ -153,6 +161,23 @@ create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale) {
         y.x, y.y, y.z, 0,
         z.x, z.y, z.z, 0,
         position.x, position.y, position.z, 1
+    };
+}
+
+inline Matrix_4x4 
+create_transform_m4x4(Vector2 position, Vector2 scale) {
+    Vector3 x = {1, 0, 0};
+    Vector3 y = {0, 1, 0};
+    Vector3 z = {0, 0, 1};
+    
+    x = x * scale.x;
+    y = y * scale.y;
+
+    return {
+        x.x, x.y, x.z, 0,
+        y.x, y.y, y.z, 0,
+          0,   0,   1, 0,
+        position.x, position.y, 0, 1
     };
 }
 

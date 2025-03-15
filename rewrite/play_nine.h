@@ -71,6 +71,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 #include "vulkan.h"
 #include "gfx.h"
 
+#include "play_nine_game.h"
 #include "global.h"
 
 #include "play_nine_assets.h"
@@ -82,5 +83,8 @@ s32 update();
 #include "assets.cpp"
 #include "vulkan.cpp"
 #include "gfx.cpp"
-#include "sdl.cpp"
 #include "shapes.cpp"
+#include "sdl.cpp"
+
+#include "play_nine_game.cpp"
+#include "play_nine_2D.cpp"

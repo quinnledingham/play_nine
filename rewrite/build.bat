@@ -11,7 +11,7 @@ set CF=-nologo -Z7 -W0 -MD -Gm- -GR- -DDEBUG -DOS_%OS% /std:c++20 /EHsc
 set CF_SDL=/I%SDL_SDK%\include\SDL3 /I%SDL_SDK%\include -DSDL /I%SDL_TTF%\include /I%SDL_IMAGE%\include
 set CF_VULKAN=/I%VULKAN_SDK%\Include -DAPI3D_VULKAN
 
-set LF=-incremental:no -opt:ref -subsystem:windows
+set LF=-incremental:no -opt:ref -subsystem:console
 set LF_SDL=shell32.lib  %SDL_SDK%\lib\x64\SDL3.lib %SDL_TTF%\lib\x64\SDL3_ttf.lib %SDL_IMAGE%\lib\x64\SDL3_image.lib
 set LF_VULKAN=%VULKAN_SDK%\Lib\vulkan-1.lib 
 set LF_SHADERC=%VULKAN_SDK%\Lib\spirv-cross-c-shared.lib %VULKAN_SDK%\Lib\shaderc_combined.lib

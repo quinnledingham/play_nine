@@ -172,8 +172,6 @@ u32 identify_shader_stage(const char *filename) {
 s32 load_shader_file(Shader *shader, const char *filename) {
   u32 stage = identify_shader_stage(filename);
 
-  String filepath = String(asset_folders[AT_SHADER], filename);
-
   Shader_File *file = &shader->files[stage];
 
   file->filename = filename;
@@ -181,17 +179,28 @@ s32 load_shader_file(Shader *shader, const char *filename) {
 
   destroy_file(&file->glsl);
 
-  filepath.remove_ending();
-  for (u32 ending_i = 0; ending_i < 2; ending_i++) {
-      String filepath_ending = String(filepath.str(), shader_file_types[file->stage][ending_i]);
-      print("trying to load file -> %s\n", filepath_ending.str());
-      file->glsl = load_file(filepath_ending.str());
-      filepath_ending.destroy();
+  String filepath = String(asset_folders[AT_SHADER], filename);
+  file->glsl = load_file(filepath.str());
 
-      if (file->glsl.size != 0) {
-        file->loaded = true;
-        break;
-      }
+  // try different file endings if the file could not be found
+  if (file->glsl.size == 0) {
+    filepath.remove_ending();
+
+    for (u32 ending_i = 0; ending_i < 2; ending_i++) {
+        String filepath_ending = String(filepath.str(), shader_file_types[file->stage][ending_i]);
+        file->glsl = load_file(filepath_ending.str());
+
+        if (file->glsl.size != 0) {
+          print("loaded shader file: %s\n", filepath_ending.str());
+          filepath_ending.destroy();
+          break;
+        }
+        filepath_ending.destroy();
+    }
+  }
+
+  if (file->glsl.size) {
+    file->loaded = true;
   }
 
   filepath.destroy();
@@ -201,4 +210,46 @@ s32 load_shader_file(Shader *shader, const char *filename) {
   } else {
     return FAILURE;
   }
+}
+
+s32 load_pipelines() {
+  print("loading pipelines...\n");
+
+  u32 filenames_count = ARRAY_COUNT(pipeline_loads[0].filenames);
+  u32 pipeline_loads_count = ARRAY_COUNT(pipeline_loads);
+
+  prepare_asset_array(&assets.pipelines, pipeline_loads_count, sizeof(Pipeline));
+
+  for (u32 i = 0; i < pipeline_loads_count; i++) {
+    Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
+    Pipeline_Load *load = &pipeline_loads[i];
+
+    for (u32 file_index = 0; file_index < filenames_count; file_index++) {
+      if (!load->filenames[file_index]) {
+        continue;
+      }
+
+      s32 result = load_shader_file(pipeline, load->filenames[file_index]);
+      if (result == FAILURE) {
+        return FAILURE;
+      }
+    }
+
+    spirv_compile_shader(pipeline);
+  }
+
+  gfx.init(); // set up descriptor set layouts
+
+  return SUCCESS;
+}
+
+s32 init_pipelines() {
+  print("initializing pipelines...\n");
+  u32 pipeline_loads_count = ARRAY_COUNT(pipeline_loads);
+  for (u32 i = 0; i < pipeline_loads_count; i++) {
+    Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
+    gfx.create_graphics_pipeline(pipeline, gfx.draw_render_pass);
+  }
+
+  return SUCCESS;
 }

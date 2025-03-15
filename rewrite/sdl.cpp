@@ -90,16 +90,14 @@ s32 SDL_Context::init() {
 
   gfx.sdl_init(window);
   
-  //gfx.create_frame_resources();
+  init_shapes();
+  play_nine_init();
 
   start_ticks = SDL_GetPerformanceCounter();
-/*
-  if (play_nine_init()) {
-    log_error("init(): failed\n");
-    return 1;
-  }
-*/
+
   init_clay(renderer, (float)gfx.window.dim.width, (float)gfx.window.dim.height);
+
+  srand(SDL_GetTicks());
 
   return 0;
 }
@@ -143,12 +141,13 @@ s32 SDL_Context::process_input() {
       case SDL_EVENT_MOUSE_WHEEL:
         clay_update_scroll_containers(event.wheel.x, event.wheel.y);
         break;
+      /*
       case SDL_EVENT_KEY_DOWN:
         if (!local_vulkan_context) {
           local_vulkan_context = true;
           SDL_DestroyRenderer(renderer);
           gfx.create_frame_resources();
-          play_nine_init();
+          init_pipelines();
         } else {
           local_vulkan_context = false;
           gfx.destroy_frame_resources();
@@ -159,6 +158,7 @@ s32 SDL_Context::process_input() {
           clay_set_renderer(renderer);
         }
         break;
+      */
       default:
         break;
     }
@@ -183,10 +183,8 @@ s32 SDL_Context::do_frame() {
   //app.update();
   //printf("%f\n", time.frames_per_s);
 
-  if (local_vulkan_context)
-    update();
-  else 
-    draw_clay();
+  if (update() == FAILURE)
+    return 1;
 
   return 0;
 }
@@ -196,6 +194,8 @@ void SDL_Context::cleanup() {
   SDL_Quit();
   TTF_Quit();
 }
+
+SDL_Renderer *sdl_renderer;
 
 int main(int argc, char *argv[]) {
   init_output_buffer();
@@ -211,6 +211,8 @@ int main(int argc, char *argv[]) {
   
   sdl_context.init();
 
+  sdl_renderer = sdl_context.renderer;
+
   while (1) {
     if (sdl_context.do_frame()) {
       break;
@@ -221,4 +223,15 @@ int main(int argc, char *argv[]) {
   sdl_context.cleanup();
 
   return 0;
+}
+
+void sdl_draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
+  SDL_SetRenderDrawColor(sdl_renderer, color.r, color.g, color.b, color.a);
+  SDL_FRect rect = {
+    coords.x - (size.x/2.0f),
+    coords.y - (size.y/2.0f),
+    size.x,
+    size.y
+  };
+  SDL_RenderFillRect(sdl_renderer, &rect);
 }
