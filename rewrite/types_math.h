@@ -5,7 +5,7 @@ clamp(s32 value, s32 low, s32 high) {
     else                   return value;
 }
 
-internal void
+inline void
 clamp(float32 *value, float32 low, float32 high) {
     if (*value < low)
         *value = low;

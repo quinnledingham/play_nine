@@ -1,12 +1,14 @@
-struct Shapes {
+struct Draw_Context {
   Mesh square;
 };
 
-GFX gfx;
+SDL_Renderer_Context sdl_renderer_context;
+
+GFX gfx = {};
 
 Shader test = {};
 
-Shapes shapes = {};
+Draw_Context draw_context = {};
 
 Assets assets = {};
 
@@ -33,3 +35,4 @@ Game test_game;
 Vector2 hand_coords[HAND_SIZE];
 global float32 hand_width;
 Vector2 card_dim = { 20.0f, 32.0f };
+

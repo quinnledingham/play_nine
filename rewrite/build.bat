@@ -7,9 +7,9 @@ set SDL_IMAGE=C:\Users\quinn\libs\SDL3_image-3.2.0
 set VULKAN_SDK=C:\VulkanSDK\1.3.296.0
 set OS=WINDOWS
 
-set CF=-nologo -Z7 -W0 -MD -Gm- -GR- -DDEBUG -DOS_%OS% /std:c++20 /EHsc
+set CF=-nologo -Z7 -W0 -MD -Gm- -GR- -DDEBUG -DOS_%OS% /std:c++20 /EHsc -DGFX_VULKAN
 set CF_SDL=/I%SDL_SDK%\include\SDL3 /I%SDL_SDK%\include -DSDL /I%SDL_TTF%\include /I%SDL_IMAGE%\include
-set CF_VULKAN=/I%VULKAN_SDK%\Include -DAPI3D_VULKAN
+set CF_VULKAN=/I%VULKAN_SDK%\Include 
 
 set LF=-incremental:no -opt:ref -subsystem:console
 set LF_SDL=shell32.lib  %SDL_SDK%\lib\x64\SDL3.lib %SDL_TTF%\lib\x64\SDL3_ttf.lib %SDL_IMAGE%\lib\x64\SDL3_image.lib

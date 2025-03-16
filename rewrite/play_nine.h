@@ -40,7 +40,7 @@ extern "C" {
 
 #include <spirv_cross/spirv_cross_c.h>
 
-#ifdef API3D_VULKAN
+#ifdef GFX_VULKAN
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
@@ -51,7 +51,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 
 #define VK_USE_PLATFORM_WIN32_KHR
 
-#endif // API3D_VULKAN
+#endif // GFX_VULKAN
 
 #include "clay/clay_iru.h"
 
@@ -69,6 +69,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 #include "gfx_layouts.h"
 #include "assets.h"
 #include "vulkan.h"
+#include "sdl.h"
 #include "gfx.h"
 
 #include "play_nine_game.h"
@@ -80,10 +81,10 @@ s32 play_nine_init();
 s32 update();
 
 #include "log.cpp"
-#include "assets.cpp"
 #include "vulkan.cpp"
+#include "assets.cpp"
 #include "gfx.cpp"
-#include "shapes.cpp"
+#include "draw.cpp"
 #include "sdl.cpp"
 
 #include "play_nine_game.cpp"

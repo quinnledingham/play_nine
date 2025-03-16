@@ -186,64 +186,9 @@ struct Vulkan_Context {
 		};
 		Vulkan_Buffer buffers[6];
 	};
-
-	// Functions
-  s32 sdl_init(SDL_Window *window);
-  void cleanup();
-  void create_swap_chain(Vector2_s32 window_dim, bool8 vsync);
-  void create_frame_resources();
-
-	s32 sdl_load_instance_extensions(SDL_Window *sdl_window);
-	bool8 create_instance();
-	void setup_debug_messenger();
-	bool8 pick_physical_device();
-	void create_logical_device();
-	void create_sync_objects();
-	void create_command_pool();
-	void create_command_buffers(VkCommandBuffer *command_buffers, u32 num_of_buffers);
-	void create_descriptor_pool();
-	void create_buffer(Vulkan_Buffer *buffer, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-	void cleanup_swap_chain();
-	void destroy_texture(void *gpu_handle);
-	VkSampleCountFlagBits get_max_usable_sample_count();
-	//void destroy_texture(Bitmap *bitmap);
-	void create_render_image_views(Vector2_s32 dim);
-	void create_sampler(VkSampler *sampler, u32 texture_parameters, u32 mip_levels);
-	bool8 create_draw_render_pass(bool8 resolution_scaling, bool8 anti_aliasing);
-	bool8 create_present_render_pass();
-	void create_depth_resources(Vector2_s32 dim);
-	void create_color_resources(Vector2_s32 dim);
-	bool8 create_draw_framebuffers(bool8 resolution_scaling, bool8 anti_aliasing);
-	bool8 create_swap_chain_framebuffers();
-	bool8 start_frame();
-	void end_frame(bool8 resolution_scaling, bool8 window_resized);
-	s32 create_graphics_pipeline(Shader *shader, VkRenderPass render_pass);
-
-	void device_wait_idle() { vkDeviceWaitIdle(device); }
-	void destroy_render_pass(VkRenderPass pass) { vkDestroyRenderPass(device, pass, nullptr); }
-	void clear_color(Vector4 color) { clear_values[0].color = {{color.r, color.g, color.b, color.a}}; }
-
-	void set_viewport(u32 window_width, u32 window_height);
-	void set_scissor(s32 x, s32 y, u32 width, u32 height);
-	void bind_pipeline(Pipeline *pipeline);
-	void depth_test(bool32 enable);
-
-	void create_set_layout(GFX_Layout *layout);
-	void allocate_descriptor_set(GFX_Layout *layout);
-	void init_layout_offsets(GFX_Layout *layout); // @TODO add Bitmap *bitmap back
-	void init_ubos(VkDescriptorSet *sets, GFX_Layout_Binding *layout_binding, u32 num_of_sets, u32 offsets[64]);
-	Descriptor get_descriptor_set(GFX_Layout *layout);
-	void update_ubo(Descriptor desc, void *data);
-	void push_constants(u32 shader_stage, void *data, u32 data_size);
-	void bind_descriptor_set(Descriptor desc);
-
-	void copy_buffer(Vulkan_Buffer src_buffer, Vulkan_Buffer dest_buffer, VkDeviceSize size, u32 src_offset, u32 dest_offset);
-	void create_buffer(Vulkan_Buffer *buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-	void update_buffer(Vulkan_Buffer *buffer, void *in_data, u32 in_data_size, u32 offset);
-
-	void init_mesh(Mesh *mesh);
-	void draw_mesh(Mesh *mesh);
 };
+
+#define VK_CMD(a) *a->active_command_buffer
 
 struct Vulkan_Pipeline {
 
@@ -255,11 +200,19 @@ struct Vulkan_Mesh {
 
 	u32 uniform_offsets[MAX_FRAMES_IN_FLIGHT];
 	u32 uniform_size; // size of the individual uniforms
+
+	Vulkan_Buffer *buffer;
 };
 
 #define VULKAN_STATIC_BUFFER_SIZE 100000
 #define VULKAN_STATIC_UNIFORM_BUFFER_SIZE 1000000
 #define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000000
+
+void vulkan_log(const char *msg, ...) {
+  print_char_array(OUTPUT_DEFAULT, "(vulkan)");
+
+  OUTPUT_LIST(OUTPUT_ERROR, msg);
+}
 
 void vulkan_log_error(const char *msg, ...) {
   print_char_array(OUTPUT_ERROR, "ERROR: (vulkan)");

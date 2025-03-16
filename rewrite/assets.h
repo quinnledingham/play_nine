@@ -86,7 +86,7 @@ struct Shader_File {
 struct Shader {
   Shader_File files[SHADER_STAGES_COUNT]; // stores filename and all intermediate files
 
-  #ifdef API3D_VULKAN
+  #ifdef GFX_VULKAN
 
   VkPipelineLayout layout;
   VkPipeline handle;

@@ -248,7 +248,7 @@ s32 init_pipelines() {
   u32 pipeline_loads_count = ARRAY_COUNT(pipeline_loads);
   for (u32 i = 0; i < pipeline_loads_count; i++) {
     Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
-    gfx.create_graphics_pipeline(pipeline, gfx.draw_render_pass);
+    vulkan_create_graphics_pipeline(gfx.vk_ctx, pipeline, gfx.vk_ctx->draw_render_pass);
   }
 
   return SUCCESS;

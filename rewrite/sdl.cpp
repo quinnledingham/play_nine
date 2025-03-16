@@ -1,9 +1,3 @@
-struct App_Time {
-  float64 run_time_s;
-  float64 frame_time_s;
-  float64 frames_per_s;
-};
-
 inline float64
 get_seconds_elapsed(App_Time *time, u64 start, u64 end, u64 performance_frequency) {
   float64 result = ((float64)(end - start) / (float64)performance_frequency);
@@ -20,30 +14,6 @@ void update_time(App_Time *time, u64 start, u64 last, u64 now, u64 performance_f
   // fps
   time->frames_per_s = 1.0 / time->frame_time_s;
 }
-
-struct SDL_Context {
-  SDL_Window *window;
-
-  SDL_Renderer *renderer; // Clay
-
-  u64 start_ticks;
-  u64 now_ticks;
-  u64 last_ticks;
-
-  // Functions
-  s32 do_frame();
-  s32 process_input();
-  s32 init();
-  void cleanup();
-  s32 window_event(SDL_WindowEvent *window_event);
-};
-
-struct SDL_Renderer_Data {
-  SDL_Renderer *renderer;
-  TTF_TextEngine *text_engine;
-};
-
-SDL_Renderer_Data sdl_renderer_data = {};
 
 void sdl_log(const char *msg, ...) {
   print_char_array(OUTPUT_DEFAULT, "(sdl) ");
@@ -62,8 +32,6 @@ s32 SDL_Context::init() {
   if (!TTF_Init()) {
       return 1;
   }
-
-  SDL_SetHint(SDL_HINT_RENDER_DRIVER, "vulkan");
 
   if (SDL_Init(SDL_INIT_VIDEO) == false) {
     sdl_log_error("(sdl) error: could not initialize SDL: %s\n", SDL_GetError());
@@ -90,24 +58,29 @@ s32 SDL_Context::init() {
       sdl_log("%d. %s\n", i + 1, SDL_GetRenderDriver(i));
   }
 
-  renderer = SDL_CreateRenderer(window, NULL);
+  //renderer = SDL_CreateRenderer(window, "vulkan");
 
   SDL_GetWindowSize(window, &gfx.window.dim.width, &gfx.window.dim.height);
   gfx.window.resolution = gfx.window.dim;
 
-  gfx.sdl_init(window);
+  //gfx.vk_ctx = (Vulkan_Context *)malloc(sizeof(Vulkan_Context));
+  //memset(gfx.vk_ctx, 0, sizeof(Vulkan_Context));
+  gfx.vk_ctx = &gfx.vulkan_context;
+  vulkan_sdl_init(gfx.vk_ctx, window);
   
-  init_shapes();
+  init_draw();
+  //sdl_renderer_context.renderer = renderer;
+  //sdl_renderer_context.text_engine = TTF_CreateRendererTextEngine(renderer);
+  
   play_nine_init();
 
   start_ticks = SDL_GetPerformanceCounter();
 
-  init_clay(renderer, (float)gfx.window.dim.width, (float)gfx.window.dim.height);
+  //init_clay(renderer, (float)gfx.window.dim.width, (float)gfx.window.dim.height);
+  vulkan_create_frame_resources(gfx.vk_ctx, &gfx);
+  init_pipelines();
 
   srand(SDL_GetTicks());
-
-  sdl_renderer_data.renderer = renderer;
-  sdl_renderer_data.text_engine = TTF_CreateRendererTextEngine(renderer);
 
   return 0;
 }
@@ -132,7 +105,7 @@ s32 SDL_Context::process_input() {
         gfx.window.dim.width  = window_event->data1;
         gfx.window.dim.height = window_event->data2;
         gfx.window.resolution = gfx.window.dim;
-        clay_set_layout((float)gfx.window.dim.width, (float)gfx.window.dim.height);
+        //clay_set_layout((float)gfx.window.dim.width, (float)gfx.window.dim.height);
       } break;
       case SDL_EVENT_MOUSE_MOTION:
         mouse_coords = { event.motion.x, event.motion.y };
@@ -149,7 +122,7 @@ s32 SDL_Context::process_input() {
         }
         break;
       case SDL_EVENT_MOUSE_WHEEL:
-        clay_update_scroll_containers(event.wheel.x, event.wheel.y);
+        //clay_update_scroll_containers(event.wheel.x, event.wheel.y);
         break;
       /*
       case SDL_EVENT_KEY_DOWN:
@@ -174,7 +147,7 @@ s32 SDL_Context::process_input() {
     }
   }
 
-  clay_set_pointer_state(mouse_coords.x, mouse_coords.y, left_mouse_button_down);
+  //clay_set_pointer_state(mouse_coords.x, mouse_coords.y, left_mouse_button_down);
 
   return return_val;
 }
@@ -225,44 +198,41 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  gfx.cleanup();
+  vulkan_cleanup(gfx.vk_ctx);
   sdl_context.cleanup();
 
   return 0;
 }
 
+/*
+void sdl_draw_start() {
+  SDL_SetRenderDrawBlendMode(sdl_renderer_context.renderer, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(sdl_renderer_context.renderer, 10, 0, 0, 255);
+  SDL_RenderClear(sdl_renderer_context.renderer);
+}
+
+void sdl_draw_end() {
+  SDL_RenderPresent(sdl_renderer_context.renderer);
+}
+
 void sdl_draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
-  SDL_SetRenderDrawColor(sdl_renderer_data.renderer, color.r, color.g, color.b, color.a);
+  SDL_SetRenderDrawColor(sdl_renderer_context.renderer, color.r, color.g, color.b, color.a);
   SDL_FRect rect = {
     coords.x - (size.x/2.0f),
     coords.y - (size.y/2.0f),
     size.x,
     size.y
   };
-  SDL_RenderFillRect(sdl_renderer_data.renderer, &rect);
+  SDL_RenderFillRect(sdl_renderer_context.renderer, &rect);
 }
 
 void sdl_draw_text(Vector2 coords, const char *string, Vector4 color, u32 font_id) {
   Font *asset_font = find_font(font_id);
   TTF_Font *font = asset_font->ttf_font;
-  //TTF_SetFontSize(font, font_size);
-  TTF_Text *text = TTF_CreateText(sdl_renderer_data.text_engine, font, string, get_length(string));
+
+  TTF_Text *text = TTF_CreateText(sdl_renderer_context.text_engine, font, string, get_length(string));
   TTF_SetTextColor(text, color.r, color.g, color.b, color.a);
   TTF_DrawRendererText(text, coords.x, coords.y);
   TTF_DestroyText(text);
 }
-
-void SDL_GFX_FUNC(draw_rect)(Vector2 coords, Vector2 size, Vector4 color) {
-  SDL_SetRenderDrawColor(sdl_renderer_data.renderer, color.r, color.g, color.b, color.a);
-  SDL_FRect rect = {
-    coords.x - (size.x/2.0f),
-    coords.y - (size.y/2.0f),
-    size.x,
-    size.y
-  };
-  SDL_RenderFillRect(sdl_renderer_data.renderer, &rect);
-}
-
-s32 SDL_GFX_FUNC(start_frame)() {
-  SDL_RenderClear(sdl_renderer_data.renderer);
-}
+*/

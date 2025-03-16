@@ -10,14 +10,23 @@ struct GFX_Window {
   bool8 resized;
 };
 
-struct Rands {
-    int skibidi;
+struct GFX_Function_Table {
+  void (*start_frame)();
+  void (*end_frame)();
+  void (*draw_mesh)(Mesh *mesh);
+};
+
+struct Draw_Function_Table {
+  void (*draw_start)();
+  void (*draw_end)();
+  void (*draw_rect)(Vector2 coords, Vector2 size, Vector4 color);
+  void (*draw_text)(Vector2 coords, const char *string, Vector4 color, u32 font_id);
 };
 
 /*
 Mainly inheriting the functions from the context
 */
-struct GFX : Vulkan_Context, Rands {
+struct GFX {
   GFX_Window window;  
   GFX_Layout *layouts;
 
@@ -26,12 +35,16 @@ struct GFX : Vulkan_Context, Rands {
   bool8 resolution_scaling;
 
   u32 active_shader_id;
+  
+  GFX_Function_Table func;
+
+  Vulkan_Context *vk_ctx;
+
+  Vulkan_Context vulkan_context;
 
   void init();
-  void destroy_frame_resources();
-  void create_frame_resources();
-  void default_viewport() { set_viewport(window.dim.width, window.dim.height); }
-  void default_scissor() { set_scissor(0, 0, window.dim.width, window.dim.height); }
+  void default_viewport();
+  void default_scissor();
   Descriptor descriptor(u32 gfx_layout_id);
 
   void bind_pipeline(u32 id);

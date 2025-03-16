@@ -21,7 +21,8 @@ s32 play_nine_init() {
   return SUCCESS;
 }
 
-void update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
+internal void
+update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
     //state->scene.view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
     scene->projection = perspective_projection(45.0f, (float32)window_dim.width / (float32)window_dim.height, 0.1f, 1000.0f);
 
@@ -35,26 +36,26 @@ s32 draw() {
       gfx.layouts[i].reset();
   }
 
-  gfx.clear_color({1, 0, 1, 1});
+  vulkan_clear_color(gfx.vk_ctx, {1, 0, 1, 1});
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
 
   if (gfx.window.resized) {
-    gfx.destroy_frame_resources();
-    gfx.create_frame_resources();
+    vulkan_destroy_frame_resources(gfx.vk_ctx);
+    vulkan_create_frame_resources(gfx.vk_ctx, &gfx);
     gfx.window.resized = false;
   }
 
-  if (gfx.start_frame()) {
+  if (vulkan_start_frame(gfx.vk_ctx)) {
     return FAILURE;
   }
 
   gfx.default_viewport();
   gfx.default_scissor();
-  gfx.depth_test(false);
+  vulkan_depth_test(gfx.vk_ctx, false);
 
   draw_rect({200, 200}, {300, 300}, {255, 0, 0, 1});
 
-  gfx.end_frame(gfx.resolution_scaling, gfx.window.resized);
+  vulkan_end_frame(gfx.vk_ctx, gfx.resolution_scaling, gfx.window.resized);
 
   return SUCCESS;
 }
@@ -85,7 +86,8 @@ s32 update() {
   }
 */
 
-  draw_game_2D(&test_game);
+  draw();
+  //draw_game_2D(&test_game);
 
   return SUCCESS;
 }
