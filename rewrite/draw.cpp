@@ -1,4 +1,5 @@
-Mesh get_rect_mesh_2D() {
+internal Mesh
+get_rect_mesh_2D() {
   Mesh mesh = {};
   mesh.vertices_count = 4;
   
@@ -24,28 +25,29 @@ Mesh get_rect_mesh_2D() {
   mesh.indices[5] = bottom_right;
 
   mesh.vertex_info = Vertex_XU::get_vertex_info();
-  vulkan_init_mesh(gfx.vk_ctx, &mesh);
+  vulkan_init_mesh(&vk_ctx, &mesh);
 
   return mesh;
 }
 
-void draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
+internal void
+draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
 
-  gfx.bind_pipeline(PIPELINE_2D);
+  gfx_bind_pipeline(PIPELINE_2D);
 
-  Descriptor scene_desc = gfx.descriptor(GFXID_SCENE);
-  vulkan_update_ubo(gfx.vk_ctx, scene_desc, &ortho_scene);
-  vulkan_bind_descriptor_set(gfx.vk_ctx, scene_desc);
+  Descriptor scene_desc = gfx_descriptor(GFXID_SCENE);
+  vulkan_update_ubo(&vk_ctx, scene_desc, &ortho_scene);
+  vulkan_bind_descriptor_set(scene_desc);
 
-  Descriptor color_desc = gfx.descriptor(GFXID_COLOR_2D);
-  vulkan_update_ubo(gfx.vk_ctx, color_desc, (void *)&color);
-  vulkan_bind_descriptor_set(gfx.vk_ctx, color_desc);
+  Descriptor color_desc = gfx_descriptor(GFXID_COLOR_2D);
+  vulkan_update_ubo(&vk_ctx, color_desc, (void *)&color);
+  vulkan_bind_descriptor_set(color_desc);
 
   Object object = {};
   object.model = create_transform_m4x4(coords, size);
   object.index = 0;
-  vulkan_push_constants(gfx.vk_ctx, SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-  vulkan_draw_mesh(gfx.vk_ctx, &draw_context.square);
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&draw_context.square);
 }
 
 //static const int test_b = 1;

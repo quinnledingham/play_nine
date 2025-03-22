@@ -36,26 +36,26 @@ s32 draw() {
       gfx.layouts[i].reset();
   }
 
-  vulkan_clear_color(gfx.vk_ctx, {1, 0, 1, 1});
+  vulkan_clear_color({1, 0, 1, 1});
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
 
   if (gfx.window.resized) {
-    vulkan_destroy_frame_resources(gfx.vk_ctx);
-    vulkan_create_frame_resources(gfx.vk_ctx, &gfx);
+    vulkan_destroy_frame_resources();
+    vulkan_create_frame_resources();
     gfx.window.resized = false;
   }
 
-  if (vulkan_start_frame(gfx.vk_ctx)) {
+  if (vulkan_start_frame()) {
     return FAILURE;
   }
 
-  gfx.default_viewport();
-  gfx.default_scissor();
-  vulkan_depth_test(gfx.vk_ctx, false);
+  gfx_default_viewport();
+  gfx_default_scissor();
+  vulkan_depth_test(false);
 
   draw_rect({200, 200}, {300, 300}, {255, 0, 0, 1});
 
-  vulkan_end_frame(gfx.vk_ctx, gfx.resolution_scaling, gfx.window.resized);
+  vulkan_end_frame();
 
   return SUCCESS;
 }

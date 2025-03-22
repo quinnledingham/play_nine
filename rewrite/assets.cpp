@@ -238,7 +238,7 @@ s32 load_pipelines() {
     spirv_compile_shader(pipeline);
   }
 
-  gfx.init(); // set up descriptor set layouts
+  gfx_init(); // set up descriptor set layouts
 
   return SUCCESS;
 }
@@ -248,7 +248,7 @@ s32 init_pipelines() {
   u32 pipeline_loads_count = ARRAY_COUNT(pipeline_loads);
   for (u32 i = 0; i < pipeline_loads_count; i++) {
     Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
-    vulkan_create_graphics_pipeline(gfx.vk_ctx, pipeline, gfx.vk_ctx->draw_render_pass);
+    vulkan_create_graphics_pipeline(&vk_ctx, pipeline, vk_ctx.draw_render_pass);
   }
 
   return SUCCESS;

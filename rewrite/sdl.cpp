@@ -27,7 +27,7 @@ void sdl_log_error(const char *msg, ...) {
   OUTPUT_LIST(OUTPUT_ERROR, msg);
 }
 
-s32 SDL_Context::init() {
+s32 sdl_init() {
 
   if (!TTF_Init()) {
       return 1;
@@ -45,8 +45,8 @@ s32 SDL_Context::init() {
   sdl_log("But we are linking against SDL version %d.%d.%d.\n", SDL_VERSIONNUM_MAJOR(linked), SDL_VERSIONNUM_MINOR(linked), SDL_VERSIONNUM_MICRO(linked));
   
   u32 sdl_window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN;
-  window = SDL_CreateWindow(WINDOW_NAME, WINDOW_WIDTH, WINDOW_HEIGHT, sdl_window_flags);
-  if (!window) {
+  sdl_ctx.window = SDL_CreateWindow(WINDOW_NAME, WINDOW_WIDTH, WINDOW_HEIGHT, sdl_window_flags);
+  if (!sdl_ctx.window) {
     sdl_log_error("%s\n", SDL_GetError());
     return 1;
   }
@@ -60,13 +60,10 @@ s32 SDL_Context::init() {
 
   //renderer = SDL_CreateRenderer(window, "vulkan");
 
-  SDL_GetWindowSize(window, &gfx.window.dim.width, &gfx.window.dim.height);
+  SDL_GetWindowSize(sdl_ctx.window, &gfx.window.dim.width, &gfx.window.dim.height);
   gfx.window.resolution = gfx.window.dim;
 
-  //gfx.vk_ctx = (Vulkan_Context *)malloc(sizeof(Vulkan_Context));
-  //memset(gfx.vk_ctx, 0, sizeof(Vulkan_Context));
-  gfx.vk_ctx = &gfx.vulkan_context;
-  vulkan_sdl_init(gfx.vk_ctx, window);
+  vulkan_sdl_init();
   
   init_draw();
   //sdl_renderer_context.renderer = renderer;
@@ -74,13 +71,15 @@ s32 SDL_Context::init() {
   
   play_nine_init();
 
-  start_ticks = SDL_GetPerformanceCounter();
+  sdl_ctx.start_ticks = SDL_GetPerformanceCounter();
 
   //init_clay(renderer, (float)gfx.window.dim.width, (float)gfx.window.dim.height);
-  vulkan_create_frame_resources(gfx.vk_ctx, &gfx);
+  vulkan_create_frame_resources();
   init_pipelines();
 
   srand(SDL_GetTicks());
+
+  sdl_ctx.performance_frequency = SDL_GetPerformanceFrequency();
 
   return 0;
 }
@@ -88,7 +87,7 @@ s32 SDL_Context::init() {
 bool8 left_mouse_button_down = false;
 Vector2 mouse_coords = {};
 
-s32 SDL_Context::process_input() {
+s32 sdl_process_input() {
 
   s32 return_val = 0;
 
@@ -152,16 +151,15 @@ s32 SDL_Context::process_input() {
   return return_val;
 }
 
-s32 SDL_Context::do_frame() {
-  if (process_input())
+s32 sdl_do_frame() {
+  if (sdl_process_input())
     return 1;
 
   // frame time keeping
   App_Time time;
-  last_ticks = now_ticks;
-  now_ticks = SDL_GetPerformanceCounter();
-  u64 performance_frequency = SDL_GetPerformanceFrequency();
-  update_time(&time, start_ticks, last_ticks, now_ticks, performance_frequency);
+  sdl_ctx.last_ticks = sdl_ctx.now_ticks;
+  sdl_ctx.now_ticks = SDL_GetPerformanceCounter();
+  update_time(&time, sdl_ctx.start_ticks, sdl_ctx.last_ticks, sdl_ctx.now_ticks, sdl_ctx.performance_frequency);
 
   //app.update();
   //printf("%f\n", time.frames_per_s);
@@ -172,8 +170,8 @@ s32 SDL_Context::do_frame() {
   return 0;
 }
 
-void SDL_Context::cleanup() {
-  SDL_DestroyWindow(window);
+void sdl_cleanup() {
+  SDL_DestroyWindow(sdl_ctx.window);
   SDL_Quit();
   TTF_Quit();
 }
@@ -187,19 +185,17 @@ int main(int argc, char *argv[]) {
     test.remove_ending();
     test.log();
   }
-
-  SDL_Context sdl_context = {};
   
-  sdl_context.init();
+  sdl_init();
 
   while (1) {
-    if (sdl_context.do_frame()) {
+    if (sdl_do_frame()) {
       break;
     }
   }
 
-  vulkan_cleanup(gfx.vk_ctx);
-  sdl_context.cleanup();
+  vulkan_cleanup();
+  sdl_cleanup();
 
   return 0;
 }

@@ -153,7 +153,6 @@ struct Vulkan_Context {
 	VkSampleCountFlagBits msaa_samples;
 
 	VkCommandBuffer *active_command_buffer;
-	VkPipelineLayout pipeline_layout; // set this to the currently bounded layout
 
 	// Presentation
 	VkClearValue clear_values[2];
@@ -188,7 +187,7 @@ struct Vulkan_Context {
 	};
 };
 
-#define VK_CMD(a) *a->active_command_buffer
+#define VK_CMD *vk_ctx.active_command_buffer
 
 struct Vulkan_Pipeline {
 

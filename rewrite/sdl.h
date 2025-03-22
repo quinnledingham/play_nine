@@ -6,19 +6,12 @@ struct App_Time {
 
 struct SDL_Context {
   SDL_Window *window;
-
   SDL_Renderer *renderer; // Clay
 
   u64 start_ticks;
   u64 now_ticks;
   u64 last_ticks;
-
-  // Functions
-  s32 do_frame();
-  s32 process_input();
-  s32 init();
-  void cleanup();
-  s32 window_event(SDL_WindowEvent *window_event);
+  u64 performance_frequency;
 };
 
 struct SDL_Renderer_Context {
