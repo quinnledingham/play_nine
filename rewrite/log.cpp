@@ -32,6 +32,6 @@ void output_list(u32 output_stream, const char *msg, va_list list) {
   #endif // DEBUG
 
   output_buffer.clear();
-  vsprintf_s(output_buffer.str(), output_buffer.size, msg, list);
+  u32 result = vsprintf_s(output_buffer.str(), output_buffer.size, msg, list);
   print_char_array(output_stream, output_buffer.str());
 }

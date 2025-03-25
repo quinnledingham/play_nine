@@ -24,6 +24,13 @@ inline Vector2 operator/(const Vector2 &l, const Vector2 &r) { return { l.x / r.
 inline Vector2 operator/(const Vector2 &l, const float32 &r) { return { l.x / r  , l.y / r   }; }
 
 //
+// Vector2_s32 
+//
+
+inline Vector2_s32 operator/(const Vector2_s32 &l, const s32 &r) { return { l.x / r  , l.y / r   }; }
+inline Vector2 cv2(Vector2_s32 v) { return { (float32)v.x, (float32)v.y }; }
+
+//
 // Vector3
 //
 

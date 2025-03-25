@@ -1,9 +1,24 @@
-inline u32 get_length(const char *string) {
+inline u32 
+get_length(const char *string) {
   if (string == 0)
-  return 0;
+    return 0;
     
   u32 length = 0;
   const char *ptr = string;
+  while(*ptr != 0) {
+    length++;
+    ptr++;
+  }
+  return length;
+}
+
+inline u32 
+str_length(const char *str) {
+  if (str == 0)
+    return 0;
+    
+  u32 length = 0;
+  const char *ptr = str;
   while(*ptr != 0) {
     length++;
     ptr++;
@@ -41,6 +56,12 @@ struct String {
   u32 size;
   u32 length;
 
+  String() {
+    memory = 0;
+    size = 0;
+    length = 0;
+  }
+
   String(const char *str) {
     length = get_length(str);
     size = length + 1;
@@ -76,18 +97,20 @@ struct String {
 
   #ifdef DEBUG
   ~String() {
+    /*
     if (memory) {
       log_warning("~String(): Not correctly freeing string -> %s\n", memory);
     }
 
     destroy();
+    */
   }
   #endif // DEBUG
 };
 
 String::String(const char *a, const char *b) {
-  u32 a_length = get_length(a);
-  u32 b_length = get_length(b);
+  u32 a_length = str_length(a);
+  u32 b_length = str_length(b);
 
   length = a_length + b_length;
   size = length + 1;

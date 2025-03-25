@@ -25,6 +25,7 @@ enum descriptor_types {
 enum GFX_Layout_IDs {
   GFXID_SCENE,
   GFXID_COLOR_2D,
+  GFXID_TEXTURE,
   
   GFXID_COUNT
 };

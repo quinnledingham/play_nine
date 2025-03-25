@@ -94,5 +94,4 @@ s32 update();
  TODO:
 
  Vulkan
- - Proper cleanup
 */

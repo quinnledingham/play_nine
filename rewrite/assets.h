@@ -1,4 +1,8 @@
+/*
+  File is a buffer but with a filepath
+*/
 struct File {
+  String path;
   void *memory;
   u32 size;
 };
@@ -120,7 +124,26 @@ struct Mesh {
 };
 
 struct Font {
+  File file;
+  stbtt_fontinfo;
+
   TTF_Font *ttf_font;
+};
+
+struct Bitmap {
+    u8 *memory; // loaded pixels
+    union {
+        struct {
+            s32 width;
+            s32 height;
+        };
+        Vector2_s32 dim;
+    };
+    s32 pitch;
+    s32 channels;
+    u32 mip_levels;
+
+    void *gpu_info;
 };
 
 /*
@@ -139,14 +162,24 @@ const char *asset_folders[] = {
   "../assets/fonts/"
 };
 
+const u32 asset_size[] = {
+  sizeof(Shader), sizeof(Bitmap), sizeof(Font)
+};
+
 struct Asset_Array {
   Buffer buffer;
   u32 count;
+  u32 type_size;
+
+  void* find(u32 id) {
+    return (void*)((char*)buffer.memory + (id * type_size));
+  }
 };
 
 void prepare_asset_array(Asset_Array *arr, u32 count, u32 size) {
   if (arr->count == 0) {
     arr->count = count;
+    arr->type_size = size;
     arr->buffer = blank_buffer(arr->count * size);
   } else {
     arr->buffer.clear();
@@ -156,5 +189,7 @@ void prepare_asset_array(Asset_Array *arr, u32 count, u32 size) {
 struct Assets {
   Asset_Array pipelines;
   Asset_Array fonts;
+  Asset_Array bitmaps;
 };
 
+internal void bitmap_convert_channels(Bitmap *bitmap, u32 new_channels);

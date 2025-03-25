@@ -12,6 +12,7 @@ s32 play_nine_init() {
   }
 
   load_fonts();
+  load_assets(&assets.bitmaps, bitmap_loads, ARRAY_COUNT(bitmap_loads), AT_BITMAP);
 
   init_deck();
 
@@ -54,6 +55,9 @@ s32 draw() {
   vulkan_depth_test(false);
 
   draw_rect({200, 200}, {300, 300}, {255, 0, 0, 1});
+
+  Bitmap *bitmap = find_bitmap(BITMAP_LANA);
+  draw_rect({300, 200}, cv2(bitmap->dim/5), bitmap);
 
   vulkan_end_frame();
 

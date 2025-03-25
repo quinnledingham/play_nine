@@ -180,12 +180,6 @@ int main(int argc, char *argv[]) {
   init_output_buffer();
   sdl_log("starting sdl application...\n");
 
-  {
-    String test = String("Test.lmao");
-    test.remove_ending();
-    test.log();
-  }
-  
   sdl_init();
 
   while (1) {

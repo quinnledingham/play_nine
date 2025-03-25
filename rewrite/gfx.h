@@ -16,9 +16,10 @@ Mainly inheriting the functions from the context
 struct GFX {
   GFX_Window window;  
   GFX_Layout *layouts;
+  u32 layouts_count;
 
   bool8 vsync;
-  bool8 anti_aliasing;
+  bool8 anti_aliasing = true;
   bool8 resolution_scaling;
 
   u32 active_shader_id;

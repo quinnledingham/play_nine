@@ -1,3 +1,13 @@
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image.h>
+#include <stb/stb_image_resize.h>
+#include <stb/stb_image_write.h>
+#include <stb/stb_truetype.h>
+#include <stb/stb_vorbis.c>
+
 /*
   File
 */
@@ -5,7 +15,6 @@
 File load_file(const char *filepath) {
   File result = {};
     
-  //FILE *in = fopen(filepath, "rb");
   FILE *in;
   fopen_s(&in, filepath, "rb");
   if(in) {
@@ -19,7 +28,10 @@ File load_file(const char *filepath) {
   } else { 
     log_error("load_file(): Cannot open file %s\n", filepath);
   }
-        
+
+  // Save filepath
+  result.path = String(filepath);
+
   return result;
 }
 
@@ -222,7 +234,7 @@ s32 load_pipelines() {
 
   for (u32 i = 0; i < pipeline_loads_count; i++) {
     Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
-    Pipeline_Load *load = &pipeline_loads[i];
+    Asset_Load *load = &pipeline_loads[i];
 
     for (u32 file_index = 0; file_index < filenames_count; file_index++) {
       if (!load->filenames[file_index]) {
@@ -276,3 +288,115 @@ s32 load_fonts() {
 
   return SUCCESS;
 }
+
+/*
+  Bitmap
+*/
+
+internal Bitmap
+load_bitmap(File file) {
+  Bitmap bitmap = {};
+  bitmap.channels = 0;
+
+  // 4 arg always get filled in with the original amount of channels the image had.
+  // Currently forcing it to have 4 channels.
+  unsigned char *data = stbi_load_from_memory((stbi_uc const *)file.memory, file.size, &bitmap.width, &bitmap.height, &bitmap.channels, 0);
+  u32 data_size = bitmap.width * bitmap.height * bitmap.channels;
+  bitmap.memory = (u8*)malloc(data_size);
+  memcpy(bitmap.memory, data, data_size);
+  stbi_image_free(data);
+
+  if (bitmap.memory == 0) 
+    log_error("load_bitmap() could not load bitmap %s\n", file.path);
+
+  bitmap.pitch = bitmap.width * bitmap.channels;
+  //bitmap.mip_levels = (u32)floor(log2f((float32)max(bitmap.width, bitmap.height))) + 1;
+  bitmap.mip_levels = 1;
+
+  return bitmap;
+}
+
+internal void
+load_bitmap(u32 id, const char *filename) {
+  String filepath = String(asset_folders[AT_BITMAP], filename);
+  Bitmap *bitmap = find_bitmap(id);
+
+  File file = load_file(filepath.str());
+  *bitmap = load_bitmap(file);
+
+  vulkan_create_texture(bitmap, 0);
+
+  filepath.destroy();
+}
+
+s32 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u32 asset_type) {
+  print("loading assets (%s)...\n", asset_folders[asset_type]);
+
+  u32 filenames_count = ARRAY_COUNT(loads[0].filenames);
+
+  prepare_asset_array(asset_array, loads_count, asset_size[asset_type]); 
+
+  for (u32 i = 0; i < loads_count; i++) {
+
+    switch(asset_type) {
+      case AT_BITMAP:
+        load_bitmap(loads[i].id, loads[i].filenames[0]);
+        break;
+    }
+
+  }
+
+  return SUCCESS;
+}
+
+union Color_RGBA {
+  struct {
+    u8 r, g, b, a;
+  };
+  u8 E[4];
+};
+
+internal void
+bitmap_convert_channels(Bitmap *bitmap, u32 new_channels) {    
+  if (new_channels != 1 && new_channels != 3 && new_channels != 4) {
+    log_error("bitmap_convert_channels() not valid conversion (channels %d)\n", new_channels);
+    return;
+  }
+
+  u8 *new_memory = (u8*)malloc(bitmap->width * bitmap->height * new_channels);
+
+  for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
+    u8 *src = bitmap->memory + (i * bitmap->channels);
+    u8 *dest = new_memory + (i * new_channels);
+
+    Color_RGBA color = {};
+    switch(bitmap->channels) {
+      case 1: color = {   0x00,   0x00,   0x00, src[0]}; break;
+      case 3: color = { src[0], src[1], src[2], 0xFF  }; break;
+      case 4: color = { src[0], src[1], src[2], src[3]}; break;
+    }
+
+    if (new_channels == 1) {
+      dest[0] = color.a;
+    } else if (new_channels == 3) {
+      dest[0] = color.r;
+      dest[1] = color.g;
+      dest[2] = color.b;
+    } else if (new_channels == 4) {
+      dest[0] = color.r;
+      dest[1] = color.g;
+      dest[2] = color.b;
+      dest[3] = color.a;
+    }
+  }
+
+  free(bitmap->memory);
+  bitmap->memory = new_memory;
+  bitmap->channels = new_channels;
+  bitmap->pitch = bitmap->width * bitmap->channels;
+}
+
+/*
+  Font
+*/
+

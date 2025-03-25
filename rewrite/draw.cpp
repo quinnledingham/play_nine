@@ -50,6 +50,26 @@ draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
   vulkan_draw_mesh(&draw_context.square);
 }
 
+internal void
+draw_rect(Vector2 coords, Vector2 size, Bitmap *bitmap) {
+
+  gfx_bind_pipeline(PIPELINE_2D_TEXTURE);
+
+  Descriptor scene_desc = gfx_descriptor(GFXID_SCENE);
+  vulkan_update_ubo(&vk_ctx, scene_desc, &ortho_scene);
+  vulkan_bind_descriptor_set(scene_desc);
+
+  Descriptor texture_desc = gfx_descriptor(GFXID_TEXTURE);
+  vulkan_set_bitmap(&texture_desc, bitmap);
+  vulkan_bind_descriptor_set(texture_desc);
+
+  Object object = {};
+  object.model = create_transform_m4x4(coords, size);
+  object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&draw_context.square);
+}
+
 //static const int test_b = 1;
 //void (*draw_rect_2)(Vector2 coords, Vector2 size, Vector4 color) = test_b ? draw_rect : bababooey;
 
