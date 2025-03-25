@@ -11,7 +11,7 @@ s32 play_nine_init() {
     return FAILURE;
   }
 
-  load_fonts();
+  load_assets(&assets.fonts, font_loads, ARRAY_COUNT(font_loads), AT_FONT);
   load_assets(&assets.bitmaps, bitmap_loads, ARRAY_COUNT(bitmap_loads), AT_BITMAP);
 
   init_deck();
@@ -37,7 +37,7 @@ s32 draw() {
       gfx.layouts[i].reset();
   }
 
-  vulkan_clear_color({1, 0, 1, 1});
+  vulkan_clear_color({0, 0, 0, 1});
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
 
   if (gfx.window.resized) {
@@ -50,15 +50,25 @@ s32 draw() {
     return FAILURE;
   }
 
-  gfx_default_viewport();
-  gfx_default_scissor();
-  vulkan_depth_test(false);
+  start_draw_2D();
 
   draw_rect({200, 200}, {300, 300}, {255, 0, 0, 1});
 
   Bitmap *bitmap = find_bitmap(BITMAP_LANA);
   draw_rect({300, 200}, cv2(bitmap->dim/5), bitmap);
 
+  set_draw_font(FONT_LIMELIGHT);
+  draw_text("LANA", {200, 100}, 100, {200, 100, 0, 1});
+
+  draw_main_menu();
+
+  char fps[20];
+  float_to_string(app_time.frames_per_s, fps, 20);
+  set_draw_font(FONT_ROBOTO_MONO);
+  draw_text(fps, {0, 0}, 20, {255, 0, 0, 1});
+  
+  end_draw_2D();
+  
   vulkan_end_frame();
 
   return SUCCESS;

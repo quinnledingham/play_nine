@@ -24,9 +24,8 @@ enum descriptor_types {
 
 enum GFX_Layout_IDs {
   GFXID_SCENE,
-  GFXID_COLOR_2D,
-  GFXID_TEXTURE,
-  
+  GFXID_LOCAL,
+
   GFXID_COUNT
 };
 
@@ -40,16 +39,6 @@ struct GFX_Layout_Binding {
 
   // ubo
   u32 size;
-};
-
-// What is returned from renderer for the drawing code to interact with the descriptors
-struct Descriptor {
-    GFX_Layout_Binding binding; // layout binding for this binding
-    u32 offset; // offset in memory for a single binding in descriptor set
-    u32 set_number;
-    u32 texture_index; // where to write next texture for this frame
-
-    VkDescriptorSet *vulkan_set; // points to a descriptor set in a Layout
 };
 
 struct GFX_Layout {
@@ -112,4 +101,20 @@ struct GFX_Layout_Set {
     push.size = size;
     push_constants[push_constants_count++] = push;
   }
+};
+
+// What is returned from renderer for the drawing code to interact with the descriptors
+struct Descriptor_Set {
+    //GFX_Layout_Binding binding; // layout binding for this binding
+    GFX_Layout *layout;
+    u32 offset; // offset in memory for a single binding in descriptor set
+    u32 set_number;
+    u32 texture_index; // where to write next texture for this frame
+
+    VkDescriptorSet *vulkan_set; // points to a descriptor set in a Layout
+};
+
+struct Descriptor {
+  Descriptor_Set *set;
+  GFX_Layout_Binding *binding; // layout binding for this binding
 };

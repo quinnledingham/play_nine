@@ -123,13 +123,6 @@ struct Mesh {
   void *gpu_info;
 };
 
-struct Font {
-  File file;
-  stbtt_fontinfo;
-
-  TTF_Font *ttf_font;
-};
-
 struct Bitmap {
     u8 *memory; // loaded pixels
     union {
@@ -144,6 +137,58 @@ struct Bitmap {
     u32 mip_levels;
 
     void *gpu_info;
+};
+
+struct Font_Char {
+    u32 codepoint; // ascii
+    u32 glyph_index; // unicode
+    
+    s32 ax; // advance width
+    s32 lsb; // left side bearing
+
+    Vector2_s32 bb_0; // bounding box coord 0
+    Vector2_s32 bb_1; // bounding box coord 1
+    // WARNING: Scale this up at draw time does not look good. ax and lsb have to be scaled then though.
+};
+
+struct Font_Char_Bitmap {
+    Font_Char *font_char;
+    float32 scale; // scale factor
+    Bitmap bitmap;
+    u32 index;
+
+    Vector2_s32 bb_0; // bounding box coord 0 
+    Vector2_s32 bb_1; // bounding box coord 1
+    // WARNING: inverted from Font_Char bounding box (because of stb_truetype). bb_0 is top left and bb_1 is bottom right in this case.
+};
+
+struct Font_GFX {
+    bool8 in_use;
+    
+    Descriptor desc;
+    float32 scale;
+};
+
+struct Font_Cache {
+    s32 font_chars_cached;
+    s32 bitmaps_cached;
+    s32 gfxs_cached;
+    
+    Font_Char font_chars[255];
+    Font_Char_Bitmap bitmaps[1000];
+    Font_GFX gfxs[5];
+
+    //Texture_Atlas atlas;
+};
+
+struct Font {
+    File file;
+    void* info; // stbtt_fontinfo
+    
+    Vector2_s32 bb_0; // font bounding box coord 0
+    Vector2_s32 bb_1; // font bounding box coord 1
+
+    Font_Cache *cache;
 };
 
 /*

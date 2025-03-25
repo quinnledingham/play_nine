@@ -208,13 +208,13 @@ struct Vulkan_Mesh {
 #define VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE 1000000
 
 void vulkan_log(const char *msg, ...) {
-  print_char_array(OUTPUT_DEFAULT, "(vulkan)");
+  print_char_array(OUTPUT_DEFAULT, "(vulkan) ");
 
   OUTPUT_LIST(OUTPUT_ERROR, msg);
 }
 
 void vulkan_log_error(const char *msg, ...) {
-  print_char_array(OUTPUT_ERROR, "ERROR: (vulkan)");
+  print_char_array(OUTPUT_ERROR, "ERROR: (vulkan) ");
 
   OUTPUT_LIST(OUTPUT_ERROR, msg);
 }

@@ -1,6 +1,7 @@
 #ifdef OS_WINDOWS
 
-DWORD win32_get_file_stream(u32 output_stream) {
+inline DWORD 
+win32_get_file_stream(u32 output_stream) {
   switch(output_stream) {
     case OUTPUT_DEFAULT: return STD_OUTPUT_HANDLE;
     case OUTPUT_WARNING: return STD_ERROR_HANDLE;
@@ -21,7 +22,8 @@ print_char_array(u32 output_stream, const char *char_array) {
 
 #endif // OS
 
-void output_list(u32 output_stream, const char *msg, va_list list) {
+internal void 
+output_list(u32 output_stream, const char *msg, va_list list) {
   #if DEBUG
   // Check to see if the output buffer is initialized before using it
   if (output_buffer.memory == 0 || output_buffer.size == 0) {

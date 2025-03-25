@@ -11,6 +11,7 @@ SDL_Context sdl_ctx;
 Vulkan_Context vk_ctx;
 GFX gfx = {};
 Assets assets = {};
+App_Time app_time;
 
 inline Pipeline* 
 find_pipeline(u32 id) {
@@ -34,17 +35,10 @@ find_bitmap(u32 id) {
 */
 struct Draw_Context {
   Mesh square;
+
+  u32 font_id;
 };
-Draw_Context draw_context = {};
-
-SDL_Renderer_Context sdl_renderer_context;
-
-Shader test = {};
-
-Scene scene;
-Scene ortho_scene;
-
-bool8 local_vulkan_context = false;
+Draw_Context draw_ctx = {};
 
 // Play Nine Game
 
@@ -53,6 +47,14 @@ Game test_game;
 
 // Drawing Game
 
+Scene scene;
+Scene ortho_scene;
+
 Vector2 hand_coords[HAND_SIZE];
 float32 hand_width;
 Vector2 card_dim = { 20.0f, 32.0f };
+
+global const Vector4 play_nine_green        = {  39,  77,  20, 1 };
+global const Vector4 play_nine_yellow       = { 231, 213,  36, 1 };
+global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
+global const Vector4 play_nine_dark_yellow  = { 197, 180,  22, 1 };

@@ -26,7 +26,6 @@ IF NOT EXIST SDL3.dll copy %SDL_SDK%\lib\x64\SDL3.dll
 IF NOT EXIST SDL3_ttf.dll copy %SDL_TTF%\lib\x64\SDL3_ttf.dll
 IF NOT EXIST SDL3_image.dll copy %SDL_IMAGE%\lib\x64\SDL3_image.dll
 
-
-cl %CF% %CF_SDL% %CF_VULKAN% ../play_nine.cpp ../clay/clay_iru.c /link %LF% %LF_SDL% %LF_VULKAN% %LF_SHADERC% /out:play.exe
+cl %CF% %CF_SDL% %CF_VULKAN% ../play_nine.cpp /link %LF% %LF_SDL% %LF_VULKAN% %LF_SHADERC% /out:play.exe
 
 cd ..

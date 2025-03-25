@@ -136,3 +136,14 @@ void String::remove_ending() {
   }
   length = new_length;
 }
+
+inline void
+float_to_string(float32 f, char *buffer, u32 buffer_size) {
+  u32 ret = snprintf(buffer, buffer_size, "%f", f);
+  if (ret < 0) {
+      log_error("float_to_char_array(float32 f, char *buffer, u32 buffer_size) ftos() failed\n");
+      return;
+  }
+  if (ret >= buffer_size) 
+    log_error("float_to_char_array(float32 f, char *buffer, u32 buffer_size) ftos(): result was truncated\n");
+}

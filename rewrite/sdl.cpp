@@ -111,6 +111,7 @@ s32 sdl_process_input() {
         break;
       case SDL_EVENT_MOUSE_BUTTON_DOWN:
         mouse_coords = { event.button.x, event.button.y };
+        sdl_log("MOUSE: %f, %f\n", mouse_coords.x, mouse_coords.y);
         if (event.button.button == SDL_BUTTON_LEFT)
           left_mouse_button_down = true;
         break;
@@ -123,24 +124,22 @@ s32 sdl_process_input() {
       case SDL_EVENT_MOUSE_WHEEL:
         //clay_update_scroll_containers(event.wheel.x, event.wheel.y);
         break;
-      /*
-      case SDL_EVENT_KEY_DOWN:
-        if (!local_vulkan_context) {
-          local_vulkan_context = true;
-          SDL_DestroyRenderer(renderer);
-          gfx.create_frame_resources();
-          init_pipelines();
-        } else {
-          local_vulkan_context = false;
-          gfx.destroy_frame_resources();
-          renderer = SDL_CreateRenderer(window, NULL);
-          if (!renderer) {
-            sdl_log_error("Failed to create renderer\n");
+      
+      case SDL_EVENT_KEY_DOWN: {
+        SDL_KeyboardEvent *keyboard_event = &event.key;
+        if (keyboard_event->key == SDLK_R) {
+          s32 load_pipelines_result = load_pipelines();
+          if (load_pipelines_result == FAILURE) {
+            return FAILURE;
           }
-          clay_set_renderer(renderer);
+          for (u32 i = 0; i < assets.pipelines.count; i++) {
+            Pipeline *pipeline = find_pipeline(i);
+            vulkan_pipeline_cleanup(pipeline);
+          }
+          init_pipelines();
         }
-        break;
-      */
+      } break;
+      
       default:
         break;
     }
@@ -156,10 +155,9 @@ s32 sdl_do_frame() {
     return 1;
 
   // frame time keeping
-  App_Time time;
   sdl_ctx.last_ticks = sdl_ctx.now_ticks;
   sdl_ctx.now_ticks = SDL_GetPerformanceCounter();
-  update_time(&time, sdl_ctx.start_ticks, sdl_ctx.last_ticks, sdl_ctx.now_ticks, sdl_ctx.performance_frequency);
+  update_time(&app_time, sdl_ctx.start_ticks, sdl_ctx.last_ticks, sdl_ctx.now_ticks, sdl_ctx.performance_frequency);
 
   //app.update();
   //printf("%f\n", time.frames_per_s);
@@ -188,41 +186,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  vkDeviceWaitIdle(vk_ctx.device);
+  assets_cleanup();
   vulkan_cleanup();
   sdl_cleanup();
 
   return 0;
 }
-
-/*
-void sdl_draw_start() {
-  SDL_SetRenderDrawBlendMode(sdl_renderer_context.renderer, SDL_BLENDMODE_BLEND);
-  SDL_SetRenderDrawColor(sdl_renderer_context.renderer, 10, 0, 0, 255);
-  SDL_RenderClear(sdl_renderer_context.renderer);
-}
-
-void sdl_draw_end() {
-  SDL_RenderPresent(sdl_renderer_context.renderer);
-}
-
-void sdl_draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
-  SDL_SetRenderDrawColor(sdl_renderer_context.renderer, color.r, color.g, color.b, color.a);
-  SDL_FRect rect = {
-    coords.x - (size.x/2.0f),
-    coords.y - (size.y/2.0f),
-    size.x,
-    size.y
-  };
-  SDL_RenderFillRect(sdl_renderer_context.renderer, &rect);
-}
-
-void sdl_draw_text(Vector2 coords, const char *string, Vector4 color, u32 font_id) {
-  Font *asset_font = find_font(font_id);
-  TTF_Font *font = asset_font->ttf_font;
-
-  TTF_Text *text = TTF_CreateText(sdl_renderer_context.text_engine, font, string, get_length(string));
-  TTF_SetTextColor(text, color.r, color.g, color.b, color.a);
-  TTF_DrawRendererText(text, coords.x, coords.y);
-  TTF_DestroyText(text);
-}
-*/

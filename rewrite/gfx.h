@@ -1,3 +1,9 @@
+struct Rect {
+    Vector2 coords;
+    Vector2 dim;
+    float32 rotation; // radians
+};
+
 //
 // Main GFX
 //
@@ -22,6 +28,8 @@ struct GFX {
   bool8 anti_aliasing = true;
   bool8 resolution_scaling;
 
+  Stack<Rect> scissor_stack = Stack<Rect>(10);
+
   u32 active_shader_id;
 };
 
@@ -42,7 +50,13 @@ struct Scene {
     Matrix_4x4 projection;
 };
 
+struct Local {
+    Vector4 text;
+    Vector4 color;
+};
+
 struct Object {
     Matrix_4x4 model;
     s32 index;
 };
+

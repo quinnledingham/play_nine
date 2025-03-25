@@ -88,7 +88,7 @@ void compile_glsl_to_spirv(Shader_File *file, shaderc_compiler_t compiler, u32 s
 
   if (num_of_warnings != 0 || num_of_errors != 0) {
     const char *error_message = shaderc_result_get_error_message(result);
-    log_error("compile_glsl_to_spirv(): %s\n", error_message);
+    log_error("(%s) compile_glsl_to_spirv(): %s\n", file->filename, error_message);
   }
 
   u32 length = (u32)shaderc_result_get_length(result);
@@ -266,27 +266,137 @@ s32 init_pipelines() {
   return SUCCESS;
 }
 
-s32 load_fonts() {
-  print("loading fonts...\n");
-
-  u32 filenames_count = ARRAY_COUNT(font_loads[0].filenames);
-  u32 font_loads_count = ARRAY_COUNT(font_loads);
-
-  prepare_asset_array(&assets.fonts, font_loads_count, sizeof(Font)); 
-
-  for (u32 i = 0; i < font_loads_count; i++) {
-    String filepath = String(asset_folders[AT_FONT], font_loads[i].filenames[0]);
-
-    Font *font = find_font(font_loads[i].id);
-    font->ttf_font = TTF_OpenFont(filepath.str(), 100);
-    if (!font->ttf_font) {
-      log_error("Failed to load font (%s): %s\n", font_loads[i].filenames[0], SDL_GetError());
+internal void
+pipeline_print_filenames(Pipeline *pipe) {
+  for (u32 i = 0; i < SHADER_STAGES_COUNT; i++) {
+    Shader_File *file = &pipe->files[i];
+    if (file->filename) {
+      print("%s ", file->filename);
     }
+  }
+  print("\n");
+}
 
-    filepath.destroy();
+/*
+  Font
+*/
+
+internal void
+load_font(u32 id, const char *filename) {
+  String filepath = String(asset_folders[AT_FONT], filename);
+  File file = load_file(filepath.str());
+  filepath.destroy();
+
+  Font *font = find_font(id);
+
+  font->info = malloc(sizeof(stbtt_fontinfo));
+  stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
+  *info = {};
+
+  font->cache = (Font_Cache *)malloc(sizeof(Font_Cache));
+  memset(font->cache, 0, sizeof(Font_Cache));
+  memset(font->cache->bitmaps, 0, sizeof(Font_Char_Bitmap) * ARRAY_COUNT(font->cache->bitmaps));
+
+  stbtt_InitFont(info, (u8*)file.memory, stbtt_GetFontOffsetForIndex((u8*)file.memory, 0));
+  stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
+}
+
+internal Font_Char *
+load_font_char(Font *font, u32 codepoint) {
+  stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
+
+  // search cache for font char
+  for (s32 i = 0; i < font->cache->font_chars_cached; i++) {
+    Font_Char *font_char = &font->cache->font_chars[i];
+    if (font_char->codepoint == codepoint)
+      return font_char;
   }
 
-  return SUCCESS;
+  // where to cache new font char
+  Font_Char *font_char = &font->cache->font_chars[font->cache->font_chars_cached++];
+  if (font->cache->font_chars_cached >= ARRAY_COUNT(font->cache->font_chars)) 
+      font->cache->font_chars_cached = 0;
+
+  memset(font_char, 0, sizeof(Font_Char));
+  font_char->codepoint = codepoint;
+  font_char->glyph_index = stbtt_FindGlyphIndex(info, font_char->codepoint);
+
+  // how wide is this character
+  stbtt_GetGlyphHMetrics(info, font_char->glyph_index, &font_char->ax, &font_char->lsb);
+  stbtt_GetGlyphBox(info, font_char->glyph_index, &font_char->bb_0.x, &font_char->bb_0.y, &font_char->bb_1.x, &font_char->bb_1.y);
+
+  return font_char;
+}
+
+internal Font_Char_Bitmap *
+load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
+  if (scale == 0.0f) {
+      log_error("load_font_char_bitmap() scale can not be zero"); // scale used below
+      return 0;
+  }
+
+  //Texture_Atlas *atlas = &font->cache->atlas;
+  stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
+
+  /*
+  if (atlas->resetted) {
+      print("HERE\n");
+      atlas->resetted = false;
+      font->cache->bitmaps_cached = 0;
+  }
+  */
+
+  // search cache for font char
+  for (s32 i = 0; i < font->cache->bitmaps_cached; i++) {
+    Font_Char_Bitmap *bitmap = &font->cache->bitmaps[i];
+    if (bitmap->font_char->codepoint == codepoint && bitmap->scale == scale)
+      return bitmap;
+  }
+
+  // where to cache new font char
+  Font_Char_Bitmap *char_bitmap = &font->cache->bitmaps[font->cache->bitmaps_cached++];
+  if (font->cache->bitmaps_cached >= ARRAY_COUNT(font->cache->bitmaps)) 
+    font->cache->bitmaps_cached = 0;
+
+  memset(char_bitmap, 0, sizeof(Font_Char_Bitmap));
+  char_bitmap->font_char = load_font_char(font, codepoint);
+  char_bitmap->scale = scale;
+  char_bitmap->bitmap.memory = stbtt_GetGlyphBitmapSubpixel(info, 0, char_bitmap->scale, 0, 0, char_bitmap->font_char->glyph_index, &char_bitmap->bitmap.width, &char_bitmap->bitmap.height, 0, 0);
+  char_bitmap->bitmap.channels = 1;
+  char_bitmap->bitmap.pitch = char_bitmap->bitmap.width * char_bitmap->bitmap.channels;
+
+  stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, char_bitmap->scale, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
+
+  //char_bitmap->index = texture_atlas_add(atlas, &char_bitmap->bitmap);
+  char_bitmap->bitmap.mip_levels = 1;
+  vulkan_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
+
+  return char_bitmap;
+}
+
+internal void
+clear_font_bitmap_cache(Font *font) {
+  stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
+  for (s32 i = 0; i < font->cache->bitmaps_cached; i++) {
+      stbtt_FreeBitmap(font->cache->bitmaps[i].bitmap.memory, info->userdata);
+      font->cache->bitmaps[i].bitmap.memory = 0;
+      vulkan_destroy_texture(&font->cache->bitmaps[i].bitmap);
+      memset(&font->cache->bitmaps[i], 0, sizeof(Font_Char_Bitmap));
+  }
+
+  font->cache->bitmaps_cached = 0;
+}
+
+float32 get_scale_for_pixel_height(void *info, float32 pixel_height) {
+    return stbtt_ScaleForPixelHeight((stbtt_fontinfo*)info, pixel_height);
+}
+
+s32 get_codepoint_kern_advance(void *info, s32 ch1, s32 ch2) {
+    return stbtt_GetCodepointKernAdvance((stbtt_fontinfo*)info, ch1, ch2);
+}
+
+s32 get_glyph_kern_advance(void *info, s32 gl1, s32 gl2) {
+    return stbtt_GetGlyphKernAdvance((stbtt_fontinfo*)info, gl1, gl2);
 }
 
 /*
@@ -324,7 +434,7 @@ load_bitmap(u32 id, const char *filename) {
   File file = load_file(filepath.str());
   *bitmap = load_bitmap(file);
 
-  vulkan_create_texture(bitmap, 0);
+  vulkan_create_texture(bitmap, TEXTURE_PARAMETERS_DEFAULT);
 
   filepath.destroy();
 }
@@ -341,6 +451,9 @@ s32 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u3
     switch(asset_type) {
       case AT_BITMAP:
         load_bitmap(loads[i].id, loads[i].filenames[0]);
+        break;
+      case AT_FONT:
+        load_font(loads[i].id, loads[i].filenames[0]);
         break;
     }
 
@@ -396,7 +509,20 @@ bitmap_convert_channels(Bitmap *bitmap, u32 new_channels) {
   bitmap->pitch = bitmap->width * bitmap->channels;
 }
 
-/*
-  Font
-*/
+internal void
+assets_cleanup() {
+  for (u32 i = 0; i < assets.pipelines.count; i++) {
+    Pipeline *pipeline = find_pipeline(i);
+    vulkan_pipeline_cleanup(pipeline);
+  }
 
+  for (u32 i = 0; i < assets.bitmaps.count; i++) {
+    Bitmap *bitmap = find_bitmap(i);
+    vulkan_destroy_texture(bitmap);
+  }
+
+  for (u32 i = 0; i < assets.fonts.count; i++) {
+    Font *font = find_font(i);
+    clear_font_bitmap_cache(font);
+  }
+}
