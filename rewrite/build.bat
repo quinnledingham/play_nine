@@ -1,8 +1,17 @@
 @echo off
 
 :: Load local variables
-call local.bat
+
+:: Default Values
 set VARS=SDL_SDK VULKAN_SDK OS SDL_TTF SDL_IMAGE
+
+set SDL_SDK=C:\Users\quinn\libs\SDL3-3.2.6
+set SDL_TTF=C:\Users\quinn\libs\SDL3_ttf-3.2.0
+set SDL_IMAGE=C:\Users\quinn\libs\SDL3_image-3.2.2
+set VULKAN_SDK=C:\VulkanSDK\1.3.296.0
+set OS=WINDOWS
+
+call local.bat
 for %%V in (%VARS%) do (
 	if not defined %%V (echo %%V is not defined & exit /b)
 )
