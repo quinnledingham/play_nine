@@ -14,5 +14,16 @@ draw_main_menu() {
   Rect rect = {};
   rect.coords = {100, 100};
   rect.dim = {100, 100};
-  draw_button(gui.style, 0, rect, "test", ALIGN_CENTER);
+  //draw_button(gui.style, 0, rect, "test", ALIGN_CENTER);
+
+  gui.dim = {0.4, 0.4};
+  gui.segments = {1, 5};
+
+  draw_gui(&gui);
+
+  gui_button(&gui, "aaaa", {0, 0});
+  gui_button(&gui, "aaaaaaa", {0, 1});
+  gui_button(&gui, "aaaaaaa", {0, 2});
+  gui_button(&gui, "aaaaaaa", {0, 3});
+  gui_button(&gui, "aaaaaaa", {0, 4});
 }

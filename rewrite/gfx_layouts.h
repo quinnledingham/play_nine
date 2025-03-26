@@ -22,13 +22,6 @@ enum descriptor_types {
     DESCRIPTOR_TYPES_AMOUNT
 };
 
-enum GFX_Layout_IDs {
-  GFXID_SCENE,
-  GFXID_LOCAL,
-
-  GFXID_COUNT
-};
-
 struct GFX_Layout_Binding {
   u32 binding;
   u32 descriptor_type;
@@ -43,7 +36,7 @@ struct GFX_Layout_Binding {
 
 struct GFX_Layout {
   static const u32 max_bindings = 4;
-  static const u32 max_sets = 64;
+  static const u32 max_sets = 512;
 
   u32 id;
 

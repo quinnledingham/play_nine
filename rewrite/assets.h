@@ -139,6 +139,38 @@ struct Bitmap {
     void *gpu_info;
 };
 
+/*
+####p2
+######
+p1####
+*/
+struct Texture_Coords {
+    Vector2 p1;
+    Vector2 p2;
+};
+
+struct Texture_Atlas_GPU {
+    void *handle; // Vulkan_Texture
+    Descriptor_Set set;
+    Descriptor desc;
+    bool8 refresh_required;
+};
+
+struct Texture_Atlas {
+  bool8 resetted;
+  Bitmap bitmap;
+
+  Texture_Atlas_GPU gpu[MAX_FRAMES_IN_FLIGHT];
+
+  static const u32 max_textures = 1000;
+  u32 texture_count;
+  Texture_Coords texture_coords[max_textures]; 
+
+  // variables for adding new textures
+  Vector2_s32 insert_position;
+  s32 row_height;
+};
+
 struct Font_Char {
     u32 codepoint; // ascii
     u32 glyph_index; // unicode
@@ -178,17 +210,17 @@ struct Font_Cache {
     Font_Char_Bitmap bitmaps[1000];
     Font_GFX gfxs[5];
 
-    //Texture_Atlas atlas;
+    Texture_Atlas atlas;
 };
 
 struct Font {
-    File file;
-    void* info; // stbtt_fontinfo
-    
-    Vector2_s32 bb_0; // font bounding box coord 0
-    Vector2_s32 bb_1; // font bounding box coord 1
+  File file;
+  void* info; // stbtt_fontinfo
+  
+  Vector2_s32 bb_0; // font bounding box coord 0
+  Vector2_s32 bb_1; // font bounding box coord 1
 
-    Font_Cache *cache;
+  Font_Cache *cache;
 };
 
 /*
@@ -199,16 +231,21 @@ enum Asset_Types {
   AT_SHADER,
   AT_BITMAP,
   AT_FONT,
+  AT_ATLAS
 };
 
 const char *asset_folders[] = {
   "../assets/shaders/",
   "../assets/bitmaps/",
-  "../assets/fonts/"
+  "../assets/fonts/",
+  "../assets/atlases/"
 };
 
 const u32 asset_size[] = {
-  sizeof(Shader), sizeof(Bitmap), sizeof(Font)
+  sizeof(Shader), 
+  sizeof(Bitmap), 
+  sizeof(Font), 
+  sizeof(Texture_Atlas)
 };
 
 struct Asset_Array {
@@ -235,6 +272,7 @@ struct Assets {
   Asset_Array pipelines;
   Asset_Array fonts;
   Asset_Array bitmaps;
+  Asset_Array atlases;
 };
 
 internal void bitmap_convert_channels(Bitmap *bitmap, u32 new_channels);

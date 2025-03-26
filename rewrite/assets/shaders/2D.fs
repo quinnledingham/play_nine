@@ -50,7 +50,9 @@ void main() {
     } else if (local.text.x == 2.00) {
     	color = texture(tex_sampler, fragTexCoord);
     }
-    //color = to_linear(color);
+
+    if (local.text.x != 2.00)
+    	color = to_linear(color);
 	//color = to_sRGB(color);
 
     outColor = color;

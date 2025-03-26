@@ -33,7 +33,10 @@ struct GFX {
   u32 active_shader_id;
 };
 
-void gfx_init();
+internal void gfx_define_layouts();
+internal void gfx_add_layouts_to_shaders();
+inline Descriptor_Set gfx_descriptor_set(u32 gfx_layout_id);
+inline Descriptor gfx_descriptor(Descriptor_Set *set, u32 binding_index);
 
 // used with render_create_texture function
 enum Texture_Parameters {

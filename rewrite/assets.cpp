@@ -250,7 +250,7 @@ s32 load_pipelines() {
     spirv_compile_shader(pipeline);
   }
 
-  gfx_init(); // set up descriptor set layouts
+  gfx_add_layouts_to_shaders();
 
   return SUCCESS;
 }
@@ -278,6 +278,364 @@ pipeline_print_filenames(Pipeline *pipe) {
 }
 
 /*
+  Bitmap
+*/
+
+internal Bitmap
+load_bitmap(File file) {
+  Bitmap bitmap = {};
+  bitmap.channels = 0;
+
+  // 4 arg always get filled in with the original amount of channels the image had.
+  // Currently forcing it to have 4 channels.
+  unsigned char *data = stbi_load_from_memory((stbi_uc const *)file.memory, file.size, &bitmap.width, &bitmap.height, &bitmap.channels, 0);
+  u32 data_size = bitmap.width * bitmap.height * bitmap.channels;
+  bitmap.memory = (u8*)malloc(data_size);
+  memcpy(bitmap.memory, data, data_size);
+  stbi_image_free(data);
+
+  if (bitmap.memory == 0) 
+    log_error("load_bitmap() could not load bitmap %s\n", file.path);
+
+  bitmap.pitch = bitmap.width * bitmap.channels;
+  //bitmap.mip_levels = (u32)floor(log2f((float32)max(bitmap.width, bitmap.height))) + 1;
+  bitmap.mip_levels = 1;
+
+  return bitmap;
+}
+
+internal void
+load_bitmap(u32 id, const char *filename) {
+  String filepath = String(asset_folders[AT_BITMAP], filename);
+  Bitmap *bitmap = find_bitmap(id);
+
+  File file = load_file(filepath.str());
+  *bitmap = load_bitmap(file);
+
+  vulkan_create_texture(bitmap, TEXTURE_PARAMETERS_DEFAULT);
+
+  filepath.destroy();
+}
+
+union Color_RGBA {
+  struct {
+    u8 r, g, b, a;
+  };
+  u8 E[4];
+};
+
+internal void
+bitmap_convert_channels(Bitmap *bitmap, u32 new_channels) {    
+  if (new_channels != 1 && new_channels != 3 && new_channels != 4) {
+    log_error("bitmap_convert_channels() not valid conversion (channels %d)\n", new_channels);
+    return;
+  }
+
+  u8 *new_memory = (u8*)malloc(bitmap->width * bitmap->height * new_channels);
+
+  for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
+    u8 *src = bitmap->memory + (i * bitmap->channels);
+    u8 *dest = new_memory + (i * new_channels);
+
+    Color_RGBA color = {};
+    switch(bitmap->channels) {
+      case 1: color = {   0x00,   0x00,   0x00, src[0]}; break;
+      case 3: color = { src[0], src[1], src[2], 0xFF  }; break;
+      case 4: color = { src[0], src[1], src[2], src[3]}; break;
+    }
+
+    if (new_channels == 1) {
+      dest[0] = color.a;
+    } else if (new_channels == 3) {
+      dest[0] = color.r;
+      dest[1] = color.g;
+      dest[2] = color.b;
+    } else if (new_channels == 4) {
+      dest[0] = color.r;
+      dest[1] = color.g;
+      dest[2] = color.b;
+      dest[3] = color.a;
+    }
+  }
+
+  free(bitmap->memory);
+  bitmap->memory = new_memory;
+  bitmap->channels = new_channels;
+  bitmap->pitch = bitmap->width * bitmap->channels;
+}
+
+internal Bitmap
+blank_bitmap(u32 width, u32 height, u32 channels) {
+    Bitmap bitmap = {};
+    bitmap.width = width;
+    bitmap.height = height;
+    bitmap.channels = channels;
+    bitmap.pitch = bitmap.width * bitmap.channels;
+    
+    u32 bitmap_size = bitmap.width * bitmap.height * bitmap.channels;
+    bitmap.memory = (u8 *)malloc(bitmap_size);
+    memset(bitmap.memory, 0, bitmap_size);
+
+    return bitmap;
+}
+
+internal u8
+blend_alpha(u8 a1, u8 a2) {
+    return 255 - ((255 - a1) * (255 - a2) / 255);
+}
+
+internal u8
+blend_color(u8 c1, u8 c2, u8 alpha) {
+    return (c1 * (255 - alpha) + c2 * alpha) / 255;
+}
+
+// color contains what to fill conversion from 1 channel to 4 channels with
+internal void
+copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
+    if (src.width == 0 || src.height == 0)
+        return;
+
+    if (dest.channels != src.channels) {
+        log_error("copy_blend_bitmap() bitmap channels do not match (%d != %d)\n", dest.channels, src.channels);
+        ASSERT(0);
+    }
+
+    u8 *src_ptr = src.memory;
+    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
+    u8 *dest_ptr_line_start = dest_ptr;
+    
+    while(src_ptr < src.memory + (src.width * src.height * src.channels)) {
+        
+        for (s32 channel_index = 0; channel_index < dest.channels; channel_index++) {
+            
+            if (dest.channels == 1 || (dest.channels == 4 && channel_index == 3)) {
+                dest_ptr[channel_index] = blend_alpha(dest_ptr[channel_index], src_ptr[channel_index]);
+            } else if (dest.channels == 3) {
+                dest_ptr[channel_index] = blend_color(dest_ptr[channel_index], src_ptr[channel_index], 0xFF);
+            } else if (dest.channels == 4) {
+                dest_ptr[channel_index] = blend_color(dest_ptr[channel_index], src_ptr[channel_index], src_ptr[3]);
+            }        
+        }
+
+        src_ptr += src.channels;
+        dest_ptr += dest.channels;
+
+        // Go to next line in dest bitmap
+        if (dest_ptr >= dest_ptr_line_start + src.pitch) {
+            s32 src_line = u32(src_ptr - src.memory) / src.pitch;
+            dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (src_line * dest.pitch);
+            dest_ptr_line_start = dest_ptr;
+
+            // going to write beyond dest
+            if (position.y + src_line >= dest.height)
+                return;
+        }
+    }
+}
+
+internal void
+write_bitmap(Bitmap *bitmap, const char *file_path) {
+  stbi_write_png(file_path, bitmap->width, bitmap->height, bitmap->channels, bitmap->memory, bitmap->pitch);
+}
+
+/*
+  Texture Atlas
+*/
+
+// create a blank texture atlas
+internal Texture_Atlas
+create_texture_atlas(u32 width, u32 height, u32 channels) {
+    Texture_Atlas atlas = {};
+    atlas.bitmap = blank_bitmap(width, height, channels);
+
+    return atlas;
+}
+
+internal void
+texture_atlas_reset(Texture_Atlas *atlas) {
+    u32 bitmap_size = atlas->bitmap.width * atlas->bitmap.height * atlas->bitmap.channels;
+    memset(atlas->bitmap.memory, 0, bitmap_size);
+
+    atlas->texture_count = 0;
+    atlas->insert_position = { 0, 0 };
+    atlas->row_height = 0;
+
+    atlas->resetted = true;
+}
+
+internal u32
+texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
+    Vector2_s32 padding = { 1, 1 };
+    
+    Vector2_s32 position = {};
+
+    // Check if bitmap fits next in line
+    if (atlas->insert_position.x + bitmap->width  + padding.x < atlas->bitmap.width &&
+        atlas->insert_position.y + bitmap->height + padding.y < atlas->bitmap.height) {
+        position = atlas->insert_position;
+    // Check if the bitmap fits on the next line
+    } else if (atlas->insert_position.y + atlas->row_height + bitmap->height + padding.y < atlas->bitmap.height) {
+        position = { 0, atlas->insert_position.y + atlas->row_height + padding.y };
+        atlas->row_height = 0;
+    // No more space reset atlas
+    } else {
+        texture_atlas_reset(atlas);
+        log_error("texture_atlas_add() not enough room for bitmap\n");
+    }
+
+    copy_blend_bitmap(atlas->bitmap, *bitmap, position);
+
+    Vector2 tex_coords_p1 = { (float32)position.x / (float32)atlas->bitmap.width, 
+                              (float32)position.y / (float32)atlas->bitmap.height };
+    Vector2 tex_coords_p2 = { float32(position.x + bitmap->width)  / (float32)atlas->bitmap.width, 
+                              float32(position.y + bitmap->height) / (float32)atlas->bitmap.height };
+
+    if (tex_coords_p1.x < EPSILON)
+        tex_coords_p1.x = 0.0f;
+    if (tex_coords_p1.y < EPSILON)
+        tex_coords_p1.y = 0.0f;
+    if (tex_coords_p2.x < EPSILON)
+        tex_coords_p2.x = 0.0f;
+    if (tex_coords_p2.y < EPSILON)
+        tex_coords_p2.y = 0.0f;
+    
+    atlas->texture_coords[atlas->texture_count].p1 = tex_coords_p1;
+    atlas->texture_coords[atlas->texture_count].p2 = tex_coords_p2;
+    
+    u32 index = atlas->texture_count++;
+
+    if (bitmap->height > atlas->row_height) {
+        atlas->row_height = bitmap->height;
+    }
+    atlas->insert_position = { position.x + padding.x + bitmap->width, position.y };
+
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        atlas->gpu[i].refresh_required = true;
+    }
+
+  return index;
+}
+
+internal void
+texture_atlas_add(Texture_Atlas *atlas, const char *file_path) {
+    File file = load_file(file_path);
+    Bitmap bitmap = load_bitmap(file);
+    texture_atlas_add(atlas, &bitmap);
+}
+
+internal void
+texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
+    vulkan_destroy_texture(atlas->gpu[frame_index].handle);
+    atlas->gpu[frame_index].handle = vulkan_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
+    atlas->gpu[frame_index].desc.set->texture_index = 0;
+    vulkan_set_texture(&atlas->gpu[frame_index].desc, atlas->gpu[frame_index].handle);
+}
+
+internal void
+texture_atlas_refresh(Texture_Atlas *atlas) {
+    u32 current_frame = vk_ctx.current_frame;
+    if (atlas->gpu[current_frame].refresh_required) {
+        atlas->gpu[current_frame].refresh_required = false;
+        texture_atlas_init_gpu_frame(atlas, current_frame);
+    }    
+}
+
+internal void
+texture_atlas_init_gpu(Texture_Atlas *atlas) {
+  for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    texture_atlas_init_gpu_frame(atlas, i);
+  }
+}
+
+internal void
+texture_atlas_init(Texture_Atlas *atlas, u32 layout_id) {
+  /*
+    atlas->gpu[0].set = gfx_descriptor_set(layout_id);
+    atlas->gpu[1].set = gfx_descriptor_set(layout_id);
+    atlas->gpu[0].desc = gfx_descriptor(layout_id);
+    atlas->gpu[1].desc = gfx_descriptor(layout_id);
+
+    texture_atlas_init_gpu(atlas);
+    */
+}
+
+// @Warning shader and desc binded before
+internal void
+texture_atlas_draw_rect(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2 dim) {
+  Texture_Coords tex_coord = atlas->texture_coords[index];
+  
+  vulkan_immediate_vertex_xu(Vertex_XU{ coords, tex_coord.p1 });
+  vulkan_immediate_vertex_xu(Vertex_XU{ coords + dim, tex_coord.p2 });
+  vulkan_immediate_vertex_xu(Vertex_XU{ { coords.x, coords.y + dim.y }, {tex_coord.p1.x, tex_coord.p2.y} });
+  
+  vulkan_immediate_vertex_xu(Vertex_XU{ coords, tex_coord.p1 });
+  vulkan_immediate_vertex_xu(Vertex_XU{ { coords.x + dim.x, coords.y }, {tex_coord.p2.x, tex_coord.p1.y} });
+  vulkan_immediate_vertex_xu(Vertex_XU{ coords + dim, tex_coord.p2 });
+  
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {{2,0,0,0}, {0,0,0,0}};
+  vulkan_update_ubo(color_desc, (void *)&local);
+  Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
+  vulkan_set_bitmap(&texture_desc, &atlas->bitmap);
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  Object object = {};
+  object.model = identity_m4x4();
+  vulkan_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
+
+  vulkan_draw_immediate(6);
+}
+
+internal void
+texture_atlas_write(Texture_Atlas *atlas, const char *bitmap_file_name, const char *tex_coord_file_name) {    
+    String bitmap_filepath = String(asset_folders[AT_ATLAS], bitmap_file_name);
+    String texture_coords_filepath = String(asset_folders[AT_ATLAS], tex_coord_file_name);
+
+    write_bitmap(&atlas->bitmap, bitmap_filepath.str());
+    
+    FILE *file = fopen(texture_coords_filepath.str(), "wb");
+    if (file) {
+      fwrite(atlas->texture_coords, sizeof(Texture_Coords) * atlas->max_textures, 1, file);
+      fclose(file);
+    } else {
+      log_error("texture_atlas_write() Could not open file %s\n", texture_coords_filepath.str());
+    }
+
+    bitmap_filepath.destroy();
+    texture_coords_filepath.destroy();
+}
+internal void
+texture_atlas_draw_rect(u32 id, u32 index, Vector2 coords, Vector2 dim) {
+  Texture_Atlas *atlas = find_atlas(id);
+  texture_atlas_draw_rect(atlas, index, coords, dim);
+}
+
+internal void
+texture_atlas_destroy(Texture_Atlas *atlas) {
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vulkan_destroy_texture(atlas->gpu[i].handle);
+    }
+}
+
+internal void
+load_atlas(u32 id, const char *image_filename, const char *tex_coords_filename) {
+  Texture_Atlas *atlas = find_atlas(id);
+  String bitmap_filepath = String(asset_folders[AT_ATLAS], image_filename);
+  String tex_coords_filepath = String(asset_folders[AT_ATLAS], tex_coords_filename);
+
+  File bitmap_file = load_file(bitmap_filepath.str());
+  File tex_coords_file = load_file(tex_coords_filepath.str());
+  atlas->bitmap = load_bitmap(bitmap_file);
+  memcpy(atlas->texture_coords, tex_coords_file.memory, sizeof(Texture_Coords) * atlas->max_textures);
+
+  vulkan_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
+
+  bitmap_filepath.destroy();
+  tex_coords_filepath.destroy();
+}
+
+/*
   Font
 */
 
@@ -299,6 +657,9 @@ load_font(u32 id, const char *filename) {
 
   stbtt_InitFont(info, (u8*)file.memory, stbtt_GetFontOffsetForIndex((u8*)file.memory, 0));
   stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
+
+  font->cache->atlas = create_texture_atlas(1000, 1000, 1);
+  //texture_atlas_init(&font->cache->atlas, 2);
 }
 
 internal Font_Char *
@@ -335,16 +696,14 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
       return 0;
   }
 
-  //Texture_Atlas *atlas = &font->cache->atlas;
+  Texture_Atlas *atlas = &font->cache->atlas;
   stbtt_fontinfo *info = (stbtt_fontinfo*)font->info;
 
-  /*
   if (atlas->resetted) {
       print("HERE\n");
       atlas->resetted = false;
       font->cache->bitmaps_cached = 0;
   }
-  */
 
   // search cache for font char
   for (s32 i = 0; i < font->cache->bitmaps_cached; i++) {
@@ -400,44 +759,8 @@ s32 get_glyph_kern_advance(void *info, s32 gl1, s32 gl2) {
 }
 
 /*
-  Bitmap
+  Assets
 */
-
-internal Bitmap
-load_bitmap(File file) {
-  Bitmap bitmap = {};
-  bitmap.channels = 0;
-
-  // 4 arg always get filled in with the original amount of channels the image had.
-  // Currently forcing it to have 4 channels.
-  unsigned char *data = stbi_load_from_memory((stbi_uc const *)file.memory, file.size, &bitmap.width, &bitmap.height, &bitmap.channels, 0);
-  u32 data_size = bitmap.width * bitmap.height * bitmap.channels;
-  bitmap.memory = (u8*)malloc(data_size);
-  memcpy(bitmap.memory, data, data_size);
-  stbi_image_free(data);
-
-  if (bitmap.memory == 0) 
-    log_error("load_bitmap() could not load bitmap %s\n", file.path);
-
-  bitmap.pitch = bitmap.width * bitmap.channels;
-  //bitmap.mip_levels = (u32)floor(log2f((float32)max(bitmap.width, bitmap.height))) + 1;
-  bitmap.mip_levels = 1;
-
-  return bitmap;
-}
-
-internal void
-load_bitmap(u32 id, const char *filename) {
-  String filepath = String(asset_folders[AT_BITMAP], filename);
-  Bitmap *bitmap = find_bitmap(id);
-
-  File file = load_file(filepath.str());
-  *bitmap = load_bitmap(file);
-
-  vulkan_create_texture(bitmap, TEXTURE_PARAMETERS_DEFAULT);
-
-  filepath.destroy();
-}
 
 s32 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u32 asset_type) {
   print("loading assets (%s)...\n", asset_folders[asset_type]);
@@ -455,58 +778,14 @@ s32 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u3
       case AT_FONT:
         load_font(loads[i].id, loads[i].filenames[0]);
         break;
+      case AT_ATLAS:
+        load_atlas(loads[i].id, loads[i].filenames[0], loads[i].filenames[1]);
+        break;
     }
 
   }
 
   return SUCCESS;
-}
-
-union Color_RGBA {
-  struct {
-    u8 r, g, b, a;
-  };
-  u8 E[4];
-};
-
-internal void
-bitmap_convert_channels(Bitmap *bitmap, u32 new_channels) {    
-  if (new_channels != 1 && new_channels != 3 && new_channels != 4) {
-    log_error("bitmap_convert_channels() not valid conversion (channels %d)\n", new_channels);
-    return;
-  }
-
-  u8 *new_memory = (u8*)malloc(bitmap->width * bitmap->height * new_channels);
-
-  for (s32 i = 0; i < bitmap->width * bitmap->height; i++) {
-    u8 *src = bitmap->memory + (i * bitmap->channels);
-    u8 *dest = new_memory + (i * new_channels);
-
-    Color_RGBA color = {};
-    switch(bitmap->channels) {
-      case 1: color = {   0x00,   0x00,   0x00, src[0]}; break;
-      case 3: color = { src[0], src[1], src[2], 0xFF  }; break;
-      case 4: color = { src[0], src[1], src[2], src[3]}; break;
-    }
-
-    if (new_channels == 1) {
-      dest[0] = color.a;
-    } else if (new_channels == 3) {
-      dest[0] = color.r;
-      dest[1] = color.g;
-      dest[2] = color.b;
-    } else if (new_channels == 4) {
-      dest[0] = color.r;
-      dest[1] = color.g;
-      dest[2] = color.b;
-      dest[3] = color.a;
-    }
-  }
-
-  free(bitmap->memory);
-  bitmap->memory = new_memory;
-  bitmap->channels = new_channels;
-  bitmap->pitch = bitmap->width * bitmap->channels;
 }
 
 internal void
@@ -524,5 +803,10 @@ assets_cleanup() {
   for (u32 i = 0; i < assets.fonts.count; i++) {
     Font *font = find_font(i);
     clear_font_bitmap_cache(font);
+  }
+
+  for (u32 i = 0; i < assets.atlases.count; i++) {
+    Texture_Atlas *atlas = find_atlas(i);
+    vulkan_destroy_texture(&atlas->bitmap);
   }
 }
