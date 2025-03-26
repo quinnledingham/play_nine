@@ -127,14 +127,16 @@ s32 sdl_process_input() {
       
       case SDL_EVENT_KEY_DOWN: {
         SDL_KeyboardEvent *keyboard_event = &event.key;
+        last_key = keyboard_event->key;
         if (keyboard_event->key == SDLK_R) {
-          s32 load_pipelines_result = load_pipelines();
-          if (load_pipelines_result == FAILURE) {
-            return FAILURE;
-          }
           for (u32 i = 0; i < assets.pipelines.count; i++) {
             Pipeline *pipeline = find_pipeline(i);
             vulkan_pipeline_cleanup(pipeline);
+          }
+          
+          s32 load_pipelines_result = load_pipelines();
+          if (load_pipelines_result == FAILURE) {
+            return FAILURE;
           }
           init_pipelines();
         }

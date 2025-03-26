@@ -28,6 +28,13 @@ find_bitmap(u32 id) {
   return ((Bitmap *)assets.bitmaps.buffer.memory) + id;
 }
 
+inline Texture_Atlas* 
+find_atlas(u32 id) {
+  return ((Texture_Atlas *)assets.atlases.buffer.memory) + id;
+}
+
+u32 last_key = SDLK_A;
+
 /*
  Draw_Context contains meshes to do draw calls that are always useful like draw_rect or draw_text,
  in contrast to the draw calls to card meshes which are going to be defined in the assets for this

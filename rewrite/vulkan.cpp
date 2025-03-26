@@ -509,15 +509,15 @@ u32 vulkan_find_memory_type(VkPhysicalDevice physical_device, u32 type_filter, V
 	return 0;
 }
 
-void vulkan_destroy_texture(VkDevice device, void *gpu_handle) {
+void vulkan_destroy_texture(void *gpu_handle) {
 	Vulkan_Texture *texture = (Vulkan_Texture *)gpu_handle;
 	if (texture == 0)
 		return;
 	
-	vkDestroySampler(device, texture->sampler, nullptr);
-	vkDestroyImageView(device, texture->image_view, nullptr);
-	vkDestroyImage(device, texture->image, nullptr);
-	vkFreeMemory(device, texture->image_memory, nullptr);
+	vkDestroySampler(vk_ctx.device, texture->sampler, nullptr);
+	vkDestroyImageView(vk_ctx.device, texture->image_view, nullptr);
+	vkDestroyImage(vk_ctx.device, texture->image, nullptr);
+	vkFreeMemory(vk_ctx.device, texture->image_memory, nullptr);
 }
 
 // Where SRGB is turned on
@@ -653,7 +653,7 @@ vulkan_cleanup_swap_chain() {
 
 	for (u32 i = 0; i < vk_ctx.swap_chain_textures.get_size(); i++) {
 		vkDestroyImageView(vk_ctx.device, vk_ctx.swap_chain_textures[i].image_view, nullptr);
-		vulkan_destroy_texture(vk_ctx.device, &vk_ctx.draw_textures[i]);
+		vulkan_destroy_texture(&vk_ctx.draw_textures[i]);
 	}
 
 	vkDestroySwapchainKHR(vk_ctx.device, vk_ctx.swap_chains[0], nullptr);
@@ -1250,14 +1250,7 @@ internal bool8
 vulkan_start_frame() {
 	Vulkan_Frame *frame = vulkan_frame();
 
-	/*
-	dynamic_buffer.offset = 0;
-
-	if (current_frame == 0)
-		dynamic_uniform_buffer.offset = 0;
-
-	frame->dynamic_offset_start = dynamic_uniform_buffer.offset;
-	*/
+	vulkan_set_buffer_segment(&frame->dynamic_buffer_segment);
 
 	// Waiting for the previous frame
 	vkWaitForFences(vk_ctx.device, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
@@ -1308,7 +1301,10 @@ vulkan_end_frame() {
 	vk_ctx.recording_frame = FALSE;
 	
 	Vulkan_Frame *frame = vulkan_frame();
-	//frame->dynamic_offset_end = dynamic_uniform_buffer.offset;
+
+#ifdef DEBUG
+	vulkan_check_buffer_segment(&frame->dynamic_buffer_segment);
+#endif // DEBUG
 
 	vkCmdEndRenderPass(VK_CMD);
 
@@ -1443,6 +1439,8 @@ vulkan_sdl_init() {
 	vulkan_create_buffer(&vk_ctx, &vk_ctx.triangle_buffer, 10000, 
 								VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
 								VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	vulkan_split_buffer_over_frames(&vk_ctx.dynamic_buffer, vk_ctx.frames, MAX_FRAMES_IN_FLIGHT);
 
 	vulkan_create_descriptor_pool(vk_ctx.device, &vk_ctx.descriptor_pool);
 
@@ -1903,7 +1901,15 @@ void vulkan_init_layout_offsets(Vulkan_Context *vk_ctx, GFX_Layout *layout) {
 	*/
 }
 
-Descriptor_Set vulkan_get_descriptor_set(GFX_Layout *layout) {
+internal void
+vulkan_setup_layout(GFX_Layout *layout) {
+	vulkan_create_set_layout(&vk_ctx, layout);
+  vulkan_allocate_descriptor_set(&vk_ctx, layout);
+  vulkan_init_layout_offsets(&vk_ctx, layout);
+}
+
+internal Descriptor_Set
+vulkan_get_descriptor_set(GFX_Layout *layout) {
 	if (!layout) {
 		vulkan_log_error("get_descriptor_set(): layout is null\n");
 		ASSERT(0);
@@ -1945,9 +1951,10 @@ void vulkan_update_ubo(Descriptor desc, void *data) {
 	memcpy((char*)vk_ctx.static_uniform_buffer.data + desc.set->offset, data, desc.binding->size);
 }
 
-u32 vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
-	Vulkan_Texture *texture = (Vulkan_Texture *)bitmap->gpu_info;
-	
+internal u32 
+vulkan_set_texture(Descriptor *desc, void *handle) {
+	Vulkan_Texture *texture = (Vulkan_Texture *)handle;
+
 	VkDescriptorImageInfo image_info = {};
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	image_info.imageView = texture->image_view;
@@ -1970,6 +1977,11 @@ u32 vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
 	desc->set->texture_index++;
 
 	return index;
+}
+
+internal u32 
+vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
+	return vulkan_set_texture(desc, bitmap->gpu_info);
 }
 
 void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {
@@ -2018,11 +2030,11 @@ void vulkan_init_mesh(Vulkan_Context *vk_ctx, Mesh *mesh) {
 }
 
 void vulkan_draw_mesh(Mesh *mesh) {
-    Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)mesh->gpu_info;
-    VkDeviceSize offsets[] = { vulkan_mesh->vertices_offset };
-    vkCmdBindVertexBuffers(VK_CMD, 0, 1, &vulkan_mesh->buffer->handle, offsets);
-    vkCmdBindIndexBuffer(VK_CMD, vulkan_mesh->buffer->handle, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(VK_CMD, mesh->indices_count, 1, 0, 0, 0);
+  Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)mesh->gpu_info;
+  VkDeviceSize offsets[] = { vulkan_mesh->vertices_offset };
+  vkCmdBindVertexBuffers(VK_CMD, 0, 1, &vulkan_mesh->buffer->handle, offsets);
+  vkCmdBindIndexBuffer(VK_CMD, vulkan_mesh->buffer->handle, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
+  vkCmdDrawIndexed(VK_CMD, mesh->indices_count, 1, 0, 0, 0);
 }
 
 /*
@@ -2170,8 +2182,8 @@ vulkan_destroy_frame_resources() {
 
   vulkan_cleanup_swap_chain();
 
-  vulkan_destroy_texture(vk_ctx.device, &vk_ctx.color_texture);
-  vulkan_destroy_texture(vk_ctx.device, &vk_ctx.depth_texture);
+  vulkan_destroy_texture(&vk_ctx.color_texture);
+  vulkan_destroy_texture(&vk_ctx.depth_texture);
 
   vkDestroyRenderPass(vk_ctx.device, vk_ctx.draw_render_pass, nullptr);
 	vkDestroyRenderPass(vk_ctx.device, vk_ctx.present_render_pass, nullptr);
@@ -2195,6 +2207,7 @@ void vulkan_cleanup_frame(VkDevice device, Vulkan_Frame *frame) {
 
 internal void
 vulkan_pipeline_cleanup(Pipeline *pipe) {
+	vkDeviceWaitIdle(vk_ctx.device);
 	vkDestroyPipeline(vk_ctx.device, pipe->handle, nullptr);
 	vkDestroyPipelineLayout(vk_ctx.device, pipe->layout, nullptr);
 }
@@ -2233,4 +2246,24 @@ vulkan_cleanup() {
 		vulkan_destroy_debug_utils_messenger_ext(vk_ctx.instance, vk_ctx.debug_messenger, nullptr);
 
   vkDestroyInstance(vk_ctx.instance, nullptr);
+}
+
+/*
+	Immediate
+*/
+
+void vulkan_immediate_vertex_xu(Vertex_XU vertex) {
+	float32 data[4];
+	data[0] = vertex.position.x; 
+	data[1] = vertex.position.y; 
+	data[2] = vertex.uv.x; 
+	data[3] = vertex.uv.y;
+	memcpy((char*)vk_ctx.dynamic_buffer.data + vk_ctx.dynamic_buffer.offset, data, sizeof(Vertex_XU));
+	vk_ctx.dynamic_buffer.offset += sizeof(Vertex_XU);
+}
+
+void vulkan_draw_immediate(u32 vertices) {
+  VkDeviceSize offsets[] = { vk_ctx.dynamic_buffer.offset - (vertices * sizeof(Vertex_XU)) };
+  vkCmdBindVertexBuffers(VK_CMD, 0, 1, &vk_ctx.dynamic_buffer.handle, offsets);
+  vkCmdDraw(VK_CMD, vertices, 1, 0, 0);
 }

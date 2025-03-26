@@ -42,6 +42,10 @@ struct Textbox {
     char text[TEXTBOX_SIZE];
 };
 
+struct GUI_Draw_Command {
+
+};
+
 struct GUI {
   u32 index;
   u32 hover;
@@ -50,6 +54,12 @@ struct GUI {
 
   Textbox edit;
   Draw_Style style;
+
+  Vector2 dim; // %
+  Vector2_s32 segments; // splits of dim
+
+  Vector2 coords; // px
+  Vector2 segment_dim; // px
 
   void start() { 
     index = 1; 

@@ -41,10 +41,24 @@ struct Vulkan_Swap_Chain_Support_Details {
 	u32 present_modes_count;
 };
 
-struct Vulkan_Frame {
-	u32 dynamic_offset_start;
-	u32 dynamic_offset_end;
+struct Vulkan_Buffer {
+	VkBuffer handle;
+	VkDeviceMemory memory;
+	VkDeviceSize size;
 	
+	u32 offset; // where to enter new bytes
+	void *data; // if the memory is mapped
+};
+
+struct Vulkan_Buffer_Segment{
+	Vulkan_Buffer *buffer;
+	u32 start;
+	u32 end;
+};
+
+struct Vulkan_Frame {
+	Vulkan_Buffer_Segment dynamic_buffer_segment;
+
 	union {
 		struct {
 			VkCommandBuffer command_buffer;
@@ -72,15 +86,6 @@ struct Vulkan_Frame {
 	};
 };
 
-struct Vulkan_Buffer {
-	VkBuffer handle;
-	VkDeviceMemory memory;
-	VkDeviceSize size;
-	
-	u32 offset; // where to enter new bytes
-	void *data; // if the memory is mapped
-};
-
 struct Vulkan_Texture {
 	VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
 	VkDeviceMemory image_memory; // Could put in vulkan info and save it
@@ -88,8 +93,6 @@ struct Vulkan_Texture {
 	VkImageView image_view;      // provides more info about the image
 	VkSampler sampler;           // allows the shader to sample the image
 };
-
-#define MAX_FRAMES_IN_FLIGHT 2
 
 struct Vulkan_Debug {
 	u32 allocated_descriptors_uniform_buffer;
@@ -185,6 +188,7 @@ struct Vulkan_Context {
 		};
 		Vulkan_Buffer buffers[6];
 	};
+
 };
 
 #define VK_CMD *vk_ctx.active_command_buffer
@@ -217,4 +221,33 @@ void vulkan_log_error(const char *msg, ...) {
   print_char_array(OUTPUT_ERROR, "ERROR: (vulkan) ");
 
   OUTPUT_LIST(OUTPUT_ERROR, msg);
+}
+
+internal void vulkan_setup_layout(GFX_Layout *layout);
+
+inline void
+vulkan_split_buffer_over_frames(Vulkan_Buffer *buffer, Vulkan_Frame *frames, u32 frames_count) {
+	u32 segment_size = buffer->size / frames_count;
+	u32 offset = 0;
+	for (u32 i = 0; i < frames_count; i++) {
+		Vulkan_Frame *frame = &frames[i];
+		// @TODO make this work for other dynamic buffers in frame
+		frame->dynamic_buffer_segment.buffer = buffer;
+		frame->dynamic_buffer_segment.start = offset;
+		frame->dynamic_buffer_segment.end = offset + segment_size;
+		offset += segment_size;
+	}
+}
+
+inline void
+vulkan_set_buffer_segment(Vulkan_Buffer_Segment *seg) {
+	seg->buffer->offset = seg->start;
+}
+
+inline void
+vulkan_check_buffer_segment(Vulkan_Buffer_Segment *seg) {
+	if (seg->end < seg->buffer->offset) {
+		vulkan_log_error("vulkan_end_frame() used to much space on the dynamic buffer\n");
+		ASSERT(0);
+	}
 }

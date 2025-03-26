@@ -59,6 +59,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 500
 #define WINDOW_FLAGS SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
+#define MAX_FRAMES_IN_FLIGHT 2
 
 #include "defines.h"
 #include "types.h"
@@ -89,6 +90,7 @@ s32 update();
 #include "sdl.cpp"
 #include "gui.cpp"
 
+#include "input_prompts.cpp"
 #include "play_nine_game.cpp"
 #include "play_nine_2D.cpp"
 #include "play_nine_menus.cpp"

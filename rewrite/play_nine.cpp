@@ -5,6 +5,8 @@
   1 = init failed
 */
 s32 play_nine_init() {
+  gfx_define_layouts();
+
   // asset loading
   s32 load_pipelines_result = load_pipelines();
   if (load_pipelines_result == FAILURE) {
@@ -19,6 +21,22 @@ s32 play_nine_init() {
   test_game.players_count = 4;
   start_game(&test_game);
   
+#ifdef DEBUG
+
+  bool8 recreate_input_prompt_atlases = true;
+  if (recreate_input_prompt_atlases) {
+    Texture_Atlas atlases[PROMPT_COUNT];
+    create_input_prompt_atlas(&atlases[PROMPT_KEYBOARD], keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../libs/xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
+    //create_input_prompt_atlas(&atlases[PROMPT_XBOX_SERIES], xbox_prompts, ARRAY_COUNT(xbox_prompts), "../xelu/Xbox Series/XboxSeriesX_", ".png", "xbox_prompt.png");
+
+    texture_atlas_write(&atlases[PROMPT_KEYBOARD], "keyboard.png", "keyboard.tco");
+    //texture_atlas_write(&atlases[PROMPT_XBOX_SERIES], "xbox_series.png", "xbox_series.tco");
+  }
+
+#endif // DEBUG
+
+  load_assets(&assets.atlases, atlas_loads, ARRAY_COUNT(atlas_loads), AT_ATLAS);
+
   return SUCCESS;
 }
 
@@ -52,15 +70,19 @@ s32 draw() {
 
   start_draw_2D();
 
-  draw_rect({200, 200}, {300, 300}, {255, 0, 0, 1});
+  //draw_rect({200, 200}, {300, 300}, {255, 0, 0, 1});
 
   Bitmap *bitmap = find_bitmap(BITMAP_LANA);
-  draw_rect({300, 200}, cv2(bitmap->dim/5), bitmap);
+  //draw_rect({300, 200}, cv2(bitmap->dim/5), bitmap);
 
   set_draw_font(FONT_LIMELIGHT);
-  draw_text("LANA", {200, 100}, 100, {200, 100, 0, 1});
+  //draw_text("LANA", {200, 100}, 100, {200, 100, 0, 1});
 
   draw_main_menu();
+
+  //draw_rect({400 ,400}, {100, 100}, &find_atlas(ATLAS_KEYBOARD)->bitmap);
+  //u32 index = find_input_prompt_index(last_key, keyboard_prompts, ARRAY_COUNT(keyboard_prompts));
+  //texture_atlas_draw_rect(ATLAS_KEYBOARD, index, {400 ,400}, {100, 100});
 
   char fps[20];
   float_to_string(app_time.frames_per_s, fps, 20);
@@ -75,33 +97,7 @@ s32 draw() {
 }
 
 s32 update() {
-
-/*
-  draw_game(&test_game);
-
-  char test[50];
-  scanf("%s", test);
-  u32 input_value = atoi(test);
-
-  if (!strcmp(test, "quit")) {
-    print("QUIT\n");
-    return FAILURE;
-  }
-
-  bool8 input[GI_SIZE] = {};
-  if (input_value < GI_SIZE) {
-    input[input_value] = true;
-  }
-  update_game_with_input(&test_game, input);
-
-  s32 draw_result = draw();
-  if (draw_result == FAILURE) {
-    log_error("update(): draw failed\n");
-  }
-*/
-
   draw();
-  //draw_game_2D(&test_game);
 
   return SUCCESS;
 }

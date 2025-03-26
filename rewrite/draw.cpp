@@ -65,14 +65,6 @@ draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
 
 internal void
 draw_rect(Vector2 coords, Vector2 size, Bitmap *bitmap) {
-/*
-  gfx_bind_pipeline(PIPELINE_2D);
-
-  Descriptor_Set scene_desc_set = gfx_descriptor_set(GFXID_SCENE);
-  Descriptor scene_desc = gfx_descriptor(&scene_desc_set, 0);
-  vulkan_update_ubo(scene_desc, &ortho_scene);
-  vulkan_bind_descriptor_set(scene_desc_set);
-*/
   Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
   Local local = {{2,0,0,0}, {0,0,0,0}};
@@ -99,19 +91,13 @@ draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_heigh
   float32 current_point  = coords.x;
   float32 baseline       = coords.y;
 
-  // Draw set up
-  /*
-  gfx_bind_pipeline(PIPELINE_2D);
-  
-  Descriptor_Set scene_desc_set = gfx_descriptor_set(GFXID_SCENE);
-  Descriptor scene_desc = gfx_descriptor(&scene_desc_set, 0);
-  vulkan_update_ubo(scene_desc, &ortho_scene);
-  vulkan_bind_descriptor_set(scene_desc_set);
-*/
-
   Font_Char *font_char = 0;
   Font_Char *font_char_next = 0;
   u32 text_index = 0;
+  Object object = {};
+
+  Texture_Atlas *atlas = &font->cache->atlas;
+
   while(text[text_index] != 0) {
     Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, text[text_index], scale);
 
@@ -133,6 +119,7 @@ draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_heigh
       //draw_rect(coords, dim, &bitmap->bitmap);
       
       // Drawing
+      
       Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
       Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
       Local local = {{1,0,0,0}, color};
@@ -141,11 +128,12 @@ draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_heigh
       vulkan_set_bitmap(&texture_desc, &bitmap->bitmap);
       vulkan_bind_descriptor_set(local_desc_set);
 
-      Object object = {};
       object.model = create_transform_m4x4(coords, dim);
       object.index = 0;
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
       vulkan_draw_mesh(&draw_ctx.square);
+      
+      //texture_atlas_draw_rect(atlas, bitmap->index, coords, dim);
     }
 
     // End of Draw
