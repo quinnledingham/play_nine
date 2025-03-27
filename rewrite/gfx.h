@@ -63,3 +63,14 @@ struct Object {
     s32 index;
 };
 
+union Camera {
+    struct {
+        Vector3 position;
+        Vector3 target;
+        Vector3 up;
+        float32 fov;
+        float64 yaw;
+        float64 pitch;
+    };
+    float32 E[12];
+};

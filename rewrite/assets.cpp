@@ -525,15 +525,18 @@ texture_atlas_add(Texture_Atlas *atlas, const char *file_path) {
 
 internal void
 texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
-    vulkan_destroy_texture(atlas->gpu[frame_index].handle);
-    atlas->gpu[frame_index].handle = vulkan_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
-    atlas->gpu[frame_index].desc.set->texture_index = 0;
-    vulkan_set_texture(&atlas->gpu[frame_index].desc, atlas->gpu[frame_index].handle);
+  vulkan_destroy_texture(atlas->gpu[frame_index].handle);
+  atlas->gpu[frame_index].handle = vulkan_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
+  //atlas->gpu[frame_index].desc.set->texture_index = 0;
+  //vulkan_set_texture(&atlas->gpu[frame_index].desc, atlas->gpu[frame_index].handle);
+  Descriptor texture_desc = gfx_descriptor(&atlas->gpu[frame_index].set, 1);
+  vulkan_set_texture(&texture_desc, atlas->gpu[frame_index].handle);
 }
 
 internal void
 texture_atlas_refresh(Texture_Atlas *atlas) {
     u32 current_frame = vk_ctx.current_frame;
+    atlas->gpu[current_frame].set.texture_index = 0;
     if (atlas->gpu[current_frame].refresh_required) {
         atlas->gpu[current_frame].refresh_required = false;
         texture_atlas_init_gpu_frame(atlas, current_frame);
@@ -549,14 +552,10 @@ texture_atlas_init_gpu(Texture_Atlas *atlas) {
 
 internal void
 texture_atlas_init(Texture_Atlas *atlas, u32 layout_id) {
-  /*
     atlas->gpu[0].set = gfx_descriptor_set(layout_id);
     atlas->gpu[1].set = gfx_descriptor_set(layout_id);
-    atlas->gpu[0].desc = gfx_descriptor(layout_id);
-    atlas->gpu[1].desc = gfx_descriptor(layout_id);
 
     texture_atlas_init_gpu(atlas);
-    */
 }
 
 // @Warning shader and desc binded before
@@ -659,7 +658,7 @@ load_font(u32 id, const char *filename) {
   stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
 
   font->cache->atlas = create_texture_atlas(1000, 1000, 1);
-  //texture_atlas_init(&font->cache->atlas, 2);
+  texture_atlas_init(&font->cache->atlas, GFXID_TEXTURE);
 }
 
 internal Font_Char *
@@ -726,9 +725,9 @@ load_font_char_bitmap(Font *font, u32 codepoint, float32 scale) {
 
   stbtt_GetGlyphBitmapBox(info, char_bitmap->font_char->glyph_index, char_bitmap->scale, char_bitmap->scale, &char_bitmap->bb_0.x, &char_bitmap->bb_0.y, &char_bitmap->bb_1.x, &char_bitmap->bb_1.y);
 
-  //char_bitmap->index = texture_atlas_add(atlas, &char_bitmap->bitmap);
-  char_bitmap->bitmap.mip_levels = 1;
-  vulkan_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
+  char_bitmap->index = texture_atlas_add(atlas, &char_bitmap->bitmap);
+  //char_bitmap->bitmap.mip_levels = 1;
+  //vulkan_create_texture(&char_bitmap->bitmap, TEXTURE_PARAMETERS_CHAR);
 
   return char_bitmap;
 }

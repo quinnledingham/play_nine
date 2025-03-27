@@ -41,17 +41,20 @@ Asset_Load atlas_loads[] = {
 
 enum Pipeline_Ids {
   PIPELINE_2D,
+  PIPELINE_3D,
 
   PIPELINE_COUNT
 };
 
 Asset_Load pipeline_loads[] = {
   { PIPELINE_2D, {"2D.vs", "2D.fs"} },
+  { PIPELINE_3D, {"3D.vs", "3D.fs"} },
 };
 
 enum GFX_Layout_IDs {
   GFXID_SCENE,
   GFXID_LOCAL,
+  GFXID_TEXTURE,
 
   GFXID_COUNT
 };
@@ -64,10 +67,11 @@ gfx_define_layouts() {
 
   gfx.layouts[GFXID_SCENE].set_number = 0;
   gfx.layouts[GFXID_LOCAL].set_number = 1;
+  gfx.layouts[GFXID_TEXTURE].set_number = 2;
 
   gfx.layouts[GFXID_SCENE].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene)); // 2D.vert
   gfx.layouts[GFXID_LOCAL].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Local)); // color.frag, text.frag
-  gfx.layouts[GFXID_LOCAL].add_binding(1, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 1, 0); // texture.frag
+  gfx.layouts[GFXID_TEXTURE].add_binding(0, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 1, 0); // texture.frag
 
   for (u32 i = 0; i < gfx.layouts_count; i++) {
     vulkan_setup_layout(&gfx.layouts[i]);
@@ -83,5 +87,16 @@ gfx_add_layouts_to_shaders() {
     shader->set.add_push(SHADER_STAGE_VERTEX, sizeof(Object));
 
     shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
+    shader->set.add_layout(&gfx.layouts[GFXID_TEXTURE]);
+  }
+
+  {
+    Pipeline *shader = find_pipeline(PIPELINE_3D);
+    shader->vertex_info = Vertex_XNU::info();
+    shader->set.add_layout(&gfx.layouts[GFXID_SCENE]);
+    shader->set.add_push(SHADER_STAGE_VERTEX, sizeof(Object));
+
+    shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
+    shader->set.add_layout(&gfx.layouts[GFXID_TEXTURE]);
   }
 }

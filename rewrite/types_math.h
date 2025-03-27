@@ -23,6 +23,8 @@ inline Vector2 operator*(const Vector2 &l, const float32 &r) { return { l.x * r 
 inline Vector2 operator/(const Vector2 &l, const Vector2 &r) { return { l.x / r.x, l.y / r.y }; }
 inline Vector2 operator/(const Vector2 &l, const float32 &r) { return { l.x / r  , l.y / r   }; }
 
+inline void operator+=(Vector2 &l, const Vector2 &r) { l.x = l.x + r.x; l.y = l.y + r.y; }
+
 //
 // Vector2_s32 
 //
@@ -42,8 +44,25 @@ inline Vector3 operator/(const Vector3 &l, const Vector3  &r) { return { l.x / r
 inline Vector3 operator/(const Vector3 &l, const float32 &r) { return { l.x / r,   l.y / r,   l.z / r   }; }
 inline Vector3 operator-(const Vector3 &v)               { return {-v.x    ,  -v.y    ,  -v.z       }; }
 
+inline bool operator==(const Vector3 &v, float f)          { if (v.x == f   && v.y == f   && v.z == f)   return true; return false; }
+inline void operator+=(Vector3 &l, const Vector3 &r) { l.x = l.x + r.x; l.y = l.y + r.y; l.z = l.z + r.z; }
+inline void operator+=(Vector3 &l, const float32 &r) { l.x = l.x + r;   l.y = l.y + r;   l.z = l.z + r;   }
+inline void operator-=(Vector3 &l, const Vector3 &r) { l.x = l.x - r.x; l.y = l.y - r.y; l.z = l.z - r.z; }
+inline void operator-=(Vector3 &l, const float32 &r) { l.x = l.x - r;   l.y = l.y - r;   l.z = l.z - r;   }
+
 inline float32 dot_product(const Vector3 &l, const Vector3 &r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z); }
 inline float32 length_squared(const Vector3 &v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+
+inline void
+normalize(Vector3 &v)
+{
+    float32 len_sq = length_squared(v);
+    if (len_sq < EPSILON) return;
+    float32 inverse_length = 1.0f / sqrtf(len_sq);
+    v.x *= inverse_length;
+    v.y *= inverse_length;
+    v.z *= inverse_length;
+}
 
 inline Vector3
 normalized(const Vector3 &v)
@@ -190,3 +209,20 @@ create_transform_m4x4(Vector2 position, Vector2 scale) {
     };
 }
 
+inline Matrix_4x4
+look_at(const Vector3 &position, const Vector3 &target, const Vector3 &up) {
+    Vector3 f = normalized(target - position) * -1.0f;
+    Vector3 r = cross_product(up, f);
+    if (r == 0) 
+        return identity_m4x4();
+    normalize(r);
+    Vector3 u = normalized(cross_product(f, r));
+    Vector3 t = { -dot_product(r, position), -dot_product(u, position), -dot_product(f, position) };
+    
+    return {
+        r.x, u.x, f.x, 0,
+        r.y, u.y, f.y, 0,
+        r.z, u.z, f.z, 0,
+        t.x, t.y, t.z, 1
+    };
+}

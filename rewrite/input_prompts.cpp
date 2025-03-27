@@ -135,3 +135,14 @@ find_input_prompt_index(s32 id, Input_Prompt *prompts, u32 num_of_prompts) {
   log_error("find_input_prompt_index() did not find prompt index\n");
   return 0;
 }
+
+inline void
+app_input_set_previous_states() {
+  app_input.mouse.relative_coords = {};
+  app_input.mouse.left.previous_state = app_input.mouse.left.current_state;
+
+  for (u32 i = 0; i < ARRAY_COUNT(app_input.buttons); i++) {
+    Button *button = &app_input.buttons[i];
+    button->previous_state = button->current_state;
+  }
+}

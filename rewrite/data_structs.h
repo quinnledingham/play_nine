@@ -79,4 +79,11 @@ struct Stack {
   T top() {
     return data[index - 1];
   }
+
+  bool8 empty() {
+    if (index == 0)
+      return true;
+    else
+      return false;
+  }
 };

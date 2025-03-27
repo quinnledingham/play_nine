@@ -11,7 +11,48 @@ SDL_Context sdl_ctx;
 Vulkan_Context vk_ctx;
 GFX gfx = {};
 Assets assets = {};
+
 App_Time app_time;
+App_Input app_input = {};
+
+enum GUI_Ids {
+  GUI_MAIN_MENU,
+  GUI_TEST,
+  GUI_PAUSE,
+
+  GUI_COUNT
+};
+
+struct GUI_Manager {
+  GUI guis[GUI_COUNT];
+
+  Stack<u32> indices = Stack<u32>(10); // index at the top is the gui that is currently rendered
+};
+
+GUI_Manager gui_manager;
+
+inline s32
+draw_top_gui() {
+  // Drawing no menu... if esc is pressed add pause to the stack
+  if (gui_manager.indices.empty()) {
+    if (on_down(app_input.back)) {
+      sdl_toggle_relative_mouse_mode();
+      gui_manager.indices.push(GUI_PAUSE);
+    }
+
+    return SUCCESS;
+  }
+
+  u32 index = gui_manager.indices.top();
+  GUI *gui = &gui_manager.guis[index];
+#ifdef DEBUG
+  if (!gui->draw) {
+    log_error("draw_top_gui(): draw function not set for index (%d)\n", index);
+    return FAILURE;
+  }
+#endif // DEBUG
+  return gui->draw(gui);
+}
 
 inline Pipeline* 
 find_pipeline(u32 id) {
@@ -42,6 +83,7 @@ u32 last_key = SDLK_A;
 */
 struct Draw_Context {
   Mesh square;
+  Mesh square_3D;
 
   u32 font_id;
 };
@@ -54,6 +96,16 @@ Game test_game;
 
 // Drawing Game
 
+bool8 draw_game_flag = false;
+
+Camera camera = {
+  Vector3{0, 0, 1},
+  Vector3{0, 0, 0},
+  Vector3{0, -1, 0},
+  0, 
+  0, 
+  0
+};
 Scene scene;
 Scene ortho_scene;
 
@@ -65,3 +117,4 @@ global const Vector4 play_nine_green        = {  39,  77,  20, 1 };
 global const Vector4 play_nine_yellow       = { 231, 213,  36, 1 };
 global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
 global const Vector4 play_nine_dark_yellow  = { 197, 180,  22, 1 };
+

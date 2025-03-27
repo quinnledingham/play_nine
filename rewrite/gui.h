@@ -53,13 +53,18 @@ struct GUI {
   u32 active;
 
   Textbox edit;
-  Draw_Style style;
+  Draw_Style style; // for components
+
+  Vector4 background_color; // clears the windows to this color
+  Vector4 back_color; // color of just the part of the screen covered by gui with dim
 
   Vector2 dim; // %
   Vector2_s32 segments; // splits of dim
 
   Vector2 coords; // px
   Vector2 segment_dim; // px
+
+  s32 (*draw)(GUI *gui);
 
   void start() { 
     index = 1; 

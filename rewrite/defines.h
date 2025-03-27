@@ -34,6 +34,7 @@ typedef double float64;
 
 #define PI       3.141592653593f
 #define EPSILON  0.00001f
+#define DEG2RAD  0.0174533f
 
 #ifdef SDL
 #define SDL_GFX_FUNC(n) gfx_##n

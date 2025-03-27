@@ -1,4 +1,49 @@
 internal Mesh
+get_rect_mesh_3D() {
+    Mesh mesh = {};
+    mesh.vertices_count = 4;
+
+    mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+    Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
+
+    vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, 1}, {0, 0} };
+    vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, 1}, {0, 1} };
+    vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, 1}, {1, 0} };
+    vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, 1}, {1, 1} };
+    /*
+    vertices[0] = Vertex_XNU{ {-0.5, -0.5, 0}, {0, 0, -1}, {0, 0} };
+    vertices[1] = Vertex_XNU{ {-0.5,  0.5, 0}, {0, 0, -1}, {0, 1} };
+    vertices[2] = Vertex_XNU{ { 0.5, -0.5, 0}, {0, 0, -1}, {1, 0} };
+    vertices[3] = Vertex_XNU{ { 0.5,  0.5, 0}, {0, 0, -1}, {1, 1} };
+    */
+    mesh.indices_count = 6;
+    mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+
+    // vertex locations
+    u32 top_left = 0, top_right = 2, bottom_left = 1, bottom_right = 3;
+    /* 
+    mesh.indices[0] = top_left;
+    mesh.indices[1] = bottom_left;
+    mesh.indices[2] = bottom_right;
+    mesh.indices[3] = top_left;
+    mesh.indices[4] = bottom_right;
+    mesh.indices[5] = top_right;
+    */
+
+    mesh.indices[0] = top_left;
+    mesh.indices[1] = bottom_right;
+    mesh.indices[2] = bottom_left;
+    mesh.indices[3] = top_left;
+    mesh.indices[4] = top_right;
+    mesh.indices[5] = bottom_right;
+
+    mesh.vertex_info = Vertex_XNU::info();
+    vulkan_init_mesh(&mesh);
+
+    return mesh;
+}
+
+internal Mesh
 get_rect_mesh_2D() {
   Mesh mesh = {};
   mesh.vertices_count = 4;
@@ -30,7 +75,7 @@ get_rect_mesh_2D() {
   mesh.indices[5] = bottom_right;
 
   mesh.vertex_info = Vertex_XU::get_vertex_info();
-  vulkan_init_mesh(&vk_ctx, &mesh);
+  vulkan_init_mesh(&mesh);
 
   return mesh;
 }
@@ -52,8 +97,10 @@ draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
   Local local = {{0,0,0,0}, color};
   vulkan_update_ubo(color_desc, (void *)&local);
 
-  Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
+  /*Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
   vulkan_set_bitmap(&texture_desc, find_bitmap(BITMAP_LANA));
+  */
+
   vulkan_bind_descriptor_set(local_desc_set);
 
   Object object = {};
@@ -69,15 +116,39 @@ draw_rect(Vector2 coords, Vector2 size, Bitmap *bitmap) {
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
   Local local = {{2,0,0,0}, {0,0,0,0}};
   vulkan_update_ubo(color_desc, (void *)&local);
-  Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
-  vulkan_set_bitmap(&texture_desc, bitmap);
   vulkan_bind_descriptor_set(local_desc_set);
+
+  Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_TEXTURE);
+  Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
+  vulkan_set_bitmap(&texture_desc, bitmap);
+  vulkan_bind_descriptor_set(texture_desc_set);
 
   Object object = {};
   object.model = create_transform_m4x4(coords, size);
   object.index = 0;
   vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
   vulkan_draw_mesh(&draw_ctx.square);
+}
+
+internal void
+draw_rect_3D(Vector3 coords, Vector3 size, Vector4 color) {
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {{0,0,0,0}, color};
+  vulkan_update_ubo(color_desc, (void *)&local);
+
+  /*Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
+  vulkan_set_bitmap(&texture_desc, find_bitmap(BITMAP_LANA));
+  */
+
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  Object object = {};
+  object.model = create_transform_m4x4(coords, get_rotation(0, {0, 1, 0}), size);
+  object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&draw_ctx.square_3D);
 }
 
 internal void
@@ -94,9 +165,20 @@ draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_heigh
   Font_Char *font_char = 0;
   Font_Char *font_char_next = 0;
   u32 text_index = 0;
+
   Object object = {};
+  object.model = identity_m4x4();
+  vulkan_push_constants(SHADER_STAGE_VERTEX, &object, sizeof(Object));
 
   Texture_Atlas *atlas = &font->cache->atlas;
+  
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {{1,0,0,0}, color};
+  vulkan_update_ubo(color_desc, (void *)&local);
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  vulkan_bind_descriptor_set(atlas->gpu[vk_ctx.current_frame].set);
 
   while(text[text_index] != 0) {
     Font_Char_Bitmap *bitmap = load_font_char_bitmap(font, text[text_index], scale);
@@ -115,25 +197,18 @@ draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_heigh
         (float32)bitmap->bitmap.height 
       };
 
-      //texture_atlas_draw_rect(atlas, bitmap->index, coords, dim);
-      //draw_rect(coords, dim, &bitmap->bitmap);
-      
-      // Drawing
-      
-      Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
-      Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
-      Local local = {{1,0,0,0}, color};
-      vulkan_update_ubo(color_desc, (void *)&local);
-      Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
-      vulkan_set_bitmap(&texture_desc, &bitmap->bitmap);
-      vulkan_bind_descriptor_set(local_desc_set);
+      u32 index = bitmap->index;
+      Texture_Coords tex_coord = atlas->texture_coords[index];
+  
+      vulkan_immediate_vertex_xu(Vertex_XU{ coords, tex_coord.p1 });
+      vulkan_immediate_vertex_xu(Vertex_XU{ coords + dim, tex_coord.p2 });
+      vulkan_immediate_vertex_xu(Vertex_XU{ { coords.x, coords.y + dim.y }, {tex_coord.p1.x, tex_coord.p2.y} });
 
-      object.model = create_transform_m4x4(coords, dim);
-      object.index = 0;
-      vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-      vulkan_draw_mesh(&draw_ctx.square);
-      
-      //texture_atlas_draw_rect(atlas, bitmap->index, coords, dim);
+      vulkan_immediate_vertex_xu(Vertex_XU{ coords, tex_coord.p1 });
+      vulkan_immediate_vertex_xu(Vertex_XU{ { coords.x + dim.x, coords.y }, {tex_coord.p2.x, tex_coord.p1.y} });
+      vulkan_immediate_vertex_xu(Vertex_XU{ coords + dim, tex_coord.p2 });
+
+      vulkan_draw_immediate(6);
     }
 
     // End of Draw
@@ -238,11 +313,15 @@ draw_text(const char *text, Vector2 coords, float32 pixel_height, Vector4 color)
 internal void
 init_draw() {
   draw_ctx.square = get_rect_mesh_2D();
+  draw_ctx.square_3D = get_rect_mesh_3D();
 }
 
 inline void
 set_draw_font(u32 id) {
   draw_ctx.font_id = id;
+
+  Font *font = find_font(id);
+  Texture_Atlas *atlas = &font->cache->atlas;
 }
 
 internal void
@@ -257,6 +336,14 @@ start_draw_2D() {
   Descriptor scene_desc = gfx_descriptor(&scene_desc_set, 0);
   vulkan_update_ubo(scene_desc, &ortho_scene);
   vulkan_bind_descriptor_set(scene_desc_set);
+
+  // Default texture
+  Bitmap *bitmap = find_bitmap(BITMAP_LANA);
+  Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_TEXTURE);
+  Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
+  vulkan_set_bitmap(&texture_desc, bitmap);
+  vulkan_bind_descriptor_set(texture_desc_set);
+
 }
 
 internal void

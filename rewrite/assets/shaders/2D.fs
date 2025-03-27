@@ -5,10 +5,9 @@ layout(set = 1, binding = 0) uniform Local {
     vec4 color;
 } local;
 
-layout(set = 1, binding = 1) uniform sampler2D tex_sampler;
+layout(set = 2, binding = 0) uniform sampler2D tex_sampler;
 
 layout(location = 1) in vec2 fragTexCoord;
-layout(location = 3) flat in int fragIndex;
 
 layout(location = 0) out vec4 outColor;
 

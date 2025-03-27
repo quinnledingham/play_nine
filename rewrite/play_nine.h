@@ -75,6 +75,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 #include "gui.h"
 
 #include "play_nine_game.h"
+#include "input.h"
 #include "global.h"
 
 #include "play_nine_assets.h"
@@ -87,10 +88,10 @@ s32 update();
 #include "assets.cpp"
 #include "gfx.cpp"
 #include "draw.cpp"
+#include "input_prompts.cpp"
 #include "sdl.cpp"
 #include "gui.cpp"
 
-#include "input_prompts.cpp"
 #include "play_nine_game.cpp"
 #include "play_nine_2D.cpp"
 #include "play_nine_menus.cpp"

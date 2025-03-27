@@ -5,18 +5,18 @@
 :: Default Values
 set VARS=SDL_SDK VULKAN_SDK OS SDL_TTF SDL_IMAGE
 
-set SDL_SDK=C:\Users\quinn\libs\SDL3-3.2.6
-set SDL_TTF=C:\Users\quinn\libs\SDL3_ttf-3.2.0
-set SDL_IMAGE=C:\Users\quinn\libs\SDL3_image-3.2.2
+set SDL_SDK=C:\Users\quinn\libs\SDL3-3.2.4
+set SDL_TTF=C:\Users\quinn\libs\SDL3_ttf-3.1.0
+set SDL_IMAGE=C:\Users\quinn\libs\SDL3_image-3.2.0
 set VULKAN_SDK=C:\VulkanSDK\1.3.296.0
 set OS=WINDOWS
 
-call local.bat
+IF EXIST local.bat call local.bat
 for %%V in (%VARS%) do (
 	if not defined %%V (echo %%V is not defined & exit /b)
 )
 
-set CF=-nologo -Z7 -W0 -MD -Gm- -GR- -DDEBUG -DOS_%OS% /std:c++20 /EHsc -DGFX_VULKAN /I..\libs\
+set CF=-nologo -Z7 -W0 -MD -Gm- -GR- -DDEBUG2 -DOS_%OS% /std:c++20 /EHsc -DGFX_VULKAN /I..\libs\
 set CF_SDL=/I%SDL_SDK%\include\SDL3 /I%SDL_SDK%\include -DSDL /I%SDL_TTF%\include /I%SDL_IMAGE%\include
 set CF_VULKAN=/I%VULKAN_SDK%\Include 
 

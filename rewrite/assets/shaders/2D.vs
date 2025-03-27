@@ -10,14 +10,11 @@ layout(push_constant, std430) uniform Object {
     int index;
 } object;
 
-layout(location = 0) in vec2 inPosition;
-layout(location = 1) in vec2 inTexCoord;
+layout(location = 0) in vec4 vertex;
 
 layout(location = 1) out vec2 fragTexCoord;
-layout(location = 3) out int fragIndex;
 
 void main() {
-    gl_Position = scene.projection * scene.view * object.model * vec4(inPosition, 0.0, 1.0);
-    fragTexCoord = inTexCoord;
-    fragIndex = object.index;
+    gl_Position = scene.projection * scene.view * object.model * vec4(vertex.xy, 0.0, 1.0);
+    fragTexCoord = vertex.zw;
 }

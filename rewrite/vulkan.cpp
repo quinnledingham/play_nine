@@ -1500,6 +1500,7 @@ convert_to_vulkan(Vector_Type type) {
 	switch(type) {
 		case VECTOR2: return VK_FORMAT_R32G32_SFLOAT;
 		case VECTOR3: return VK_FORMAT_R32G32B32_SFLOAT;
+		case VECTOR4: return VK_FORMAT_R32G32B32A32_SFLOAT;
 		default: {
 			vulkan_log_error("convert_to_vulkan(): not a valid vector type\n");
 			ASSERT(0);
@@ -1590,6 +1591,7 @@ s32 vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRe
 		switch(attribute->format) {
 			case VECTOR2: vertex_size += sizeof(Vector2); break;
 			case VECTOR3: vertex_size += sizeof(Vector3); break;
+			case VECTOR4: vertex_size += sizeof(Vector4); break;
 		}
 	}
 	
@@ -1799,7 +1801,7 @@ void vulkan_allocate_descriptor_set(Vulkan_Context *vk_ctx, GFX_Layout *layout) 
 
 	VkResult result = vkAllocateDescriptorSets(vk_ctx->device, &allocate_info, layout->descriptor_sets);
 	if (result != VK_SUCCESS) {
-		log_error("vulkan_allocate_descriptor_sets()", "failed to allocate descriptor sets (%s)\n", string_VkResult(result));
+		vulkan_log_error("vulkan_allocate_descriptor_sets() failed to allocate descriptor sets (%s)\n", string_VkResult(result));
 	}
 }
 
@@ -1934,7 +1936,8 @@ vulkan_get_descriptor_set(GFX_Layout *layout) {
   return desc;
 }
 
-Descriptor vulkan_get_descriptor_set(Descriptor_Set *set, u32 binding_index) {
+internal Descriptor
+vulkan_get_descriptor(Descriptor_Set *set, u32 binding_index) {
 	Descriptor desc = {};
 	desc.set = set;
 	desc.binding = &set->layout->bindings[binding_index];
@@ -1942,7 +1945,8 @@ Descriptor vulkan_get_descriptor_set(Descriptor_Set *set, u32 binding_index) {
   return desc;
 }
 
-void vulkan_update_ubo(Descriptor desc, void *data) {
+internal void
+vulkan_update_ubo(Descriptor desc, void *data) {
 	if (desc.binding->descriptor_type != DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
 		vulkan_log_error("vulkan_update_ubo(): tried to update non static buffer in static way\n");
 		return;
@@ -2005,10 +2009,10 @@ void vulkan_clear_color(Vector4 color) {
 // Mesh
 // 
 
-void vulkan_init_mesh(Vulkan_Context *vk_ctx, Mesh *mesh) {
+void vulkan_init_mesh(Mesh *mesh) {
 	Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)malloc(sizeof(Vulkan_Mesh));
 
-	vulkan_mesh->buffer = &vk_ctx->static_buffer;
+	vulkan_mesh->buffer = &vk_ctx.static_buffer;
 
 	u32 vertices_size = mesh->vertices_count * mesh->vertex_info.size;
 	u32 indices_size = mesh->indices_count * sizeof(mesh->indices[0]);   
@@ -2021,7 +2025,7 @@ void vulkan_init_mesh(Vulkan_Context *vk_ctx, Mesh *mesh) {
 
 	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_mesh->buffer->offset, buffer_size, VULKAN_STATIC_BUFFER_SIZE, false);
 
-	vulkan_update_buffer(vk_ctx, vulkan_mesh->buffer, memory, buffer_size, vulkan_mesh->vertices_offset);
+	vulkan_update_buffer(&vk_ctx, vulkan_mesh->buffer, memory, buffer_size, vulkan_mesh->vertices_offset);
 	vulkan_mesh->indices_offset = vulkan_mesh->vertices_offset + vertices_size;
 
 
@@ -2103,7 +2107,7 @@ vulkan_create_texture_image(Bitmap *bitmap) {
 	return texture;
 }
 
-internal void* 
+internal void*
 vulkan_create_texture(Bitmap *bitmap, u32 texture_parameters) {
 	if (bitmap->mip_levels == 0) {
 		bitmap->mip_levels = (u32)floor(log2f((float32)max(bitmap->width, bitmap->height))) + 1;

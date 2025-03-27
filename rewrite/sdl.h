@@ -12,6 +12,8 @@ struct SDL_Context {
   u64 now_ticks;
   u64 last_ticks;
   u64 performance_frequency;
+
+  bool8 relative_mouse_mode = false;
 };
 
 struct SDL_Renderer_Context {
@@ -21,3 +23,4 @@ struct SDL_Renderer_Context {
   bool8 swap_chain_created;
 };
 
+internal void sdl_toggle_relative_mouse_mode();

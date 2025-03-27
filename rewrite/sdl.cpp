@@ -27,7 +27,20 @@ void sdl_log_error(const char *msg, ...) {
   OUTPUT_LIST(OUTPUT_ERROR, msg);
 }
 
-s32 sdl_init() {
+internal void
+sdl_set_relative_mouse_mode(bool8 mode) {
+  sdl_ctx.relative_mouse_mode = mode;
+  SDL_SetWindowRelativeMouseMode(sdl_ctx.window, sdl_ctx.relative_mouse_mode);
+}
+
+internal void
+sdl_toggle_relative_mouse_mode() {
+  sdl_ctx.relative_mouse_mode = !sdl_ctx.relative_mouse_mode;
+  SDL_SetWindowRelativeMouseMode(sdl_ctx.window, sdl_ctx.relative_mouse_mode);
+}
+
+internal s32 
+sdl_init() {
 
   if (!TTF_Init()) {
       return 1;
@@ -84,10 +97,9 @@ s32 sdl_init() {
   return 0;
 }
 
-bool8 left_mouse_button_down = false;
-Vector2 mouse_coords = {};
-
 s32 sdl_process_input() {
+
+  app_input_set_previous_states();
 
   s32 return_val = 0;
 
@@ -106,28 +118,46 @@ s32 sdl_process_input() {
         gfx.window.resolution = gfx.window.dim;
         //clay_set_layout((float)gfx.window.dim.width, (float)gfx.window.dim.height);
       } break;
+
+      // Mouse Events
       case SDL_EVENT_MOUSE_MOTION:
-        mouse_coords = { event.motion.x, event.motion.y };
+        app_input.mouse.coords = { event.motion.x, event.motion.y };
+        app_input.mouse.relative_coords += { event.motion.xrel, event.motion.yrel };
+        app_input.last_input_type = IN_MOUSE;
         break;
       case SDL_EVENT_MOUSE_BUTTON_DOWN:
-        mouse_coords = { event.button.x, event.button.y };
-        sdl_log("MOUSE: %f, %f\n", mouse_coords.x, mouse_coords.y);
-        if (event.button.button == SDL_BUTTON_LEFT)
-          left_mouse_button_down = true;
+        app_input.mouse.coords = { event.button.x, event.button.y };
+        sdl_log("MOUSE: %f, %f\n", app_input.mouse.coords.x, app_input.mouse.coords.y);
+
+        if (event.button.button == SDL_BUTTON_LEFT) {
+          app_input.mouse.left.current_state = TRUE;
+        }
+        app_input.last_input_type = IN_MOUSE;
         break;
       case SDL_EVENT_MOUSE_BUTTON_UP:
-        mouse_coords = { event.button.x, event.button.y };
+        app_input.mouse.coords = { event.button.x, event.button.y };
         if (event.button.button == SDL_BUTTON_LEFT) {
-          left_mouse_button_down = false;
+          app_input.mouse.left.current_state = FALSE;
         }
+        app_input.last_input_type = IN_MOUSE;
         break;
       case SDL_EVENT_MOUSE_WHEEL:
         //clay_update_scroll_containers(event.wheel.x, event.wheel.y);
         break;
       
-      case SDL_EVENT_KEY_DOWN: {
+      // Keyboard Events
+      case SDL_EVENT_KEY_DOWN:
+      case SDL_EVENT_KEY_UP: {
         SDL_KeyboardEvent *keyboard_event = &event.key;
         last_key = keyboard_event->key;
+
+        for (u32 i = 0; i < ARRAY_COUNT(app_input.buttons); i++) {
+          Button *button = &app_input.buttons[i];
+          if (button_is_id(button, keyboard_event->key)) {
+            button->current_state = keyboard_event->down;
+          }
+        }
+        /*
         if (keyboard_event->key == SDLK_R) {
           for (u32 i = 0; i < assets.pipelines.count; i++) {
             Pipeline *pipeline = find_pipeline(i);
@@ -140,6 +170,7 @@ s32 sdl_process_input() {
           }
           init_pipelines();
         }
+        */
       } break;
       
       default:

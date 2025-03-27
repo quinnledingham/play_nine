@@ -14,6 +14,7 @@ struct File {
 typedef enum {
   VECTOR2,
   VECTOR3,
+  VECTOR4
 } Vector_Type;
 
 struct Vertex_Attribute {
@@ -49,9 +50,25 @@ struct Vertex_XU {
 
   static Vertex_Info get_vertex_info() {
     Vertex_Info info = {};
-    info.add(VECTOR2, offsetof(Vertex_XU, position));
-    info.add(VECTOR2, offsetof(Vertex_XU, uv));
+    //info.add(VECTOR2, offsetof(Vertex_XU, position));
+    //info.add(VECTOR2, offsetof(Vertex_XU, uv));
+    info.add(VECTOR4, 0);
     info.size = sizeof(Vertex_XU);
+    return info;
+  }
+};
+
+struct Vertex_XNU {
+    Vector3 position;
+    Vector3 normal;
+    Vector2 uv;
+
+  static Vertex_Info info() {
+    Vertex_Info info = {};
+    info.add(VECTOR3, offsetof(Vertex_XNU, position));
+    info.add(VECTOR3, offsetof(Vertex_XNU, normal));
+    info.add(VECTOR2, offsetof(Vertex_XNU, uv));
+    info.size = sizeof(Vertex_XNU);
     return info;
   }
 };
@@ -152,7 +169,7 @@ struct Texture_Coords {
 struct Texture_Atlas_GPU {
     void *handle; // Vulkan_Texture
     Descriptor_Set set;
-    Descriptor desc;
+    //Descriptor desc;
     bool8 refresh_required;
 };
 
