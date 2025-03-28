@@ -7,7 +7,7 @@ get_centered_text_coords(String_Draw_Info string_info, Vector2 dim, u32 text_ali
     switch(text_align) {
         case ALIGN_CENTER:
             text_coords.x = coords.x + (dim.x / 2.0f) - (string_info.dim.x / 2.0f);
-            text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.dim.y / 2.0f);
+            text_coords.y = coords.y + (dim.y / 2.0f) - (string_info.baseline.y / 2.0f);
             break;
         case ALIGN_RIGHT:
             text_coords.x = coords.x + (dim.x)        - (string_info.dim.x);
@@ -22,17 +22,42 @@ get_centered_text_coords(String_Draw_Info string_info, Vector2 dim, u32 text_ali
     return text_coords;
 }
 
+internal Vector2
+centered_text_coords(Rect rect, const char *text, float32 pixel_height, u32 text_align) {
+    String_Draw_Info info = get_string_draw_info(draw_ctx.font_id, text, -1, pixel_height);
+    return get_centered_text_coords(info, rect.dim, text_align);
+}
+
+internal Rect
+rect_percent(Rect in, float32 p) {
+    Vector2 thickness = { in.h * p, in.h * p}; // px
+
+    Rect r = {};
+    r.dim = in.dim - thickness;
+    r.coords = in.coords + (in.dim / 2.0f) - (r.dim / 2.0f);
+    return r;
+}
+
 internal void
-draw_button(const Draw_Style style, const u32 state, Rect rect, const char *label, const u32 text_align) {
+draw_button(GUI *gui, const Draw_Style style, const u32 state, Rect rect, const char *label, const u32 text_align) {
+    float corner_radius = rect.h / 4.0f;
+    float32 shift = 0.1f * rect.h;
+    
+    rect.coords += gui->backdrop_px;
+    draw_rounded_rect(rect.coords, rect.dim, {0, 0, 0, 0.2f}, rect.h/4.0f); // back
+    rect.coords -= gui->backdrop_px;
+
     Vector4 back_color = style.background_colors[state];
-    draw_rect(rect.coords, rect.dim, back_color); // back
+    draw_rounded_rect(rect.coords, rect.dim, style.background_colors[GUI_PRESSED], rect.h/4.0f); // back
+    Rect inner = rect_percent(rect, 0.1f);
+    draw_rounded_rect(inner.coords, inner.dim, back_color, inner.h/4.0f); // back
 
     if (label) {
         float32 pixel_height;
         if (rect.dim.y < rect.dim.x)
-            pixel_height = rect.dim.y * 0.8f;
+            pixel_height = rect.dim.y * 0.7f;
         else
-            pixel_height = rect.dim.x * 0.8f;
+            pixel_height = rect.dim.x * 0.7f;
 
         String_Draw_Info info = get_string_draw_info(draw_ctx.font_id, label, -1, pixel_height);
         Vector2 text_coords = rect.coords + get_centered_text_coords(info, rect.dim, text_align);
@@ -45,18 +70,43 @@ draw_button(const Draw_Style style, const u32 state, Rect rect, const char *labe
 }
 
 internal void
-draw_gui(GUI *gui) {
+gui_start(GUI *gui) {
+    gfx_bind_pipeline(PIPELINE_NOISE);
+
     draw_rect({0, 0}, cv2(gfx.window.dim), gui->background_color);
+    gfx_bind_pipeline(PIPELINE_2D);
 
     Vector2 gui_dim_pixels = gui->dim * cv2(gfx.window.dim);
     float32 x_coord = float32((gfx.window.dim.x/2) - (gui_dim_pixels.x/2));
     float32 y_coord = float32((gfx.window.dim.y/2) - (gui_dim_pixels.y/2));
     gui->coords = {x_coord, y_coord};
+    gui->coords += gui->shift * cv2(gfx.window.dim);
     draw_rect(gui->coords, gui_dim_pixels, gui->back_color);
 
-    gui->segment_dim = gui_dim_pixels / cv2(gui->segments);
+    gui->padding_px = gui_dim_pixels * gui->padding;
+
+    gui->segment_dim = (gui_dim_pixels / cv2(gui->segments));
+    gui->segment_dim -= (gui->padding_px - (gui->padding_px/cv2(gui->segments)));
+
+    gui->backdrop_px = gui->backdrop * cv2(gfx.window.dim);
 
     gui->index = 1; 
+}
+
+internal void
+gui_end(GUI *gui) {
+    bool8 active_gui = false;
+    if (!gui_manager.indices.empty()) {
+        u32 top_index = gui_manager.indices.top();
+        if (gui == &gui_manager.guis[top_index])
+            active_gui = true;
+    }
+
+    if (active_gui && gui->hover != 0) {
+        SDL_SetCursor(sdl_ctx.pointer_cursor);
+    } else {
+        SDL_SetCursor(sdl_ctx.default_cursor);
+    }
 }
 
 internal bool8
@@ -130,10 +180,10 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
 internal bool8
 gui_button(GUI *gui, const char *label, Vector2_s32 segment_coords) {
     Rect rect = {};
-    rect.coords = gui->coords + (cv2(segment_coords) * gui->segment_dim);
+    rect.coords = gui->coords + (cv2(segment_coords) * gui->segment_dim) + (gui->padding_px * (gui->index - 1));
     rect.dim = gui->segment_dim;
     u32 state = gui_update(gui, rect.coords, rect.dim);
-    draw_button(gui->style, state, rect, label, ALIGN_CENTER); 
+    draw_button(gui, gui->style, state, rect, label, ALIGN_CENTER); 
 
     gui->index++;
 

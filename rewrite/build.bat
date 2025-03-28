@@ -16,7 +16,7 @@ for %%V in (%VARS%) do (
 	if not defined %%V (echo %%V is not defined & exit /b)
 )
 
-set CF=-nologo -Z7 -W0 -MD -Gm- -GR- -DDEBUG2 -DOS_%OS% /std:c++20 /EHsc -DGFX_VULKAN /I..\libs\
+set CF=-nologo -Z7 -W0 -MD -Gm- -GR- -DDEBUG -DOS_%OS% /std:c++20 /EHsc -DGFX_VULKAN /I..\libs\
 set CF_SDL=/I%SDL_SDK%\include\SDL3 /I%SDL_SDK%\include -DSDL /I%SDL_TTF%\include /I%SDL_IMAGE%\include
 set CF_VULKAN=/I%VULKAN_SDK%\Include 
 

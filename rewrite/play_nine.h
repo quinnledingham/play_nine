@@ -53,9 +53,9 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 
 #endif // GFX_VULKAN
 
-#include "clay/clay_iru.h"
+//#include "clay/clay_iru.h"
 
-#define WINDOW_NAME "play_nine"
+#define WINDOW_NAME "Deck Nine"
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 500
 #define WINDOW_FLAGS SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN

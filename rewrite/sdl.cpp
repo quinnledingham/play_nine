@@ -94,6 +94,9 @@ sdl_init() {
 
   sdl_ctx.performance_frequency = SDL_GetPerformanceFrequency();
 
+  sdl_ctx.pointer_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER);
+  sdl_ctx.default_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT);
+
   return 0;
 }
 
@@ -157,20 +160,7 @@ s32 sdl_process_input() {
             button->current_state = keyboard_event->down;
           }
         }
-        /*
-        if (keyboard_event->key == SDLK_R) {
-          for (u32 i = 0; i < assets.pipelines.count; i++) {
-            Pipeline *pipeline = find_pipeline(i);
-            vulkan_pipeline_cleanup(pipeline);
-          }
-          
-          s32 load_pipelines_result = load_pipelines();
-          if (load_pipelines_result == FAILURE) {
-            return FAILURE;
-          }
-          init_pipelines();
-        }
-        */
+
       } break;
       
       default:
@@ -202,6 +192,9 @@ s32 sdl_do_frame() {
 }
 
 void sdl_cleanup() {
+  SDL_DestroyCursor(sdl_ctx.pointer_cursor);
+  SDL_DestroyCursor(sdl_ctx.default_cursor);
+
   SDL_DestroyWindow(sdl_ctx.window);
   SDL_Quit();
   TTF_Quit();

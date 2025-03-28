@@ -84,6 +84,7 @@ u32 last_key = SDLK_A;
 struct Draw_Context {
   Mesh square;
   Mesh square_3D;
+  Mesh rounded_rect;
 
   u32 font_id;
 };

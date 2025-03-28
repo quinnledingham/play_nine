@@ -61,8 +61,15 @@ struct GUI {
   Vector2 dim; // %
   Vector2_s32 segments; // splits of dim
 
+  Vector2 shift; // %
   Vector2 coords; // px
   Vector2 segment_dim; // px
+
+  Vector2 padding; // %
+  Vector2 padding_px;
+
+  Vector2 backdrop;
+  Vector2 backdrop_px;
 
   s32 (*draw)(GUI *gui);
 

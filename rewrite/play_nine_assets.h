@@ -42,6 +42,7 @@ Asset_Load atlas_loads[] = {
 enum Pipeline_Ids {
   PIPELINE_2D,
   PIPELINE_3D,
+  PIPELINE_NOISE,
 
   PIPELINE_COUNT
 };
@@ -49,6 +50,7 @@ enum Pipeline_Ids {
 Asset_Load pipeline_loads[] = {
   { PIPELINE_2D, {"2D.vs", "2D.fs"} },
   { PIPELINE_3D, {"3D.vs", "3D.fs"} },
+  { PIPELINE_NOISE, {"2D.vs", "noise.fs"} },
 };
 
 enum GFX_Layout_IDs {
@@ -93,6 +95,16 @@ gfx_add_layouts_to_shaders() {
   {
     Pipeline *shader = find_pipeline(PIPELINE_3D);
     shader->vertex_info = Vertex_XNU::info();
+    shader->set.add_layout(&gfx.layouts[GFXID_SCENE]);
+    shader->set.add_push(SHADER_STAGE_VERTEX, sizeof(Object));
+
+    shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
+    shader->set.add_layout(&gfx.layouts[GFXID_TEXTURE]);
+  }
+
+  {
+    Pipeline *shader = find_pipeline(PIPELINE_NOISE);
+    shader->vertex_info = Vertex_XU::get_vertex_info();
     shader->set.add_layout(&gfx.layouts[GFXID_SCENE]);
     shader->set.add_push(SHADER_STAGE_VERTEX, sizeof(Object));
 

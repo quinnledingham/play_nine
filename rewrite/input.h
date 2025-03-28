@@ -66,8 +66,10 @@ struct App_Input {
       Button right;
       Button up;
       Button down;
+
+      Button refresh_shaders;
     };
-    Button buttons[7];
+    Button buttons[8];
   };
 
   u32 last_input_type;

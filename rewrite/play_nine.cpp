@@ -14,6 +14,7 @@ set_button_ids() {
   button_set(&app_input.right, SDLK_RIGHT);
   button_set(&app_input.up, SDLK_SPACE);
   button_set(&app_input.down, SDLK_LSHIFT);
+  button_set(&app_input.refresh_shaders, SDLK_R);
 }
 
 /*
@@ -152,6 +153,19 @@ free_fly_update_camera(Camera *camera) {
 }
 
 s32 update() {
+  if (on_down(app_input.refresh_shaders)) {
+    for (u32 i = 0; i < assets.pipelines.count; i++) {
+      Pipeline *pipeline = find_pipeline(i);
+      vulkan_pipeline_cleanup(pipeline);
+    }
+    
+    s32 load_pipelines_result = load_pipelines();
+    if (load_pipelines_result == FAILURE) {
+      return FAILURE;
+    }
+    init_pipelines();
+  }
+
   bool8 update_game = draw_game_flag && gui_manager.indices.empty();
   if (update_game) {
     free_fly_update_camera(&camera);

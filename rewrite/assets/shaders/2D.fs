@@ -1,8 +1,10 @@
 #version 450
 
 layout(set = 1, binding = 0) uniform Local {
-	vec4 text; // vec4(1=print text show use alpha from texture, 0, 0, 0)
-    vec4 color;
+  vec4 text; // vec4(1=print text show use alpha from texture, 0, 0, 0)
+  vec4 color;
+  vec4 resolution;
+  vec4 time;
 } local;
 
 layout(set = 2, binding = 0) uniform sampler2D tex_sampler;

@@ -465,53 +465,57 @@ texture_atlas_reset(Texture_Atlas *atlas) {
 
 internal u32
 texture_atlas_add(Texture_Atlas *atlas, Bitmap *bitmap) {
-    Vector2_s32 padding = { 1, 1 };
-    
-    Vector2_s32 position = {};
+  Vector2_s32 padding = { 1, 1 };
+  
+  Vector2_s32 position = {};
 
-    // Check if bitmap fits next in line
-    if (atlas->insert_position.x + bitmap->width  + padding.x < atlas->bitmap.width &&
-        atlas->insert_position.y + bitmap->height + padding.y < atlas->bitmap.height) {
-        position = atlas->insert_position;
-    // Check if the bitmap fits on the next line
-    } else if (atlas->insert_position.y + atlas->row_height + bitmap->height + padding.y < atlas->bitmap.height) {
-        position = { 0, atlas->insert_position.y + atlas->row_height + padding.y };
-        atlas->row_height = 0;
-    // No more space reset atlas
-    } else {
-        texture_atlas_reset(atlas);
-        log_error("texture_atlas_add() not enough room for bitmap\n");
-    }
+  // Check if bitmap fits next in line
+  if (atlas->insert_position.x + bitmap->width  + padding.x < atlas->bitmap.width &&
+    atlas->insert_position.y + bitmap->height + padding.y < atlas->bitmap.height) {
+    position = atlas->insert_position;
+  // Check if the bitmap fits on the next line
+  } else if (atlas->insert_position.y + atlas->row_height + bitmap->height + padding.y < atlas->bitmap.height) {
+    position = { 0, atlas->insert_position.y + atlas->row_height + padding.y };
+    atlas->row_height = 0;
+  // No more space reset atlas
+  } else {
+    texture_atlas_reset(atlas);
+    log_error("texture_atlas_add() not enough room for bitmap\n");
+  }
 
-    copy_blend_bitmap(atlas->bitmap, *bitmap, position);
+  copy_blend_bitmap(atlas->bitmap, *bitmap, position);
 
-    Vector2 tex_coords_p1 = { (float32)position.x / (float32)atlas->bitmap.width, 
-                              (float32)position.y / (float32)atlas->bitmap.height };
-    Vector2 tex_coords_p2 = { float32(position.x + bitmap->width)  / (float32)atlas->bitmap.width, 
-                              float32(position.y + bitmap->height) / (float32)atlas->bitmap.height };
+  Vector2 tex_coords_p1 = { 
+    (float32)position.x / (float32)atlas->bitmap.width, 
+    (float32)position.y / (float32)atlas->bitmap.height 
+  };
+  Vector2 tex_coords_p2 = { 
+    float32(position.x + bitmap->width)  / (float32)atlas->bitmap.width, 
+    float32(position.y + bitmap->height) / (float32)atlas->bitmap.height 
+  };
 
-    if (tex_coords_p1.x < EPSILON)
-        tex_coords_p1.x = 0.0f;
-    if (tex_coords_p1.y < EPSILON)
-        tex_coords_p1.y = 0.0f;
-    if (tex_coords_p2.x < EPSILON)
-        tex_coords_p2.x = 0.0f;
-    if (tex_coords_p2.y < EPSILON)
-        tex_coords_p2.y = 0.0f;
-    
-    atlas->texture_coords[atlas->texture_count].p1 = tex_coords_p1;
-    atlas->texture_coords[atlas->texture_count].p2 = tex_coords_p2;
-    
-    u32 index = atlas->texture_count++;
+  if (tex_coords_p1.x < EPSILON)
+    tex_coords_p1.x = 0.0f;
+  if (tex_coords_p1.y < EPSILON)
+    tex_coords_p1.y = 0.0f;
+  if (tex_coords_p2.x < EPSILON)
+    tex_coords_p2.x = 0.0f;
+  if (tex_coords_p2.y < EPSILON)
+    tex_coords_p2.y = 0.0f;
+  
+  atlas->texture_coords[atlas->texture_count].p1 = tex_coords_p1;
+  atlas->texture_coords[atlas->texture_count].p2 = tex_coords_p2;
+  
+  u32 index = atlas->texture_count++;
 
-    if (bitmap->height > atlas->row_height) {
-        atlas->row_height = bitmap->height;
-    }
-    atlas->insert_position = { position.x + padding.x + bitmap->width, position.y };
+  if (bitmap->height > atlas->row_height) {
+      atlas->row_height = bitmap->height;
+  }
+  atlas->insert_position = { position.x + padding.x + bitmap->width, position.y };
 
-    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        atlas->gpu[i].refresh_required = true;
-    }
+  for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+      atlas->gpu[i].refresh_required = true;
+  }
 
   return index;
 }
@@ -527,8 +531,6 @@ internal void
 texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
   vulkan_destroy_texture(atlas->gpu[frame_index].handle);
   atlas->gpu[frame_index].handle = vulkan_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
-  //atlas->gpu[frame_index].desc.set->texture_index = 0;
-  //vulkan_set_texture(&atlas->gpu[frame_index].desc, atlas->gpu[frame_index].handle);
   Descriptor texture_desc = gfx_descriptor(&atlas->gpu[frame_index].set, 1);
   vulkan_set_texture(&texture_desc, atlas->gpu[frame_index].handle);
 }
@@ -536,9 +538,10 @@ texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
 internal void
 texture_atlas_refresh(Texture_Atlas *atlas) {
     u32 current_frame = vk_ctx.current_frame;
-    atlas->gpu[current_frame].set.texture_index = 0;
-    if (atlas->gpu[current_frame].refresh_required) {
-        atlas->gpu[current_frame].refresh_required = false;
+    Texture_Atlas_GPU *gpu = &atlas->gpu[current_frame];
+    gpu->set.texture_index = 0;
+    if (gpu->refresh_required) {
+        gpu->refresh_required = false;
         texture_atlas_init_gpu_frame(atlas, current_frame);
     }    
 }
@@ -588,21 +591,21 @@ texture_atlas_draw_rect(Texture_Atlas *atlas, u32 index, Vector2 coords, Vector2
 
 internal void
 texture_atlas_write(Texture_Atlas *atlas, const char *bitmap_file_name, const char *tex_coord_file_name) {    
-    String bitmap_filepath = String(asset_folders[AT_ATLAS], bitmap_file_name);
-    String texture_coords_filepath = String(asset_folders[AT_ATLAS], tex_coord_file_name);
+  String bitmap_filepath = String(asset_folders[AT_ATLAS], bitmap_file_name);
+  String texture_coords_filepath = String(asset_folders[AT_ATLAS], tex_coord_file_name);
 
-    write_bitmap(&atlas->bitmap, bitmap_filepath.str());
-    
-    FILE *file = fopen(texture_coords_filepath.str(), "wb");
-    if (file) {
-      fwrite(atlas->texture_coords, sizeof(Texture_Coords) * atlas->max_textures, 1, file);
-      fclose(file);
-    } else {
-      log_error("texture_atlas_write() Could not open file %s\n", texture_coords_filepath.str());
-    }
+  write_bitmap(&atlas->bitmap, bitmap_filepath.str());
+  
+  FILE *file = fopen(texture_coords_filepath.str(), "wb");
+  if (file) {
+    fwrite(atlas->texture_coords, sizeof(Texture_Coords) * atlas->max_textures, 1, file);
+    fclose(file);
+  } else {
+    log_error("texture_atlas_write() Could not open file %s\n", texture_coords_filepath.str());
+  }
 
-    bitmap_filepath.destroy();
-    texture_coords_filepath.destroy();
+  bitmap_filepath.destroy();
+  texture_coords_filepath.destroy();
 }
 internal void
 texture_atlas_draw_rect(u32 id, u32 index, Vector2 coords, Vector2 dim) {
@@ -612,9 +615,9 @@ texture_atlas_draw_rect(u32 id, u32 index, Vector2 coords, Vector2 dim) {
 
 internal void
 texture_atlas_destroy(Texture_Atlas *atlas) {
-    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vulkan_destroy_texture(atlas->gpu[i].handle);
-    }
+  for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    vulkan_destroy_texture(atlas->gpu[i].handle);
+  }
 }
 
 internal void
@@ -628,7 +631,7 @@ load_atlas(u32 id, const char *image_filename, const char *tex_coords_filename) 
   atlas->bitmap = load_bitmap(bitmap_file);
   memcpy(atlas->texture_coords, tex_coords_file.memory, sizeof(Texture_Coords) * atlas->max_textures);
 
-  vulkan_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
+  texture_atlas_init(atlas, GFXID_TEXTURE);
 
   bitmap_filepath.destroy();
   tex_coords_filepath.destroy();
@@ -801,11 +804,11 @@ assets_cleanup() {
 
   for (u32 i = 0; i < assets.fonts.count; i++) {
     Font *font = find_font(i);
-    clear_font_bitmap_cache(font);
+    texture_atlas_destroy(&font->cache->atlas);
   }
 
   for (u32 i = 0; i < assets.atlases.count; i++) {
     Texture_Atlas *atlas = find_atlas(i);
-    vulkan_destroy_texture(&atlas->bitmap);
+    texture_atlas_destroy(atlas);
   }
 }

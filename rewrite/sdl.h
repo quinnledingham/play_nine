@@ -14,6 +14,9 @@ struct SDL_Context {
   u64 performance_frequency;
 
   bool8 relative_mouse_mode = false;
+  
+  SDL_Cursor *pointer_cursor;
+  SDL_Cursor *default_cursor;
 };
 
 struct SDL_Renderer_Context {

@@ -12,9 +12,13 @@ draw_main_menu(GUI *gui) {
   gui->style.text_color_active = play_nine_green;
 
   gui->background_color = play_nine_green;
+  //gui->back_color = {0, 0, 0, 0.5};
 
+  gui->shift = {0, 0.1f};
   gui->dim = {0.4, 0.4};
   gui->segments = {1, 4};
+  gui->padding = {0.0, 0.05};
+  gui->backdrop = {0.0f, 0.01f};
 
   s32 game_should_quit = false;
 
@@ -22,7 +26,20 @@ draw_main_menu(GUI *gui) {
     print("YAHOO\n");
   }
 
-  draw_gui(gui);
+  Rect window_rect = {};
+  window_rect.dim = cv2(gfx.window.dim);
+
+  const char *title = "Deck Nine";
+  float32 title_pixel_height = gfx.window.dim.y * 0.2f;
+  Vector2 title_coords = centered_text_coords(window_rect, title, title_pixel_height, ALIGN_CENTER);
+
+  gui_start(gui);
+
+  title_coords.y -= gfx.window.dim.y * 0.4f;
+  title_coords += gui->backdrop_px;
+  draw_text(title, title_coords, title_pixel_height, {0, 0, 0, 0.2f});
+  title_coords -= gui->backdrop_px;
+  draw_text(title, title_coords, title_pixel_height, play_nine_yellow);
 
   if (gui_button(gui, "Play", {0, 0})) {
     gui_manager.indices.pop();
@@ -35,6 +52,8 @@ draw_main_menu(GUI *gui) {
   gui_button(gui, "Settings", {0, 2});
   if (gui_button(gui, "Quit", {0, 3}))
     game_should_quit = true;
+
+  gui_end(gui);
 
   return game_should_quit;
 }
@@ -77,10 +96,15 @@ draw_pause_menu(GUI *gui) {
     gui_manager.indices.pop();
   }
 
+  gui->background_color = play_nine_green;
+  gui->background_color.a = 0.3f;
+
   gui->dim = {0.4, 0.4};
   gui->segments = {1, 2};
+  gui->padding = {0.0, 0.05};
+  gui->backdrop = {0.0f, 0.01f};
 
-  draw_gui(gui);
+  gui_start(gui);
 
   gui_button(gui, "Settings", {0, 0});
   if (gui_button(gui, "Quit Game", {0, 1})) {
@@ -88,6 +112,8 @@ draw_pause_menu(GUI *gui) {
     gui_manager.indices.push(GUI_MAIN_MENU);
     draw_game_flag = false;
   }
+
+  gui_end(gui);
 
   return false;
 }

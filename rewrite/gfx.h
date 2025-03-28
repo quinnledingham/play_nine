@@ -1,6 +1,23 @@
 struct Rect {
-    Vector2 coords;
-    Vector2 dim;
+    union {
+        struct {
+            float32 x;
+            float32 y;
+        };
+        Vector2 coords;
+    };
+
+    union {
+        struct {
+            float32 width;
+            float32 height;
+        };
+        struct {
+            float32 w;
+            float32 h;
+        };
+        Vector2 dim;
+    };
     float32 rotation; // radians
 };
 
@@ -56,6 +73,8 @@ struct Scene {
 struct Local {
     Vector4 text;
     Vector4 color;
+    Vector4 resolution; // rect
+    Vector4 time; // time, time_delta, frame_rate
 };
 
 struct Object {

@@ -80,27 +80,156 @@ get_rect_mesh_2D() {
   return mesh;
 }
 
-internal void
-draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
-/*
-  gfx_bind_pipeline(PIPELINE_2D);
+// From Clay
+internal Mesh
+draw_rounded_rect(Vector2 coords, Vector2 size, Vector4 color, const float corner_radius) {
+  Rect rect = {};
+  rect.coords = coords;
+  rect.dim = size;
 
-  Descriptor_Set scene_desc_set = gfx_descriptor_set(GFXID_SCENE);
+  const float min_radius = SDL_min(rect.w, rect.h) / 2.0f;
+  const float clamped_radius = SDL_min(corner_radius, min_radius);
+  const int num_circle_segments = SDL_max(16, (int) clamped_radius * 0.5f);
 
-  Descriptor scene_desc = gfx_descriptor(&scene_desc_set, 0);
-  vulkan_update_ubo(scene_desc, &ortho_scene);
-  vulkan_bind_descriptor_set(scene_desc_set);
-*/
+  Mesh mesh = {};
+  mesh.vertices_count = 4 + (4 * (num_circle_segments * 2)) + 2*4;
+  mesh.indices_count = 6 + (4 * (num_circle_segments * 3)) + 6*4;
+
+  mesh.vertices = ARRAY_MALLOC(Vertex_XU, mesh.vertices_count);
+  mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+
+  u32 vertices_index = 0;
+  u32 indices_index = 0;
+
+  Vertex_XU *vertices = (Vertex_XU *)mesh.vertices;
+  u32 *indices = (u32 *)mesh.indices;
+
+  vertices[vertices_index++] = Vertex_XU{ { rect.x + clamped_radius, rect.y + clamped_radius},                   { 0, 0 } };
+  vertices[vertices_index++] = Vertex_XU{ { rect.x + rect.w - clamped_radius, rect.y + clamped_radius},          { 1, 0 } };
+  vertices[vertices_index++] = Vertex_XU{ { rect.x + rect.w - clamped_radius, rect.y + rect.h - clamped_radius}, { 1, 1 } };
+  vertices[vertices_index++] = Vertex_XU{ { rect.x + clamped_radius, rect.y + rect.h - clamped_radius},          { 0, 1 } };
+
+  indices[indices_index++] = 0;
+  indices[indices_index++] = 1;
+  indices[indices_index++] = 3;
+  indices[indices_index++] = 1;
+  indices[indices_index++] = 2;
+  indices[indices_index++] = 3;
+
+  //define rounded corners as triangle fans
+  const float step = (SDL_PI_F/2) / num_circle_segments;
+  for (int i = 0; i < num_circle_segments; i++) {
+    const float angle1 = (float)i * step;
+    const float angle2 = ((float)i + 1.0f) * step;
+
+    for (int j = 0; j < 4; j++) {  // Iterate over four corners
+      float cx, cy, signX, signY;
+
+      switch (j) {
+        case 0: cx = rect.x + clamped_radius;          cy = rect.y + clamped_radius;          signX = -1; signY = -1; break; // Top-left
+        case 1: cx = rect.x + rect.w - clamped_radius; cy = rect.y + clamped_radius;          signX =  1; signY = -1; break; // Top-right
+        case 2: cx = rect.x + rect.w - clamped_radius; cy = rect.y + rect.h - clamped_radius; signX =  1; signY =  1; break; // Bottom-right
+        case 3: cx = rect.x + clamped_radius;          cy = rect.y + rect.h - clamped_radius; signX = -1; signY =  1; break; // Bottom-left
+        default:
+          log_error("create_rounded_rect(): PROBLEM?\n");
+          return mesh;
+      }
+
+      vertices[vertices_index++] = Vertex_XU{ {cx + SDL_cosf(angle1) * clamped_radius * signX, cy + SDL_sinf(angle1) * clamped_radius * signY}, {0, 0} };
+      vertices[vertices_index++] = Vertex_XU{ {cx + SDL_cosf(angle2) * clamped_radius * signX, cy + SDL_sinf(angle2) * clamped_radius * signY}, {0, 0} };
+
+      if (j == 0 || j == 2) {
+        indices[indices_index++] = j;  // Connect to corresponding central rectangle vertex
+        indices[indices_index++] = vertices_index - 2;
+        indices[indices_index++] = vertices_index - 1;
+      } else {
+        indices[indices_index++] = j;  // Connect to corresponding central rectangle vertex]
+        indices[indices_index++] = vertices_index - 1;
+        indices[indices_index++] = vertices_index - 2;
+      }
+    }
+  }
+
+  //Define edge rectangles
+  // Top edge
+  vertices[vertices_index++] = Vertex_XU{ {rect.x + clamped_radius, rect.y}, {0, 0} }; //TL
+  vertices[vertices_index++] = Vertex_XU{ {rect.x + rect.w - clamped_radius, rect.y}, {1, 0} }; //TR
+
+  indices[indices_index++] = 0;
+  indices[indices_index++] = vertices_index - 2; //TL
+  indices[indices_index++] = vertices_index - 1; //TR
+  indices[indices_index++] = 1;
+  indices[indices_index++] = 0;
+  indices[indices_index++] = vertices_index - 1; //TR
+  // Right edge
+  vertices[vertices_index++] = Vertex_XU{ {rect.x + rect.w, rect.y + clamped_radius}, {1, 0} }; //RT
+  vertices[vertices_index++] = Vertex_XU{ {rect.x + rect.w, rect.y + rect.h - clamped_radius}, {1, 1} }; //RB
+
+  indices[indices_index++] = 1;
+  indices[indices_index++] = vertices_index - 2; //RT
+  indices[indices_index++] = vertices_index - 1; //RB
+  indices[indices_index++] = 2;
+  indices[indices_index++] = 1;
+  indices[indices_index++] = vertices_index - 1; //RB
+  // Bottom edge
+  vertices[vertices_index++] = Vertex_XU{ {rect.x + rect.w - clamped_radius, rect.y + rect.h}, {1, 1} }; //BR
+  vertices[vertices_index++] = Vertex_XU{ {rect.x + clamped_radius, rect.y + rect.h}, {0, 1} }; //BL
+
+  indices[indices_index++] = 2;
+  indices[indices_index++] = vertices_index - 2; //BR
+  indices[indices_index++] = vertices_index - 1; //BL
+  indices[indices_index++] = 3;
+  indices[indices_index++] = 2;
+  indices[indices_index++] = vertices_index - 1; //BL
+  // Left edge
+  vertices[vertices_index++] = Vertex_XU{ {rect.x, rect.y + rect.h - clamped_radius}, {0, 1} }; //LB
+  vertices[vertices_index++] = Vertex_XU{ {rect.x, rect.y + clamped_radius}, {0, 0} }; //LT
+
+  indices[indices_index++] = 3;
+  indices[indices_index++] = vertices_index - 2; //LB
+  indices[indices_index++] = vertices_index - 1; //LT
+  indices[indices_index++] = 0;
+  indices[indices_index++] = 3;
+  indices[indices_index++] = vertices_index - 1; //LT
+
+  mesh.vertex_info = Vertex_XU::get_vertex_info();
+  //vulkan_init_mesh(&mesh);
+
   Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
 
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
-  Local local = {{0,0,0,0}, color};
+  Local local = {};
+  local.color = color;
+  local.time.x = app_time.run_time_s;
+  local.resolution.x = size.x;
+  local.resolution.y = size.y;
   vulkan_update_ubo(color_desc, (void *)&local);
+  vulkan_bind_descriptor_set(local_desc_set);
 
-  /*Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
-  vulkan_set_bitmap(&texture_desc, find_bitmap(BITMAP_LANA));
-  */
+  Object object = {};
+  object.model = identity_m4x4();
+  object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
+  vulkan_draw_immediate_mesh(&mesh);
+
+  free(mesh.vertices);
+  free(mesh.indices);
+
+  return mesh;
+}
+
+internal void
+draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.color = color;
+  local.time.x = app_time.run_time_s;
+  local.resolution.x = size.x;
+  local.resolution.y = size.y;
+  vulkan_update_ubo(color_desc, (void *)&local);
   vulkan_bind_descriptor_set(local_desc_set);
 
   Object object = {};
@@ -114,7 +243,8 @@ internal void
 draw_rect(Vector2 coords, Vector2 size, Bitmap *bitmap) {
   Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
-  Local local = {{2,0,0,0}, {0,0,0,0}};
+  Local local = {};
+  local.text.x = 2;
   vulkan_update_ubo(color_desc, (void *)&local);
   vulkan_bind_descriptor_set(local_desc_set);
 
@@ -135,7 +265,8 @@ draw_rect_3D(Vector3 coords, Vector3 size, Vector4 color) {
   Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
 
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
-  Local local = {{0,0,0,0}, color};
+  Local local = {};
+  local.color = color;
   vulkan_update_ubo(color_desc, (void *)&local);
 
   /*Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
@@ -172,9 +303,12 @@ draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_heigh
 
   Texture_Atlas *atlas = &font->cache->atlas;
   
+  Local local = {};
+  local.text.x = 1;
+  local.color = color;
+
   Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
-  Local local = {{1,0,0,0}, color};
   vulkan_update_ubo(color_desc, (void *)&local);
   vulkan_bind_descriptor_set(local_desc_set);
 
@@ -314,6 +448,10 @@ internal void
 init_draw() {
   draw_ctx.square = get_rect_mesh_2D();
   draw_ctx.square_3D = get_rect_mesh_3D();
+  Rect r = {};
+  r.coords = {0, 0};
+  r.dim = {1, 1};
+  //draw_ctx.rounded_rect = create_rounded_rect(r);
 }
 
 inline void

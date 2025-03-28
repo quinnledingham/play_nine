@@ -59,9 +59,9 @@ struct Vertex_XU {
 };
 
 struct Vertex_XNU {
-    Vector3 position;
-    Vector3 normal;
-    Vector2 uv;
+  Vector3 position;
+  Vector3 normal;
+  Vector2 uv;
 
   static Vertex_Info info() {
     Vertex_Info info = {};

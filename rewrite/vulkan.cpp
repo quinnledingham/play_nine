@@ -2256,18 +2256,30 @@ vulkan_cleanup() {
 	Immediate
 */
 
-void vulkan_immediate_vertex_xu(Vertex_XU vertex) {
-	float32 data[4];
-	data[0] = vertex.position.x; 
-	data[1] = vertex.position.y; 
-	data[2] = vertex.uv.x; 
-	data[3] = vertex.uv.y;
-	memcpy((char*)vk_ctx.dynamic_buffer.data + vk_ctx.dynamic_buffer.offset, data, sizeof(Vertex_XU));
+inline void 
+vulkan_immediate_vertex_xu(Vertex_XU vertex) {
+	memcpy((char*)vk_ctx.dynamic_buffer.data + vk_ctx.dynamic_buffer.offset, &vertex, sizeof(Vertex_XU));
 	vk_ctx.dynamic_buffer.offset += sizeof(Vertex_XU);
 }
 
-void vulkan_draw_immediate(u32 vertices) {
+inline void 
+vulkan_immediate_vertex_xnu(Vertex_XNU vertex) {
+	memcpy((char*)vk_ctx.dynamic_buffer.data + vk_ctx.dynamic_buffer.offset, &vertex, sizeof(Vertex_XNU));
+	vk_ctx.dynamic_buffer.offset += sizeof(Vertex_XNU);
+}
+
+inline void
+vulkan_draw_immediate(u32 vertices) {
   VkDeviceSize offsets[] = { vk_ctx.dynamic_buffer.offset - (vertices * sizeof(Vertex_XU)) };
   vkCmdBindVertexBuffers(VK_CMD, 0, 1, &vk_ctx.dynamic_buffer.handle, offsets);
   vkCmdDraw(VK_CMD, vertices, 1, 0, 0);
+}
+
+internal void
+vulkan_draw_immediate_mesh(Mesh *mesh) {
+	Vertex_XU *vertices = (Vertex_XU *)mesh->vertices;
+	for (u32 i = 0; i < mesh->indices_count; i++) {
+		vulkan_immediate_vertex_xu(vertices[mesh->indices[i]]);
+	}	
+	vulkan_draw_immediate(mesh->indices_count);
 }
