@@ -213,6 +213,7 @@ int main(int argc, char *argv[]) {
   }
 
   vkDeviceWaitIdle(vk_ctx.device);
+  destroy_geometry(&tails_geo);
   assets_cleanup();
   vulkan_cleanup();
   sdl_cleanup();

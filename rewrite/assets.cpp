@@ -12,7 +12,8 @@
   File
 */
 
-File load_file(const char *filepath) {
+internal File
+load_file(const char *filepath) {
   File result = {};
     
   FILE *in;
@@ -35,7 +36,8 @@ File load_file(const char *filepath) {
   return result;
 }
 
-void destroy_file(File *file) {
+internal void 
+destroy_file(File *file) {
   if (!file->memory)
     return;
 
@@ -301,6 +303,14 @@ load_bitmap(File file) {
   //bitmap.mip_levels = (u32)floor(log2f((float32)max(bitmap.width, bitmap.height))) + 1;
   bitmap.mip_levels = 1;
 
+  return bitmap;
+}
+
+internal Bitmap
+load_bitmap_flip(File file) {
+  stbi_set_flip_vertically_on_load(true);
+  Bitmap bitmap = load_bitmap(file);
+  stbi_set_flip_vertically_on_load(false);
   return bitmap;
 }
 

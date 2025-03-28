@@ -65,7 +65,8 @@ inline Vector3 operator/(const Vector3 &l, const Vector3  &r) { return { l.x / r
 inline Vector3 operator/(const Vector3 &l, const float32 &r) { return { l.x / r,   l.y / r,   l.z / r   }; }
 inline Vector3 operator-(const Vector3 &v)               { return {-v.x    ,  -v.y    ,  -v.z       }; }
 
-inline bool operator==(const Vector3 &v, float f)          { if (v.x == f   && v.y == f   && v.z == f)   return true; return false; }
+inline bool operator==(const Vector3 &a, const Vector3 &b) { if (a.x == b.x && a.y == b.y && a.z == b.z)   return true; return false; }
+inline bool operator==(const Vector3 &v, const float f)          { if (v.x == f   && v.y == f   && v.z == f)   return true; return false; }
 inline void operator+=(Vector3 &l, const Vector3 &r) { l.x = l.x + r.x; l.y = l.y + r.y; l.z = l.z + r.z; }
 inline void operator+=(Vector3 &l, const float32 &r) { l.x = l.x + r;   l.y = l.y + r;   l.z = l.z + r;   }
 inline void operator-=(Vector3 &l, const Vector3 &r) { l.x = l.x - r.x; l.y = l.y - r.y; l.z = l.z - r.z; }

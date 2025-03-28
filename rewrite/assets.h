@@ -7,6 +7,9 @@ struct File {
   u32 size;
 };
 
+internal File load_file(const char *filepath);
+internal void destroy_file(File *file);
+
 /*
   Vertex Type
 */
@@ -128,18 +131,6 @@ struct Shader {
 
 typedef Shader Pipeline;
 
-struct Mesh {
-  Vertex_Info vertex_info;
-
-  void *vertices;
-  u32 vertices_count;
-
-  u32 *indices;
-  u32 indices_count;
-
-  void *gpu_info;
-};
-
 struct Bitmap {
     u8 *memory; // loaded pixels
     union {
@@ -155,6 +146,9 @@ struct Bitmap {
 
     void *gpu_info;
 };
+
+internal Bitmap load_bitmap(File file);
+internal Bitmap load_bitmap_flip(File file);
 
 /*
 ####p2
@@ -241,18 +235,48 @@ struct Font {
 };
 
 struct Material {
-  Vector3 ambient;           // Ka (in .obj files)
-  Vector3 diffuse;           // Kd
-  Vector3 specular;          // Ks
-  float32 specular_exponent; // Ns
+  String id; // id from mtl file
+
+  Vector3 ambient;             // Ka (in .obj files)
+  Vector3 diffuse;             // Kd
+  Vector3 specular;            // Ks
+  Vector3 emissive_coefficent; // Ke
+  float32 optical_density;     // Ni
+  float32 dissolve;            // d
+  float32 specular_exponent;   // Ns
+  u32 illumination;            // illum
   
   Bitmap ambient_map;
   Bitmap diffuse_map;    // map_Kd
-  
-  const char *id; // id from mtl file
+};
+
+struct Material_Library {
+  const char *name;
+  Material *materials;
+  u32 materials_count;
+};
+
+struct Mesh {
+  Vertex_Info vertex_info;
+
+  void *vertices;
+  u32 vertices_count;
+
+  u32 *indices;
+  u32 indices_count;
+
+  u32 material_id;
+  Material *material;
+
+  // Vulkan
+  u32 vertices_buffer_offset;
+  u32 indices_buffer_offset;
+  Vulkan_Buffer *buffer;
 };
 
 struct Geometry {
+  Material_Library mtllib;
+
   Mesh *meshes;
   u32 meshes_count;
 };
@@ -269,6 +293,7 @@ enum Asset_Types {
   AT_FONT,
   AT_ATLAS,
   AT_GEOMETRY,
+  AT_MTLLIB,
 
   AT_COUNT
 };
@@ -279,6 +304,7 @@ const char *asset_folders[] = {
   "../assets/fonts/",
   "../assets/atlases/",
   "../assets/geometry/"
+  "", // materials in .obj / geometry
 };
 
 const u32 asset_size[] = {
@@ -286,7 +312,8 @@ const u32 asset_size[] = {
   sizeof(Bitmap), 
   sizeof(Font), 
   sizeof(Texture_Atlas),
-  sizeof(Geometry)
+  sizeof(Geometry),
+  sizeof(Material_Library)
 };
 
 struct Asset_Array {
@@ -314,6 +341,7 @@ struct Assets {
   Asset_Array fonts;
   Asset_Array bitmaps;
   Asset_Array atlases;
+  Asset_Array mtllibs;
 };
 
 internal void bitmap_convert_channels(Bitmap *bitmap, u32 new_channels);

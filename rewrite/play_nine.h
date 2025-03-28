@@ -68,6 +68,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 #include "data_structs.h"
 #include "str.h"
 #include "gfx_layouts.h"
+struct Vulkan_Buffer;
 #include "assets.h"
 #include "vulkan.h"
 #include "sdl.h"

@@ -2009,10 +2009,9 @@ void vulkan_clear_color(Vector4 color) {
 // Mesh
 // 
 
-void vulkan_init_mesh(Mesh *mesh) {
-	Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)malloc(sizeof(Vulkan_Mesh));
-
-	vulkan_mesh->buffer = &vk_ctx.static_buffer;
+internal void 
+vulkan_init_mesh(Mesh *mesh) {
+	mesh->buffer = &vk_ctx.static_buffer;
 
 	u32 vertices_size = mesh->vertices_count * mesh->vertex_info.size;
 	u32 indices_size = mesh->indices_count * sizeof(mesh->indices[0]);   
@@ -2023,31 +2022,27 @@ void vulkan_init_mesh(Mesh *mesh) {
 	memcpy(memory, (void*)mesh->vertices, vertices_size);
 	memcpy((char*)memory + vertices_size, (void*)mesh->indices, indices_size);
 
-	vulkan_mesh->vertices_offset = vulkan_get_next_offset(&vulkan_mesh->buffer->offset, buffer_size, VULKAN_STATIC_BUFFER_SIZE, false);
+	mesh->vertices_buffer_offset = vulkan_get_next_offset(&mesh->buffer->offset, buffer_size, VULKAN_STATIC_BUFFER_SIZE, false);
 
-	vulkan_update_buffer(&vk_ctx, vulkan_mesh->buffer, memory, buffer_size, vulkan_mesh->vertices_offset);
-	vulkan_mesh->indices_offset = vulkan_mesh->vertices_offset + vertices_size;
-
+	vulkan_update_buffer(&vk_ctx, mesh->buffer, memory, buffer_size, mesh->vertices_buffer_offset);
+	mesh->indices_buffer_offset = mesh->vertices_buffer_offset + vertices_size;
 
 	free(memory);
-	mesh->gpu_info = (void*)vulkan_mesh;
 }
 
 void vulkan_draw_mesh(Mesh *mesh) {
-  Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)mesh->gpu_info;
-
 #ifdef DEBUG
 
-  if (!vulkan_mesh) {
+  if (!mesh->buffer) {
   	vulkan_log_error("vulkan_draw_mesh(): mesh was not initialized\n");
   	ASSERT(0);
   }
 
 #endif // DEBUG
 
-  VkDeviceSize offsets[] = { vulkan_mesh->vertices_offset };
-  vkCmdBindVertexBuffers(VK_CMD, 0, 1, &vulkan_mesh->buffer->handle, offsets);
-  vkCmdBindIndexBuffer(VK_CMD, vulkan_mesh->buffer->handle, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
+  VkDeviceSize offsets[] = { mesh->vertices_buffer_offset };
+  vkCmdBindVertexBuffers(VK_CMD, 0, 1, &mesh->buffer->handle, offsets);
+  vkCmdBindIndexBuffer(VK_CMD, mesh->buffer->handle, mesh->indices_buffer_offset, VK_INDEX_TYPE_UINT32);
   vkCmdDrawIndexed(VK_CMD, mesh->indices_count, 1, 0, 0, 0);
 }
 

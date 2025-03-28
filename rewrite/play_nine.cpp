@@ -40,7 +40,7 @@ s32 play_nine_init() {
   
 #ifdef DEBUG
 
-  bool8 recreate_input_prompt_atlases = true;
+  bool8 recreate_input_prompt_atlases = false;
   if (recreate_input_prompt_atlases) {
     Texture_Atlas atlases[PROMPT_COUNT];
     create_input_prompt_atlas(&atlases[PROMPT_KEYBOARD], keyboard_prompts, ARRAY_COUNT(keyboard_prompts), "../libs/xelu/Keyboard & Mouse/Dark/", "_Key_Dark.png", "prompt.png");
@@ -93,6 +93,12 @@ draw_game() {
   vulkan_bind_descriptor_set(scene_desc_set);
 
   gfx_bind_pipeline(PIPELINE_3D);
+
+  Bitmap *bitmap = find_bitmap(BITMAP_LANA);
+  Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_TEXTURE);
+  Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
+  vulkan_set_bitmap(&texture_desc, bitmap);
+  vulkan_bind_descriptor_set(texture_desc_set);
 
   draw_rect_3D({0, 0, 0}, {10, 10, 10}, {255, 0, 0, 1});
 

@@ -44,11 +44,11 @@ void main() {
     vec3 norm_color = vec3(local.color.x/255, local.color.y/255, local.color.z/255);
     vec4 color = vec4(norm_color, local.color.w);
 
-    if (local.text.x == 1.00) {
+    if (local.text.x == 1.00) { // text
 	    float alpha = texture(tex_sampler, fragTexCoord).r * local.color.a;
 	    color = vec4(norm_color, alpha);
 	    //color = texture(tex_sampler, fragTexCoord);
-    } else if (local.text.x == 2.00) {
+    } else if (local.text.x == 2.00) { // texture
     	color = texture(tex_sampler, fragTexCoord);
     }
 

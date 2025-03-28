@@ -74,6 +74,11 @@ find_atlas(u32 id) {
   return ((Texture_Atlas *)assets.atlases.buffer.memory) + id;
 }
 
+inline Material_Library* 
+find_mtllib(u32 id) {
+  return ((Material_Library *)assets.mtllibs.buffer.memory) + id;
+}
+
 u32 last_key = SDLK_A;
 
 /*

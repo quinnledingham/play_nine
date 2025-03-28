@@ -94,19 +94,20 @@ struct String {
     free(memory);
     #endif // DEBUG
   }
-
-  #ifdef DEBUG
-  ~String() {
-    /*
-    if (memory) {
-      log_warning("~String(): Not correctly freeing string -> %s\n", memory);
-    }
-
-    destroy();
-    */
-  }
-  #endif // DEBUG
 };
+
+internal String
+get_path(String s) {
+  String path = String(s.str());
+
+  char *ptr = (char *)path.memory + path.size;
+  while(*ptr != '/' && ptr > (char *)path.memory) {
+    *ptr = 0;
+    ptr--;
+  }
+
+  return path;
+}
 
 String::String(const char *a, const char *b) {
   u32 a_length = str_length(a);

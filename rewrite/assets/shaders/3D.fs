@@ -7,6 +7,8 @@ layout(set = 1, binding = 0) uniform Local {
   vec4 time;
 } local;
 
+layout(set = 2, binding = 0) uniform sampler2D tex_sampler;
+
 layout(location = 0) in vec3 fragNormal;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec3 fragPos;
@@ -25,8 +27,12 @@ vec4 to_linear(vec4 sRGB) {
 }
 
 void main() {
-    float power = 2.2;
-    vec4 color = local.color;
-    vec4 col = vec4(color.x/255, color.y/255, color.z/255, color.w);
-    outColor = col;
+    if (local.text.x == 0.00) {
+        float power = 2.2;
+        vec4 color = local.color;
+        vec4 col = vec4(color.x/255, color.y/255, color.z/255, color.w);
+        outColor = col;
+    } else if (local.text.x == 2.00) {
+        outColor = texture(tex_sampler, fragTexCoord);
+    }
 }
