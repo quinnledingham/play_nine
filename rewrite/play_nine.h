@@ -99,5 +99,10 @@ s32 update();
 /*
  TODO:
 
- Vulkan
+ GUI
+ - Speed up rounded rect
+
+ ASSETS
+ - Load obj and mtl files
+ 
 */
