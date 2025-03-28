@@ -56,6 +56,10 @@ s32 play_nine_init() {
   set_button_ids();
   init_guis();
 
+  File tails_file = load_file("../assets/geometry/tails/tails.obj");
+  tails_geo = load_obj(tails_file);
+  init_geometry(&tails_geo);
+
   return SUCCESS;
 }
 
@@ -91,6 +95,19 @@ draw_game() {
   gfx_bind_pipeline(PIPELINE_3D);
 
   draw_rect_3D({0, 0, 0}, {10, 10, 10}, {255, 0, 0, 1});
+
+  Vector4 color = {0, 255, 0, 1};
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.color = color;
+  vulkan_update_ubo(color_desc, (void *)&local);
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  Object object = {};
+  object.model = create_transform_m4x4({0, 0, 0}, get_rotation(0, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  draw_geometry(&tails_geo);
 
   gfx_scissor_pop();
 }

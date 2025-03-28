@@ -34,3 +34,7 @@ void log_warning(const char *msg, ...) {
 void print(const char *msg, ...) {
   OUTPUT_LIST(OUTPUT_DEFAULT, msg);
 }
+
+void log(const char *msg, ...) {
+  OUTPUT_LIST(OUTPUT_DEFAULT, msg);
+}

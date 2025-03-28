@@ -147,3 +147,105 @@ float_to_string(float32 f, char *buffer, u32 buffer_size) {
   if (ret >= buffer_size) 
     log_error("float_to_char_array(float32 f, char *buffer, u32 buffer_size) ftos(): result was truncated\n");
 }
+
+// ptr must point to first char of int
+inline const char*
+char_array_to_s32(const char *ptr, s32 *result) {
+    u32 sign = 1;
+    s32 num = 0;
+
+    if (*ptr == '-') {
+        sign = -1;
+        ptr++;
+    }
+
+    while (isdigit(*ptr)) num = 10 * num + (*ptr++ - '0');
+    *result = sign * num;
+
+    return ptr;
+}
+
+inline const char*
+char_array_to_u32(const char *ptr, u32 *result)
+{   
+    s32 num = 0;
+    ptr = char_array_to_s32(ptr, &num);
+    *result = (u32)num;
+    return ptr;
+}
+
+// char_array_to_float
+
+#define MAX_POWER 20
+
+global const
+double POWER_10_POS[MAX_POWER] =
+{
+    1.0e0,  1.0e1,  1.0e2,  1.0e3,  1.0e4,  1.0e5,  1.0e6,  1.0e7,  1.0e8,  1.0e9,
+    1.0e10, 1.0e11, 1.0e12, 1.0e13, 1.0e14, 1.0e15, 1.0e16, 1.0e17, 1.0e18, 1.0e19,
+};
+
+global const
+double POWER_10_NEG[MAX_POWER] =
+{
+    1.0e0,   1.0e-1,  1.0e-2,  1.0e-3,  1.0e-4,  1.0e-5,  1.0e-6,  1.0e-7,  1.0e-8,  1.0e-9,
+    1.0e-10, 1.0e-11, 1.0e-12, 1.0e-13, 1.0e-14, 1.0e-15, 1.0e-16, 1.0e-17, 1.0e-18, 1.0e-19,
+};
+
+inline bool8
+is_exponent(char c)
+{
+    return (c == 'e' || c == 'E');
+}
+
+// returns the point where it stopped reading chars
+// reads up until it no longer looks like a number
+// writes the result it got to where result pointer
+inline const char*
+char_array_to_float32(const char *ptr, float32 *result)
+{
+    float64 sign = 1.0;
+    float64 num  = 0.0;
+    float64 fra  = 0.0;
+    float64 div  = 1.0;
+    u32 eval = 0;
+    const float64* powers = POWER_10_POS;
+
+    switch (*ptr)
+    {
+        case '+': sign =  1.0; ptr++; break;
+        case '-': sign = -1.0; ptr++; break;
+    }
+
+    while (isdigit(*ptr)) num = 10.0 * num + (double)(*ptr++ - '0');
+
+    // @WARNING . or , based on system keyboard
+    if (*ptr == '.' || *ptr == ',') ptr++;
+
+    while (isdigit(*ptr))
+    {
+        fra  = 10.0 * fra + (double)(*ptr++ - '0');
+        div *= 10.0;
+    }
+
+    num += fra / div;
+
+    if (is_exponent(*ptr))
+    {
+        ptr++;
+
+        switch (*ptr)
+        {
+            case '+': powers = POWER_10_POS; ptr++; break;
+            case '-': powers = POWER_10_NEG; ptr++; break;
+        }
+
+        while (isdigit(*ptr)) eval = 10 * eval + (*ptr++ - '0');
+
+        num *= (eval >= MAX_POWER) ? 0.0 : powers[eval];
+    }
+
+    *result = (float32)(sign * num);
+
+    return ptr;
+}

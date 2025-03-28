@@ -110,6 +110,8 @@ Camera camera = {
 Scene scene;
 Scene ortho_scene;
 
+Geometry tails_geo;
+
 Vector2 hand_coords[HAND_SIZE];
 float32 hand_width;
 Vector2 card_dim = { 20.0f, 32.0f };

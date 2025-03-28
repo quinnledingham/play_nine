@@ -85,6 +85,7 @@ s32 update();
 
 #include "log.cpp"
 #include "vulkan.cpp"
+#include "geometry.cpp"
 #include "assets.cpp"
 #include "gfx.cpp"
 #include "draw.cpp"

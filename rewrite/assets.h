@@ -240,6 +240,25 @@ struct Font {
   Font_Cache *cache;
 };
 
+struct Material {
+  Vector3 ambient;           // Ka (in .obj files)
+  Vector3 diffuse;           // Kd
+  Vector3 specular;          // Ks
+  float32 specular_exponent; // Ns
+  
+  Bitmap ambient_map;
+  Bitmap diffuse_map;    // map_Kd
+  
+  const char *id; // id from mtl file
+};
+
+struct Geometry {
+  Mesh *meshes;
+  u32 meshes_count;
+};
+
+Geometry load_obj(File file);
+
 /*
   Asset Manager
 */
@@ -248,21 +267,26 @@ enum Asset_Types {
   AT_SHADER,
   AT_BITMAP,
   AT_FONT,
-  AT_ATLAS
+  AT_ATLAS,
+  AT_GEOMETRY,
+
+  AT_COUNT
 };
 
 const char *asset_folders[] = {
   "../assets/shaders/",
   "../assets/bitmaps/",
   "../assets/fonts/",
-  "../assets/atlases/"
+  "../assets/atlases/",
+  "../assets/geometry/"
 };
 
 const u32 asset_size[] = {
   sizeof(Shader), 
   sizeof(Bitmap), 
   sizeof(Font), 
-  sizeof(Texture_Atlas)
+  sizeof(Texture_Atlas),
+  sizeof(Geometry)
 };
 
 struct Asset_Array {

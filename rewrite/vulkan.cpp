@@ -2035,6 +2035,16 @@ void vulkan_init_mesh(Mesh *mesh) {
 
 void vulkan_draw_mesh(Mesh *mesh) {
   Vulkan_Mesh *vulkan_mesh = (Vulkan_Mesh*)mesh->gpu_info;
+
+#ifdef DEBUG
+
+  if (!vulkan_mesh) {
+  	vulkan_log_error("vulkan_draw_mesh(): mesh was not initialized\n");
+  	ASSERT(0);
+  }
+
+#endif // DEBUG
+
   VkDeviceSize offsets[] = { vulkan_mesh->vertices_offset };
   vkCmdBindVertexBuffers(VK_CMD, 0, 1, &vulkan_mesh->buffer->handle, offsets);
   vkCmdBindIndexBuffer(VK_CMD, vulkan_mesh->buffer->handle, vulkan_mesh->indices_offset, VK_INDEX_TYPE_UINT32);
