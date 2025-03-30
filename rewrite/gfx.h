@@ -55,6 +55,11 @@ internal void gfx_add_layouts_to_shaders();
 inline Descriptor_Set gfx_descriptor_set(u32 gfx_layout_id);
 inline Descriptor gfx_descriptor(Descriptor_Set *set, u32 binding_index);
 
+
+internal void gfx_bind_bitmap(u32 gfx_id, Bitmap *bitmap, u32 binding);
+internal void gfx_bind_bitmap(u32 gfx_id, u32 bitmap_id, u32 binding);
+internal void gfx_bind_descriptor_set(u32 gfx_id, void *data);
+
 // used with render_create_texture function
 enum Texture_Parameters {
     TEXTURE_PARAMETERS_DEFAULT,
@@ -76,6 +81,8 @@ struct Local {
     Vector4 resolution; // rect
     Vector4 time; // time, time_delta, frame_rate
 };
+
+internal void gfx_bind_descriptor_set(Local *local);
 
 struct Object {
     Matrix_4x4 model;

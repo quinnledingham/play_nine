@@ -32,6 +32,7 @@ s32 play_nine_init() {
 
   load_assets(&assets.fonts, font_loads, ARRAY_COUNT(font_loads), AT_FONT);
   load_assets(&assets.bitmaps, bitmap_loads, ARRAY_COUNT(bitmap_loads), AT_BITMAP);
+  prepare_asset_array(&assets.mtllibs, 1, sizeof(Material_Library)); // create blank mtllib array
 
   init_deck();
 
@@ -94,11 +95,9 @@ draw_game() {
 
   gfx_bind_pipeline(PIPELINE_3D);
 
-  Bitmap *bitmap = find_bitmap(BITMAP_LANA);
-  Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_TEXTURE);
-  Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
-  vulkan_set_bitmap(&texture_desc, bitmap);
-  vulkan_bind_descriptor_set(texture_desc_set);
+  Material_Shader m_s = {};
+  gfx_bind_descriptor_set(GFXID_MATERIAL, &m_s);
+  gfx_bind_bitmap(GFXID_TEXTURE, BITMAP_LANA, 0);
 
   draw_rect_3D({0, 0, 0}, {10, 10, 10}, {255, 0, 0, 1});
 

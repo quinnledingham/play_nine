@@ -269,10 +269,6 @@ draw_rect_3D(Vector3 coords, Vector3 size, Vector4 color) {
   local.color = color;
   vulkan_update_ubo(color_desc, (void *)&local);
 
-  /*Descriptor texture_desc = gfx_descriptor(&local_desc_set, 1);
-  vulkan_set_bitmap(&texture_desc, find_bitmap(BITMAP_LANA));
-  */
-
   vulkan_bind_descriptor_set(local_desc_set);
 
   Object object = {};

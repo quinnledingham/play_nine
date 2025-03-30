@@ -1732,6 +1732,7 @@ vulkan_set_scissor(s32 x, s32 y, u32 width, u32 height) {
 
 inline void
 vulkan_bind_pipeline(Pipeline *pipeline) {
+	pipeline->set.binded_layouts = 0;
 	vkCmdBindPipeline(VK_CMD, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle);
 }
 
@@ -1995,6 +1996,7 @@ void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {
 
 void vulkan_bind_descriptor_set(Descriptor_Set set) {
 	Pipeline *pipeline = find_pipeline(gfx.active_shader_id);
+	pipeline->set.binded_layouts++;
 	if (pipeline->compute)
 		vkCmdBindDescriptorSets(VK_CMD, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout, set.set_number, 1, set.vulkan_set, 0, nullptr);
 	else
@@ -2032,6 +2034,11 @@ vulkan_init_mesh(Mesh *mesh) {
 
 void vulkan_draw_mesh(Mesh *mesh) {
 #ifdef DEBUG
+	
+	Pipeline *pipeline = find_pipeline(gfx.active_shader_id);
+	if (pipeline->set.binded_layouts != pipeline->set.layouts_count) {
+		//ASSERT(0);
+	}
 
   if (!mesh->buffer) {
   	vulkan_log_error("vulkan_draw_mesh(): mesh was not initialized\n");

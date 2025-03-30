@@ -57,6 +57,7 @@ enum GFX_Layout_IDs {
   GFXID_SCENE,
   GFXID_LOCAL,
   GFXID_TEXTURE,
+  GFXID_MATERIAL,
 
   GFXID_COUNT
 };
@@ -70,10 +71,12 @@ gfx_define_layouts() {
   gfx.layouts[GFXID_SCENE].set_number = 0;
   gfx.layouts[GFXID_LOCAL].set_number = 1;
   gfx.layouts[GFXID_TEXTURE].set_number = 2;
+  gfx.layouts[GFXID_MATERIAL].set_number = 3;
 
   gfx.layouts[GFXID_SCENE].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene)); // 2D.vert
   gfx.layouts[GFXID_LOCAL].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Local)); // color.frag, text.frag
   gfx.layouts[GFXID_TEXTURE].add_binding(0, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 1, 0); // texture.frag
+  gfx.layouts[GFXID_MATERIAL].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Material_Shader)); // 3D.frag
 
   for (u32 i = 0; i < gfx.layouts_count; i++) {
     vulkan_setup_layout(&gfx.layouts[i]);
@@ -100,6 +103,7 @@ gfx_add_layouts_to_shaders() {
 
     shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_TEXTURE]);
+    shader->set.add_layout(&gfx.layouts[GFXID_MATERIAL]);
   }
 
   {

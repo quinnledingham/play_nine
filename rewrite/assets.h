@@ -10,6 +10,12 @@ struct File {
 internal File load_file(const char *filepath);
 internal void destroy_file(File *file);
 
+inline bool8
+in_file(File *file, char *ptr) {
+  s32 diff = ptr - (char*)file->memory;
+  return 0 <= diff && diff < file->size;
+}
+
 /*
   Vertex Type
 */
@@ -110,12 +116,12 @@ struct Shader_File {
 struct Shader {
   Shader_File files[SHADER_STAGES_COUNT]; // stores filename and all intermediate files
 
-  #ifdef GFX_VULKAN
+#ifdef GFX_VULKAN
 
   VkPipelineLayout layout;
   VkPipeline handle;
 
-  #endif //VULKAN
+#endif //VULKAN
 
   // flags for on create graphics pipeline
   bool8 compute    = FALSE; // is a compute shader
@@ -234,6 +240,13 @@ struct Font {
   Font_Cache *cache;
 };
 
+// Shader struct copy
+struct Material_Shader {
+  Vector4 ambient;             // Ka (in .obj files)
+  Vector4 diffuse;             // Kd
+  Vector4 specular;            // Ks Ns
+};
+
 struct Material {
   String id; // id from mtl file
 
@@ -248,10 +261,20 @@ struct Material {
   
   Bitmap ambient_map;
   Bitmap diffuse_map;    // map_Kd
+
+  Material_Shader shader() {
+    Material_Shader mtl = {};
+    mtl.ambient = cv4(ambient);
+    mtl.diffuse = cv4(diffuse);
+    mtl.specular = cv4(specular);
+    mtl.specular.a = specular_exponent;
+    return mtl;
+  }
 };
 
+// translate to a .mtl file
 struct Material_Library {
-  const char *name;
+  String name;
   Material *materials;
   u32 materials_count;
 };
@@ -275,7 +298,7 @@ struct Mesh {
 };
 
 struct Geometry {
-  Material_Library mtllib;
+  Array<Material_Library*> mtllibs;
 
   Mesh *meshes;
   u32 meshes_count;
@@ -303,8 +326,8 @@ const char *asset_folders[] = {
   "../assets/bitmaps/",
   "../assets/fonts/",
   "../assets/atlases/",
-  "../assets/geometry/"
-  "", // materials in .obj / geometry
+  "../assets/geometry/",
+  "", // mtllibs in .obj / geometry
 };
 
 const u32 asset_size[] = {
@@ -313,7 +336,7 @@ const u32 asset_size[] = {
   sizeof(Font), 
   sizeof(Texture_Atlas),
   sizeof(Geometry),
-  sizeof(Material_Library)
+  sizeof(Material_Library),
 };
 
 struct Asset_Array {
@@ -321,12 +344,15 @@ struct Asset_Array {
   u32 count;
   u32 type_size;
 
-  void* find(u32 id) {
+  u32 insert_index; // if insert functions are being used
+
+  inline void* find(u32 id) {
     return (void*)((char*)buffer.memory + (id * type_size));
   }
 };
 
-void prepare_asset_array(Asset_Array *arr, u32 count, u32 size) {
+internal void 
+prepare_asset_array(Asset_Array *arr, u32 count, u32 size) {
   if (arr->count == 0) {
     arr->count = count;
     arr->type_size = size;
@@ -334,6 +360,49 @@ void prepare_asset_array(Asset_Array *arr, u32 count, u32 size) {
   } else {
     arr->buffer.clear();
   }
+}
+
+internal void
+asset_array_resize(Asset_Array *arr) {
+  ASSERT(arr->type_size != 0);
+
+  if (arr->count == 0) {
+    prepare_asset_array(arr, 1, arr->type_size);
+  } else {
+    arr->count *= 2;
+    buffer_resize(&arr->buffer, arr->count * arr->type_size);
+  }
+}
+
+/*
+DOES NOT WORK CORRECTLY
+
+internal void
+assert_array_insert(Asset_Array *arr, void *n) {
+  ASSERT(arr->count > arr->insert_index);
+  void *insert_ptr = (void*)((char*)arr->buffer.memory + (arr->insert_index * arr->type_size));
+  if (arr->buffer.in(insert_ptr)) {
+    memcpy(insert_ptr, n, arr->type_size);
+    arr->insert_index++;
+  }  
+
+  log_error("assert_array_insert(): not enough room to insert\n");
+  ASSERT(0);
+}
+*/
+
+internal void*
+asset_array_next(Asset_Array *arr) {
+  if (arr->insert_index >= arr->count) {
+    asset_array_resize(arr);
+  }  
+
+  void *insert_ptr = (void*)((char*)arr->buffer.memory + (arr->insert_index * arr->type_size));
+  if (!arr->buffer.in(insert_ptr)) {
+    log_error("assert_array_next(): not enough room to insert\n");
+    ASSERT(0);
+  }
+  return insert_ptr;
 }
 
 struct Assets {

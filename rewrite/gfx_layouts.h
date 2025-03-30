@@ -84,6 +84,8 @@ struct GFX_Layout_Set {
   GFX_Push_Constant push_constants[5];
   u32 push_constants_count;
 
+  u32 binded_layouts;
+
   void add_layout(GFX_Layout *layout) {
     layouts[layouts_count++] = layout;
   }

@@ -56,7 +56,7 @@ draw_top_gui() {
 
 inline Pipeline* 
 find_pipeline(u32 id) {
-  return ((Pipeline *)assets.pipelines.buffer.memory) + id;
+  return (Pipeline *)assets.pipelines.find(id);
 }
 
 inline Font* 

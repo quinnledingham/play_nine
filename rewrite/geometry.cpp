@@ -251,7 +251,7 @@ obj_count(Obj_File *obj, File file) {
       ptr = obj_scan(obj, &file, ptr);
       switch(obj->token.type) {
         case OBJ_TOKEN_EOF:
-          print("EOF\n");
+          //print("EOF\n");
           break;
         case OBJ_TOKEN_ERROR:
           obj->token.print();
@@ -303,11 +303,6 @@ parse_face_vertex(char *ptr, Obj_Face_Vertex *f) {
   return ptr;
 }
 
-// stores information taken from .mtl file
-struct Mtllib_File {
-  u32 materials_count;
-};
-
 internal char*
 space_separated(char *ptr, char *buffer, u32 buffer_size) {
   X:
@@ -327,9 +322,10 @@ space_separated(char *ptr, char *buffer, u32 buffer_size) {
     default: {
       u32 size = 0;
       ptr--;
-      while((ch = *ptr++) != EOF && (ch != 9 && ch != 13  && ch != ' '  && ch != '\r'  && ch != '\n')) {
+      while((ch = *ptr++) != EOF && (ch != 0 && ch != 9 && ch != 13  && ch != ' '  && ch != '\r'  && ch != '\n')) {
         if (size >= buffer_size) {
-          log_error("space_separated(): exceeded buffer size");
+          log_error("space_separated(): exceeded buffer size\n");
+          //ASSERT(0);
           break;
         }
 
@@ -344,36 +340,35 @@ space_separated(char *ptr, char *buffer, u32 buffer_size) {
   return ptr;
 }
 
-internal char*
-mtl_count(File file, Mtllib_File *mtl, char *ptr) {
-  char buffer[20];
-  ptr = space_separated(ptr, buffer, 20);
-  if (!strcmp(buffer, "newmtl")) {
-    mtl->materials_count++;
-  }
-  return ptr;
-}
-
 internal void
-load_mtl(Material_Library *mtllib, const char *filepath, const char *path) {
-  File file = load_file(filepath);
-  Mtllib_File mtllib_file = {};
+load_mtl(Material_Library *mtllib, const char *path, const char *name) {
+  mtllib->name = String(name);
 
+  String filepath = String(path, name);
+  File file = load_file(filepath.str());
+  filepath.destroy();
+
+  char *ptr; // points to next place in file
   char buffer[20];
   u32 buffer_size = 20;
 
-  char *ptr = (char *)file.memory;
-  do {
-    ptr = mtl_count(file, &mtllib_file, ptr);
-  } while(ptr - (char*)file.memory < file.size);
+  // counting how many materials
+  ptr = (char *)file.memory;
+  while(in_file(&file, ptr)) {
+    ptr = space_separated(ptr, buffer, 20);
+    if (!strcmp(buffer, "newmtl")) {
+      mtllib->materials_count++;
+    }
+  }
 
-  mtllib->materials = ARRAY_MALLOC(Material, mtllib_file.materials_count);
-  memset(mtllib->materials, 0, sizeof(Material) * mtllib_file.materials_count);
-  mtllib->materials_count = mtllib_file.materials_count;
+  // allocating the materials
+  mtllib->materials = ARRAY_MALLOC(Material, mtllib->materials_count);
+  memset(mtllib->materials, 0, sizeof(Material) * mtllib->materials_count);
 
+  // load float values
   Material *mtl = &mtllib->materials[-1];
   ptr = (char *)file.memory;
-  do {
+  while (in_file(&file, ptr)) {
     ptr = space_separated(ptr, buffer, buffer_size);
     if (!strcmp(buffer, "newmtl")) {
       mtl++;
@@ -405,18 +400,41 @@ load_mtl(Material_Library *mtllib, const char *filepath, const char *path) {
       destroy_file(&bitmap_file);
 
       bitmap_filepath.destroy();
-
     } 
 
-  } while(ptr - (char*)file.memory < file.size);
+  }
 
   destroy_file(&file);
 }
 
-internal Material*
-find_material(const char *id) {
+internal void
+destory_mtllib(Material_Library *lib) {
+  lib->name.destroy();
+  free(lib->materials);
+}
+
+internal Material_Library*
+find_mtllib(const char *name) {
+  ASSERT(assets.mtllibs.buffer.memory != 0);
+
   for (u32 i = 0; i < assets.mtllibs.count; i++) {
     Material_Library *lib = find_mtllib(i);
+    if (lib->name.str() == 0)
+      continue;
+
+    if (strcmp(lib->name.str(), name)) {
+      return lib;
+    }
+  }
+
+  // calling code should load mtllib if not loaded
+  return 0;
+}
+
+internal Material*
+find_material(Array<Material_Library *>libs, const char *id) {
+  for (u32 i = 0; i < libs.size(); i++) {
+    Material_Library *lib = libs[i];
     for (u32 mat_index = 0; mat_index < lib->materials_count; mat_index++) {
       Material *mat = &lib->materials[mat_index];
       if (!strcmp(id, mat->id.str())) {
@@ -424,7 +442,7 @@ find_material(const char *id) {
       }
     }
   }
-
+  
   log_error("find_material(): could not find material\n");
   ASSERT(0);
 }
@@ -446,6 +464,7 @@ obj_fill_arrays(Obj_File *obj, File file, Geometry *model) {
   char *ptr = (char *)file.memory;
 
   u32 materials_index = 0;
+  String path = get_path(file.path);
 
   do
   {
@@ -464,20 +483,22 @@ obj_fill_arrays(Obj_File *obj, File file, Geometry *model) {
         obj->meshes_face_count[meshes_index]++;
       } break;
       case OBJ_TOKEN_MTLLIB: {
-        String path = get_path(file.path);
-        String filepath = String(path.str(), obj->token.lexeme);
+        // loading the material library to the global assets
+        Material_Library *mtllib = 0;
+        mtllib = find_mtllib(obj->token.lexeme);
+        if (!mtllib) {
+          mtllib = (Material_Library *)asset_array_next(&assets.mtllibs);
+          load_mtl(mtllib, path.str(), obj->token.lexeme);
+        }
 
-        Material_Library *mtllib = find_mtllib(materials_index++);
-        load_mtl(mtllib, filepath.str(), path.str());
-
-        path.destroy();
-        filepath.destroy();
+        model->mtllibs.insert(mtllib);
       } break;
       case OBJ_TOKEN_USEMTL: {
         meshes_index++;
         ptr = obj_scan(obj, &file, ptr);
         obj->token.print();
-        model->meshes[meshes_index].material = find_material(obj->token.lexeme);
+        // @WARNING dependent on the geometry always using the same material library
+        model->meshes[meshes_index].material = find_material(model->mtllibs, obj->token.lexeme);
       }
     }
 /*
@@ -488,6 +509,8 @@ obj_fill_arrays(Obj_File *obj, File file, Geometry *model) {
     }
 */
   } while(obj->token.type != OBJ_TOKEN_EOF);
+
+  path.destroy();
 }
 
 internal void
@@ -538,8 +561,6 @@ load_obj(File file) {
   obj.face_vertices     = ARRAY_MALLOC(Obj_Face_Vertex, (obj.faces_count * 3));
   obj.meshes_face_count = ARRAY_MALLOC(u32, obj.meshes_count);
   memset(obj.meshes_face_count, 0, sizeof(u32) * obj.meshes_count); // ++ to count so need it to start at zero
-  
-  prepare_asset_array(&assets.mtllibs, obj.materials_count, sizeof(Material_Library)); 
 
   geo.meshes_count = obj.meshes_count;
   geo.meshes = ARRAY_MALLOC(Mesh, geo.meshes_count);
@@ -577,17 +598,14 @@ draw_geometry(Geometry *geo) {
     Mesh *mesh = &geo->meshes[i];
     Material *mat = mesh->material;
 
-    Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
-    Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+    Material_Shader m_s = mat->shader();
+
     Local local = {};
     local.text.x = 2;
-    vulkan_update_ubo(color_desc, (void *)&local);
-    vulkan_bind_descriptor_set(local_desc_set);
 
-    Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_TEXTURE);
-    Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
-    vulkan_set_bitmap(&texture_desc, &mat->diffuse_map);
-    vulkan_bind_descriptor_set(texture_desc_set);
+    gfx_bind_descriptor_set(GFXID_MATERIAL, &m_s);
+    gfx_bind_descriptor_set(GFXID_LOCAL, &local);
+    gfx_bind_bitmap(GFXID_TEXTURE, &mat->diffuse_map, 0);
 
     vulkan_draw_mesh(mesh);
   }

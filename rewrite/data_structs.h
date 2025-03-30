@@ -46,6 +46,66 @@ public:
 };
 
 template<typename T>
+struct Array {
+  T *data;
+
+  // data_size = type_size * element_count
+  u32 data_size;
+  u32 type_size;
+  u32 element_count;
+
+  u32 insert_index; // the amount of elements that have been added
+
+  Array() {
+    data = 0;
+  }
+
+  void init(u32 in_element_count) {
+    element_count = in_element_count;
+    type_size = sizeof(T);
+    data_size = type_size * element_count;
+    data = (T*)malloc(data_size);
+  }
+
+  u32 size() {
+    return element_count;
+  }
+
+  void insert(T new_element) {
+    //ASSERT(insert_index < element_count);
+    if (insert_index <= element_count) {
+      if (!data) {
+        init(1);
+      } else {
+        T *old_data = data;
+        init(element_count * 2);
+        free(old_data);
+      }
+    }
+    data[insert_index++] = new_element;
+  }
+
+  T& operator [] (int i) { 
+#ifdef DEBUG
+    if (i < 0) {
+      log_error("WARNING: tried to access memory outside of Arr range. Returned first element instead\n");
+      return data[0];
+    } else if (i >= (int)element_count) {
+      log_error("WARNING: tried to access memory outside of Arr range. Returned last element instead\n");
+      return data[element_count - 1];
+    }
+#endif // DEBUG
+
+    return data[i]; 
+  }
+
+  void destroy() {
+    free(data);
+  }
+};
+
+
+template<typename T>
 struct Stack {
   T *data = 0;
   u32 size;      // number of elements

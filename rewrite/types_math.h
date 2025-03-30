@@ -75,6 +75,8 @@ inline void operator-=(Vector3 &l, const float32 &r) { l.x = l.x - r;   l.y = l.
 inline float32 dot_product(const Vector3 &l, const Vector3 &r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z); }
 inline float32 length_squared(const Vector3 &v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
 
+inline Vector4 cv4(Vector3 v) { return { v.x, v.y, v.z, 0 }; };
+
 inline void
 normalize(Vector3 &v)
 {

@@ -9,6 +9,12 @@ layout(set = 1, binding = 0) uniform Local {
 
 layout(set = 2, binding = 0) uniform sampler2D tex_sampler;
 
+layout(set = 3, binding = 0) uniform Material {
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular; // (x, y, z) color, (w) specular exponent
+} mtl;
+
 layout(location = 0) in vec3 fragNormal;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec3 fragPos;
@@ -26,13 +32,28 @@ vec4 to_linear(vec4 sRGB) {
     return vec4(mix(higher, lower, cutoff), sRGB.a);
 }
 
+// mtl file definition
+// https://www.loc.gov/preservation/digital/formats/fdd/fdd000508.shtml
 void main() {
+    vec4 color;
     if (local.text.x == 0.00) {
         float power = 2.2;
-        vec4 color = local.color;
+        color = local.color;
         vec4 col = vec4(color.x/255, color.y/255, color.z/255, color.w);
-        outColor = col;
+        color = col;
+        outColor = color;
     } else if (local.text.x == 2.00) {
-        outColor = texture(tex_sampler, fragTexCoord);
+        color = texture(tex_sampler, fragTexCoord);
+
+        // ambient
+        vec3 ambient = mtl.ambient.xyz;
+
+        // diffuse
+        vec3 norm = normalize(fragNormal);
+        vec3 diffuse = mtl.diffuse.xyz;
+
+        vec3 result = (ambient + diffuse) * color.rgb;
+
+        outColor = vec4(result, color.a);
     }
 }
