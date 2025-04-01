@@ -75,11 +75,17 @@ struct Scene {
     Matrix_4x4 projection;
 };
 
+struct Texture_Region {
+    Vector2 uv_offset;
+    Vector2 uv_scale;
+};
+
 struct Local {
     Vector4 text;
     Vector4 color;
     Vector4 resolution; // rect
     Vector4 time; // time, time_delta, frame_rate
+    Texture_Region region;
 };
 
 internal void gfx_bind_descriptor_set(Local *local);
@@ -100,3 +106,4 @@ union Camera {
     };
     float32 E[12];
 };
+

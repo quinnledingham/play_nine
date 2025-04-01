@@ -30,9 +30,29 @@ s32 play_nine_init() {
     return FAILURE;
   }
 
-  load_assets(&assets.fonts, font_loads, ARRAY_COUNT(font_loads), AT_FONT);
-  load_assets(&assets.bitmaps, bitmap_loads, ARRAY_COUNT(bitmap_loads), AT_BITMAP);
   prepare_asset_array(&assets.mtllibs, 1, sizeof(Material_Library)); // create blank mtllib array
+
+  Load_Assets_Args args[4] = {
+    { &assets.fonts, font_loads, ARRAY_COUNT(font_loads), AT_FONT },
+    { &assets.bitmaps, bitmap_loads, ARRAY_COUNT(bitmap_loads), AT_BITMAP },
+    { &assets.geometrys, geometry_loads, ARRAY_COUNT(geometry_loads), AT_GEOMETRY },
+    { &assets.atlases, atlas_loads, ARRAY_COUNT(atlas_loads), AT_ATLAS },
+  };
+
+/*
+  SDL_Thread *asset_threads[3] = {
+    SDL_CreateThread(load_assets_thread, "FontThread", &args[0]),
+    SDL_CreateThread(load_assets_thread, "BitmapThread", &args[1]),
+    SDL_CreateThread(load_assets_thread, "GeometryThread", &args[2]),
+    SDL_CreateThread(load_assets_thread, "AtlasThread", &args[2]),
+  };
+*/
+  
+  for (u32 i = 0; i < ARRAY_COUNT(args); i++) {
+    SDL_Thread *thread = SDL_CreateThread(load_assets_thread, "Thread", &args[i]);
+    sdl_wait_thread(thread);
+    //sdl_wait_thread(asset_threads[i]);
+  }
 
   init_deck();
 
@@ -51,17 +71,25 @@ s32 play_nine_init() {
     //texture_atlas_write(&atlases[PROMPT_XBOX_SERIES], "xbox_series.png", "xbox_series.tco");
   }
 
+  bool8 recreate_bitmaps = false;
+  if (recreate_bitmaps) {
+    init_card_bitmaps(card_bitmaps, find_font(FONT_LIMELIGHT));
+    texture_atlas_write(&card_bitmaps_atlas, "cards.png", "cards.tco");
+  }
+
 #endif // DEBUG
 
-  load_assets(&assets.atlases, atlas_loads, ARRAY_COUNT(atlas_loads), AT_ATLAS);
   set_button_ids();
   init_guis();
 
-  File tails_file = load_file("../assets/geometry/tails/tails.obj");
-  tails_geo = load_obj(tails_file);
-  init_geometry(&tails_geo);
+  init_game_draw(&test_game, &game_draw);
 
   return SUCCESS;
+}
+
+internal void
+play_destroy() {
+  destroy_card_bitmaps(card_bitmaps);
 }
 
 internal void
@@ -82,37 +110,30 @@ draw_fps() {
 }
 
 internal void
-draw_game() {
+test_3D() {
   gfx_default_viewport();
   gfx_scissor_push({0, 0}, {(float32)gfx.window.dim.width, (float32)gfx.window.dim.height});
   vulkan_depth_test(true);
 
   scene.view = get_view(camera);
-  Descriptor_Set scene_desc_set = gfx_descriptor_set(GFXID_SCENE);
-  Descriptor scene_desc = gfx_descriptor(&scene_desc_set, 0);
-  vulkan_update_ubo(scene_desc, &scene);
-  vulkan_bind_descriptor_set(scene_desc_set);
+  gfx_ubo(GFXID_SCENE, &scene.view);
 
   gfx_bind_pipeline(PIPELINE_3D);
 
   Material_Shader m_s = {};
-  gfx_bind_descriptor_set(GFXID_MATERIAL, &m_s);
+  gfx_ubo(GFXID_MATERIAL, &m_s);
   gfx_bind_bitmap(GFXID_TEXTURE, BITMAP_LANA, 0);
 
   draw_rect_3D({0, 0, 0}, {10, 10, 10}, {255, 0, 0, 1});
 
-  Vector4 color = {0, 255, 0, 1};
-  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
-  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
   Local local = {};
-  local.color = color;
-  vulkan_update_ubo(color_desc, (void *)&local);
-  vulkan_bind_descriptor_set(local_desc_set);
+  local.color = {0, 255, 0, 1};
+  gfx_ubo(GFXID_LOCAL, &local);
 
   Object object = {};
-  object.model = create_transform_m4x4({0, 0, 0}, get_rotation(0, {0, 1, 0}), {1.0f, 1.0f, 1.0f});
+  object.model = create_transform_m4x4({0, 0, 0}, get_rotation(0, {0, 1, 0}), {1.0f, 0.1f, 1.0f});
   vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-  draw_geometry(&tails_geo);
+  draw_geometry(find_geometry(GEOMETRY_CARD));
 
   gfx_scissor_pop();
 }
@@ -139,7 +160,7 @@ s32 draw() {
   }
 
   if (draw_game_flag) {
-    draw_game();
+    draw_game(&test_game);
   }
 
   texture_atlas_refresh(&find_font(FONT_LIMELIGHT)->cache->atlas);
@@ -153,6 +174,12 @@ s32 draw() {
 
   draw_fps();
   
+  for (u32 i = 0; i < 3; i++) {
+    float_to_string(camera.position.E[i], global_buffer);
+    set_draw_font(FONT_ROBOTO_MONO);
+    draw_text(global_buffer.str(), {i * 100.0f, 100}, 20, {255, 0, 0, 1});
+  }
+
   end_draw_2D();
   
   vulkan_end_frame();

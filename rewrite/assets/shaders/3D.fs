@@ -5,6 +5,7 @@ layout(set = 1, binding = 0) uniform Local {
   vec4 color;
   vec4 resolution;
   vec4 time;
+  vec4 region; // (offset.x, offset.y, scale.x, scale.y)
 } local;
 
 layout(set = 2, binding = 0) uniform sampler2D tex_sampler;
@@ -55,5 +56,12 @@ void main() {
         vec3 result = (ambient + diffuse) * color.rgb;
 
         outColor = vec4(result, color.a);
+    } else if (local.text.x == 3.00) { // texture atlas
+        vec2 uv_offset = local.region.xy;
+        vec2 uv_scale = local.region.zw;
+
+        vec2 remapped_uv = fragTexCoord * uv_scale + uv_offset;
+
+        outColor = texture(tex_sampler, remapped_uv);
     }
 }

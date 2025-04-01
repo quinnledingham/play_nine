@@ -33,6 +33,8 @@ inline void operator*=(Vector2 &l, const float32 &r) { l.x = l.x * r;   l.y = l.
 inline void operator/=(Vector2 &l, const Vector2 &r) { l.x = l.x / r.x; l.y = l.y / r.y; }
 inline void operator/=(Vector2 &l, const float32 &r) { l.x = l.x / r;   l.y = l.y / r;   }
 
+inline Vector2_s32 cv2(Vector2 v) { return Vector2_s32{ (s32)v.x, (s32)v.y }; }
+
 //
 // Vector2_s32 
 //

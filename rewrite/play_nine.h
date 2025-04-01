@@ -76,6 +76,8 @@ struct Vulkan_Buffer;
 #include "gui.h"
 
 #include "play_nine_game.h"
+#include "play_nine_draw.h"
+
 #include "input.h"
 #include "global.h"
 
@@ -83,6 +85,7 @@ struct Vulkan_Buffer;
 
 s32 play_nine_init();
 s32 update();
+void play_destroy();
 
 #include "log.cpp"
 #include "vulkan.cpp"
@@ -95,7 +98,8 @@ s32 update();
 #include "gui.cpp"
 
 #include "play_nine_game.cpp"
-#include "play_nine_2D.cpp"
+#include "play_bitmaps.cpp"
+#include "play_draw.cpp"
 #include "play_nine_menus.cpp"
 
 /*

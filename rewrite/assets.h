@@ -397,7 +397,7 @@ asset_array_next(Asset_Array *arr) {
     asset_array_resize(arr);
   }  
 
-  void *insert_ptr = (void*)((char*)arr->buffer.memory + (arr->insert_index * arr->type_size));
+  void *insert_ptr = (void*)((char*)arr->buffer.memory + (arr->insert_index++ * arr->type_size));
   if (!arr->buffer.in(insert_ptr)) {
     log_error("assert_array_next(): not enough room to insert\n");
     ASSERT(0);
@@ -410,6 +410,7 @@ struct Assets {
   Asset_Array fonts;
   Asset_Array bitmaps;
   Asset_Array atlases;
+  Asset_Array geometrys;
   Asset_Array mtllibs;
 };
 

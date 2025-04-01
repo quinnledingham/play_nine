@@ -281,7 +281,7 @@ draw_rect_3D(Vector3 coords, Vector3 size, Vector4 color) {
 internal void
 draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_height, Vector4 color) {
   Font *font = find_font(id);
-  float32 scale = get_scale_for_pixel_height(font->info, pixel_height);
+  float32 scale = get_scale_for_pixel_height(font, pixel_height);
   if (scale == 0.0f)
     return;
 
@@ -370,8 +370,7 @@ struct String_Draw_Info {
 
 // if length != -1 than the dim only includes chars up to the length position
 internal String_Draw_Info
-get_string_draw_info(u32 id, const char *string, s32 length, float32 pixel_height) {
-  Font *font = find_font(id);
+get_string_draw_info(Font *font, const char *string, s32 length, float32 pixel_height) {
   String_Draw_Info info = {};    
 
   if (string == 0) {
@@ -431,6 +430,12 @@ get_string_draw_info(u32 id, const char *string, s32 length, float32 pixel_heigh
   info.font_baseline.y = float32(y1) * scale;
   
   return info;
+}
+
+internal String_Draw_Info
+get_string_draw_info(u32 id, const char *string, s32 length, float32 pixel_height) {
+  Font *font = find_font(id);
+  return get_string_draw_info(font, string, length, pixel_height);
 }
 
 internal void

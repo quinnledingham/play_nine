@@ -7,6 +7,7 @@ layout(set = 1, binding = 0) uniform Local {
   vec4 color;
   vec4 resolution;
   vec4 time;
+  vec4 region; // (offset.x, offset.y, scale.x, scale.y)
 } local;
 layout(set = 2, binding = 0) uniform sampler2D tex_sampler;
 layout(location = 1) in vec2 fragTexCoord;

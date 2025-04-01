@@ -115,6 +115,8 @@ file_get_string(char *ptr, char *buffer) {
     ptr++;
   }
 
+  *buffer = 0;
+
   return ptr;
 }
 
@@ -306,7 +308,7 @@ parse_face_vertex(char *ptr, Obj_Face_Vertex *f) {
 internal char*
 space_separated(char *ptr, char *buffer, u32 buffer_size) {
   X:
-
+  char *start = ptr;
   s32 ch;
   while((ch = *ptr++) != EOF && (ch == 9 || ch == 13 || ch == ' ' || ch == '\r' || ch == '\n'));
 
@@ -349,13 +351,13 @@ load_mtl(Material_Library *mtllib, const char *path, const char *name) {
   filepath.destroy();
 
   char *ptr; // points to next place in file
-  char buffer[20];
-  u32 buffer_size = 20;
+  const u32 buffer_size = 50;
+  char buffer[buffer_size];
 
   // counting how many materials
   ptr = (char *)file.memory;
   while(in_file(&file, ptr)) {
-    ptr = space_separated(ptr, buffer, 20);
+    ptr = space_separated(ptr, buffer, buffer_size);
     if (!strcmp(buffer, "newmtl")) {
       mtllib->materials_count++;
     }
@@ -396,7 +398,7 @@ load_mtl(Material_Library *mtllib, const char *path, const char *name) {
       String bitmap_filepath = String(path, buffer);
 
       File bitmap_file = load_file(bitmap_filepath.str());
-      mtl->diffuse_map = load_bitmap_flip(bitmap_file);
+      mtl->diffuse_map = load_bitmap(bitmap_file);
       destroy_file(&bitmap_file);
 
       bitmap_filepath.destroy();
@@ -422,7 +424,7 @@ find_mtllib(const char *name) {
     if (lib->name.str() == 0)
       continue;
 
-    if (strcmp(lib->name.str(), name)) {
+    if (!strcmp(lib->name.str(), name)) {
       return lib;
     }
   }
@@ -479,7 +481,7 @@ obj_fill_arrays(Obj_File *obj, File file, Geometry *model) {
         ptr = parse_face_vertex(ptr, &obj->face_vertices[face_vertices_index++]);
         ptr = parse_face_vertex(ptr, &obj->face_vertices[face_vertices_index++]);
         ptr = parse_face_vertex(ptr, &obj->face_vertices[face_vertices_index++]);
-        
+            
         obj->meshes_face_count[meshes_index]++;
       } break;
       case OBJ_TOKEN_MTLLIB: {
@@ -495,7 +497,6 @@ obj_fill_arrays(Obj_File *obj, File file, Geometry *model) {
       } break;
       case OBJ_TOKEN_USEMTL: {
         meshes_index++;
-        ptr = obj_scan(obj, &file, ptr);
         obj->token.print();
         // @WARNING dependent on the geometry always using the same material library
         model->meshes[meshes_index].material = find_material(model->mtllibs, obj->token.lexeme);
@@ -593,6 +594,14 @@ init_geometry(Geometry *geo) {
 }
 
 internal void
+draw_geometry_no_material(Geometry *geo) {
+  for (u32 i = 0; i < geo->meshes_count; i++) {
+    Mesh *mesh = &geo->meshes[i];
+    vulkan_draw_mesh(mesh);
+  }
+}
+
+internal void
 draw_geometry(Geometry *geo) {
   for (u32 i = 0; i < geo->meshes_count; i++) {
     Mesh *mesh = &geo->meshes[i];
@@ -601,11 +610,13 @@ draw_geometry(Geometry *geo) {
     Material_Shader m_s = mat->shader();
 
     Local local = {};
-    local.text.x = 2;
 
     gfx_bind_descriptor_set(GFXID_MATERIAL, &m_s);
+    if (mat->diffuse_map.memory) {
+      gfx_bind_bitmap(GFXID_TEXTURE, &mat->diffuse_map, 0);
+      local.text.x = 2;
+    }
     gfx_bind_descriptor_set(GFXID_LOCAL, &local);
-    gfx_bind_bitmap(GFXID_TEXTURE, &mat->diffuse_map, 0);
 
     vulkan_draw_mesh(mesh);
   }
@@ -624,4 +635,15 @@ destroy_geometry(Geometry *geo) {
       }
     }
   }
+}
+
+internal void
+load_geometry(u32 id, const char *filename) {
+  String filepath = String(asset_folders[AT_GEOMETRY], filename);
+  File file = load_file(filepath.str());
+  filepath.destroy();
+
+  Geometry *geo = find_geometry(id);
+  *geo = load_obj(file);
+  init_geometry(geo);
 }

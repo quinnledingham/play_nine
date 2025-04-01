@@ -76,6 +76,8 @@ draw_test_menu(GUI *gui) {
   //u32 index = find_input_prompt_index(last_key, keyboard_prompts, ARRAY_COUNT(keyboard_prompts));
   //texture_atlas_draw_rect(ATLAS_KEYBOARD, index, {400 ,400}, {100, 100});
 
+  draw_card_bitmaps(card_bitmaps, gfx.window.dim);
+
   return false;
 }
 

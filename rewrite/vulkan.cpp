@@ -2032,6 +2032,13 @@ vulkan_init_mesh(Mesh *mesh) {
 	free(memory);
 }
 
+internal void
+vulkan_bind_mesh(Mesh *mesh) {
+  VkDeviceSize offsets[] = { mesh->vertices_buffer_offset };
+  vkCmdBindVertexBuffers(VK_CMD, 0, 1, &mesh->buffer->handle, offsets);
+  vkCmdBindIndexBuffer(VK_CMD, mesh->buffer->handle, mesh->indices_buffer_offset, VK_INDEX_TYPE_UINT32);
+}
+
 void vulkan_draw_mesh(Mesh *mesh) {
 #ifdef DEBUG
 	

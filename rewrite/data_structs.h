@@ -58,6 +58,7 @@ struct Array {
 
   Array() {
     data = 0;
+    insert_index = 0;
   }
 
   void init(u32 in_element_count) {
@@ -78,7 +79,9 @@ struct Array {
         init(1);
       } else {
         T *old_data = data;
+        u32 old_element_count = element_count;
         init(element_count * 2);
+        memcpy(data, old_data, type_size * old_element_count);
         free(old_data);
       }
     }

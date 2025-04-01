@@ -64,7 +64,7 @@ void start_game(Game *game) {
   game->starting_player = 0;
   start_hole(game);
 }
-
+/*
 void draw_game_row(Game *game, u8 row) {
   u32 start_card_index = 0;
   if (row != 0)
@@ -91,7 +91,7 @@ void draw_game(Game *game) {
   print("\n");
   print("Active Player: %d\n", game->active_player);
 }
-
+*/
 u32 get_number_flipped(Player_Card *cards) {
     u32 number_flipped = 0;
     for (u32 i = 0; i < HAND_SIZE; i++) {

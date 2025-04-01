@@ -95,5 +95,18 @@ struct Matrix_4x4 {
 	};
 };
 
+union Color_RGB {
+	struct {
+		u8 r, g, b;
+	};
+	u8 E[3];
+};
+
+union Color_RGBA {
+	struct {
+		u8 r, g, b, a;
+	};
+	u8 E[4];
+};
 
 #endif // TYPES_H

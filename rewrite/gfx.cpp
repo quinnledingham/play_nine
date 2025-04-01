@@ -59,6 +59,14 @@ gfx_bind_descriptor_set(u32 gfx_id, void *data) {
 }
 
 internal void
+gfx_ubo(u32 gfx_id, void *data) {
+  Descriptor_Set desc_set = gfx_descriptor_set(gfx_id);
+  Descriptor desc = gfx_descriptor(&desc_set, 0);
+  vulkan_update_ubo(desc, data);
+  vulkan_bind_descriptor_set(desc_set);
+}
+
+internal void
 gfx_bind_bitmap(u32 gfx_id, Bitmap *bitmap, u32 binding) {
   Descriptor_Set texture_desc_set = gfx_descriptor_set(gfx_id);
   Descriptor texture_desc = gfx_descriptor(&texture_desc_set, binding);

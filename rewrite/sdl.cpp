@@ -213,10 +213,21 @@ int main(int argc, char *argv[]) {
   }
 
   vkDeviceWaitIdle(vk_ctx.device);
-  destroy_geometry(&tails_geo);
+  play_destroy();
   assets_cleanup();
   vulkan_cleanup();
   sdl_cleanup();
 
   return 0;
+}
+
+internal void
+sdl_wait_thread(SDL_Thread *thread) {
+  int thread_return_value;
+  if (NULL == thread) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_CreateThread failed: %s", SDL_GetError());
+  } else {
+      SDL_WaitThread(thread, &thread_return_value);
+      SDL_Log("Thread returned value: %d", thread_return_value);
+  }
 }

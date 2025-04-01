@@ -18,21 +18,49 @@ Asset_Load font_loads[] = {
 enum Bitmap_Ids {
   BITMAP_LANA,
 
+  BITMAP_BACK,
+  BITMAP_FRONT,
+  BITMAP_FRONT_0,
+  BITMAP_FRONT_11,
+  BITMAP_FRONT_12,
+
   BITMAP_COUNT
 };
 
 Asset_Load bitmap_loads[] = {
   { BITMAP_LANA, {"lana.jpeg"} },
+
+  { BITMAP_BACK, {"back.png"} },
+  { BITMAP_FRONT, {"front.png"} },
+  { BITMAP_FRONT_0, {"front0.png"} },
+  { BITMAP_FRONT_11, {"front11.png"} },
+  { BITMAP_FRONT_12, {"front12.png"} },
 };
 
 enum Atlas_Ids {
   ATLAS_KEYBOARD,
+  ATLAS_CARDS,
 
   ATLAS_COUNT
 };
 
 Asset_Load atlas_loads[] = {
   { ATLAS_KEYBOARD, {"keyboard.png", "keyboard.tco"} },
+  { ATLAS_CARDS, {"cards.png", "cards.tco"} },
+};
+
+enum Geometry_Ids {
+  GEOMETRY_TAILS,
+  GEOMETRY_CARD,
+  GEOMETRY_CARD_SIDE,
+
+  GEOMETRY_COUNT
+};
+
+Asset_Load geometry_loads[] = {
+  { GEOMETRY_TAILS, { "tails/tails.obj" } },
+  { GEOMETRY_CARD, { "card/card.obj" } },
+  { GEOMETRY_CARD_SIDE, { "card/card_side.obj" } },
 };
 
 /*

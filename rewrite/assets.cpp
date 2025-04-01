@@ -23,7 +23,8 @@ load_file(const char *filepath) {
     result.size = ftell(in);
     fseek(in, 0, SEEK_SET);
         
-    result.memory = malloc(result.size);
+    result.memory = malloc(result.size + 1);
+    memset(result.memory, 0, result.size + 1);
     fread(result.memory, result.size, 1, in);
     fclose(in);
   } else { 
@@ -336,13 +337,6 @@ load_bitmap(u32 id, const char *filename) {
   filepath.destroy();
 }
 
-union Color_RGBA {
-  struct {
-    u8 r, g, b, a;
-  };
-  u8 E[4];
-};
-
 internal void
 bitmap_convert_channels(Bitmap *bitmap, u32 new_channels) {    
   if (new_channels != 1 && new_channels != 3 && new_channels != 4) {
@@ -398,6 +392,17 @@ blank_bitmap(u32 width, u32 height, u32 channels) {
     return bitmap;
 }
 
+internal void
+bitmap_resize(Bitmap *bitmap, u32 width, u32 height) {
+  u32 size = width * height * bitmap->channels;
+  u8 *new_memory = (u8*)malloc(size);
+  stbir_resize_uint8(bitmap->memory, bitmap->width, bitmap->height, 0, new_memory, width, height, 0, bitmap->channels);
+  bitmap->width = width;
+  bitmap->height = height;
+  free(bitmap->memory);
+  bitmap->memory = new_memory;
+}
+
 internal u8
 blend_alpha(u8 a1, u8 a2) {
     return 255 - ((255 - a1) * (255 - a2) / 255);
@@ -406,6 +411,38 @@ blend_alpha(u8 a1, u8 a2) {
 internal u8
 blend_color(u8 c1, u8 c2, u8 alpha) {
     return (c1 * (255 - alpha) + c2 * alpha) / 255;
+}
+
+internal void
+bitmap_copy_text(Bitmap dest, const Bitmap src, Vector2_s32 position, Color_RGB color) {
+    if (src.width == 0 || src.height == 0)
+        return;
+    
+    if (dest.channels != 4 || src.channels != 1) {
+        log_error("bitmap_copy_text()", "not valid channels, valid means dest = 4 and src = 1 (dest = %d, src = %d)\n", dest.channels, src.channels);
+        ASSERT(0);
+    }
+    
+    u8 *src_ptr = src.memory;
+    u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
+    u8 *dest_ptr_line_start = dest_ptr;
+    
+    while(src_ptr < src.memory + (src.width * src.height * src.channels)) {
+        u8 alpha = src_ptr[0];
+        dest_ptr[0] = blend_color(dest_ptr[0], color.r, alpha);
+        dest_ptr[1] = blend_color(dest_ptr[1], color.g, alpha);
+        dest_ptr[2] = blend_color(dest_ptr[2], color.b, alpha);
+        dest_ptr[3] = blend_alpha(dest_ptr[3], alpha);
+            
+        src_ptr += src.channels;
+        dest_ptr += dest.channels;
+
+        if (dest_ptr >= dest_ptr_line_start + (src.width * dest.channels)) {
+            s32 src_line = u32(src_ptr - src.memory) / src.pitch;
+            dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch) + (src_line * dest.pitch);
+            dest_ptr_line_start = dest_ptr;
+        }
+    }
 }
 
 // color contains what to fill conversion from 1 channel to 4 channels with
@@ -656,6 +693,18 @@ load_atlas(u32 id, const char *image_filename, const char *tex_coords_filename) 
   tex_coords_filepath.destroy();
 }
 
+internal Texture_Region
+atlas_region(Texture_Atlas *atlas, u32 index) {
+  Texture_Coords *uv = &atlas->texture_coords[index];
+  float32 x = uv->p2.x - uv->p1.x;
+  float32 y = uv->p2.y - uv->p1.y;
+  Texture_Region region = {};
+  region.uv_offset = { uv->p1.x, y - uv->p2.y };
+  region.uv_scale = { x, y };
+  return region;
+}
+
+
 /*
   Font
 */
@@ -767,8 +816,13 @@ clear_font_bitmap_cache(Font *font) {
   font->cache->bitmaps_cached = 0;
 }
 
-float32 get_scale_for_pixel_height(void *info, float32 pixel_height) {
-    return stbtt_ScaleForPixelHeight((stbtt_fontinfo*)info, pixel_height);
+float32 get_scale_for_pixel_height(Font *font, float32 pixel_height) {
+    return stbtt_ScaleForPixelHeight((stbtt_fontinfo*)font->info, pixel_height);
+}
+
+float32 get_scale_for_pixel_height(u32 font_id, float32 pixel_height) {
+  Font *font = find_font(font_id);
+  return stbtt_ScaleForPixelHeight((stbtt_fontinfo*)font->info, pixel_height);
 }
 
 s32 get_codepoint_kern_advance(void *info, s32 ch1, s32 ch2) {
@@ -802,11 +856,27 @@ s32 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u3
       case AT_ATLAS:
         load_atlas(loads[i].id, loads[i].filenames[0], loads[i].filenames[1]);
         break;
+      case AT_GEOMETRY:
+        load_geometry(loads[i].id, loads[i].filenames[0]);
+        break;
     }
 
   }
 
   return SUCCESS;
+}
+
+struct Load_Assets_Args {
+  Asset_Array *asset_array;
+  Asset_Load *loads;
+  u32 loads_count;
+  u32 asset_type;
+};
+
+internal s32
+load_assets_thread(void *ptr) {
+  Load_Assets_Args *args = (Load_Assets_Args *)ptr;
+  return load_assets(args->asset_array, args->loads, args->loads_count, args->asset_type);
 }
 
 internal void
@@ -829,5 +899,10 @@ assets_cleanup() {
   for (u32 i = 0; i < assets.atlases.count; i++) {
     Texture_Atlas *atlas = find_atlas(i);
     texture_atlas_destroy(atlas);
+  }
+
+  for (u32 i = 0; i < assets.geometrys.count; i++) {
+    Geometry *geo = find_geometry(i);
+    destroy_geometry(geo);
   }
 }

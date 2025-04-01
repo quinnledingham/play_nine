@@ -149,6 +149,11 @@ float_to_string(float32 f, char *buffer, u32 buffer_size) {
     log_error("float_to_char_array(float32 f, char *buffer, u32 buffer_size) ftos(): result was truncated\n");
 }
 
+inline void
+float_to_string(float32 f, Buffer b) {
+  float_to_string(f, (char *)b.memory, b.size);
+}
+
 // ptr must point to first char of int
 inline const char*
 char_array_to_s32(const char *ptr, s32 *result) {
@@ -173,6 +178,18 @@ char_array_to_u32(const char *ptr, u32 *result)
     ptr = char_array_to_s32(ptr, &num);
     *result = (u32)num;
     return ptr;
+}
+
+inline u32
+s32_to_char_array(char *buffer, u32 size, s32 in) {
+    u32 ret = snprintf(buffer, size, "%d", in);
+    if (ret < 0) {
+        log_error("s32_to_char_array(): snprintf() failed\n");
+        return 0;
+    }
+    if (ret >= size)
+        log_error("s32_to_char_array(): snprintf(): result was truncated\n");
+    return ret;
 }
 
 // char_array_to_float

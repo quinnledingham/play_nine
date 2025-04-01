@@ -79,6 +79,11 @@ find_mtllib(u32 id) {
   return ((Material_Library *)assets.mtllibs.buffer.memory) + id;
 }
 
+inline Geometry* 
+find_geometry(u32 id) {
+  return ((Geometry *)assets.geometrys.buffer.memory) + id;
+}
+
 u32 last_key = SDLK_A;
 
 /*
@@ -95,14 +100,22 @@ struct Draw_Context {
 };
 Draw_Context draw_ctx = {};
 
+Buffer global_buffer = blank_buffer(20);
+
 // Play Nine Game
 
 s8 deck[DECK_SIZE];
 Game test_game;
 
+Game game;
+Game_Draw game_draw;
+
 // Drawing Game
 
 bool8 draw_game_flag = false;
+
+Bitmap card_bitmaps[14];
+Texture_Atlas card_bitmaps_atlas;
 
 Camera camera = {
   Vector3{0, 0, 1},
@@ -112,17 +125,8 @@ Camera camera = {
   0, 
   0
 };
+
 Scene scene;
 Scene ortho_scene;
 
-Geometry tails_geo;
-
-Vector2 hand_coords[HAND_SIZE];
-float32 hand_width;
-Vector2 card_dim = { 20.0f, 32.0f };
-
-global const Vector4 play_nine_green        = {  39,  77,  20, 1 };
-global const Vector4 play_nine_yellow       = { 231, 213,  36, 1 };
-global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
-global const Vector4 play_nine_dark_yellow  = { 197, 180,  22, 1 };
 
