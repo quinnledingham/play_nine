@@ -1246,7 +1246,7 @@ vulkan_next_frame() {
 	vk_ctx.current_frame = (vk_ctx.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-internal bool8 
+internal s32 
 vulkan_start_frame() {
 	Vulkan_Frame *frame = vulkan_frame();
 
@@ -1264,10 +1264,10 @@ vulkan_start_frame() {
 	// don't draw frame if swap chain is out of date
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		vulkan_log_error("vulkan_start_frame(): out of date swap chain\n");
-		return 1;
+		return FAILURE;
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 		vulkan_log_error("vulkan_start_frame(): failed to acquire swap chain");
-		return 1;
+		return FAILURE;
 	}
 
 	vkResetFences(vk_ctx.device, 1, &frame->in_flight_fence);
@@ -1293,7 +1293,7 @@ vulkan_start_frame() {
 	vkCmdBeginRenderPass(VK_CMD, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	vk_ctx.recording_frame = TRUE;
-	return 0;
+	return SUCCESS;
 }
 
 internal void

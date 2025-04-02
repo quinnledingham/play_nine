@@ -33,6 +33,14 @@ struct GFX_Window {
   bool8 resized;
 };
 
+enum {
+    GFX_DO_FRAME,
+    GFX_SKIP_FRAME,
+    GFX_ERROR,
+
+    GFX_COUNT
+};
+
 /*
 Mainly inheriting the functions from the context
 */

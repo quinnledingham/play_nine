@@ -89,3 +89,17 @@ struct GUI {
     edit.index = 0;
   }
 };
+
+enum GUI_Ids {
+  GUI_MAIN_MENU,
+  GUI_TEST,
+  GUI_PAUSE,
+
+  GUI_COUNT
+};
+
+struct GUI_Manager {
+  GUI guis[GUI_COUNT];
+
+  Stack<u32> indices = Stack<u32>(10); // index at the top is the gui that is currently rendered
+};

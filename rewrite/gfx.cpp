@@ -1,3 +1,27 @@
+internal s32
+gfx_start_frame() {
+  if (gfx.window.minimized) {
+    return GFX_SKIP_FRAME;
+  }
+
+  if (gfx.window.resized) {
+    vulkan_destroy_frame_resources();
+    vulkan_create_frame_resources();
+    gfx.window.resized = false;
+  }
+
+  if (vulkan_start_frame()) {
+    return GFX_ERROR;
+  }
+
+  // Resets all of the descriptor sets to be reallocated on next frame
+  for (u32 i = 0; i < GFXID_COUNT; i++) {
+      gfx.layouts[i].reset();
+  }
+
+  return GFX_DO_FRAME;
+}
+
 inline void 
 gfx_bind_pipeline(u32 id) {
   gfx.active_shader_id = id;

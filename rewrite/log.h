@@ -7,10 +7,12 @@ enum
 
 #define OUTPUT_LIST(s, m) va_list list; va_start(list, m); output_list(s, m, list); va_end(list);
 
+SDL_Mutex *output_buffer_mutex;
 Buffer output_buffer = {};
 
 void init_output_buffer() {
   output_buffer = blank_buffer(1000);
+  output_buffer_mutex = SDL_CreateMutex();
 }
 
 void print_char_array(u32 output_stream, const char *char_array);

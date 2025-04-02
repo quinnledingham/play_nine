@@ -32,6 +32,7 @@ inline void operator-=(Vector2 &l, const float32 &r) { l.x = l.x - r;   l.y = l.
 inline void operator*=(Vector2 &l, const float32 &r) { l.x = l.x * r;   l.y = l.y * r;   }
 inline void operator/=(Vector2 &l, const Vector2 &r) { l.x = l.x / r.x; l.y = l.y / r.y; }
 inline void operator/=(Vector2 &l, const float32 &r) { l.x = l.x / r;   l.y = l.y / r;   }
+inline bool operator==(Vector2 &l, const float32 &r) { return (l.x == r && l.y == r);    }
 
 inline Vector2_s32 cv2(Vector2 v) { return Vector2_s32{ (s32)v.x, (s32)v.y }; }
 
@@ -52,6 +53,7 @@ inline void operator-=(Vector2_s32 &l, const Vector2_s32 &r) { l.x = l.x - r.x; 
 inline void operator*=(Vector2_s32 &l, const s32 &r) { l.x = l.x * r;   l.y = l.y * r;   }
 inline bool operator==(const Vector2_s32 &l, const Vector2_s32 &r) { if (l.x == r.x && l.y == r.y) return true; return false; }
 inline bool operator!=(const Vector2_s32 &l, const Vector2_s32 &r) { if (l.x != r.x || l.y != r.y) return true; return false; }
+inline bool operator==(Vector2_s32 &l, const float32 &r) { return l.x == r && l.y == r;      }
 
 inline Vector2 cv2(Vector2_s32 v) { return { (float32)v.x, (float32)v.y }; }
 

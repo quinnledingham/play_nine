@@ -167,7 +167,8 @@ void spirv_compile_shader(Shader *shader) {
   shaderc_compiler_release(compiler);
 }
 
-u32 identify_shader_stage(const char *filename) {
+internal u32 
+identify_shader_stage(const char *filename) {
   u32 length = get_length(filename);
   char *ptr = (char *)filename;
 
@@ -193,7 +194,8 @@ u32 identify_shader_stage(const char *filename) {
   return 0;
 }
 
-s32 load_shader_file(Shader *shader, const char *filename) {
+internal s32 
+load_shader_file(Shader *shader, const char *filename) {
   u32 stage = identify_shader_stage(filename);
 
   Shader_File *file = &shader->files[stage];
@@ -236,42 +238,16 @@ s32 load_shader_file(Shader *shader, const char *filename) {
   }
 }
 
-s32 load_pipelines() {
-  print("loading pipelines...\n");
-
-  u32 filenames_count = ARRAY_COUNT(pipeline_loads[0].filenames);
-  u32 pipeline_loads_count = ARRAY_COUNT(pipeline_loads);
-
-  prepare_asset_array(&assets.pipelines, pipeline_loads_count, sizeof(Pipeline));
-
-  for (u32 i = 0; i < pipeline_loads_count; i++) {
-    Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
-    Asset_Load *load = &pipeline_loads[i];
-
-    for (u32 file_index = 0; file_index < filenames_count; file_index++) {
-      if (!load->filenames[file_index]) {
-        continue;
-      }
-
-      s32 result = load_shader_file(pipeline, load->filenames[file_index]);
-      if (result == FAILURE) {
-        return FAILURE;
-      }
-    }
-
-    spirv_compile_shader(pipeline);
-  }
-
-  gfx_add_layouts_to_shaders();
-
-  return SUCCESS;
+internal s32 
+load_pipelines() {
+  return load_assets(&assets.pipelines, pipeline_loads, ARRAY_COUNT(pipeline_loads), AT_SHADER);
 }
 
-s32 init_pipelines() {
+internal s32 
+init_pipelines() {
   print("initializing pipelines...\n");
-  u32 pipeline_loads_count = ARRAY_COUNT(pipeline_loads);
-  for (u32 i = 0; i < pipeline_loads_count; i++) {
-    Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
+  for (u32 i = 0; i < assets.pipelines.count; i++) {
+    Pipeline *pipeline = find_pipeline(i);
     vulkan_create_graphics_pipeline(&vk_ctx, pipeline, vk_ctx.draw_render_pass);
   }
 
@@ -347,8 +323,6 @@ load_bitmap(u32 id, const char *filename) {
 
   File file = load_file(filepath.str());
   *bitmap = load_bitmap(file);
-
-  vulkan_create_texture(bitmap, TEXTURE_PARAMETERS_DEFAULT);
 
   filepath.destroy();
 }
@@ -703,8 +677,6 @@ load_atlas(u32 id, const char *image_filename, const char *tex_coords_filename) 
   atlas->bitmap = load_bitmap(bitmap_file);
   memcpy(atlas->texture_coords, tex_coords_file.memory, sizeof(Texture_Coords) * atlas->max_textures);
 
-  texture_atlas_init(atlas, GFXID_TEXTURE);
-
   bitmap_filepath.destroy();
   tex_coords_filepath.destroy();
 }
@@ -719,7 +691,6 @@ atlas_region(Texture_Atlas *atlas, u32 index) {
   region.uv_scale = { width, height };
   return region;
 }
-
 
 /*
   Font
@@ -745,7 +716,6 @@ load_font(u32 id, const char *filename) {
   stbtt_GetFontBoundingBox(info, &font->bb_0.x, &font->bb_0.y, &font->bb_1.x, &font->bb_1.y);
 
   font->cache->atlas = create_texture_atlas(1000, 1000, 1);
-  texture_atlas_init(&font->cache->atlas, GFXID_TEXTURE);
 }
 
 internal Font_Char *
@@ -853,7 +823,8 @@ s32 get_glyph_kern_advance(void *info, s32 gl1, s32 gl2) {
   Assets
 */
 
-s32 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u32 asset_type) {
+internal s32 
+load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u32 asset_type) {
   print("loading assets (%s)...\n", asset_folders[asset_type]);
 
   u32 filenames_count = ARRAY_COUNT(loads[0].filenames);
@@ -863,6 +834,23 @@ s32 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u3
   for (u32 i = 0; i < loads_count; i++) {
 
     switch(asset_type) {
+      case AT_SHADER: {
+        Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
+        Asset_Load *load = &pipeline_loads[i];
+
+        for (u32 file_index = 0; file_index < filenames_count; file_index++) {
+          if (!load->filenames[file_index]) {
+            continue;
+          }
+
+          s32 result = load_shader_file(pipeline, load->filenames[file_index]);
+          if (result == FAILURE) {
+            return FAILURE;
+          }
+        }
+
+        spirv_compile_shader(pipeline);
+      } break;
       case AT_BITMAP:
         load_bitmap(loads[i].id, loads[i].filenames[0]);
         break;
@@ -876,23 +864,41 @@ s32 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u3
         load_geometry(loads[i].id, loads[i].filenames[0]);
         break;
     }
+  }
 
+  // post load
+  if (asset_type == AT_SHADER) {
+    gfx_add_layouts_to_shaders();
   }
 
   return SUCCESS;
 }
 
-struct Load_Assets_Args {
-  Asset_Array *asset_array;
-  Asset_Load *loads;
-  u32 loads_count;
-  u32 asset_type;
-};
+internal s32 
+init_assets() {
+  init_pipelines();
 
-internal s32
-load_assets_thread(void *ptr) {
-  Load_Assets_Args *args = (Load_Assets_Args *)ptr;
-  return load_assets(args->asset_array, args->loads, args->loads_count, args->asset_type);
+  for (u32 i = 0; i < assets.bitmaps.count; i++) {
+    Bitmap *bitmap = find_bitmap(i);
+    vulkan_create_texture(bitmap, TEXTURE_PARAMETERS_DEFAULT);
+  }
+
+  for (u32 i = 0; i < assets.fonts.count; i++) {
+    Font *font = find_font(i);
+    texture_atlas_init(&font->cache->atlas, GFXID_TEXTURE);
+  }
+
+  for (u32 i = 0; i < assets.atlases.count; i++) {
+    Texture_Atlas *atlas = find_atlas(i);
+    texture_atlas_init(atlas, GFXID_TEXTURE);
+  }
+
+  for (u32 i = 0; i < assets.geometrys.count; i++) {
+    Geometry *geo = find_geometry(i);
+    init_geometry(geo);
+  }
+
+  return SUCCESS;
 }
 
 internal void
@@ -921,4 +927,17 @@ assets_cleanup() {
     Geometry *geo = find_geometry(i);
     destroy_geometry(geo);
   }
+}
+
+struct Load_Assets_Args {
+  Asset_Array *asset_array;
+  Asset_Load *loads;
+  u32 loads_count;
+  u32 asset_type;
+};
+
+internal s32
+load_assets_thread(void *ptr) {
+  Load_Assets_Args *args = (Load_Assets_Args *)ptr;
+  return load_assets(args->asset_array, args->loads, args->loads_count, args->asset_type);
 }

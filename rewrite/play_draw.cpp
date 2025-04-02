@@ -161,7 +161,7 @@ draw_cards(Game *game, Game_Draw *draw) {
   Material_Shader m_s = face_mesh->material->shader();
   gfx_ubo(GFXID_MATERIAL, &m_s, 0);
 
-  gfx_bind_bitmap(GFXID_TEXTURE, BITMAP_LANA, 0);
+  gfx_bind_bitmap(GFXID_TEXTURE, BITMAP_BACK, 0);
 
   Local local = {};
   local.text.x = 2.0f;
@@ -205,6 +205,8 @@ draw_cards(Game *game, Game_Draw *draw) {
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
       
       s32 value = deck[game->players[p_i].cards[c_i].index];
+      if (value == -5)
+        value = 13;
       local.region = atlas_region(atlas, value);
       gfx_ubo(GFXID_LOCAL, &local, 0);
 

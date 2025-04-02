@@ -39,13 +39,43 @@ sdl_toggle_relative_mouse_mode() {
   SDL_SetWindowRelativeMouseMode(sdl_ctx.window, sdl_ctx.relative_mouse_mode);
 }
 
+internal void
+sdl_set_icon() {
+  SDL_Surface *icon_surface = SDL_LoadBMP("S:/play_nine/rewrite/assets/bitmaps/lana.bmp");
+  if (icon_surface) {
+    SDL_SetWindowIcon(sdl_ctx.window, icon_surface);
+    SDL_DestroySurface(icon_surface);
+  } else {
+    ASSERT(0);
+  }
+}
+
+internal void
+sdl_loading_screen() {
+  SDL_Renderer *renderer = SDL_CreateRenderer(sdl_ctx.window, "software");
+  SDL_Surface  *loading_surface = SDL_LoadBMP("S:/play_nine/rewrite/assets/bitmaps/lana.bmp");
+  if (renderer && loading_surface) {
+    SDL_Texture *loading_texture = SDL_CreateTextureFromSurface(renderer, loading_surface);
+    
+    float32 ratio = (float)loading_texture->w / (float)loading_texture->h;
+
+    SDL_FRect window_rect = { 0, 0, (float)gfx.window.dim.h * ratio, (float)gfx.window.dim.h };
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    SDL_RenderTexture(renderer, loading_texture, NULL, &window_rect);
+    SDL_RenderPresent(renderer);
+
+    SDL_DestroyTexture(loading_texture);
+    SDL_DestroySurface(loading_surface);
+    SDL_DestroyRenderer(renderer);
+  } else {
+    ASSERT(0);
+  }
+}
+
 internal s32 
 sdl_init() {
-
-  if (!TTF_Init()) {
-      return 1;
-  }
-
   if (SDL_Init(SDL_INIT_VIDEO) == false) {
     sdl_log_error("(sdl) error: could not initialize SDL: %s\n", SDL_GetError());
     return 1;
@@ -54,8 +84,8 @@ sdl_init() {
   const int compiled = SDL_VERSION; // hardcoded number from SDL headers
   const int linked = SDL_GetVersion(); // reported by linked SDL library
 
-  sdl_log("We compiled against SDL version %d.%d.%d ...\n", SDL_VERSIONNUM_MAJOR(compiled), SDL_VERSIONNUM_MINOR(compiled), SDL_VERSIONNUM_MICRO(compiled));
-  sdl_log("But we are linking against SDL version %d.%d.%d.\n", SDL_VERSIONNUM_MAJOR(linked), SDL_VERSIONNUM_MINOR(linked), SDL_VERSIONNUM_MICRO(linked));
+  sdl_log("Compiled SDL version %d.%d.%d ...\n", SDL_VERSIONNUM_MAJOR(compiled), SDL_VERSIONNUM_MINOR(compiled), SDL_VERSIONNUM_MICRO(compiled));
+  sdl_log("Linked SDL version %d.%d.%d.\n", SDL_VERSIONNUM_MAJOR(linked), SDL_VERSIONNUM_MINOR(linked), SDL_VERSIONNUM_MICRO(linked));
   
   u32 sdl_window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN;
   sdl_ctx.window = SDL_CreateWindow(WINDOW_NAME, WINDOW_WIDTH, WINDOW_HEIGHT, sdl_window_flags);
@@ -64,6 +94,9 @@ sdl_init() {
     return 1;
   }
 
+  SDL_GetWindowSize(sdl_ctx.window, &gfx.window.dim.width, &gfx.window.dim.height);
+  gfx.window.resolution = gfx.window.dim;
+
   // Log drivers that are available, in the order of priority SDL chooses them.
   // Useful for e.g. debugging which ones a particular build of SDL contains.
   sdl_log("Available renderer drivers:\n");
@@ -71,24 +104,15 @@ sdl_init() {
       sdl_log("%d. %s\n", i + 1, SDL_GetRenderDriver(i));
   }
 
-  //renderer = SDL_CreateRenderer(window, "vulkan");
-
-  SDL_GetWindowSize(sdl_ctx.window, &gfx.window.dim.width, &gfx.window.dim.height);
-  gfx.window.resolution = gfx.window.dim;
-
-  vulkan_sdl_init();
-  
-  init_draw();
-  //sdl_renderer_context.renderer = renderer;
-  //sdl_renderer_context.text_engine = TTF_CreateRendererTextEngine(renderer);
-  
-  play_nine_init();
-
+  sdl_loading_screen();
+  sdl_set_icon();
   sdl_ctx.start_ticks = SDL_GetPerformanceCounter();
 
-  //init_clay(renderer, (float)gfx.window.dim.width, (float)gfx.window.dim.height);
+  vulkan_sdl_init();
   vulkan_create_frame_resources();
-  init_pipelines();
+
+  init_draw();
+  play_init();
 
   SDL_srand(SDL_GetTicks());
 
@@ -111,6 +135,13 @@ s32 sdl_process_input() {
     switch (event.type) {
       case SDL_EVENT_QUIT:
         return_val = 1;
+        break;
+
+      case SDL_EVENT_WINDOW_MINIMIZED:
+        gfx.window.minimized = true;
+        break;
+      case SDL_EVENT_WINDOW_RESTORED:
+        gfx.window.minimized = false;
         break;
 
       case SDL_EVENT_WINDOW_RESIZED: {
@@ -152,7 +183,10 @@ s32 sdl_process_input() {
       case SDL_EVENT_KEY_DOWN:
       case SDL_EVENT_KEY_UP: {
         SDL_KeyboardEvent *keyboard_event = &event.key;
-        last_key = keyboard_event->key;
+
+#ifdef DEBUG
+        debug.last_key = keyboard_event->key;
+#endif // DEBUG
 
         for (u32 i = 0; i < ARRAY_COUNT(app_input.buttons); i++) {
           Button *button = &app_input.buttons[i];
@@ -203,7 +237,8 @@ void sdl_cleanup() {
 int main(int argc, char *argv[]) {
   init_output_buffer();
   sdl_log("starting sdl application...\n");
-
+  sdl_log("CWD: %s\n", SDL_GetCurrentDirectory());
+  
   sdl_init();
 
   while (1) {

@@ -464,8 +464,14 @@ internal void
 draw_text(const char *text, Vector2 coords, float32 pixel_height, Vector4 color) {
   String_Draw_Info string_info = get_string_draw_info(draw_ctx.font_id, text, -1, pixel_height);
 
-  draw_rect(coords, string_info.dim, { 100, 0, 0, 0.5 });
-  draw_rect(coords + string_info.baseline, { 5, 5 }, { 0, 100, 0, 1 });
+#ifdef DEBUG
+  
+  if (debug.draw_text_info) {
+    draw_rect(coords, string_info.dim, { 100, 0, 0, 0.5 });
+    draw_rect(coords + string_info.baseline, { 5, 5 }, { 0, 100, 0, 1 });
+  }
+
+#endif // DEBUG
 
   coords += string_info.baseline;
   draw_text_baseline(draw_ctx.font_id, text, coords, pixel_height, color);

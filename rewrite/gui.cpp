@@ -195,3 +195,26 @@ gui_button(GUI *gui, const char *label, Vector2_s32 segment_coords) {
     }
     return button_pressed;
 }
+
+inline s32
+draw_top_gui() {
+  // Drawing no menu... if esc is pressed add pause to the stack
+  if (gui_manager.indices.empty()) {
+    if (on_down(app_input.back)) {
+      sdl_toggle_relative_mouse_mode();
+      gui_manager.indices.push(GUI_PAUSE);
+    }
+
+    return SUCCESS;
+  }
+
+  u32 index = gui_manager.indices.top();
+  GUI *gui = &gui_manager.guis[index];
+#ifdef DEBUG
+  if (!gui->draw) {
+    log_error("draw_top_gui(): draw function not set for index (%d)\n", index);
+    return FAILURE;
+  }
+#endif // DEBUG
+  return gui->draw(gui);
+}

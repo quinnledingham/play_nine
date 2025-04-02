@@ -24,6 +24,8 @@ print_char_array(u32 output_stream, const char *char_array) {
 
 internal void 
 output_list(u32 output_stream, const char *msg, va_list list) {
+  SDL_LockMutex(output_buffer_mutex);
+
   #if DEBUG
   // Check to see if the output buffer is initialized before using it
   if (output_buffer.memory == 0 || output_buffer.size == 0) {
@@ -36,4 +38,6 @@ output_list(u32 output_stream, const char *msg, va_list list) {
   output_buffer.clear();
   u32 result = vsprintf_s(output_buffer.str(), output_buffer.size, msg, list);
   print_char_array(output_stream, output_buffer.str());
+
+  SDL_UnlockMutex(output_buffer_mutex);
 }

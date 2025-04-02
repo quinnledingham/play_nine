@@ -645,7 +645,6 @@ load_geometry(u32 id, const char *filename) {
 
   Geometry *geo = find_geometry(id);
   *geo = load_obj(file);
-  init_geometry(geo);
 }
 
 internal Vector3

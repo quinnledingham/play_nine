@@ -11,6 +11,9 @@ union Vector2 {
 	struct {
 		float32 width, height;
 	};
+	struct {
+		float32 w, h;
+	};
 	float32 E[2];
 };
 
@@ -23,6 +26,9 @@ union Vector2_s32 {
 	};
 	struct {
 		s32 width, height;
+	};
+	struct {
+		s32 w, h;
 	};
 	s32 E[2];
 };
