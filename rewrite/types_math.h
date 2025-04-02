@@ -252,3 +252,10 @@ look_at(const Vector3 &position, const Vector3 &target, const Vector3 &up) {
         t.x, t.y, t.z, 1
     };
 }
+
+//
+// Colors
+//
+
+inline Color_RGB get_color(Vector3 v) { return { u8(v.r), u8(v.g), u8(v.b) }; }
+inline Color_RGBA get_color(Vector4 v) { return { u8(v.r), u8(v.g), u8(v.b), u8(v.a) }; }

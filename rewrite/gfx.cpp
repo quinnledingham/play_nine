@@ -59,12 +59,14 @@ gfx_bind_descriptor_set(u32 gfx_id, void *data) {
 }
 
 internal void
-gfx_ubo(u32 gfx_id, void *data) {
+gfx_ubo(u32 gfx_id, void *data, u32 binding) {
   Descriptor_Set desc_set = gfx_descriptor_set(gfx_id);
-  Descriptor desc = gfx_descriptor(&desc_set, 0);
+  Descriptor desc = gfx_descriptor(&desc_set, binding);
   vulkan_update_ubo(desc, data);
   vulkan_bind_descriptor_set(desc_set);
 }
+
+
 
 internal void
 gfx_bind_bitmap(u32 gfx_id, Bitmap *bitmap, u32 binding) {
@@ -74,10 +76,16 @@ gfx_bind_bitmap(u32 gfx_id, Bitmap *bitmap, u32 binding) {
   vulkan_bind_descriptor_set(texture_desc_set);
 }
 
+
 internal void
 gfx_bind_bitmap(u32 gfx_id, u32 bitmap_id, u32 binding) {
   Bitmap *bitmap = find_bitmap(bitmap_id);
   gfx_bind_bitmap(gfx_id, bitmap, binding);
+}
+
+inline void
+gfx_bind_atlas(Texture_Atlas *atlas) {
+  vulkan_bind_descriptor_set(atlas->gpu[vk_ctx.current_frame].set);
 }
 
 //

@@ -447,11 +447,11 @@ find_material(Array<Material_Library *>libs, const char *id) {
   
   log_error("find_material(): could not find material\n");
   ASSERT(0);
+  return 0;
 }
 
 internal void
 obj_fill_arrays(Obj_File *obj, File file, Geometry *model) {
-  char buffer[40];
   obj->token = {};
   obj->skip_floats = false;
   Obj_Token last_token = {};
@@ -646,4 +646,30 @@ load_geometry(u32 id, const char *filename) {
   Geometry *geo = find_geometry(id);
   *geo = load_obj(file);
   init_geometry(geo);
+}
+
+internal Vector3
+geometry_size(Geometry *geo) {
+  Vector3 max = {};
+  Vector3 min = {};
+
+  for (u32 i = 0; i < geo->meshes_count; i++) {
+    Mesh *mesh = &geo->meshes[i];
+    Vertex_XNU *vertices = (Vertex_XNU *)mesh->vertices;
+
+    for (u32 vertex_i = 0; vertex_i < mesh->vertices_count; vertex_i++) {
+      Vector3 pos = vertices[vertex_i].position;
+
+      for (u32 axis_i = 0; axis_i < 3; axis_i++) {
+        float32 value = pos.E[axis_i];
+        if (value > max.E[axis_i])
+          max.E[axis_i] = value;
+        if (value < min.E[axis_i])
+          min.E[axis_i] = value;
+      }
+    }
+  }
+
+  Vector3 size = max - min;
+  return size;
 }

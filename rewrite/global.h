@@ -112,9 +112,10 @@ Game_Draw game_draw;
 
 // Drawing Game
 
+Bitmap resized_lana = {};
+
 bool8 draw_game_flag = false;
 
-Bitmap card_bitmaps[14];
 Texture_Atlas card_bitmaps_atlas;
 
 Camera camera = {

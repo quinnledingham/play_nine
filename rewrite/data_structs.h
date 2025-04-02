@@ -150,3 +150,12 @@ struct Stack {
       return false;
   }
 };
+
+// centers in inside of out
+inline Vector2_s32
+centered(Vector2_s32 out, Vector2_s32 in) {
+  return {
+    (out.x / 2) - (in.x / 2),
+    (out.y / 2) - (in.y / 2),
+  };
+}

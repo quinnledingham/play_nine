@@ -293,6 +293,7 @@ pipeline_print_filenames(Pipeline *pipe) {
   Bitmap
 */
 
+
 internal Bitmap
 load_bitmap(File file) {
   Bitmap bitmap = {};
@@ -314,6 +315,21 @@ load_bitmap(File file) {
   bitmap.mip_levels = 1;
 
   return bitmap;
+}
+
+internal Bitmap
+bitmap_resized(Bitmap *bitmap, Vector2_s32 dim) {
+  Bitmap resized = {};
+  u32 size = dim.width * dim.height * bitmap->channels;
+  resized.memory = (u8*)malloc(size);
+  stbir_resize_uint8(bitmap->memory, bitmap->width, bitmap->height, 0, resized.memory, dim.width, dim.height, 0, bitmap->channels);
+
+  resized.channels = bitmap->channels;
+  resized.dim = dim;
+  resized.pitch = resized.width * resized.channels;
+  resized.mip_levels = 1;
+
+  return resized;
 }
 
 internal Bitmap
@@ -392,17 +408,6 @@ blank_bitmap(u32 width, u32 height, u32 channels) {
     return bitmap;
 }
 
-internal void
-bitmap_resize(Bitmap *bitmap, u32 width, u32 height) {
-  u32 size = width * height * bitmap->channels;
-  u8 *new_memory = (u8*)malloc(size);
-  stbir_resize_uint8(bitmap->memory, bitmap->width, bitmap->height, 0, new_memory, width, height, 0, bitmap->channels);
-  bitmap->width = width;
-  bitmap->height = height;
-  free(bitmap->memory);
-  bitmap->memory = new_memory;
-}
-
 internal u8
 blend_alpha(u8 a1, u8 a2) {
     return 255 - ((255 - a1) * (255 - a2) / 255);
@@ -423,6 +428,11 @@ bitmap_copy_text(Bitmap dest, const Bitmap src, Vector2_s32 position, Color_RGB 
         ASSERT(0);
     }
     
+    if (dest.width < src.width || dest.height < src.height) {
+        log_error("bitmap_copy_text() src bitmap is too big\n");
+        ASSERT(0);
+    }
+
     u8 *src_ptr = src.memory;
     u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
     u8 *dest_ptr_line_start = dest_ptr;
@@ -456,6 +466,11 @@ copy_blend_bitmap(Bitmap dest, const Bitmap src, Vector2_s32 position) {
         ASSERT(0);
     }
 
+    if (dest.width < src.width || dest.height < src.height) {
+        log_error("copy_blend_bitmap() src bitmap is too big\n");
+        ASSERT(0);
+    }
+    
     u8 *src_ptr = src.memory;
     u8 *dest_ptr = dest.memory + (position.x * dest.channels) + (position.y * dest.pitch);
     u8 *dest_ptr_line_start = dest_ptr;
@@ -652,7 +667,8 @@ texture_atlas_write(Texture_Atlas *atlas, const char *bitmap_file_name, const ch
 
   write_bitmap(&atlas->bitmap, bitmap_filepath.str());
   
-  FILE *file = fopen(texture_coords_filepath.str(), "wb");
+  FILE *file;
+  fopen_s(&file, texture_coords_filepath.str(), "wb");
   if (file) {
     fwrite(atlas->texture_coords, sizeof(Texture_Coords) * atlas->max_textures, 1, file);
     fclose(file);
@@ -696,11 +712,11 @@ load_atlas(u32 id, const char *image_filename, const char *tex_coords_filename) 
 internal Texture_Region
 atlas_region(Texture_Atlas *atlas, u32 index) {
   Texture_Coords *uv = &atlas->texture_coords[index];
-  float32 x = uv->p2.x - uv->p1.x;
-  float32 y = uv->p2.y - uv->p1.y;
+  float32 width = uv->p2.x - uv->p1.x;
+  float32 height = uv->p2.y - uv->p1.y;
   Texture_Region region = {};
-  region.uv_offset = { uv->p1.x, y - uv->p2.y };
-  region.uv_scale = { x, y };
+  region.uv_offset = { uv->p1.x, uv->p1.y };
+  region.uv_scale = { width, height };
   return region;
 }
 

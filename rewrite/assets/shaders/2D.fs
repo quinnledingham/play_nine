@@ -51,6 +51,13 @@ void main() {
 	    //color = texture(tex_sampler, fragTexCoord);
     } else if (local.text.x == 2.00) { // texture
     	color = texture(tex_sampler, fragTexCoord);
+    } else if (local.text.x == 3.00) { // texture atlas
+        vec2 uv_offset = local.region.xy;
+        vec2 uv_scale = local.region.zw;
+
+        vec2 remapped_uv = fragTexCoord * uv_scale + uv_offset;
+
+        color = texture(tex_sampler, remapped_uv);
     }
 
     if (local.text.x != 2.00)

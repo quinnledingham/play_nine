@@ -35,6 +35,10 @@ union Vector3 {
 		float32 r, g, b;
 	};
 	float32 E[3];
+
+	Vector2 xz() {
+		return { x, z };
+	}
 };
 
 union Vector4 {
@@ -60,7 +64,7 @@ struct Buffer {
 	char* str() { return (char *)memory; }
 	void clear() { memset(memory, 0, size); }
   	bool8 in(void *ptr) {
-	  s32 diff = (char*)ptr - (char*)memory;
+	  s64 diff = (char*)ptr - (char*)memory;
 	  return 0 <= diff && diff < size;
 	}
 };

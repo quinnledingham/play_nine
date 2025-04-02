@@ -1,6 +1,6 @@
 struct Game_Draw {
   float32 hand_width;
-  Vector2 card_dim = { 1.465843, 2 };
+  Vector2 card_dim;
   Vector2 relative_hand_coords[HAND_SIZE];
   Vector3 absolute_hand_coords[MAX_PLAYERS];
   float32 player_hand_rads[MAX_PLAYERS];
@@ -18,6 +18,8 @@ global const Vector4 play_nine_green        = {  39,  77,  20, 1 };
 global const Vector4 play_nine_yellow       = { 231, 213,  36, 1 };
 global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
 global const Vector4 play_nine_dark_yellow  = { 197, 180,  22, 1 };
+
+// Card Ratio: 63/88
 
 //
 // Card Designs

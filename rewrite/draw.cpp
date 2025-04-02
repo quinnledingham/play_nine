@@ -89,7 +89,7 @@ draw_rounded_rect(Vector2 coords, Vector2 size, Vector4 color, const float corne
 
   const float min_radius = SDL_min(rect.w, rect.h) / 2.0f;
   const float clamped_radius = SDL_min(corner_radius, min_radius);
-  const int num_circle_segments = SDL_max(16, (int) clamped_radius * 0.5f);
+  const int num_circle_segments = SDL_max(16, (int) (clamped_radius * 0.5f));
 
   Mesh mesh = {};
   mesh.vertices_count = 4 + (4 * (num_circle_segments * 2)) + 2*4;
@@ -200,7 +200,7 @@ draw_rounded_rect(Vector2 coords, Vector2 size, Vector4 color, const float corne
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
   Local local = {};
   local.color = color;
-  local.time.x = app_time.run_time_s;
+  local.time.x = (float32)app_time.run_time_s;
   local.resolution.x = size.x;
   local.resolution.y = size.y;
   vulkan_update_ubo(color_desc, (void *)&local);
@@ -226,7 +226,7 @@ draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
   Local local = {};
   local.color = color;
-  local.time.x = app_time.run_time_s;
+  local.time.x = (float32)app_time.run_time_s;
   local.resolution.x = size.x;
   local.resolution.y = size.y;
   vulkan_update_ubo(color_desc, (void *)&local);
@@ -256,6 +256,24 @@ draw_rect(Vector2 coords, Vector2 size, Bitmap *bitmap) {
   Object object = {};
   object.model = create_transform_m4x4(coords, size);
   object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&draw_ctx.square);
+}
+
+internal void
+draw_rect(Vector2 coords, Vector2 size, Texture_Atlas *atlas, u32 index) {
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.text.x = 3;
+  local.region = atlas_region(atlas, index);
+  vulkan_update_ubo(color_desc, (void *)&local);
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  vulkan_bind_descriptor_set(atlas->gpu[vk_ctx.current_frame].set);
+
+  Object object = {};
+  object.model = create_transform_m4x4(coords, size);
   vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
   vulkan_draw_mesh(&draw_ctx.square);
 }
@@ -326,7 +344,7 @@ draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_heigh
         (float32)bitmap->bitmap.width, 
         (float32)bitmap->bitmap.height 
       };
-
+      
       u32 index = bitmap->index;
       Texture_Coords tex_coord = atlas->texture_coords[index];
   
@@ -361,7 +379,7 @@ draw_text_baseline(u32 id, const char *text, Vector2 coords, float32 pixel_heigh
     ############################### 
 */
 struct String_Draw_Info {
-    Vector2 dim;
+    Vector2 dim;      // dim of the text
     Vector2 baseline;
 
     Vector2 font_dim; // biggest char in font
@@ -386,20 +404,24 @@ get_string_draw_info(Font *font, const char *string, s32 length, float32 pixel_h
 
   s32 top = 0;
   s32 bottom = 0;
-  float32 left = 0;
 
   while (string[index] != 0) {
     if (length != -1) {
       // if a length is set then only include in the dim the chars up to that point
-      if (index == length) break;
+      if (index == length) 
+        break;
     }
 
     Font_Char_Bitmap *font_char_bitmap = load_font_char_bitmap(font, string[index], scale);
     Font_Char *font_char = font_char_bitmap->font_char;
 
-    float32 char_coords_x = info.dim.x + (font_char->lsb * scale);
-    if (char_coords_x < 0.0f)
-      left = char_coords_x;
+    // where should drawing start on the x
+    if (index == 0) {
+      float32 lsb_scaled = roundf(font_char->lsb * scale);
+      s32 char_coords_x = font_char_bitmap->bb_0.x;
+      info.baseline.x = -float32(lsb_scaled);
+      info.dim.x = -float32(char_coords_x);
+    }
 
     if (top > font_char_bitmap->bb_0.y)
       top = font_char_bitmap->bb_0.y;
@@ -411,16 +433,16 @@ get_string_draw_info(Font *font, const char *string, s32 length, float32 pixel_h
       info.baseline.y = (float32)-font_char_bitmap->bb_0.y;
 
     int kern = stbtt_GetCodepointKernAdvance(font_info, string[index], string[index + 1]);
-    if (string[index + 1] || string[index] == 32) // 32 == ' ' bitmap width is 0 so need advance
+    if (string[index + 1] || string[index] == 32) { // 32 == ' ' bitmap width is 0 so need advance
       info.dim.x += scale * float32(kern + font_char->ax);
-    else
+    } else {
+      // last character so just add the width of the character
       info.dim.x += float32(font_char_bitmap->bb_1.x);
+    }
     index++;
   }
 
-  info.baseline.x = -left;
   info.dim.y = float32(bottom - top);
-  info.dim.x = float32(info.dim.x - left);
       
   s32 x0, y0, x1, y1;
   stbtt_GetFontBoundingBox(font_info, &x0, &y0, &x1, &y1);
@@ -441,7 +463,11 @@ get_string_draw_info(u32 id, const char *string, s32 length, float32 pixel_heigh
 internal void
 draw_text(const char *text, Vector2 coords, float32 pixel_height, Vector4 color) {
   String_Draw_Info string_info = get_string_draw_info(draw_ctx.font_id, text, -1, pixel_height);
-  coords.y += string_info.baseline.y;
+
+  draw_rect(coords, string_info.dim, { 100, 0, 0, 0.5 });
+  draw_rect(coords + string_info.baseline, { 5, 5 }, { 0, 100, 0, 1 });
+
+  coords += string_info.baseline;
   draw_text_baseline(draw_ctx.font_id, text, coords, pixel_height, color);
 }
 

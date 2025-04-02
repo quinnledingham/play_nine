@@ -8,14 +8,15 @@ create_string_into_bitmap(Font *font, float32 pixel_height, const char *str) {
     String_Draw_Info draw_info = get_string_draw_info(font, str, -1, pixel_height);
     Bitmap bitmap = blank_bitmap((s32)ceilf(draw_info.dim.x), (s32)ceilf(draw_info.dim.y), 1);
 
-    float32 current_point = 0.0f;
+    float32 current_point = draw_info.baseline.x;
+
     u32 i = 0;
     while (str[i] != 0 ) {
         Font_Char_Bitmap *fbitmap = load_font_char_bitmap(font, str[i], scale);
         Font_Char *font_char = fbitmap->font_char;
 
         Vector2 char_coords = { 
-            draw_info.baseline.x + current_point + (font_char->lsb * scale), 
+            current_point + (font_char->lsb * scale), 
             draw_info.baseline.y + (float32)fbitmap->bb_0.y
         };
         copy_blend_bitmap(bitmap, fbitmap->bitmap, cv2(char_coords));
@@ -54,13 +55,6 @@ create_circle_bitmap(Vector2_s32 dim) {
 
     return bitmap;
 }
-
-//
-// Colors
-//
-
-inline Color_RGB get_color(Vector3 v) { return { u8(v.r), u8(v.g), u8(v.b) }; }
-inline Color_RGBA get_color(Vector4 v) { return { u8(v.r), u8(v.g), u8(v.b), u8(v.a) }; }
 
 internal void
 add_balls_line(Bitmap bitmap, Bitmap circle_bitmap, s32 x, s32 number, Vector3 color) {
@@ -101,31 +95,32 @@ add_balls_to_bitmap(Bitmap bitmap, Bitmap circle_bitmap, s32 number) {
 }
 
 internal Bitmap
-create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
-    Bitmap bitmap = blank_bitmap(1000, 1600, 4);    
-    Bitmap *front = find_bitmap(BITMAP_FRONT);
-    //bitmap_resize(front, bitmap.width, bitmap.height);
-    memcpy(bitmap.memory, front->memory, front->width * front->height * front->channels);
+create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap, Vector2_s32 card_dim) {
+    s32 number_padding = 20;
+    float32 number_pixel_height = 60.0f;
+
+    Bitmap bitmap = blank_bitmap(card_dim.x, card_dim.y, 4);    
+    Bitmap front = bitmap_resized(find_bitmap(BITMAP_FRONT), bitmap.dim);
+    memcpy(bitmap.memory, front.memory, front.width * front.height * front.channels);
 
     if (number < 11 || number == 13)
         add_balls_to_bitmap(bitmap, circle_bitmap, number);
 
-    Bitmap *front_bit = 0;
+    // adding front design
+    u32 front_bitmap_id = 0;
     switch(number) {
-        case  0: front_bit = find_bitmap(BITMAP_FRONT_0);  break;
-        case 11: front_bit = find_bitmap(BITMAP_FRONT_11); break;
-        case 12: front_bit = find_bitmap(BITMAP_FRONT_12); break;
+        case  0: front_bitmap_id = BITMAP_FRONT_0;  break;
+        case 11: front_bitmap_id = BITMAP_FRONT_11; break;
+        case 12: front_bitmap_id = BITMAP_FRONT_12; break;
     }
 
-    if (front_bit != 0) {
-        //bitmap_resize(front_bit, bitmap.width, bitmap.height);
-        Vector2_s32 center = {
-            (bitmap.width  / 2) - (front_bit->width  / 2),
-            (bitmap.height / 2) - (front_bit->height / 2),
-        };
-        copy_blend_bitmap(bitmap, *front_bit, center);
+    if (front_bitmap_id != 0) {
+        Bitmap front_bitmap = bitmap_resized(find_bitmap(front_bitmap_id), bitmap.dim);
+        Vector2_s32 center = centered(bitmap.dim, front_bitmap.dim);
+        copy_blend_bitmap(bitmap, front_bitmap, center);
     }
 
+    // add string numbers to card
     if (number == 13)
         number = -5;
 
@@ -135,93 +130,66 @@ create_card_bitmap(Font *font, s32 number, Bitmap circle_bitmap) {
         case 10: str[0] = '1'; str[1] = '0'; break;
         case 11: str[0] = '1'; str[1] = '1'; break;
         case 12: str[0] = '1'; str[1] = '2'; break;
-        default: str[0] = number + 48; break;
+        default: str[0] = number + 48;       break;
     }
 
-    Bitmap str_bitmap = create_string_into_bitmap(font, 300.0f, str);
+    Bitmap str_bitmap = create_string_into_bitmap(font, number_pixel_height, str);
 
-    s32 padding = 60;
-    //Vector3 text_color = ball_colors[number];
-    Vector3 text_color = play_nine_green.xyz;
+    Vector3 text_color = ball_colors[number];
     if (number == -5)
         text_color = { 255, 0, 0 };
 
     Vector2_s32 bottom_right = {
-        bitmap.width - str_bitmap.width - padding,
-        bitmap.height - str_bitmap.height - padding
+        bitmap.width  - str_bitmap.width  - number_padding,
+        bitmap.height - str_bitmap.height - number_padding
     };
 
     bitmap_convert_channels(&str_bitmap, 4);
     
-    copy_blend_bitmap(bitmap, str_bitmap, { padding, padding });
+    copy_blend_bitmap(bitmap, str_bitmap, { number_padding, number_padding });
     copy_blend_bitmap(bitmap, str_bitmap, bottom_right);
 
-    //vulkan_create_texture(&bitmap, TEXTURE_PARAMETERS_CHAR);
-
-    //free(str_bitmap.memory);
-    //platform_free(bitmap.memory);
-  
+    free(str_bitmap.memory);  
     return bitmap;
 }
 
-internal void
-init_card_bitmaps(Bitmap *bitmaps, Font *font) {
-    card_bitmaps_atlas = create_texture_atlas(14015, 1602, 4);
+internal Texture_Atlas
+init_card_atlas(Font *font) {
+    // 1.4317439794540405, 2
+    Vector2_s32 card_dim = { 358, 500 };
+    s32 ball_radius = 50;
 
-    Bitmap circle_bitmap = create_circle_bitmap({ 175, 175 });
+    Texture_Atlas atlas = create_texture_atlas(card_dim.x * 8, card_dim.y * 3, 4);
+    Bitmap circle_bitmap = create_circle_bitmap({ ball_radius, ball_radius });
 
     for (s32 i = 0; i <= 13; i++) {
-        bitmaps[i] = create_card_bitmap(font, i, circle_bitmap);
-        texture_atlas_add(&card_bitmaps_atlas, &bitmaps[i]);
+        Bitmap bitmap = create_card_bitmap(font, i, circle_bitmap, card_dim);
+        texture_atlas_add(&atlas, &bitmap);
+        //free(bitmap.memory);
+        stbi_image_free(bitmap.memory);
     }
 
     free(circle_bitmap.memory);
-}
-
-inline Bitmap*
-get_card_bitmap(Assets *assets, u32 index) {
-    //return &assets->types[ASSET_TYPE_BITMAP].data[index + (BITMAP_CARD0 - BITMAP_BACK)].bitmap;
+    return atlas;
 }
 
 internal void
-draw_card_bitmaps(Bitmap bitmaps[14], Vector2_s32 window_dim) {
-    Bitmap *temp = &bitmaps[0];
-    
-    Vector2 dim = { window_dim.x / 14.0f, 0 };
-    float32 percent = dim.x / temp->width;
-    dim.y = temp->height * percent;
-    //Vector2 pos = { 0, window_dim.y - dim.y };
+draw_card_bitmaps() {
+    Texture_Atlas *atlas = find_atlas(ATLAS_CARDS);
+
     Vector2 pos = { 0, 0 };
-    for (u32 i = 0; i < 14; i++) {
-        pos.x = i * dim.x;
-        draw_rect(pos, dim, &bitmaps[i]);
-    }
-}
+    float32 percent = (float)gfx.window.dim.x / (float)atlas->bitmap.width;
+    Vector2 dim = { (float32)gfx.window.dim.x, percent * atlas->bitmap.height };
 
-internal void
-write_card_bitmaps(Bitmap bitmaps[14]) {
-    for (u32 i = 0; i < 14; i++) {
-        const char *tag = "card";
-        
-        char card_number[3];
-        memset(card_number, 0, 3);
-        s32_to_char_array(card_number, 3, i);
+    Local local = {};
+    local.text.x = 2;
+    gfx_ubo(GFXID_LOCAL, &local, 0);
 
-        String file_name = String(tag, card_number);
-        String bitmap_filepath = String(asset_folders[AT_BITMAP], file_name.str());
-        String bitmap_filepath_ext = String(bitmap_filepath.str(), ".png");
-        
-        write_bitmap(&bitmaps[i], bitmap_filepath_ext.str());
-        
-        bitmap_filepath_ext.destroy();
-        bitmap_filepath.destroy();
-        file_name.destroy();
-    }
-}
+    gfx_bind_atlas(atlas);
 
-internal void
-destroy_card_bitmaps(Bitmap bitmaps[14]) {
-    for (u32 i = 0; i < 14; i++) {
-        vulkan_destroy_texture(&bitmaps[i]);
-    }
+    Object object = {};
+    object.model = create_transform_m4x4(pos, dim);
+    object.index = 0;
+    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+    vulkan_draw_mesh(&draw_ctx.square);
 }

@@ -73,8 +73,9 @@ s32 play_nine_init() {
 
   bool8 recreate_bitmaps = false;
   if (recreate_bitmaps) {
-    init_card_bitmaps(card_bitmaps, find_font(FONT_LIMELIGHT));
+    card_bitmaps_atlas = init_card_atlas(find_font(FONT_LIMELIGHT));
     texture_atlas_write(&card_bitmaps_atlas, "cards.png", "cards.tco");
+    load_atlas(ATLAS_CARDS, "cards.png", "cards.tco");
   }
 
 #endif // DEBUG
@@ -89,7 +90,7 @@ s32 play_nine_init() {
 
 internal void
 play_destroy() {
-  destroy_card_bitmaps(card_bitmaps);
+
 }
 
 internal void
@@ -104,7 +105,7 @@ update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
 internal void
 draw_fps() {
   char fps[20];
-  float_to_string(app_time.frames_per_s, fps, 20);
+  float_to_string((float32)app_time.frames_per_s, fps, 20);
   set_draw_font(FONT_ROBOTO_MONO);
   draw_text(fps, {0, 0}, 20, {255, 0, 0, 1});
 }
@@ -116,19 +117,19 @@ test_3D() {
   vulkan_depth_test(true);
 
   scene.view = get_view(camera);
-  gfx_ubo(GFXID_SCENE, &scene.view);
+  gfx_ubo(GFXID_SCENE, &scene.view, 0);
 
   gfx_bind_pipeline(PIPELINE_3D);
 
   Material_Shader m_s = {};
-  gfx_ubo(GFXID_MATERIAL, &m_s);
+  gfx_ubo(GFXID_MATERIAL, &m_s, 0);
   gfx_bind_bitmap(GFXID_TEXTURE, BITMAP_LANA, 0);
 
   draw_rect_3D({0, 0, 0}, {10, 10, 10}, {255, 0, 0, 1});
 
   Local local = {};
   local.color = {0, 255, 0, 1};
-  gfx_ubo(GFXID_LOCAL, &local);
+  gfx_ubo(GFXID_LOCAL, &local, 0);
 
   Object object = {};
   object.model = create_transform_m4x4({0, 0, 0}, get_rotation(0, {0, 1, 0}), {1.0f, 0.1f, 1.0f});
@@ -146,7 +147,7 @@ s32 draw() {
       gfx.layouts[i].reset();
   }
 
-  vulkan_clear_color({0, 0, 0, 1});
+  vulkan_clear_color({0.1f, 0.1f, 0.1f, 1.0f});
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
 
   if (gfx.window.resized) {
@@ -174,10 +175,12 @@ s32 draw() {
 
   draw_fps();
   
-  for (u32 i = 0; i < 3; i++) {
-    float_to_string(camera.position.E[i], global_buffer);
-    set_draw_font(FONT_ROBOTO_MONO);
-    draw_text(global_buffer.str(), {i * 100.0f, 100}, 20, {255, 0, 0, 1});
+  if (draw_game_flag) {
+    for (u32 i = 0; i < 3; i++) {
+      float_to_string(camera.position.E[i], global_buffer);
+      set_draw_font(FONT_ROBOTO_MONO);
+      draw_text(global_buffer.str(), {i * 100.0f, 100}, 20, {255, 0, 0, 1});
+    }
   }
 
   end_draw_2D();

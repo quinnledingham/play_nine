@@ -72,6 +72,8 @@ init_game_draw(Game *game, Game_Draw *draw) {
     ASSERT(0);
   }
 
+  draw->card_dim = geometry_size(find_geometry(GEOMETRY_CARD)).xz();
+
   init_relative_hand_coords(draw);
   init_absolute_hand_coords(game, draw);
 }
@@ -139,7 +141,7 @@ draw_card(Vector3 coords, float32 x_rot, float32 y_rot) {
 
   Local local = {};
   local.color = {0, 255, 0, 1};
-  gfx_ubo(GFXID_LOCAL, &local);
+  gfx_ubo(GFXID_LOCAL, &local, 0);
 
   object.model = create_transform_m4x4(coords, rotation, {1.0f, thickness, 1.0f});
   vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
@@ -157,7 +159,7 @@ draw_cards(Game *game, Game_Draw *draw) {
   Mesh *side_mesh = &side->meshes[0];
 
   Material_Shader m_s = face_mesh->material->shader();
-  gfx_ubo(GFXID_MATERIAL, &m_s);
+  gfx_ubo(GFXID_MATERIAL, &m_s, 0);
 
   gfx_bind_bitmap(GFXID_TEXTURE, BITMAP_LANA, 0);
 
@@ -204,7 +206,7 @@ draw_cards(Game *game, Game_Draw *draw) {
       
       s32 value = deck[game->players[p_i].cards[c_i].index];
       local.region = atlas_region(atlas, value);
-      gfx_ubo(GFXID_LOCAL, &local);
+      gfx_ubo(GFXID_LOCAL, &local, 0);
 
       vkCmdDrawIndexed(VK_CMD, face_mesh->indices_count, 1, 0, 0, 0);
     }
@@ -214,7 +216,7 @@ draw_cards(Game *game, Game_Draw *draw) {
   vulkan_bind_mesh(side_mesh);
   local.color = {90, 90, 90, 1};
   local.text.x = 0.0f;
-  gfx_ubo(GFXID_LOCAL, &local);
+  gfx_ubo(GFXID_LOCAL, &local, 0);
 
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
     float32 x_rot = 0.0f;
@@ -240,7 +242,7 @@ draw_game(Game *game) {
   vulkan_depth_test(true);
 
   scene.view = get_view(camera);
-  gfx_ubo(GFXID_SCENE, &scene.view);
+  gfx_ubo(GFXID_SCENE, &scene.view, 0);
 
   gfx_bind_pipeline(PIPELINE_3D);
 

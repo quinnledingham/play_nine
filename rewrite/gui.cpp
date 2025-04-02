@@ -180,7 +180,7 @@ gui_update(GUI *gui, Vector2 coords, Vector2 dim) {
 internal bool8
 gui_button(GUI *gui, const char *label, Vector2_s32 segment_coords) {
     Rect rect = {};
-    rect.coords = gui->coords + (cv2(segment_coords) * gui->segment_dim) + (gui->padding_px * (gui->index - 1));
+    rect.coords = gui->coords + (cv2(segment_coords) * gui->segment_dim) + (gui->padding_px * float32(gui->index - 1));
     rect.dim = gui->segment_dim;
     u32 state = gui_update(gui, rect.coords, rect.dim);
     draw_button(gui, gui->style, state, rect, label, ALIGN_CENTER); 

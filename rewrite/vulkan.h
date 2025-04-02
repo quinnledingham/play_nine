@@ -227,7 +227,7 @@ internal void vulkan_setup_layout(GFX_Layout *layout);
 
 inline void
 vulkan_split_buffer_over_frames(Vulkan_Buffer *buffer, Vulkan_Frame *frames, u32 frames_count) {
-	u32 segment_size = buffer->size / frames_count;
+	u32 segment_size = (u32)buffer->size / frames_count;
 	u32 offset = 0;
 	for (u32 i = 0; i < frames_count; i++) {
 		Vulkan_Frame *frame = &frames[i];

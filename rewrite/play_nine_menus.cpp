@@ -15,9 +15,9 @@ draw_main_menu(GUI *gui) {
   //gui->back_color = {0, 0, 0, 0.5};
 
   gui->shift = {0, 0.1f};
-  gui->dim = {0.4, 0.4};
+  gui->dim = {0.4f, 0.4f};
   gui->segments = {1, 4};
-  gui->padding = {0.0, 0.05};
+  gui->padding = {0.0f, 0.05f};
   gui->backdrop = {0.0f, 0.01f};
 
   s32 game_should_quit = false;
@@ -67,16 +67,18 @@ draw_test_menu(GUI *gui) {
   Bitmap *bitmap = find_bitmap(BITMAP_LANA);
   draw_rect({300, 200}, cv2(bitmap->dim/5), bitmap);
 
-  if (is_down(app_input.mouse.left))
-    draw_text("LANA", {200, 100}, 100, {200, 100, 0, 1});
-  else
-    draw_text("LANA", {200, 100}, 100, {100, 200, 0, 1});
-
   //draw_rect({400 ,400}, {100, 100}, &find_atlas(ATLAS_KEYBOARD)->bitmap);
   //u32 index = find_input_prompt_index(last_key, keyboard_prompts, ARRAY_COUNT(keyboard_prompts));
   //texture_atlas_draw_rect(ATLAS_KEYBOARD, index, {400 ,400}, {100, 100});
 
-  draw_card_bitmaps(card_bitmaps, gfx.window.dim);
+  draw_card_bitmaps();
+
+  const char *lana = "lana";
+  if (is_down(app_input.mouse.left)) {
+    draw_text(lana, {300, 200}, 500, {200, 100, 0, 1});
+  } else {    
+    draw_text(lana, {700, 500}, 500, {100, 200, 0, 1});
+  }
 
   return false;
 }
@@ -101,9 +103,9 @@ draw_pause_menu(GUI *gui) {
   gui->background_color = play_nine_green;
   gui->background_color.a = 0.3f;
 
-  gui->dim = {0.4, 0.4};
+  gui->dim = {0.4f, 0.4f};
   gui->segments = {1, 2};
-  gui->padding = {0.0, 0.05};
+  gui->padding = {0.0f, 0.05f};
   gui->backdrop = {0.0f, 0.01f};
 
   gui_start(gui);

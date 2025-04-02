@@ -90,7 +90,7 @@ sdl_init() {
   vulkan_create_frame_resources();
   init_pipelines();
 
-  srand(SDL_GetTicks());
+  SDL_srand(SDL_GetTicks());
 
   sdl_ctx.performance_frequency = SDL_GetPerformanceFrequency();
 

@@ -12,7 +12,7 @@ internal void destroy_file(File *file);
 
 inline bool8
 in_file(File *file, char *ptr) {
-  s32 diff = ptr - (char*)file->memory;
+  s64 diff = ptr - (char*)file->memory;
   return 0 <= diff && diff < file->size;
 }
 

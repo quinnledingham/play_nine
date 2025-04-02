@@ -15,7 +15,9 @@ void init_deck() {
 // srand at beginning of main_loop()
 internal s32
 random(s32 lower, s32 upper) {
-    return lower + (rand() % (upper - lower));
+    //return lower + (rand() % (upper - lower));
+    s32 possible = upper - lower;
+    return SDL_rand(possible) + lower;
 }
 
 // assumes that you want to shuffle a pile of size DECK_SIZE
