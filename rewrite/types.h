@@ -125,4 +125,28 @@ union Color_RGBA {
 	u8 E[4];
 };
 
+union Pose {
+    struct {
+        union {
+            struct {
+                float32 x, y, z;
+            };
+            Vector3 position;
+        };
+        union {
+            struct {
+                float32 omega, phi, kappa;
+            };
+            struct {
+                float32 roll, pitch, yaw;
+            };
+            struct {
+                float32 w, p, k;
+            };
+            Vector3 orientation;
+        };
+    };
+    float32 E[6];
+};
+
 #endif // TYPES_H

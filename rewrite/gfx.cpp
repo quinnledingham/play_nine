@@ -297,10 +297,12 @@ slerp_intropolation(Pose start, Pose end, float32 percent) {
 
 internal void
 do_animation(Animation *a, float64 frame_time_s) {
+  a->active = false;
   for (u32 i = 0; i < a->keyframes.size(); i++) {
     Animation_Keyframe *key = &a->keyframes[i];
 
     if (key->time_elapsed < key->time_duration) {
+      a->active = true;
       key->time_elapsed += (float32)frame_time_s;
 
       float32 percent = key->time_elapsed / key->time_duration;
@@ -322,44 +324,51 @@ do_animations(Array<Animation> &animations, float64 frame_time_s) {
     }
 }
 
+internal void 
+normalize_angle_difference(float32 &start, const float32 end) {
+  if (end - start > 180.0f) {
+    start += 360.0f;  
+  } else if (end - start < -180.0f) {
+    start -= 360.0f;
+  }
+}
+
 internal void
 add_keyframe(Animation *a, Animation_Keyframe *new_key) {
-  for (u32 i = 0; i < a->keyframes.size(); i++) {
-    Animation_Keyframe *key = &a->keyframes[i];
-    Animation_Keyframe *previous_key = 0;
-    if (i != 0) {
-      previous_key = &a->keyframes[i - 1];
-    }
+  a->keyframes.insert(*new_key);
+  u32 index = a->keyframes.insert_index;
 
-    if (key->time_elapsed >= key->time_duration) {
-      *key = *new_key;
-      if (previous_key) {
-        key->start = previous_key->end;
-      }
+  Animation_Keyframe *key = &a->keyframes[index - 1];
+  Animation_Keyframe *previous_key = 0;
+  if (index >= 2)
+    previous_key = &a->keyframes[index - 2];
 
-      if (key->end.k - key->start.k > 180.0f) {
-        key->start.k = key->start.k + 360.0f;
-      } else if (key->end.k - key->start.k < -180.0f) {
-        key->start.k = key->start.k - 360.0f;
-      }
-
-      return;
-    }
+  if (previous_key) {
+    key->start = previous_key->end;
   }
-  ASSERT(0);
+
+  normalize_angle_difference(key->start.w, key->end.w);
+  normalize_angle_difference(key->start.p, key->end.p);
+  normalize_angle_difference(key->start.k, key->end.k);
 };
 
 internal Animation*
-find_animation(Array<Animation> &animations) {
-    for (u32 i = 0; i < animations.size(); i++) {
-        Animation *a = &animations[i];
-        if (!a->active) {
-            a->active = true;
-            return a;
-        }
+find_animation(Array<Animation> &animations, Pose *src) {
+  for (u32 i = 0; i < animations.size(); i++) {
+    Animation *a = &animations[i];
+    if (!a->active) {
+      a->active = true;
+      a->keyframes.clear();
+      a->src = src;
+      return a;
     }
-    ASSERT(0);
-    return 0;
+    // src pose is already being animated
+    if (a->active && a->src == src) {
+      return a;
+    }
+  }
+  ASSERT(0);
+  return 0;
 }
 
 internal void

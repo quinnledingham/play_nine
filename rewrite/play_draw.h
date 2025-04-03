@@ -16,6 +16,8 @@ struct Game_Draw {
 
     Matrix_4x4 hand_models[MAX_PLAYERS][HAND_SIZE];
     float32 rotation;
+
+    Pose cards[MAX_PLAYERS][HAND_SIZE];
 };
 
 #define X_AXIS { 1, 0, 0 }

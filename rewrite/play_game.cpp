@@ -61,9 +61,13 @@ void start_hole(Game *game) {
   game->turn.stage = FLIP_CARD;
 }
 
-void start_game(Game *game) {
+void start_game(Game *game, u32 players_count) {
+  *game = {};
   game->holes_played = 0;
   game->starting_player = 0;
+  game->players_count = players_count;
+  game->game_over = false;
+
   start_hole(game);
 }
 /*
@@ -160,11 +164,12 @@ void next_player(Game *game, Player *active_player) {
     }
   }
 
+  Animation *a = find_animation(animations, &camera.pose);
   Animation_Keyframe key = {};
   key.start = camera.pose;
   key.time_duration = 0.5f;
   key.end = get_player_camera(-game_draw.degrees_between_players, game->active_player);
-  add_keyframe(camera.animation, &key);
+  add_keyframe(a, &key);
 }
 
 void update_game_select_pile(Game *game, bool8 input[GI_SIZE], Player *active_player) {
@@ -212,10 +217,25 @@ void update_game_select_card(Game *game, bool8 input[GI_SIZE], Player *active_pl
   }
 }
 
-void update_game_flip_card(Game *game, bool8 input[GI_SIZE], Player *active_player) {
+internal void
+flip_card_animation() {
+
+}
+
+internal void 
+update_game_flip_card(Game *game, bool8 input[GI_SIZE], Player *active_player) {
   for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
     if (input[card_index] && !active_player->cards[card_index].flipped) {
       active_player->cards[card_index].flipped = true;
+
+/*
+      Animation *a = find_animation(animations, &camera.pose);
+      Animation_Keyframe key = {};
+      key.start = camera.pose;
+      key.time_duration = 0.5f;
+      key.end = get_player_camera(-game_draw.degrees_between_players, game->active_player);
+      add_keyframe(a, &key);
+*/
 
       if (game->round_type == FLIP_ROUND) {
         if (get_number_flipped(active_player->cards) == 2) {
@@ -239,7 +259,8 @@ void update_game_flip_card(Game *game, bool8 input[GI_SIZE], Player *active_play
   }
 }
 
-void update_game_with_input(Game *game, bool8 input[GI_SIZE]) {
+internal void 
+update_game_with_input(Game *game, bool8 input[GI_SIZE]) {
   Player *active_player = &game->players[game->active_player];
   switch(game->turn.stage) {
     case SELECT_PILE:

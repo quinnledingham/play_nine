@@ -80,6 +80,7 @@ enum Input_IDs {
 
   IN_REFRESH_SHADERS,
   IN_TOGGLE_CAMERA,
+  IN_RESET_GAME,
 
 #endif // DEBUG
 

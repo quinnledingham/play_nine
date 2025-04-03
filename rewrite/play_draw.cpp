@@ -67,19 +67,6 @@ init_absolute_hand_coords(Game *game, Game_Draw *draw) {
 }
 
 internal void
-init_game_draw(Game *game, Game_Draw *draw) {
-  if (game->players_count == 0) {
-    ASSERT(0);
-  }
-
-  draw->card_dim = geometry_size(find_geometry(GEOMETRY_CARD)).xz();
-
-  init_relative_hand_coords(draw);
-  init_absolute_hand_coords(game, draw);
-  draw->x_hand_position = draw->absolute_hand_coords[0].x;
-}
-
-internal void
 rotate_coords(Vector3 *coords, float32 rad) {
     *coords = { 
          cosf(rad) * coords->x + sinf(rad) * coords->z, 
@@ -98,10 +85,6 @@ get_card_position(u32 card_index, u32 active_p, float32 y_axis_rad) {
     return card_position;
 }
 
-internal void
-load_player_hand_models(Game_Draw *draw, u32 player_index) {
-  
-}
 
 internal Quaternion
 get_card_rotation(float32 x_rot, float32 y_rot, bool8 flipped) {
@@ -113,6 +96,37 @@ get_card_rotation(float32 x_rot, float32 y_rot, bool8 flipped) {
   Quaternion rotation = y_quat * x_quat;
 
   return rotation;
+}
+
+internal void
+set_cards_coords(Game *game, Game_Draw *draw) {
+  memset(draw->cards, 0, sizeof(Pose) * MAX_PLAYERS * HAND_SIZE);
+
+  for (u32 p_i = 0; p_i < game->players_count; p_i++) {
+    float32 x_rot = 0.0f;
+    float32 y_rot = draw->player_hand_rads[p_i];
+
+    for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
+      Pose *pose = &draw->cards[p_i][c_i];
+      pose->position = get_card_position(c_i, p_i, y_rot);
+      pose->yaw = y_rot * RAD2DEG;
+    }
+  }
+};
+
+internal void
+init_game_draw(Game *game, Game_Draw *draw) {
+  if (game->players_count == 0) {
+    ASSERT(0);
+  }
+
+  draw->card_dim = geometry_size(find_geometry(GEOMETRY_CARD)).xz();
+
+  init_relative_hand_coords(draw);
+  init_absolute_hand_coords(game, draw);
+  draw->x_hand_position = draw->absolute_hand_coords[0].x;
+
+  set_cards_coords(game, draw);
 }
 
 // draws a individual card
@@ -217,21 +231,22 @@ draw_cards(Game *game, Game_Draw *draw) {
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
     float32 x_rot = 0.0f;
     float32 y_rot = draw->player_hand_rads[p_i];
-    Quaternion rotation = get_card_rotation(0.0, y_rot, true);
+    //Quaternion rotation = get_card_rotation(0.0, y_rot, true);
 
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
-      Vector3 coords = get_card_position(c_i, p_i, y_rot);
       Player_Card *card = &game->players[p_i].cards[c_i];
-      Quaternion card_rotation = rotation;
+      Pose pose = draw->cards[p_i][c_i];
+      
       if (!card->flipped) {
-        card_rotation = card_rotation * flip;
-        coords = coords + Vector3{0, half, 0};
+        //card_rotation = card_rotation * flip;
+        //pose.roll += 180.0f;
+        pose.position += Vector3{0, half, 0};
       } else {
-        coords = coords - Vector3{0, half, 0};
+        pose.position -= Vector3{0, half, 0};
       }
 
       Object object = {};
-      object.model = create_transform_m4x4(coords, card_rotation, {1.0f, 1.0f, 1.0f});
+      object.model = transform_m4x4(pose, {1.0f, 1.0f, 1.0f});
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, face_mesh->indices_count, 1, 0, 0, 0);

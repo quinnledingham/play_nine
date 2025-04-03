@@ -265,6 +265,34 @@ create_transform_m4x4(Vector3 position, Quaternion rotation, Vector3 scale) {
 }
 
 inline Matrix_4x4 
+transform_m4x4(Pose pose, Vector3 scale) {
+    Vector3 x = {1, 0, 0};
+    Vector3 y = {0, 1, 0};
+    Vector3 z = {0, 0, 1};
+    
+    Quaternion x_rot = get_rotation(pose.w * DEG2RAD, X_AXIS);
+    Quaternion z_rot = get_rotation(pose.p * DEG2RAD, Z_AXIS);
+    Quaternion y_rot = get_rotation(pose.k * DEG2RAD, Y_AXIS);
+    
+    Quaternion rot = z_rot * x_rot * y_rot;
+
+    x = rot * x;
+    y = rot * y;
+    z = rot * z;
+    
+    x = x * scale.x;
+    y = y * scale.y;
+    z = z * scale.z;
+    
+    return {
+        x.x, x.y, x.z, 0,
+        y.x, y.y, y.z, 0,
+        z.x, z.y, z.z, 0,
+        pose.x, pose.y, pose.z, 1
+    };
+}
+
+inline Matrix_4x4 
 create_transform_m4x4(Vector2 position, Vector2 scale) {
     Vector3 x = {1, 0, 0};
     Vector3 y = {0, 1, 0};

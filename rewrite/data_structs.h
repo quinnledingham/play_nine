@@ -59,6 +59,7 @@ struct Array {
   Array() {
     data = 0;
     insert_index = 0;
+    element_count = 0;
   }
 
   void init(u32 in_element_count) {
@@ -70,6 +71,7 @@ struct Array {
 
   void clear() {
     memset(data, 0, data_size);
+    insert_index = 0;
   }
 
   u32 size() {
@@ -78,7 +80,7 @@ struct Array {
 
   void insert(T new_element) {
     //ASSERT(insert_index < element_count);
-    if (insert_index <= element_count) {
+    if (insert_index >= element_count) {
       if (!data) {
         init(1);
       } else {
@@ -90,6 +92,10 @@ struct Array {
       }
     }
     data[insert_index++] = new_element;
+  }
+  
+  T& top() {
+    return data[insert_index - 1];
   }
 
   T& operator [] (int i) { 

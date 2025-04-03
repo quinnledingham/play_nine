@@ -17,6 +17,7 @@ set_button_ids() {
 
   set(IN_REFRESH_SHADERS, SDLK_V);
   set(IN_TOGGLE_CAMERA, SDLK_C);
+  set(IN_RESET_GAME, SDLK_K);
 
   set(IN_CARD_0, SDLK_Q);
   set(IN_CARD_1, SDLK_W);
@@ -85,16 +86,15 @@ s32 play_init() {
 
 #endif // DEBUG
 
+  set_button_ids();
+  init_guis();
+
   //
   // setting up game
   //
   init_deck();
 
-  debug.test_game.players_count = 4;
-  start_game(&debug.test_game);
-
-  set_button_ids();
-  init_guis();
+  start_game(&debug.test_game, 4);
 
   init_game_draw(&debug.test_game, &game_draw);
 
@@ -102,8 +102,7 @@ s32 play_init() {
 
   camera.up = { 0, -1, 0 };
   camera.fov = 75.0f;
-  camera.animation = find_animation(animations);
-  camera.animation->src = &camera.pose;
+
   camera.pose = get_player_camera(-game_draw.degrees_between_players, debug.test_game.active_player);
 
   return SUCCESS;
@@ -203,6 +202,12 @@ update_game(Game *game) {
   if (debug.free_camera) {
     free_fly_update_camera(&camera);
   } else {
+
+    if (on_down(IN_RESET_GAME)) {
+      start_game(&debug.test_game, debug.test_game.players_count);
+      init_game_draw(&debug.test_game, &game_draw);
+      camera.pose = get_player_camera(-game_draw.degrees_between_players, debug.test_game.active_player);
+    }
 
 #endif // DEBUG
 

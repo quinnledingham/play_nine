@@ -103,30 +103,6 @@ struct Object {
     s32 index;
 };
 
-union Pose {
-    struct {
-        union {
-            struct {
-                float32 x, y, z;
-            };
-            Vector3 position;
-        };
-        union {
-            struct {
-                float32 omega, phi, kappa;
-            };
-            struct {
-                float32 roll, pitch, yaw;
-            };
-            struct {
-                float32 w, p, k;
-            };
-            Vector3 orientation;
-        };
-    };
-    float32 E[6];
-};
-
 struct Animation_Keyframe {
     Pose start;
     Pose end;
@@ -166,5 +142,5 @@ struct Camera {
     Vector3 up;
     float32 fov;
 
-    Animation *animation;
+    //Animation *animation;
 };
