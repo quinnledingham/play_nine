@@ -20,9 +20,7 @@ struct Game_Draw {
     Pose cards[MAX_PLAYERS][HAND_SIZE];
 };
 
-#define X_AXIS { 1, 0, 0 }
-#define Y_AXIS { 0, 1, 0 }
-#define Z_AXIS { 0, 0, 1 }
+
 
 global const Vector4 play_nine_green        = {  39,  77,  20, 1 };
 global const Vector4 play_nine_yellow       = { 231, 213,  36, 1 };

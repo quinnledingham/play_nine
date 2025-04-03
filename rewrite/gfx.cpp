@@ -123,9 +123,9 @@ inline Matrix_4x4 get_view(Camera camera)  {
 internal void
 update_camera_target(Camera *camera) {
     Vector3 camera_direction = {
-        cosf(DEG2RAD * (float32)camera->yaw) * cosf(DEG2RAD * (float32)camera->pitch),
-        sinf(DEG2RAD * (float32)camera->pitch),
-        sinf(DEG2RAD * (float32)camera->yaw) * cosf(DEG2RAD * (float32)camera->pitch)
+        cosf(camera->yaw) * cosf(camera->pitch),
+        sinf(camera->pitch),
+        sinf(camera->yaw) * cosf(camera->pitch)
     };
     camera->target = normalized(camera_direction);
 }
@@ -306,7 +306,7 @@ do_animation(Animation *a, float64 frame_time_s) {
       key->time_elapsed += (float32)frame_time_s;
 
       float32 percent = key->time_elapsed / key->time_duration;
-      *a->src = slerp_intropolation(key->start, key->end, percent);
+      *a->src = linear_interpolate(key->start, key->end, percent);
       break;
     }
   }
@@ -326,10 +326,10 @@ do_animations(Array<Animation> &animations, float64 frame_time_s) {
 
 internal void 
 normalize_angle_difference(float32 &start, const float32 end) {
-  if (end - start > 180.0f) {
-    start += 360.0f;  
-  } else if (end - start < -180.0f) {
-    start -= 360.0f;
+  if (end - start > PI) {
+    start += 2*PI;  
+  } else if (end - start < -PI) {
+    start -= PI;
   }
 }
 

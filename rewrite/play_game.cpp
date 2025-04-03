@@ -228,14 +228,14 @@ update_game_flip_card(Game *game, bool8 input[GI_SIZE], Player *active_player) {
     if (input[card_index] && !active_player->cards[card_index].flipped) {
       active_player->cards[card_index].flipped = true;
 
-/*
-      Animation *a = find_animation(animations, &camera.pose);
+      Pose *pose = &game_draw.cards[game->active_player][card_index];
+      Animation *a = find_animation(animations, pose);
       Animation_Keyframe key = {};
-      key.start = camera.pose;
+      key.start = *pose;
       key.time_duration = 0.5f;
-      key.end = get_player_camera(-game_draw.degrees_between_players, game->active_player);
+      key.end = *pose;
+      key.end.roll += PI;
       add_keyframe(a, &key);
-*/
 
       if (game->round_type == FLIP_ROUND) {
         if (get_number_flipped(active_player->cards) == 2) {

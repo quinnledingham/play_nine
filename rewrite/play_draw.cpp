@@ -103,13 +103,13 @@ set_cards_coords(Game *game, Game_Draw *draw) {
   memset(draw->cards, 0, sizeof(Pose) * MAX_PLAYERS * HAND_SIZE);
 
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
-    float32 x_rot = 0.0f;
     float32 y_rot = draw->player_hand_rads[p_i];
 
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
       Pose *pose = &draw->cards[p_i][c_i];
       pose->position = get_card_position(c_i, p_i, y_rot);
-      pose->yaw = y_rot * RAD2DEG;
+      pose->phi = y_rot;
+      pose->omega = PI; // flipped over
     }
   }
 };
@@ -229,24 +229,20 @@ draw_cards(Game *game, Game_Draw *draw) {
   
   // player cards
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
-    float32 x_rot = 0.0f;
-    float32 y_rot = draw->player_hand_rads[p_i];
-    //Quaternion rotation = get_card_rotation(0.0, y_rot, true);
-
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
       Player_Card *card = &game->players[p_i].cards[c_i];
       Pose pose = draw->cards[p_i][c_i];
       
+      pose.roll -= PI;
+
       if (!card->flipped) {
-        //card_rotation = card_rotation * flip;
-        //pose.roll += 180.0f;
         pose.position += Vector3{0, half, 0};
       } else {
         pose.position -= Vector3{0, half, 0};
       }
 
       Object object = {};
-      object.model = transform_m4x4(pose, {1.0f, 1.0f, 1.0f});
+      object.model = m4x4(pose, {1.0f, 1.0f, 1.0f});
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, face_mesh->indices_count, 1, 0, 0, 0);
@@ -259,30 +255,25 @@ draw_cards(Game *game, Game_Draw *draw) {
   local.text.x = 3.0f;
 
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
-    float32 x_rot = 0.0f;
-    float32 y_rot = draw->player_hand_rads[p_i];
-    Quaternion rotation = get_card_rotation(0.0, y_rot, false);
-
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
-      Vector3 coords = get_card_position(c_i, p_i, y_rot);
       Player_Card *card = &game->players[p_i].cards[c_i];
-      Quaternion card_rotation = rotation;
+      Pose pose = draw->cards[p_i][c_i];
+      
       if (!card->flipped) {
-        card_rotation = card_rotation * flip;
-        coords = coords - Vector3{0, half, 0};
+        pose.position -= Vector3{0, half, 0};
       } else {
-        coords = coords + Vector3{0, half, 0};
+        pose.position += Vector3{0, half, 0};
       }
 
-      Object object = {};
-      object.model = create_transform_m4x4(coords, card_rotation, {1.0f, 1.0f, 1.0f});
-      vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-      
       s32 value = deck[card->index];
       if (value == -5)
         value = 13;
       local.region = atlas_region(atlas, value);
       gfx_ubo(GFXID_LOCAL, &local, 0);
+
+      Object object = {};
+      object.model = m4x4(pose, {1.0f, 1.0f, 1.0f});
+      vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, face_mesh->indices_count, 1, 0, 0, 0);
     }
@@ -295,20 +286,12 @@ draw_cards(Game *game, Game_Draw *draw) {
   gfx_ubo(GFXID_LOCAL, &local, 0);
 
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
-    float32 x_rot = 0.0f;
-    float32 y_rot = draw->player_hand_rads[p_i];
-    Quaternion rotation = get_card_rotation(0.0, y_rot, false);
-
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
       Player_Card *card = &game->players[p_i].cards[c_i];
-      Quaternion card_rotation = rotation;
-      if (!card->flipped) {
-        card_rotation = card_rotation * flip;
-      }
-      Vector3 coords = get_card_position(c_i, p_i, y_rot);
+      Pose pose = draw->cards[p_i][c_i];
 
       Object object = {};
-      object.model = create_transform_m4x4(coords, rotation, {1.0f, thickness, 1.0f});
+      object.model = m4x4(pose, {1.0f, thickness, 1.0f});
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, side_mesh->indices_count, 1, 0, 0, 0);
@@ -383,8 +366,8 @@ get_player_camera(float32 degrees_between, u32 active_i) {
   pose.x = x;
   pose.y = 12.0f;
   pose.z = y;
-  pose.pitch = -44.0f;
-  pose.yaw = target_degrees + 180.0f;
+  pose.pitch = -44.0f * DEG2RAD;
+  pose.yaw = (target_degrees + 180.0f) * DEG2RAD;
 
   return pose;
 
