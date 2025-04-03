@@ -63,7 +63,7 @@ struct Player {
 
 struct Player_Turn {
     u8 new_card; // != 0 if from a not from the discard pile
-    u8 picked_up_card; // what card was picked up from the piles
+    s8 picked_up_card = -1; // what card was picked up from the piles
     enum Turn_Stages stage;
 };
 
@@ -79,6 +79,13 @@ struct Card_Pile {
         u8 index = indices[top - 1];
         top--;
         return index;
+    }
+
+    bool8 empty() {
+        if (top == 0)
+            return true;
+        else
+            return false;
     }
 
     void add_card(u8 index) {

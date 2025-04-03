@@ -76,6 +76,7 @@ init_game_draw(Game *game, Game_Draw *draw) {
 
   init_relative_hand_coords(draw);
   init_absolute_hand_coords(game, draw);
+  draw->x_hand_position = draw->absolute_hand_coords[0].x;
 }
 
 internal void
@@ -116,11 +117,24 @@ get_card_rotation(float32 x_rot, float32 y_rot, bool8 flipped) {
 
 // draws a individual card
 internal void
-draw_card(Vector3 coords, float32 x_rot, float32 y_rot) {
+draw_card(Vector3 coords, float32 x_rot, float32 y_rot, s32 value) {
+  if (value == -5)
+    value = 13;
+
   Geometry *geo = find_geometry(GEOMETRY_CARD);
   Geometry *side = find_geometry(GEOMETRY_CARD_SIDE);
 
+  Material_Shader m_s = geo->meshes[0].material->shader();
+  gfx_ubo(GFXID_MATERIAL, &m_s, 0);
+
+  gfx_bind_bitmap(GFXID_TEXTURE, BITMAP_BACK, 0);
+
+  Local local = {};
+  local.text.x = 2.0f;
+  gfx_bind_descriptor_set(GFXID_LOCAL, &local);
+
   float32 thickness = 0.05f;
+  float32 half = thickness / 2.0f;
 
   Quaternion y_quat = get_rotation(y_rot, Y_AXIS);
   Quaternion x_quat = get_rotation(x_rot, X_AXIS);
@@ -129,28 +143,52 @@ draw_card(Vector3 coords, float32 x_rot, float32 y_rot) {
   Quaternion rotation = y_quat * x_quat;
   Quaternion rotation_flip = y_quat * x_quat_flip;
 
-  Object object = {};
-  object.model = create_transform_m4x4(coords + Vector3{0, thickness, 0}, rotation, {1.0f, 1.0f, 1.0f});
-  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-  draw_geometry(geo);
+  Quaternion non = get_rotation(0.0f, X_AXIS);
 
-  object = {};
-  object.model = create_transform_m4x4(coords, rotation_flip, {1.0f, 1.0f, 1.0f});
-  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-  draw_geometry(geo);
+  // draw 
+  {
+    Vector3 normal = {0, 1, 0};  // Original normal
+    Vector3 rotated_normal = rotation_flip * normal;  // Transform normal
+    Vector3 bottom_coords = coords + (rotated_normal * half);
+    Object object = {};
+    object.model = create_transform_m4x4(bottom_coords, rotation_flip, {1.0f, 1.0f, 1.0f});
+    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+    draw_geometry_no_material(geo);
+  }
 
-  Local local = {};
-  local.color = {0, 255, 0, 1};
+  Texture_Atlas *atlas = find_atlas(ATLAS_CARDS);
+  vulkan_bind_descriptor_set(atlas->gpu[vk_ctx.current_frame].set);
+  local.text.x = 3.0f;
+  local.region = atlas_region(atlas, value);
   gfx_ubo(GFXID_LOCAL, &local, 0);
 
-  object.model = create_transform_m4x4(coords, rotation, {1.0f, thickness, 1.0f});
-  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-  draw_geometry_no_material(side);
+  {
+    Vector3 normal = {0, -1, 0};  // Original normal
+    Vector3 rotated_normal = rotation_flip * normal;  // Transform normal
+    Vector3 top_coords = coords + (rotated_normal * half);
+    Object object = {};
+    object.model = create_transform_m4x4(top_coords, rotation, {1.0f, 1.0f, 1.0f});
+    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+    draw_geometry_no_material(geo);
+  }
+
+  // Sides
+  {
+    local.color = game_draw.card_side_color;
+    local.text.x = 0.0f;
+    gfx_ubo(GFXID_LOCAL, &local, 0);
+    
+    Object object = {};
+    object.model = create_transform_m4x4(coords, rotation, {1.0f, thickness, 1.0f});
+    vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+    draw_geometry_no_material(side);
+  }
 }
 
 internal void
 draw_cards(Game *game, Game_Draw *draw) {
   float32 thickness = 0.05f;
+  float32 half = thickness / 2.0f;
 
   Geometry *geo = find_geometry(GEOMETRY_CARD);
   Geometry *side = find_geometry(GEOMETRY_CARD_SIDE);
@@ -169,7 +207,13 @@ draw_cards(Game *game, Game_Draw *draw) {
 
   vulkan_bind_mesh(face_mesh);
   
+  Quaternion flip = get_rotation(PI, X_AXIS);
+
+  //
   // backside
+  //
+  
+  // player cards
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
     float32 x_rot = 0.0f;
     float32 y_rot = draw->player_hand_rads[p_i];
@@ -177,9 +221,17 @@ draw_cards(Game *game, Game_Draw *draw) {
 
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
       Vector3 coords = get_card_position(c_i, p_i, y_rot);
+      Player_Card *card = &game->players[p_i].cards[c_i];
+      Quaternion card_rotation = rotation;
+      if (!card->flipped) {
+        card_rotation = card_rotation * flip;
+        coords = coords + Vector3{0, half, 0};
+      } else {
+        coords = coords - Vector3{0, half, 0};
+      }
 
       Object object = {};
-      object.model = create_transform_m4x4(coords, rotation, {1.0f, 1.0f, 1.0f});
+      object.model = create_transform_m4x4(coords, card_rotation, {1.0f, 1.0f, 1.0f});
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, face_mesh->indices_count, 1, 0, 0, 0);
@@ -197,14 +249,21 @@ draw_cards(Game *game, Game_Draw *draw) {
     Quaternion rotation = get_card_rotation(0.0, y_rot, false);
 
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
-      
       Vector3 coords = get_card_position(c_i, p_i, y_rot);
+      Player_Card *card = &game->players[p_i].cards[c_i];
+      Quaternion card_rotation = rotation;
+      if (!card->flipped) {
+        card_rotation = card_rotation * flip;
+        coords = coords - Vector3{0, half, 0};
+      } else {
+        coords = coords + Vector3{0, half, 0};
+      }
 
       Object object = {};
-      object.model = create_transform_m4x4(coords + Vector3{0, thickness, 0}, rotation, {1.0f, 1.0f, 1.0f});
+      object.model = create_transform_m4x4(coords, card_rotation, {1.0f, 1.0f, 1.0f});
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
       
-      s32 value = deck[game->players[p_i].cards[c_i].index];
+      s32 value = deck[card->index];
       if (value == -5)
         value = 13;
       local.region = atlas_region(atlas, value);
@@ -216,7 +275,7 @@ draw_cards(Game *game, Game_Draw *draw) {
 
   // sides
   vulkan_bind_mesh(side_mesh);
-  local.color = {90, 90, 90, 1};
+  local.color = game_draw.card_side_color;
   local.text.x = 0.0f;
   gfx_ubo(GFXID_LOCAL, &local, 0);
 
@@ -226,6 +285,11 @@ draw_cards(Game *game, Game_Draw *draw) {
     Quaternion rotation = get_card_rotation(0.0, y_rot, false);
 
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
+      Player_Card *card = &game->players[p_i].cards[c_i];
+      Quaternion card_rotation = rotation;
+      if (!card->flipped) {
+        card_rotation = card_rotation * flip;
+      }
       Vector3 coords = get_card_position(c_i, p_i, y_rot);
 
       Object object = {};
@@ -234,6 +298,43 @@ draw_cards(Game *game, Game_Draw *draw) {
 
       vkCmdDrawIndexed(VK_CMD, side_mesh->indices_count, 1, 0, 0, 0);
     }
+  }
+  
+  //
+  // piles
+  //
+
+  // move piles closer to player
+  float32 center_of_piles_z = draw->x_hand_position + draw->pile_distance_from_hand;
+  float32 rad = draw->player_hand_rads[game->active_player];
+  float32 rotation_rads = rad - (0.0f * DEG2RAD);
+
+  {
+    Vector3 draw_pile_coords = {};
+    draw_pile_coords.x = -1.1f;
+    draw_pile_coords.z = center_of_piles_z;
+    rotate_coords(&draw_pile_coords, rotation_rads);
+    draw_card(draw_pile_coords, 180.0f * DEG2RAD, rotation_rads, deck[game->draw_pile.top_card()]);
+  }
+
+  {
+    Vector3 discard_pile_coords = {};
+    discard_pile_coords = {};
+    discard_pile_coords.x = 1.1f;
+    discard_pile_coords.z = center_of_piles_z;
+    rotate_coords(&discard_pile_coords, rotation_rads);
+    if (!game->discard_pile.empty())
+      draw_card(discard_pile_coords, 0.0f * DEG2RAD, rotation_rads, deck[game->discard_pile.top_card()]);
+  }
+
+  {
+    Vector3 selected_card_coords = {};
+    selected_card_coords = {};
+    selected_card_coords.y = 1.0f;
+    selected_card_coords.z = center_of_piles_z + -2.7f;
+    rotate_coords(&selected_card_coords, rad);
+    if (game->turn.picked_up_card != -1)
+      draw_card(selected_card_coords, 0.0f * DEG2RAD, rad, deck[game->turn.picked_up_card]);
   }
 }
 
@@ -251,4 +352,25 @@ draw_game(Game *game) {
   draw_cards(game, &game_draw);
 
   gfx_scissor_pop();
+}
+
+internal Pose
+get_player_camera(float32 degrees_between, u32 active_i) {
+
+  float32 target_degrees = (degrees_between * (float32)active_i);
+
+  float32 rad = target_degrees * DEG2RAD;
+  float32 cam_dis = 9.0f + game_draw.radius;
+  float32 x = cam_dis * cosf(rad);
+  float32 y = cam_dis * sinf(rad);
+
+  Pose pose = {};
+  pose.x = x;
+  pose.y = 12.0f;
+  pose.z = y;
+  pose.pitch = -44.0f;
+  pose.yaw = target_degrees + 180.0f;
+
+  return pose;
+
 }

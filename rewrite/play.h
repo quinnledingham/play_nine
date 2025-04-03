@@ -84,7 +84,7 @@ struct Vulkan_Buffer;
 #include "play_assets.h"
 
 s32 play_init();
-s32 update();
+s32 do_game_frame();
 void play_destroy();
 
 #include "log.cpp"

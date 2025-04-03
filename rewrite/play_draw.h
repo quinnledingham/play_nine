@@ -1,15 +1,21 @@
 struct Game_Draw {
-  bool8 enabled = false;
+    bool8 enabled = false;
 
-  float32 hand_width;
-  Vector2 card_dim;
-  Vector2 relative_hand_coords[HAND_SIZE];
-  Vector3 absolute_hand_coords[MAX_PLAYERS];
-  float32 player_hand_rads[MAX_PLAYERS];
-  float32 degrees_between_players;
-  float32 radius; // from 0,0,0 to player hand position
+    float32 hand_width;
+    Vector2 card_dim;
+    Vector2 relative_hand_coords[HAND_SIZE];
+    Vector3 absolute_hand_coords[MAX_PLAYERS];
+    float32 player_hand_rads[MAX_PLAYERS];
+    float32 degrees_between_players;
+    float32 radius; // from 0,0,0 to player hand position
 
-  Matrix_4x4 hand_models[MAX_PLAYERS][HAND_SIZE];
+    float32 pile_distance_from_hand = -5.7f;
+    float32 x_hand_position; // where hand on x_axis is location
+
+    const Vector4 card_side_color = {90, 90, 90, 1};
+
+    Matrix_4x4 hand_models[MAX_PLAYERS][HAND_SIZE];
+    float32 rotation;
 };
 
 #define X_AXIS { 1, 0, 0 }
@@ -20,6 +26,8 @@ global const Vector4 play_nine_green        = {  39,  77,  20, 1 };
 global const Vector4 play_nine_yellow       = { 231, 213,  36, 1 };
 global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
 global const Vector4 play_nine_dark_yellow  = { 197, 180,  22, 1 };
+
+internal Pose get_player_camera(float32 degrees_between, u32 active_i);
 
 // Card Ratio: 63/88
 

@@ -13,7 +13,6 @@ GFX gfx = {};
 Assets assets = {};
 
 App_Time app_time;
-App_Input app_input = {};
 
 GUI_Manager gui_manager;
 
@@ -47,26 +46,28 @@ s8 deck[DECK_SIZE];
 Game game;
 Game_Draw game_draw;
 
+enum Game_Type {
+  LOCAL_GAME,
+  ONLINE_GAME,
+};
+u32 game_type = LOCAL_GAME;
+
 // Drawing Game
 
 Texture_Atlas card_bitmaps_atlas;
 
-Camera camera = {
-  Vector3{0, 0, 1},
-  Vector3{0, 0, 0},
-  Vector3{0, -1, 0},
-  0, 
-  0, 
-  0
-};
+Camera camera = {};
 
 Scene scene;
 Scene ortho_scene;
+
+Array<Animation> animations;
 
 #ifdef DEBUG
 
 struct Debug_State {
   bool8 draw_text_info = false;
+  bool8 free_camera = false;
 
   bool8 recreate_input_prompt_atlases = false;
   bool8 recreate_bitmaps = false;

@@ -103,15 +103,68 @@ struct Object {
     s32 index;
 };
 
-union Camera {
+union Pose {
     struct {
-        Vector3 position;
-        Vector3 target;
-        Vector3 up;
-        float32 fov;
-        float64 yaw;
-        float64 pitch;
+        union {
+            struct {
+                float32 x, y, z;
+            };
+            Vector3 position;
+        };
+        union {
+            struct {
+                float32 omega, phi, kappa;
+            };
+            struct {
+                float32 roll, pitch, yaw;
+            };
+            struct {
+                float32 w, p, k;
+            };
+            Vector3 orientation;
+        };
     };
-    float32 E[12];
+    float32 E[6];
 };
 
+struct Animation_Keyframe {
+    Pose start;
+    Pose end;
+
+    float32 time_elapsed;
+    float32 time_duration;
+
+    bool8 dynamic;
+
+    // if dynamic == false then dest = &end;
+    // allows for a moving destination.
+    Vector3 *dest;
+};
+
+struct Animation {
+    bool8 active;
+    Pose *src; // points to a the pose that is being animated
+
+    Array<Animation_Keyframe> keyframes;
+};
+
+struct Camera {
+    union {
+        struct {
+            Vector3 position;
+            union {
+                struct {
+                    float32 roll, pitch, yaw;
+                };
+                Vector3 orientation;
+            };
+        };
+        Pose pose;
+    };
+
+    Vector3 target;
+    Vector3 up;
+    float32 fov;
+
+    Animation *animation;
+};

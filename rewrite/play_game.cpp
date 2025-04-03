@@ -159,6 +159,12 @@ void next_player(Game *game, Player *active_player) {
       game->turn.stage = FLIP_CARD;
     }
   }
+
+  Animation_Keyframe key = {};
+  key.start = camera.pose;
+  key.time_duration = 0.5f;
+  key.end = get_player_camera(-game_draw.degrees_between_players, game->active_player);
+  add_keyframe(camera.animation, &key);
 }
 
 void update_game_select_pile(Game *game, bool8 input[GI_SIZE], Player *active_player) {
@@ -202,6 +208,7 @@ void update_game_select_card(Game *game, bool8 input[GI_SIZE], Player *active_pl
   if (game->turn.new_card && input[GI_DISCARD_PILE]) {
     game->discard_pile.add_card(game->turn.picked_up_card);
     game->turn.stage = FLIP_CARD;
+    game->turn.picked_up_card = -1;
   }
 }
 

@@ -2,19 +2,36 @@
 
 internal void
 set_button_ids() {
-  button_set(&app_input.back, SDLK_ESCAPE);
+  set(IN_BACK, SDLK_ESCAPE);
 
-  button_set(&app_input.forward, SDLK_W);
-  button_set(&app_input.forward, SDLK_UP);
-  button_set(&app_input.backward, SDLK_S);
-  button_set(&app_input.backward, SDLK_DOWN);
-  button_set(&app_input.left, SDLK_A);
-  button_set(&app_input.left, SDLK_LEFT);
-  button_set(&app_input.right, SDLK_D);
-  button_set(&app_input.right, SDLK_RIGHT);
-  button_set(&app_input.up, SDLK_SPACE);
-  button_set(&app_input.down, SDLK_LSHIFT);
-  button_set(&app_input.refresh_shaders, SDLK_R);
+  set(IN_FORWARD, SDLK_W);
+  set(IN_FORWARD, SDLK_UP);
+  set(IN_BACKWARD, SDLK_S);
+  set(IN_BACKWARD, SDLK_DOWN);
+  set(IN_LEFT, SDLK_A);
+  set(IN_LEFT, SDLK_LEFT);
+  set(IN_RIGHT, SDLK_D);
+  set(IN_RIGHT, SDLK_RIGHT);
+  set(IN_UP, SDLK_SPACE);
+  set(IN_DOWN, SDLK_LSHIFT);
+
+  set(IN_REFRESH_SHADERS, SDLK_V);
+  set(IN_TOGGLE_CAMERA, SDLK_C);
+
+  set(IN_CARD_0, SDLK_Q);
+  set(IN_CARD_1, SDLK_W);
+  set(IN_CARD_2, SDLK_E);
+  set(IN_CARD_3, SDLK_R);
+
+  set(IN_CARD_4, SDLK_A);
+  set(IN_CARD_5, SDLK_S);
+  set(IN_CARD_6, SDLK_D);
+  set(IN_CARD_7, SDLK_F);
+
+  set(IN_DRAW_PILE, SDLK_1);
+  set(IN_DISCARD_PILE, SDLK_2);
+  set(IN_PASS, SDLK_P);
+
 }
 
 /*
@@ -81,6 +98,14 @@ s32 play_init() {
 
   init_game_draw(&debug.test_game, &game_draw);
 
+  init_animations(animations);
+
+  camera.up = { 0, -1, 0 };
+  camera.fov = 75.0f;
+  camera.animation = find_animation(animations);
+  camera.animation->src = &camera.pose;
+  camera.pose = get_player_camera(-game_draw.degrees_between_players, debug.test_game.active_player);
+
   return SUCCESS;
 }
 
@@ -134,7 +159,103 @@ test_3D() {
   gfx_scissor_pop();
 }
 
-s32 draw() {
+internal void
+free_fly_update_camera(Camera *camera) {
+  float32 mouse_move_speed = 0.1f;
+  update_camera_with_mouse(camera, app_input.mouse.relative_coords, mouse_move_speed, mouse_move_speed);
+  update_camera_target(camera);    
+  float32 m_per_s = 6.0f; 
+  float32 m_moved = m_per_s * (float32)app_time.frame_time_s;
+  Vector3 move_vector = {m_moved, m_moved, m_moved};
+  update_camera_with_keys(camera, move_vector,
+                          is_down(IN_FORWARD), is_down(IN_BACKWARD),
+                          is_down(IN_LEFT),    is_down(IN_RIGHT),
+                          is_down(IN_UP),      is_down(IN_DOWN));
+}
+
+internal void
+do_keyboard_input(bool8 *input) {
+  ASSERT(GI_SIZE == IN_GAME_SIZE);
+
+  for (u32 i = 0; i < GI_SIZE; i++) {
+    if (on_down(i)) {
+      input[i] = true;
+    }
+  }
+}
+
+internal s32
+update_game(Game *game) {
+
+  //
+  // Camera
+  //
+#ifdef DEBUG
+
+  if (on_down(IN_TOGGLE_CAMERA)) {
+    debug.free_camera = !debug.free_camera;
+
+    if (!debug.free_camera) {
+      camera.pose = get_player_camera(-game_draw.degrees_between_players, debug.test_game.active_player);
+    }
+  }
+
+  if (debug.free_camera) {
+    free_fly_update_camera(&camera);
+  } else {
+
+#endif // DEBUG
+
+    //
+    // Game Input
+    //
+
+    do_animations(animations, app_time.frame_time_s);
+
+    update_camera_target(&camera);
+
+    bool8 input[GI_SIZE];
+    memset(input, 0, sizeof(bool8) * GI_SIZE);
+    do_keyboard_input(input);
+    update_game_with_input(game, input);
+
+#ifdef DEBUG
+  }
+#endif // DEBUG
+
+  return 0;
+}
+
+internal s32 
+do_game_frame() {
+  //
+  // Updating
+  //
+
+#ifdef DEBUG
+  if (on_down(IN_REFRESH_SHADERS)) {
+    for (u32 i = 0; i < assets.pipelines.count; i++) {
+      Pipeline *pipeline = find_pipeline(i);
+      vulkan_pipeline_cleanup(pipeline);
+    }
+    
+    s32 load_pipelines_result = load_pipelines();
+    if (load_pipelines_result == FAILURE) {
+      return FAILURE;
+    }
+    init_pipelines();
+  }
+
+#endif // DEBUG
+
+  bool8 update_game_flag = game_draw.enabled && gui_manager.indices.empty();
+  if (update_game_flag) {
+    update_game(&debug.test_game);
+  }
+
+  //
+  // Drawing
+  //
   switch(gfx_start_frame()) {
     case GFX_SKIP_FRAME: return SUCCESS;
     case GFX_ERROR:      return FAILURE;
@@ -143,6 +264,7 @@ s32 draw() {
 
   vulkan_clear_color({0.1f, 0.1f, 0.1f, 1.0f});
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
+  vulkan_depth_test(true);
 
   if (game_draw.enabled) {
     draw_game(&debug.test_game);
@@ -160,7 +282,7 @@ s32 draw() {
   draw_fps();
   
   if (game_draw.enabled) {
-    for (u32 i = 0; i < 3; i++) {
+    for (u32 i = 0; i < 6; i++) {
       float_to_string(camera.position.E[i], global_buffer);
       set_draw_font(FONT_ROBOTO_MONO);
       draw_text(global_buffer.str(), {i * 100.0f, 100}, 20, {255, 0, 0, 1});
@@ -172,40 +294,4 @@ s32 draw() {
   vulkan_end_frame();
 
   return game_should_quit;
-}
-
-internal void
-free_fly_update_camera(Camera *camera) {
-  float64 mouse_move_speed = 0.1f;
-  update_camera_with_mouse(camera, app_input.mouse.relative_coords, mouse_move_speed, mouse_move_speed);
-  update_camera_target(camera);    
-  float32 m_per_s = 6.0f; 
-  float32 m_moved = m_per_s * (float32)app_time.frame_time_s;
-  Vector3 move_vector = {m_moved, m_moved, m_moved};
-  update_camera_with_keys(camera, move_vector,
-                          is_down(app_input.forward), is_down(app_input.backward),
-                          is_down(app_input.left),    is_down(app_input.right),
-                          is_down(app_input.up),      is_down(app_input.down));
-}
-
-s32 update() {
-  if (on_down(app_input.refresh_shaders)) {
-    for (u32 i = 0; i < assets.pipelines.count; i++) {
-      Pipeline *pipeline = find_pipeline(i);
-      vulkan_pipeline_cleanup(pipeline);
-    }
-    
-    s32 load_pipelines_result = load_pipelines();
-    if (load_pipelines_result == FAILURE) {
-      return FAILURE;
-    }
-    init_pipelines();
-  }
-
-  bool8 update_game = game_draw.enabled && gui_manager.indices.empty();
-  if (update_game) {
-    free_fly_update_camera(&camera);
-  }
-
-  return draw();
 }

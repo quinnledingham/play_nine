@@ -35,6 +35,37 @@ inline void operator/=(Vector2 &l, const float32 &r) { l.x = l.x / r;   l.y = l.
 inline bool operator==(Vector2 &l, const float32 &r) { return (l.x == r && l.y == r);    }
 
 inline Vector2_s32 cv2(Vector2 v) { return Vector2_s32{ (s32)v.x, (s32)v.y }; }
+inline float32 length_squared(const Vector2 &v) { return (v.x * v.x) + (v.y * v.y); }
+
+inline float32
+magnitude(const Vector2 &v) {
+    float32 len_sq = length_squared(v);
+    if (len_sq < EPSILON) return 1;
+    return (float32)sqrt(len_sq);
+}
+
+inline float32
+distance(const Vector2 v1, const Vector2 v2) {
+    float32 x = powf(v2.x - v1.x, 2);
+    float32 y = powf(v2.y - v1.y, 2);
+    return sqrtf(x + y);
+}
+
+inline void
+normalize(Vector2 &v) {
+    float32 len_sq = length_squared(v);
+    if (len_sq < EPSILON) return;
+    float32 inverse_length = 1.0f / sqrtf(len_sq);
+    v = { v.x * inverse_length, v.y * inverse_length };
+}
+
+inline Vector2
+normalized(const Vector2 &v) {
+    float32 len_sq = length_squared(v);
+    if (len_sq < EPSILON) return v;
+    float32 inverse_length = 1.0f / sqrtf(len_sq);
+    return { v.x * inverse_length, v.y * inverse_length };
+}
 
 //
 // Vector2_s32 
@@ -112,7 +143,18 @@ cross_product(const Vector3 &l, const Vector3 &r)
     };
 }
 
+inline float32
+magnitude(const Vector3 &v)
+{
+    float32 len_sq = length_squared(v);
+    if (len_sq < EPSILON)
+        return 0.0f;
+    return (float32)sqrt(len_sq);
+}
+
+//
 // Quaternion
+//
 
 inline float32 length_squared(const Quaternion &v) { return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w; }
 
@@ -132,6 +174,8 @@ operator*(const Quaternion& q, const Vector3& v) {
            (q.scalar * q.scalar - dot_product(q.vector, q.vector)) + 
            cross_product(q.vector, v) * 2.0f * q.scalar;
 }
+
+inline void operator*=(Quaternion &l, const Quaternion &r) { l = l * r; }
 
 inline Quaternion
 normalized(const Quaternion &v) {

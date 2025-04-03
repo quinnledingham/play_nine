@@ -40,6 +40,12 @@ union Vector3 {
 	struct {
 		float32 r, g, b;
 	};
+	struct {
+		float32 omega, phi, kappa;
+	};
+	struct {
+		float32 roll, pitch, yaw;
+	};
 	float32 E[3];
 
 	Vector2 xz() {

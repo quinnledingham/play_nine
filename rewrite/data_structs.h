@@ -68,6 +68,10 @@ struct Array {
     data = (T*)malloc(data_size);
   }
 
+  void clear() {
+    memset(data, 0, data_size);
+  }
+
   u32 size() {
     return element_count;
   }

@@ -219,7 +219,7 @@ s32 sdl_do_frame() {
   //app.update();
   //printf("%f\n", time.frames_per_s);
 
-  if (update() == FAILURE)
+  if (do_game_frame() == FAILURE)
     return 1;
 
   return 0;
