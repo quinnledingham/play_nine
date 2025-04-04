@@ -97,6 +97,7 @@ void play_destroy();
 #include "sdl.cpp"
 #include "gui.cpp"
 
+#include "play_animations.cpp"
 #include "play_game.cpp"
 #include "play_bitmaps.cpp"
 #include "play_draw.cpp"

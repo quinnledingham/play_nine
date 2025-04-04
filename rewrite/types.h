@@ -41,6 +41,9 @@ union Vector3 {
 		float32 r, g, b;
 	};
 	struct {
+		float32 w, p, k;
+	};
+	struct {
 		float32 omega, phi, kappa;
 	};
 	struct {
@@ -124,7 +127,7 @@ union Color_RGBA {
 	};
 	u8 E[4];
 };
-
+/*
 union Pose {
     struct {
         union {
@@ -145,27 +148,40 @@ union Pose {
             };
             Vector3 orientation;
         };
+		Vector3 padding; // to match Transform
     };
-    float32 E[6];
+    float32 E[9];
 };
+*/
 
 struct Transform {
-	Vector3 position;
-	Vector3 orientation;
-	Vector3 scale;
-};
-
-struct Entity {
-	bool8 in_use;
-
 	union {
 		struct {
-			Vector3 positon;
-			Vector3 orientation;
-			Vector3 scale;
+	        union {
+	            struct {
+	                float32 x, y, z;
+	            };
+	            Vector3 position;
+	        };
+	        union {
+	            struct {
+	                float32 omega, phi, kappa;
+	            };
+	            struct {
+	                float32 roll, pitch, yaw;
+	            };
+	            struct {
+	                float32 w, p, k;
+	            };
+	            Vector3 orientation;
+	        };
 		};
-		Transform transform;
+		float32 P[6];
 	};
+	Vector3 scale = { 1.0f, 1.0f, 1.0f };
 };
+
+
+typedef Transform Pose;
 
 #endif // TYPES_H

@@ -106,13 +106,14 @@ struct Object {
 enum Interpolation_Types {
     INTERP_LERP,
     INTERP_SLERP,
+    INTERP_FUNC,
 
     INTERP_COUNT
 };
 
 struct Animation_Keyframe {
-    Pose start;
-    Pose end;
+    Transform start;
+    Transform end;
 
     float32 time_elapsed;
     float32 time_duration;
@@ -123,12 +124,15 @@ struct Animation_Keyframe {
 
     // if dynamic == false
     // allows for a moving destination.
-    Pose *dest;
+    Transform *dest;
+
+    void *func_args;
+    void (*func)(void *args);
 };
 
 struct Animation {
     bool8 active;
-    Pose *src; // points to a the pose that is being animated
+    Transform *src; // points to a the pose that is being animated
 
     Array<Animation_Keyframe> keyframes;
 };

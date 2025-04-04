@@ -61,8 +61,13 @@ Camera camera = {};
 Scene scene;
 Scene ortho_scene;
 
+enum Entity_Types {
+  ET_CARD,
+
+  ET_COUNT
+};
+
 Array<Animation> animations;
-ArrayB<Entity> entities;
 
 #ifdef DEBUG
 

@@ -306,6 +306,20 @@ struct Geometry {
 
 Geometry load_obj(File file);
 
+struct Entity {
+  union {
+    struct {
+      Vector3 positon;
+      Vector3 orientation;
+      Vector3 scale;
+    };
+    Transform transform;
+  };
+  
+  u32 type;
+  Geometry *geometry;
+};
+
 /*
   Asset Manager
 */

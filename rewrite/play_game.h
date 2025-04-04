@@ -43,10 +43,13 @@ Card indices
 4 5 6 7
 
 */
+struct Card_Entity;
 
 struct Player_Card {
     u8 index;
     bool8 flipped;
+
+    Card_Entity *entity;
 };
 
 struct Player {

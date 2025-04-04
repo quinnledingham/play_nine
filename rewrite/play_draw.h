@@ -1,3 +1,8 @@
+struct Card_Entity {
+    u32 index; // use if player_card == 0
+    Transform transform;
+};
+
 struct Game_Draw {
     bool8 enabled = false;
 
@@ -9,27 +14,23 @@ struct Game_Draw {
     float32 degrees_between_players;
     float32 radius; // from 0,0,0 to player hand position
 
-    float32 pile_distance_from_hand = -5.7f;
+    float32 pile_distance_from_hand = -6.7f;
     float32 x_hand_position; // where hand on x_axis is location
 
     const Vector4 card_side_color = {90, 90, 90, 1};
 
-    Matrix_4x4 hand_models[MAX_PLAYERS][HAND_SIZE];
     float32 rotation;
 
-    Pose cards[MAX_PLAYERS][HAND_SIZE];
+    ArrayB<Card_Entity> card_entities;
 
-    // location of where these are
-    Pose draw_pile_pose;
-    Pose discard_pile_pose;
-    Pose picked_up_card_pose;
+    Card_Entity *draw_pile_entity;
+    Card_Entity *discard_pile_entity;
+    Card_Entity *picked_up_card_entity;
 
-    Vector3 draw_pile_offset      = { -1.1f,    0,     0 };
-    Vector3 discard_pile_offset   = {  1.1f,    0,     0 };
-    Vector3 picked_up_card_offset = {     0, 1.0f, -2.7f };
+    Vector3 draw_pile_offset      = { -1.0f,    0,     0 };
+    Vector3 discard_pile_offset   = {  1.0f,    0,     0 };
+    Vector3 picked_up_card_offset = {     0, 1.0f, -3.7f };
 };
-
-
 
 global const Vector4 play_nine_green        = {  39,  77,  20, 1 };
 global const Vector4 play_nine_yellow       = { 231, 213,  36, 1 };

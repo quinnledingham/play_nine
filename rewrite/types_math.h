@@ -276,6 +276,30 @@ m4x4(Pose pose, Vector3 scale) {
     return create_transform_m4x4(pose.position, rot, scale);
 }
 
+inline Quaternion
+rotation(Vector3 orientation) {
+    Quaternion x_rot = get_rotation(orientation.w, X_AXIS);
+    Quaternion y_rot = get_rotation(orientation.p, Y_AXIS);
+    Quaternion z_rot = get_rotation(orientation.k, Z_AXIS);
+
+    Quaternion rot = x_rot * y_rot * z_rot;
+
+    return rot;
+}
+
+inline Matrix_4x4 
+m4x4(Transform transform) {
+    Quaternion x_rot = get_rotation(transform.w, X_AXIS);
+    Quaternion y_rot = get_rotation(transform.p, Y_AXIS);
+    Quaternion z_rot = get_rotation(transform.k, Z_AXIS);
+
+    //Quaternion rot = z_rot * y_rot * x_rot;
+    Quaternion rot = x_rot * z_rot * y_rot;
+
+    return create_transform_m4x4(transform.position, rot, transform.scale);
+}
+
+
 inline Matrix_4x4 
 create_transform_m4x4(Vector2 position, Vector2 scale) {
     Vector3 x = {1, 0, 0};

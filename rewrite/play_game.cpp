@@ -99,28 +99,6 @@ void draw_game(Game *game) {
 }
 */
 
-// returns so that the animation can be added on to
-internal Animation*
-flip_card_animation(u32 p_i, u32 c_i) {
-  float32 time_duration = 0.3f;
-
-  Pose *pose = &game_draw.cards[p_i][c_i];
-  Animation *a = find_animation(animations, pose);
-
-  Pose middle = *pose;
-  middle.y += 1.0f;
-  middle.yaw += PI/2;
-
-  add_keyframe(a, *pose, middle, time_duration/2.0f);
-
-  Pose final = *pose;
-  final.yaw += PI;
-
-  add_keyframe(a, *pose, final, time_duration/2.0f);
-
-  return a;
-}
-
 u32 get_number_flipped(Player_Card *cards) {
     u32 number_flipped = 0;
     for (u32 i = 0; i < HAND_SIZE; i++) {
@@ -135,7 +113,7 @@ void flip_cards(u32 p_i, Player_Card *cards) {
   for (u32 i = 0; i < HAND_SIZE; i++) {
     if (!cards[i].flipped) {
       cards[i].flipped = true;
-      flip_card_animation(p_i, i);
+      flip_card_animation(&cards[i]);
     }
   }
 }
@@ -152,32 +130,6 @@ decrement(u8 *counter, u32 max) {
     (*counter)--;
     if (*counter < 0)
         (*counter) = max - 1;
-}
-
-internal void
-camera_move_animation(Game *game, Game_Draw *draw) {
-  Animation *a = find_animation(animations, &camera.pose);
-  
-  if (a->keyframes.insert_index == 0)
-    add_keyframe(a, camera.pose, camera.pose, 0.3f);
-
-  Animation_Keyframe key = {};
-  key.start = camera.pose;
-  key.time_duration = 0.5f;
-  key.interpolation = INTERP_SLERP;
-  key.end = get_player_camera(-draw->degrees_between_players, game->active_player);
-  add_keyframe(a, &key);
-}
-
-internal void
-pile_move_animation(Game *game, Game_Draw *draw, Pose *pile_pose, Vector3 offset, float32 omega) {
-  Animation *a = find_animation(animations, pile_pose);
-  Animation_Keyframe key = {};
-  key.start = *pile_pose;
-  key.time_duration = 0.5f;
-  key.interpolation = INTERP_SLERP;
-  key.end = get_pile_pose(game, draw, offset, omega);
-  add_keyframe(a, &key);
 }
 
 internal void
@@ -217,16 +169,20 @@ next_player(Game *game, Player *active_player) {
 
   camera_move_animation(game, &game_draw);
   
-  pile_move_animation(game, &game_draw, &game_draw.draw_pile_pose,      game_draw.draw_pile_offset,        PI);
-  pile_move_animation(game, &game_draw, &game_draw.discard_pile_pose,   game_draw.discard_pile_offset,   0.0f);
-  pile_move_animation(game, &game_draw, &game_draw.picked_up_card_pose, game_draw.picked_up_card_offset, 0.0f);
-
+  pile_move_animation(game, &game_draw, &game_draw.draw_pile_entity->transform,      game_draw.draw_pile_offset,        PI);
+  pile_move_animation(game, &game_draw, &game_draw.discard_pile_entity->transform,   game_draw.discard_pile_offset,   0.0f);
 }
 
 internal void
 update_game_select_pile(Game *game, bool8 input[GI_SIZE], Player *active_player) {
+  if (input[GI_DRAW_PILE] || input[GI_DISCARD_PILE]) {
+    game_draw.picked_up_card_entity = game_draw.card_entities.open();
+  }
+
   if (input[GI_DRAW_PILE]) {
     game->turn.picked_up_card = game->draw_pile.draw_card();
+    game->turn.new_card = true;
+    game->turn.stage = SELECT_CARD;
 
     // @SPECIAL case
     // Probably shouldn't happen in a real game
@@ -234,17 +190,29 @@ update_game_select_pile(Game *game, bool8 input[GI_SIZE], Player *active_player)
     //    game->round_type = FINAL_ROUND;
     //}
     
-    game->turn.new_card = true;
-    game->turn.stage = SELECT_CARD;
+    Card_Entity *e = game_draw.picked_up_card_entity;
+    Transform dest = get_pile_pose(game, &game_draw, game_draw.picked_up_card_offset, 0.0f);
+    e->transform = get_pile_pose(game, &game_draw, game_draw.draw_pile_offset, PI);
+    e->index = game->turn.picked_up_card;
+    Animation *a = find_animation(animations, &e->transform);
+    add_keyframe(a, e->transform, dest, 0.5f);
   } else if (input[GI_DISCARD_PILE]) {
     game->turn.picked_up_card = game->discard_pile.draw_card();
     game->turn.new_card = false;
     game->turn.stage = SELECT_CARD;
+
+    Card_Entity *e = game_draw.picked_up_card_entity;
+    Transform dest = get_pile_pose(game, &game_draw, game_draw.picked_up_card_offset, 0.0f);
+    e->transform = get_pile_pose(game, &game_draw, game_draw.discard_pile_offset, 0.0f);
+    e->index = game->turn.picked_up_card;
+    Animation *a = find_animation(animations, &e->transform);
+    add_keyframe(a, e->transform, dest, 0.5f);
   }
 
 }
 
-void update_game_select_card(Game *game, bool8 input[GI_SIZE], Player *active_player) {
+internal void 
+update_game_select_card(Game *game, bool8 input[GI_SIZE], Player *active_player) {
   for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
     // card not clicked
     if (!input[card_index]) {
@@ -253,15 +221,8 @@ void update_game_select_card(Game *game, bool8 input[GI_SIZE], Player *active_pl
 
     // card clicked
     Player_Card *card = &active_player->cards[card_index];
-    Animation *a = 0;
-    if (!card->flipped) {
-      card->flipped = true;
-      a = flip_card_animation(game->active_player, card_index);
-    } else {
-      a = find_animation(animations, &game_draw.cards[game->active_player][card_index]);
-    }
-
-    add_dynamic_keyframe(a, game_draw.cards[game->active_player][card_index], &game_draw.discard_pile_pose, 0.5f);
+    animation_discard_select_card(card);
+    animation_place_picked_up(card);
 
     game->discard_pile.add_card(active_player->replace_card(card_index, game->turn.picked_up_card));
 
@@ -278,6 +239,10 @@ void update_game_select_card(Game *game, bool8 input[GI_SIZE], Player *active_pl
     game->discard_pile.add_card(game->turn.picked_up_card);
     game->turn.stage = FLIP_CARD;
     game->turn.picked_up_card = -1;
+
+    Animation *a = find_animation(animations, &game_draw.picked_up_card_entity->transform);
+    animation_discard(a, game_draw.picked_up_card_entity);
+    game_draw.picked_up_card_entity = 0;
   }
 }
 
@@ -285,9 +250,10 @@ internal void
 update_game_flip_card(Game *game, bool8 input[GI_SIZE], Player *active_player) {
   for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
     if (input[card_index] && !active_player->cards[card_index].flipped) {
-      active_player->cards[card_index].flipped = true;
+      Player_Card *card = &active_player->cards[card_index];
 
-      flip_card_animation(game->active_player, card_index);
+      card->flipped = true;
+      flip_card_animation(card);
 
       if (game->round_type == FLIP_ROUND) {
         if (get_number_flipped(active_player->cards) == 2) {

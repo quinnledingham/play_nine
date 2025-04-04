@@ -98,14 +98,14 @@ get_card_rotation(float32 x_rot, float32 y_rot, bool8 flipped) {
   return rotation;
 }
 
-internal Pose
-get_pile_pose(Game *game, Game_Draw *draw, Vector3 offset, float32 omega) {
+internal Transform
+get_pile_pose(Game *game, Game_Draw *draw, Vector3 offset, float32 yaw) {
   float32 center_of_piles_z = draw->x_hand_position + draw->pile_distance_from_hand;
   float32 rad = draw->player_hand_rads[game->active_player];
   float32 rotation_rads = rad - (0.0f * DEG2RAD);
   
-  Pose pose = {};
-  pose.omega = omega;
+  Transform pose = {};
+  pose.yaw = yaw;
   pose.phi = rad;
   pose.z = center_of_piles_z;
   pose.position += offset;
@@ -121,16 +121,16 @@ set_cards_coords(Game *game, Game_Draw *draw) {
   // player cards
   //
 
-  memset(draw->cards, 0, sizeof(Pose) * MAX_PLAYERS * HAND_SIZE);
-
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
     float32 y_rot = draw->player_hand_rads[p_i];
 
     for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
-      Pose *pose = &draw->cards[p_i][c_i];
-      pose->position = get_card_position(c_i, p_i, y_rot);
-      pose->phi = y_rot;
-      pose->omega = PI; // flipped over
+      Card_Entity *e = draw->card_entities.open();
+      e->transform.position = get_card_position(c_i, p_i, y_rot);
+      e->transform.phi = y_rot;
+      e->transform.yaw = PI; // flipped over
+      e->index = game->players[p_i].cards[c_i].index;
+      game->players[p_i].cards[c_i].entity = e;
     }
   }
 
@@ -138,9 +138,13 @@ set_cards_coords(Game *game, Game_Draw *draw) {
   // piles
   //  
 
-  draw->draw_pile_pose      = get_pile_pose(game, draw, draw->draw_pile_offset,      PI);
-  draw->discard_pile_pose   = get_pile_pose(game, draw, draw->discard_pile_offset, 0.0f);
-  //draw->picked_up_card_pose = get_pile_pose(game, draw, draw->picked_up_card_offset);
+  draw->draw_pile_entity = draw->card_entities.open();
+  draw->discard_pile_entity = draw->card_entities.open();
+
+  draw->draw_pile_entity->transform    = get_pile_pose(game, draw, draw->draw_pile_offset,      PI);
+  draw->draw_pile_entity->index = game->draw_pile.top_card();
+  draw->discard_pile_entity->transform = get_pile_pose(game, draw, draw->discard_pile_offset, 0.0f);
+  draw->discard_pile_entity->index = game->discard_pile.top_card();
 };
 
 internal void
@@ -154,6 +158,8 @@ init_game_draw(Game *game, Game_Draw *draw) {
   init_relative_hand_coords(draw);
   init_absolute_hand_coords(game, draw);
   draw->x_hand_position = draw->absolute_hand_coords[0].x;
+
+  draw->card_entities.init(100);
 
   set_cards_coords(game, draw);
 }
@@ -255,26 +261,19 @@ draw_cards(Game *game, Game_Draw *draw) {
   
   Quaternion flip = get_rotation(PI, X_AXIS);
 
-  //
-  // backside
-  //
-  
-  // player cards
-  for (u32 p_i = 0; p_i < game->players_count; p_i++) {
-    for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
-      Player_Card *card = &game->players[p_i].cards[c_i];
-      Pose pose = draw->cards[p_i][c_i];
+  // back side
+  for (u32 i = 0; i < draw->card_entities.size(); i++) {
+    Card_Entity *e = draw->card_entities.get(i);
+    if (e) {
+      Transform t = e->transform;
       
-      pose.roll -= PI;
+      t.roll -= PI;
 
-      if (!card->flipped) {
-        pose.position += Vector3{0, half, 0};
-      } else {
-        pose.position -= Vector3{0, half, 0};
-      }
+      Vector3 displacement = rotation(t.orientation) * Vector3{0, half, 0};
+      t.position += displacement;
 
       Object object = {};
-      object.model = m4x4(pose, {1.0f, 1.0f, 1.0f});
+      object.model = m4x4(t);
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, face_mesh->indices_count, 1, 0, 0, 0);
@@ -286,59 +285,46 @@ draw_cards(Game *game, Game_Draw *draw) {
   vulkan_bind_descriptor_set(atlas->gpu[vk_ctx.current_frame].set);
   local.text.x = 3.0f;
 
-  for (u32 p_i = 0; p_i < game->players_count; p_i++) {
-    for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
-      Player_Card *card = &game->players[p_i].cards[c_i];
-      Pose pose = draw->cards[p_i][c_i];
-      
-      if (!card->flipped) {
-        pose.position -= Vector3{0, half, 0};
-      } else {
-        pose.position += Vector3{0, half, 0};
-      }
+  for (u32 i = 0; i < draw->card_entities.size(); i++) {
+    Card_Entity *e = draw->card_entities.get(i);
+    if (e) {
+      Transform t = e->transform;
 
-      s32 value = deck[card->index];
+      Vector3 displacement = rotation(t.orientation) * Vector3{0, -half, 0};
+      t.position -= displacement;
+
+      s32 value = deck[e->index];
       if (value == -5)
         value = 13;
       local.region = atlas_region(atlas, value);
       gfx_ubo(GFXID_LOCAL, &local, 0);
 
       Object object = {};
-      object.model = m4x4(pose, {1.0f, 1.0f, 1.0f});
+      object.model = m4x4(t);
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, face_mesh->indices_count, 1, 0, 0, 0);
     }
   }
 
-  // sides
   vulkan_bind_mesh(side_mesh);
   local.color = game_draw.card_side_color;
   local.text.x = 0.0f;
   gfx_ubo(GFXID_LOCAL, &local, 0);
 
-  for (u32 p_i = 0; p_i < game->players_count; p_i++) {
-    for (u32 c_i = 0; c_i < HAND_SIZE; c_i++) {
-      Player_Card *card = &game->players[p_i].cards[c_i];
-      Pose pose = draw->cards[p_i][c_i];
+  for (u32 i = 0; i < draw->card_entities.size(); i++) {
+    Card_Entity *e = draw->card_entities.get(i);
+    if (e) {
+      Transform t = e->transform;
+      t.scale = {1.0f, thickness, 1.0f};
 
       Object object = {};
-      object.model = m4x4(pose, {1.0f, thickness, 1.0f});
+      object.model = m4x4(t);
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, side_mesh->indices_count, 1, 0, 0, 0);
     }
   }
-  
-  //
-  // piles
-  //
-
-  draw_card(draw->draw_pile_pose, deck[game->draw_pile.top_card()]);
-  if (!game->discard_pile.empty())
-    draw_card(draw->discard_pile_pose, deck[game->discard_pile.top_card()]);
-  if (game->turn.picked_up_card != -1)
-    draw_card(draw->picked_up_card_pose, deck[game->turn.picked_up_card]);
 }
 
 internal void

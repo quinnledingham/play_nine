@@ -265,9 +265,18 @@ spherical_interpolate(Vector3 start, Vector3 end, float32 percent) {
   return result;
 }
 
-internal Pose
-linear_interpolate(Pose start, Pose end, float32 percent) {
-    Pose result = {};
+internal float32
+normalize_angle(float32 angle) {
+    angle = fmodf(angle + PI, 2*PI);
+    if (angle < 0) {
+        angle += 2*PI;
+    }
+    return angle - PI;
+}
+
+internal Transform
+linear_interpolate(Transform start, Transform end, float32 percent) {
+    Transform result = {};
     result.x = linear_interpolate(start.x, end.x, percent);
     result.y = linear_interpolate(start.y, end.y, percent);
     result.z = linear_interpolate(start.z, end.z, percent);
@@ -279,11 +288,11 @@ linear_interpolate(Pose start, Pose end, float32 percent) {
     return result;
 }
 
-internal Pose
-slerp_intropolation(Pose start, Pose end, float32 percent) {
+internal Transform
+slerp_intropolation(Transform start, Transform end, float32 percent) {
   Vector2 xz = spherical_interpolate(start.position.xz(), end.position.xz(), percent);
 
-  Pose result = {};
+  Transform result = {};
   result.x = xz.x;
   result.z = xz.y;
   result.y = linear_interpolate(start.y, end.y, percent);
@@ -293,6 +302,18 @@ slerp_intropolation(Pose start, Pose end, float32 percent) {
   result.k = linear_interpolate(start.k, end.k, percent);
 
   return result;
+}
+
+internal void normalize_angle_difference(float32 &start, const float32 end) {
+  float32 diff = end - start;
+  while (diff > PI) {
+    start += 2*PI;
+    diff = end - start;
+  } 
+  while (diff < -PI) {
+    start -= 2*PI;
+    diff = end - start;
+  }
 }
 
 internal void
@@ -309,13 +330,21 @@ do_animation(Animation *a, float64 frame_time_s) {
       
       if (key->dynamic) {
         key->end = *key->dest;
+
+        normalize_angle_difference(key->start.w, key->end.w);
+        normalize_angle_difference(key->start.p, key->end.p);
+        normalize_angle_difference(key->start.k, key->end.k);
       }
 
       switch(key->interpolation) {
         case INTERP_LERP:  *a->src = linear_interpolate(key->start, key->end, percent);  break;
         case INTERP_SLERP: *a->src = slerp_intropolation(key->start, key->end, percent); break;
+        case INTERP_FUNC: {
+          key->time_elapsed = key->time_duration; // only do interp func once
+          key->func(key->func_args); 
+        } break;
       }
-      
+
       break;
     }
   }
@@ -333,18 +362,6 @@ do_animations(Array<Animation> &animations, float64 frame_time_s) {
     }
 }
 
-internal void normalize_angle_difference(float32 &start, const float32 end) {
-  float32 diff = end - start;
-  while (diff > PI) {
-    start += 2*PI;
-    diff = end - start;
-  } 
-  while (diff < -PI) {
-    start -= 2*PI;
-    diff = end - start;
-  }
-}
-
 internal void
 add_keyframe(Animation *a, Animation_Keyframe *new_key) {
   a->keyframes.insert(*new_key);
@@ -359,13 +376,21 @@ add_keyframe(Animation *a, Animation_Keyframe *new_key) {
     key->start = previous_key->end;
   }
 
+  if (key->dynamic) {
+    key->end = *key->dest;
+  }
+
+  if (!key->time_duration) {
+    key->time_duration = 1.0f; // defaults duration to one second
+  }
+
   normalize_angle_difference(key->start.w, key->end.w);
   normalize_angle_difference(key->start.p, key->end.p);
   normalize_angle_difference(key->start.k, key->end.k);
 };
 
 internal void
-add_keyframe(Animation *a, Pose &start, Pose &end, float32 time_duration) {
+add_keyframe(Animation *a, Transform &start, Transform &end, float32 time_duration) {
   Animation_Keyframe key = {};
   key.start = start;
   key.end = end;
@@ -374,7 +399,7 @@ add_keyframe(Animation *a, Pose &start, Pose &end, float32 time_duration) {
 }
 
 internal void
-add_dynamic_keyframe(Animation *a, Pose &start, Pose *dest, float32 time_duration) {
+add_dynamic_keyframe(Animation *a, Transform &start, Transform *dest, float32 time_duration) {
   Animation_Keyframe key = {};
   key.start = start;
   key.dynamic = true;
@@ -384,7 +409,7 @@ add_dynamic_keyframe(Animation *a, Pose &start, Pose *dest, float32 time_duratio
 }
 
 internal Animation*
-find_animation(Array<Animation> &animations, Pose *src) {
+find_animation(Array<Animation> &animations, Transform *src) {
   for (u32 i = 0; i < animations.size(); i++) {
     Animation *a = &animations[i];
     if (!a->active) {
@@ -393,7 +418,7 @@ find_animation(Array<Animation> &animations, Pose *src) {
       a->src = src;
       return a;
     }
-    // src pose is already being animated
+    // src Transform is already being animated
     if (a->active && a->src == src) {
       return a;
     }

@@ -146,22 +146,25 @@ public:
     type_size = sizeof(T);
     data_size = sizeof(ArrayB_Element<T>) * max_elements;
     data = (ArrayB_Element<T>*)malloc(data_size);
+    memset(data, 0, data_size);
   }
 
   T* open() {
     for (u32 i = 0; i < max_elements; i++) {
-      ArrayB_Element<T> *element = data[i];
+      ArrayB_Element<T> *element = &data[i];
       if (!element->in_use) {
         element->in_use = true;
+        element->data = {};
         return &element->data;
       }
     }
     ASSERT(0);
+    return 0;
   }
 
   void close(T* ptr) {
     for (u32 i = 0; i < max_elements; i++) {
-      ArrayB_Element<T> *element = data[i];
+      ArrayB_Element<T> *element = &data[i];
       if (&element->data == ptr) {
         element->in_use = false;
         return;
@@ -170,8 +173,12 @@ public:
     ASSERT(0);
   }
 
+  u32 size() {
+    return max_elements;
+  }
+
   T* get(u32 i) {
-    ArrayB_Element<T> *element = data[i];
+    ArrayB_Element<T> *element = &data[i];
     if (!element->in_use)
       return 0;
     return &element->data;

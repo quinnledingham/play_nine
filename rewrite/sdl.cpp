@@ -41,7 +41,7 @@ sdl_toggle_relative_mouse_mode() {
 
 internal void
 sdl_set_icon() {
-  SDL_Surface *icon_surface = SDL_LoadBMP("S:/play_nine/rewrite/assets/bitmaps/lana.bmp");
+  SDL_Surface *icon_surface = SDL_LoadBMP("S:/play_nine/rewrite/assets/bitmaps/monkey.bmp");
   if (icon_surface) {
     SDL_SetWindowIcon(sdl_ctx.window, icon_surface);
     SDL_DestroySurface(icon_surface);
@@ -53,7 +53,7 @@ sdl_set_icon() {
 internal void
 sdl_loading_screen() {
   SDL_Renderer *renderer = SDL_CreateRenderer(sdl_ctx.window, "software");
-  SDL_Surface  *loading_surface = SDL_LoadBMP("S:/play_nine/rewrite/assets/bitmaps/lana.bmp");
+  SDL_Surface  *loading_surface = SDL_LoadBMP("S:/play_nine/rewrite/assets/bitmaps/monkey.bmp");
   if (renderer && loading_surface) {
     SDL_Texture *loading_texture = SDL_CreateTextureFromSurface(renderer, loading_surface);
     
