@@ -134,18 +134,18 @@ update_camera_target(Camera *camera) {
 // as opposed to the screen coords of the mouse
 internal void
 update_camera_with_mouse(Camera *camera, Vector2 delta_mouse, float32 x_speed, float32 y_speed) {   
-    camera->yaw   -= delta_mouse.x * x_speed;
-    camera->pitch -= delta_mouse.y * y_speed;
+    camera->yaw   -= (delta_mouse.x * x_speed) * DEG2RAD;
+    camera->pitch -= (delta_mouse.y * y_speed) * DEG2RAD;
     
     //print("%f\n", camera->yaw);
 
     // doesnt break withou this - just so it does not keep getting higher and higher
-    float32 max_yaw = 360.0f;
+    float32 max_yaw = 2*PI;
     if (camera->yaw > max_yaw) camera->yaw = 0;
     if (camera->yaw < 0)       camera->yaw = max_yaw;
 
     // breaks with out this check
-    float32 max_pitch = 89.0f;
+    float32 max_pitch = 89.0f * DEG2RAD;
     if (camera->pitch >  max_pitch) camera->pitch =  max_pitch;
     if (camera->pitch < -max_pitch) camera->pitch = -max_pitch;
 }
@@ -306,7 +306,16 @@ do_animation(Animation *a, float64 frame_time_s) {
       key->time_elapsed += (float32)frame_time_s;
 
       float32 percent = key->time_elapsed / key->time_duration;
-      *a->src = linear_interpolate(key->start, key->end, percent);
+      
+      if (key->dynamic) {
+        key->end = *key->dest;
+      }
+
+      switch(key->interpolation) {
+        case INTERP_LERP:  *a->src = linear_interpolate(key->start, key->end, percent);  break;
+        case INTERP_SLERP: *a->src = slerp_intropolation(key->start, key->end, percent); break;
+      }
+      
       break;
     }
   }
@@ -324,12 +333,15 @@ do_animations(Array<Animation> &animations, float64 frame_time_s) {
     }
 }
 
-internal void 
-normalize_angle_difference(float32 &start, const float32 end) {
-  if (end - start > PI) {
-    start += 2*PI;  
-  } else if (end - start < -PI) {
-    start -= PI;
+internal void normalize_angle_difference(float32 &start, const float32 end) {
+  float32 diff = end - start;
+  while (diff > PI) {
+    start += 2*PI;
+    diff = end - start;
+  } 
+  while (diff < -PI) {
+    start -= 2*PI;
+    diff = end - start;
   }
 }
 
@@ -351,6 +363,25 @@ add_keyframe(Animation *a, Animation_Keyframe *new_key) {
   normalize_angle_difference(key->start.p, key->end.p);
   normalize_angle_difference(key->start.k, key->end.k);
 };
+
+internal void
+add_keyframe(Animation *a, Pose &start, Pose &end, float32 time_duration) {
+  Animation_Keyframe key = {};
+  key.start = start;
+  key.end = end;
+  key.time_duration = time_duration;
+  add_keyframe(a, &key);
+}
+
+internal void
+add_dynamic_keyframe(Animation *a, Pose &start, Pose *dest, float32 time_duration) {
+  Animation_Keyframe key = {};
+  key.start = start;
+  key.dynamic = true;
+  key.dest = dest;
+  key.time_duration = time_duration;
+  add_keyframe(a, &key);
+}
 
 internal Animation*
 find_animation(Array<Animation> &animations, Pose *src) {

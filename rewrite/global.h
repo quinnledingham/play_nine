@@ -62,6 +62,7 @@ Scene scene;
 Scene ortho_scene;
 
 Array<Animation> animations;
+ArrayB<Entity> entities;
 
 #ifdef DEBUG
 

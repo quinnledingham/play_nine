@@ -149,4 +149,23 @@ union Pose {
     float32 E[6];
 };
 
+struct Transform {
+	Vector3 position;
+	Vector3 orientation;
+	Vector3 scale;
+};
+
+struct Entity {
+	bool8 in_use;
+
+	union {
+		struct {
+			Vector3 positon;
+			Vector3 orientation;
+			Vector3 scale;
+		};
+		Transform transform;
+	};
+};
+
 #endif // TYPES_H

@@ -270,7 +270,8 @@ m4x4(Pose pose, Vector3 scale) {
     Quaternion y_rot = get_rotation(pose.p, Y_AXIS);
     Quaternion z_rot = get_rotation(pose.k, Z_AXIS);
 
-    Quaternion rot = z_rot * y_rot * x_rot;
+    //Quaternion rot = z_rot * y_rot * x_rot;
+    Quaternion rot = x_rot * z_rot * y_rot;
 
     return create_transform_m4x4(pose.position, rot, scale);
 }

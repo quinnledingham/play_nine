@@ -117,6 +117,66 @@ struct Array {
   }
 };
 
+//
+// controls how data is added to the array so that indices can be reused
+//
+template<typename T>
+struct ArrayB_Element {
+  bool8 in_use;
+  T data;
+};  
+
+template<typename T>
+struct ArrayB {
+private:
+  ArrayB_Element<T> *data;
+  
+  u32 data_size;
+  u32 type_size;
+  u32 max_elements; // how many of type can fit in data_size
+
+public:
+  ArrayB() {
+    data = 0;
+    max_elements = 0;
+  }
+
+  void init(u32 in_max_elements) {
+    max_elements = in_max_elements;
+    type_size = sizeof(T);
+    data_size = sizeof(ArrayB_Element<T>) * max_elements;
+    data = (ArrayB_Element<T>*)malloc(data_size);
+  }
+
+  T* open() {
+    for (u32 i = 0; i < max_elements; i++) {
+      ArrayB_Element<T> *element = data[i];
+      if (!element->in_use) {
+        element->in_use = true;
+        return &element->data;
+      }
+    }
+    ASSERT(0);
+  }
+
+  void close(T* ptr) {
+    for (u32 i = 0; i < max_elements; i++) {
+      ArrayB_Element<T> *element = data[i];
+      if (&element->data == ptr) {
+        element->in_use = false;
+        return;
+      }
+    }
+    ASSERT(0);
+  }
+
+  T* get(u32 i) {
+    ArrayB_Element<T> *element = data[i];
+    if (!element->in_use)
+      return 0;
+    return &element->data;
+  }
+};
 
 template<typename T>
 struct Stack {

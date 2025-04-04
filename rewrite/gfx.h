@@ -103,6 +103,13 @@ struct Object {
     s32 index;
 };
 
+enum Interpolation_Types {
+    INTERP_LERP,
+    INTERP_SLERP,
+
+    INTERP_COUNT
+};
+
 struct Animation_Keyframe {
     Pose start;
     Pose end;
@@ -110,11 +117,13 @@ struct Animation_Keyframe {
     float32 time_elapsed;
     float32 time_duration;
 
+    u32 interpolation; // lerp, slerp
+
     bool8 dynamic;
 
-    // if dynamic == false then dest = &end;
+    // if dynamic == false
     // allows for a moving destination.
-    Vector3 *dest;
+    Pose *dest;
 };
 
 struct Animation {

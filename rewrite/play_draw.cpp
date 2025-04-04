@@ -98,8 +98,29 @@ get_card_rotation(float32 x_rot, float32 y_rot, bool8 flipped) {
   return rotation;
 }
 
+internal Pose
+get_pile_pose(Game *game, Game_Draw *draw, Vector3 offset, float32 omega) {
+  float32 center_of_piles_z = draw->x_hand_position + draw->pile_distance_from_hand;
+  float32 rad = draw->player_hand_rads[game->active_player];
+  float32 rotation_rads = rad - (0.0f * DEG2RAD);
+  
+  Pose pose = {};
+  pose.omega = omega;
+  pose.phi = rad;
+  pose.z = center_of_piles_z;
+  pose.position += offset;
+  rotate_coords(&pose.position, rotation_rads);
+
+  return pose;
+}
+
 internal void
 set_cards_coords(Game *game, Game_Draw *draw) {
+
+  //
+  // player cards
+  //
+
   memset(draw->cards, 0, sizeof(Pose) * MAX_PLAYERS * HAND_SIZE);
 
   for (u32 p_i = 0; p_i < game->players_count; p_i++) {
@@ -112,6 +133,14 @@ set_cards_coords(Game *game, Game_Draw *draw) {
       pose->omega = PI; // flipped over
     }
   }
+
+  //
+  // piles
+  //  
+
+  draw->draw_pile_pose      = get_pile_pose(game, draw, draw->draw_pile_offset,      PI);
+  draw->discard_pile_pose   = get_pile_pose(game, draw, draw->discard_pile_offset, 0.0f);
+  //draw->picked_up_card_pose = get_pile_pose(game, draw, draw->picked_up_card_offset);
 };
 
 internal void
@@ -131,7 +160,7 @@ init_game_draw(Game *game, Game_Draw *draw) {
 
 // draws a individual card
 internal void
-draw_card(Vector3 coords, float32 x_rot, float32 y_rot, s32 value) {
+draw_card(Pose pose, s32 value) {
   if (value == -5)
     value = 13;
 
@@ -150,22 +179,20 @@ draw_card(Vector3 coords, float32 x_rot, float32 y_rot, s32 value) {
   float32 thickness = 0.05f;
   float32 half = thickness / 2.0f;
 
-  Quaternion y_quat = get_rotation(y_rot, Y_AXIS);
-  Quaternion x_quat = get_rotation(x_rot, X_AXIS);
-  Quaternion x_quat_flip = get_rotation(x_rot + PI, X_AXIS);
-
-  Quaternion rotation = y_quat * x_quat;
-  Quaternion rotation_flip = y_quat * x_quat_flip;
-
-  Quaternion non = get_rotation(0.0f, X_AXIS);
-
   // draw 
   {
-    Vector3 normal = {0, 1, 0};  // Original normal
-    Vector3 rotated_normal = rotation_flip * normal;  // Transform normal
-    Vector3 bottom_coords = coords + (rotated_normal * half);
+    Pose bottom = pose;
+
+    bottom.roll -= PI;
+
+    if (bottom.roll == 0.0f) {
+      bottom.position += Vector3{0, half, 0};
+    } else {
+      bottom.position -= Vector3{0, half, 0};
+    }
+
     Object object = {};
-    object.model = create_transform_m4x4(bottom_coords, rotation_flip, {1.0f, 1.0f, 1.0f});
+    object.model = m4x4(bottom, {1.0f, 1.0f, 1.0f});
     vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
     draw_geometry_no_material(geo);
   }
@@ -177,11 +204,16 @@ draw_card(Vector3 coords, float32 x_rot, float32 y_rot, s32 value) {
   gfx_ubo(GFXID_LOCAL, &local, 0);
 
   {
-    Vector3 normal = {0, -1, 0};  // Original normal
-    Vector3 rotated_normal = rotation_flip * normal;  // Transform normal
-    Vector3 top_coords = coords + (rotated_normal * half);
+    Pose top = pose;
+
+    if (top.roll == 0.0f) {
+      top.position -= Vector3{0, half, 0};
+    } else {
+      top.position += Vector3{0, half, 0};
+    }
+
     Object object = {};
-    object.model = create_transform_m4x4(top_coords, rotation, {1.0f, 1.0f, 1.0f});
+    object.model = m4x4(top, {1.0f, 1.0f, 1.0f});
     vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
     draw_geometry_no_material(geo);
   }
@@ -193,7 +225,7 @@ draw_card(Vector3 coords, float32 x_rot, float32 y_rot, s32 value) {
     gfx_ubo(GFXID_LOCAL, &local, 0);
     
     Object object = {};
-    object.model = create_transform_m4x4(coords, rotation, {1.0f, thickness, 1.0f});
+    object.model = m4x4(pose, {1.0f, thickness, 1.0f});
     vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
     draw_geometry_no_material(side);
   }
@@ -302,38 +334,11 @@ draw_cards(Game *game, Game_Draw *draw) {
   // piles
   //
 
-  // move piles closer to player
-  float32 center_of_piles_z = draw->x_hand_position + draw->pile_distance_from_hand;
-  float32 rad = draw->player_hand_rads[game->active_player];
-  float32 rotation_rads = rad - (0.0f * DEG2RAD);
-
-  {
-    Vector3 draw_pile_coords = {};
-    draw_pile_coords.x = -1.1f;
-    draw_pile_coords.z = center_of_piles_z;
-    rotate_coords(&draw_pile_coords, rotation_rads);
-    draw_card(draw_pile_coords, 180.0f * DEG2RAD, rotation_rads, deck[game->draw_pile.top_card()]);
-  }
-
-  {
-    Vector3 discard_pile_coords = {};
-    discard_pile_coords = {};
-    discard_pile_coords.x = 1.1f;
-    discard_pile_coords.z = center_of_piles_z;
-    rotate_coords(&discard_pile_coords, rotation_rads);
-    if (!game->discard_pile.empty())
-      draw_card(discard_pile_coords, 0.0f * DEG2RAD, rotation_rads, deck[game->discard_pile.top_card()]);
-  }
-
-  {
-    Vector3 selected_card_coords = {};
-    selected_card_coords = {};
-    selected_card_coords.y = 1.0f;
-    selected_card_coords.z = center_of_piles_z + -2.7f;
-    rotate_coords(&selected_card_coords, rad);
-    if (game->turn.picked_up_card != -1)
-      draw_card(selected_card_coords, 0.0f * DEG2RAD, rad, deck[game->turn.picked_up_card]);
-  }
+  draw_card(draw->draw_pile_pose, deck[game->draw_pile.top_card()]);
+  if (!game->discard_pile.empty())
+    draw_card(draw->discard_pile_pose, deck[game->discard_pile.top_card()]);
+  if (game->turn.picked_up_card != -1)
+    draw_card(draw->picked_up_card_pose, deck[game->turn.picked_up_card]);
 }
 
 internal void

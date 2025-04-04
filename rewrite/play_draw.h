@@ -18,6 +18,15 @@ struct Game_Draw {
     float32 rotation;
 
     Pose cards[MAX_PLAYERS][HAND_SIZE];
+
+    // location of where these are
+    Pose draw_pile_pose;
+    Pose discard_pile_pose;
+    Pose picked_up_card_pose;
+
+    Vector3 draw_pile_offset      = { -1.1f,    0,     0 };
+    Vector3 discard_pile_offset   = {  1.1f,    0,     0 };
+    Vector3 picked_up_card_offset = {     0, 1.0f, -2.7f };
 };
 
 
@@ -28,6 +37,7 @@ global const Vector4 play_nine_light_yellow = { 240, 229, 118, 1 };
 global const Vector4 play_nine_dark_yellow  = { 197, 180,  22, 1 };
 
 internal Pose get_player_camera(float32 degrees_between, u32 active_i);
+internal Pose get_pile_pose(Game *game, Game_Draw *draw, Vector3 offset, float32 omega);
 
 // Card Ratio: 63/88
 
