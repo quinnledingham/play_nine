@@ -57,7 +57,7 @@ struct Vertex_XU {
   Vector2 position;
   Vector2 uv;
 
-  static Vertex_Info get_vertex_info() {
+  static Vertex_Info info() {
     Vertex_Info info = {};
     //info.add(VECTOR2, offsetof(Vertex_XU, position));
     //info.add(VECTOR2, offsetof(Vertex_XU, uv));

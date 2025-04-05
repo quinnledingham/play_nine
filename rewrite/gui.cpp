@@ -201,8 +201,8 @@ draw_top_gui() {
   // Drawing no menu... if esc is pressed add pause to the stack
   if (gui_manager.indices.empty()) {
     if (on_down(IN_BACK)) {
-      sdl_toggle_relative_mouse_mode();
-      gui_manager.indices.push(GUI_PAUSE);
+        sdl_set_relative_mouse_mode(false);
+        gui_manager.indices.push(GUI_PAUSE);
     }
 
     return SUCCESS;

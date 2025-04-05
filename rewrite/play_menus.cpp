@@ -44,7 +44,7 @@ draw_main_menu(GUI *gui) {
   if (gui_button(gui, "Play", {0, 0})) {
     gui_manager.indices.pop();
     game_draw.enabled = true;
-    sdl_set_relative_mouse_mode(true);
+    //sdl_set_relative_mouse_mode(true);
   }
   if (gui_button(gui, "Join", {0, 1})) {
     gui_manager.indices.push(GUI_TEST);
@@ -96,7 +96,7 @@ draw_pause_menu(GUI *gui) {
   gui->style.text_color_active = play_nine_green;
 
   if (on_down(IN_BACK)) {
-    sdl_toggle_relative_mouse_mode();
+    //sdl_toggle_relative_mouse_mode();
     gui_manager.indices.pop();
   }
 

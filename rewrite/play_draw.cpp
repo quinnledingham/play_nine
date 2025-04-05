@@ -138,13 +138,13 @@ set_cards_coords(Game *game, Game_Draw *draw) {
   // piles
   //  
 
-  draw->draw_pile_entity = draw->card_entities.open();
+  draw->draw_pile_entity    = draw->card_entities.open();
   draw->discard_pile_entity = draw->card_entities.open();
 
   draw->draw_pile_entity->transform    = get_pile_pose(game, draw, draw->draw_pile_offset,      PI);
-  draw->draw_pile_entity->index = game->draw_pile.top_card();
+  draw->draw_pile_entity->index        = game->draw_pile.top_card();
   draw->discard_pile_entity->transform = get_pile_pose(game, draw, draw->discard_pile_offset, 0.0f);
-  draw->discard_pile_entity->index = game->discard_pile.top_card();
+  draw->discard_pile_entity->index     = game->discard_pile.top_card();
 };
 
 internal void
@@ -162,6 +162,8 @@ init_game_draw(Game *game, Game_Draw *draw) {
   draw->card_entities.init(100);
 
   set_cards_coords(game, draw);
+
+  draw->hitbox = get_cube(false, {game_draw.card_dim.x, 0.05f, game_draw.card_dim.y});
 }
 
 // draws a individual card
@@ -272,6 +274,10 @@ draw_cards(Game *game, Game_Draw *draw) {
       Vector3 displacement = rotation(t.orientation) * Vector3{0, half, 0};
       t.position += displacement;
 
+      if (e->hovered) {
+        t.position.y += 2.0f;
+      }
+
       Object object = {};
       object.model = m4x4(t);
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
@@ -328,6 +334,24 @@ draw_cards(Game *game, Game_Draw *draw) {
 }
 
 internal void
+draw_hitbox(Card_Entity *e) {
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.color = {255, 0, 0, 1};
+  vulkan_update_ubo(color_desc, (void *)&local);
+
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  Object object = {};
+  object.model = m4x4(e->transform);
+  object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&game_draw.hitbox);
+}
+
+internal void
 draw_game(Game *game) {
   gfx_default_viewport();
   gfx_scissor_push({0, 0}, {(float32)gfx.window.dim.width, (float32)gfx.window.dim.height});
@@ -339,6 +363,15 @@ draw_game(Game *game) {
   gfx_bind_pipeline(PIPELINE_3D);
 
   draw_cards(game, &game_draw);
+
+  //draw_cube({0, 0, 0}, 0, {2, 2, 2}, {255, 0, 0, 1});
+
+#ifdef DEBUG
+  
+  if (debug.wireframe)
+    draw_ray(&mouse_ray);
+
+#endif // DEBUG
 
   gfx_scissor_pop();
 }

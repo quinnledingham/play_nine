@@ -99,6 +99,7 @@ void compile_glsl_to_spirv(Shader_File *file, shaderc_compiler_t compiler, u32 s
 
   if (num_of_warnings != 0 || num_of_errors != 0) {
     const char *error_message = shaderc_result_get_error_message(result);
+    u32 error_size = str_length(error_message);
     log_error("(%s) compile_glsl_to_spirv(): %s\n", file->filename, error_message);
     ASSERT(0);
   }

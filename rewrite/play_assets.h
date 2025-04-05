@@ -84,10 +84,14 @@ Asset_Load pipeline_loads[] = {
 };
 
 enum GFX_Layout_IDs {
+  // vertex
   GFXID_SCENE,
+
+  // fragment
+  GFXID_GLOBAL,
   GFXID_LOCAL,
-  GFXID_TEXTURE,
   GFXID_MATERIAL,
+  GFXID_TEXTURE,
 
   GFXID_COUNT
 };
@@ -99,14 +103,18 @@ gfx_define_layouts() {
   memset(gfx.layouts, 0, sizeof(GFX_Layout) * gfx.layouts_count);
 
   gfx.layouts[GFXID_SCENE].set_number = 0;
-  gfx.layouts[GFXID_LOCAL].set_number = 1;
-  gfx.layouts[GFXID_TEXTURE].set_number = 2;
-  gfx.layouts[GFXID_MATERIAL].set_number = 3;
+
+  gfx.layouts[GFXID_GLOBAL].set_number = 1;
+  gfx.layouts[GFXID_LOCAL].set_number = 2;
+  gfx.layouts[GFXID_MATERIAL].set_number = 4;
+  gfx.layouts[GFXID_TEXTURE].set_number = 3;
 
   gfx.layouts[GFXID_SCENE].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene)); // 2D.vert
+
+  gfx.layouts[GFXID_GLOBAL].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Global_Shader)); // 2D.vert
   gfx.layouts[GFXID_LOCAL].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Local)); // color.frag, text.frag
-  gfx.layouts[GFXID_TEXTURE].add_binding(0, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 1, 0); // texture.frag
   gfx.layouts[GFXID_MATERIAL].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Material_Shader)); // 3D.frag
+  gfx.layouts[GFXID_TEXTURE].add_binding(0, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 1, 0); // texture.frag
 
   for (u32 i = 0; i < gfx.layouts_count; i++) {
     vulkan_setup_layout(&gfx.layouts[i]);
@@ -117,10 +125,12 @@ internal void
 gfx_add_layouts_to_shaders() {
   {
     Pipeline *shader = find_pipeline(PIPELINE_2D);
-    shader->vertex_info = Vertex_XU::get_vertex_info();
+    shader->vertex_info = Vertex_XU::info();
+
     shader->set.add_layout(&gfx.layouts[GFXID_SCENE]);
     shader->set.add_push(SHADER_STAGE_VERTEX, sizeof(Object));
 
+    shader->set.add_layout(&gfx.layouts[GFXID_GLOBAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_TEXTURE]);
   }
@@ -128,9 +138,11 @@ gfx_add_layouts_to_shaders() {
   {
     Pipeline *shader = find_pipeline(PIPELINE_3D);
     shader->vertex_info = Vertex_XNU::info();
+
     shader->set.add_layout(&gfx.layouts[GFXID_SCENE]);
     shader->set.add_push(SHADER_STAGE_VERTEX, sizeof(Object));
 
+    shader->set.add_layout(&gfx.layouts[GFXID_GLOBAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_TEXTURE]);
     shader->set.add_layout(&gfx.layouts[GFXID_MATERIAL]);
@@ -138,10 +150,12 @@ gfx_add_layouts_to_shaders() {
 
   {
     Pipeline *shader = find_pipeline(PIPELINE_NOISE);
-    shader->vertex_info = Vertex_XU::get_vertex_info();
+    shader->vertex_info = Vertex_XU::info();
+
     shader->set.add_layout(&gfx.layouts[GFXID_SCENE]);
     shader->set.add_push(SHADER_STAGE_VERTEX, sizeof(Object));
 
+    shader->set.add_layout(&gfx.layouts[GFXID_GLOBAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_TEXTURE]);
   }

@@ -32,6 +32,8 @@ struct Draw_Context {
   Mesh square;
   Mesh square_3D;
   Mesh rounded_rect;
+  Mesh cube;
+  Mesh sphere;
 
   u32 font_id;
 };
@@ -57,6 +59,7 @@ u32 game_type = LOCAL_GAME;
 Texture_Atlas card_bitmaps_atlas;
 
 Camera camera = {};
+Ray mouse_ray = {};
 
 Scene scene;
 Scene ortho_scene;
@@ -81,6 +84,9 @@ struct Debug_State {
   u32 last_key = SDLK_A;
   Bitmap resized_lana = {};
   Game test_game;
+
+  // GFX
+  bool8 wireframe;
 };
 
 Debug_State debug = {};

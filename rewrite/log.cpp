@@ -35,9 +35,21 @@ output_list(u32 output_stream, const char *msg, va_list list) {
   }
   #endif // DEBUG
 
+  u32 msg_size = str_length(msg);
+
+  va_list args_copy;
+  va_copy(args_copy, list);
+
   output_buffer.clear();
-  u32 result = vsprintf_s(output_buffer.str(), output_buffer.size, msg, list);
+  s32 result = vsnprintf (output_buffer.str(), (size_t)output_buffer.size, msg, args_copy);
+
   print_char_array(output_stream, output_buffer.str());
+
+  if (result > (s32)output_buffer.size) {
+    output_buffer.clear();
+    sprintf_s(output_buffer.str(), output_buffer.size, "\n(WARNING) (output_list) output was concatenated\n");
+    print_char_array(output_stream, output_buffer.str());
+  }
 
   SDL_UnlockMutex(output_buffer_mutex);
 }

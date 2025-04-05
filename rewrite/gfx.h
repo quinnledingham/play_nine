@@ -74,9 +74,28 @@ enum Texture_Parameters {
     TEXTURE_PARAMETERS_CHAR,
 };
 
+/*
+  Text:
+    bind texture (font)/color, use text coloring
+    bind texcoords, position
+
+  Model:
+    per mesh
+        bind texture/color, with to use text or color, texcoords, position
+
+    custom
+        bind texture/color (card texture and color)
+        bind use text or color, texcoords, position
+*/
+
 //
 // Drawing
 //
+
+struct Global_Shader {
+    Vector4 resolution; // rect
+    Vector4 time; // time, time_delta, frame_rate
+};
 
 struct Scene {
     Matrix_4x4 view;
@@ -91,8 +110,6 @@ struct Texture_Region {
 struct Local {
     Vector4 text;
     Vector4 color;
-    Vector4 resolution; // rect
-    Vector4 time; // time, time_delta, frame_rate
     Texture_Region region;
 };
 

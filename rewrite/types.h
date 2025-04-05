@@ -67,6 +67,9 @@ union Vector4 {
 		Vector3 rgb;
 	};
 	struct {
+		Vector2 xy;
+	};
+	struct {
 		Vector3 xyz;
 	};
 	float32 E[4];
@@ -105,6 +108,10 @@ union Quaternion {
         float32 scalar;
     };
     float32 E[4];
+};
+
+struct Matrix_3x3 {
+	float32 E[3][3];
 };
 
 struct Matrix_4x4 {

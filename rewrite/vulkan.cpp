@@ -396,6 +396,9 @@ void vulkan_create_logical_device(Vulkan_Context *vk_ctx) {
 	VkPhysicalDeviceFeatures device_features = {};
 	device_features.samplerAnisotropy = VK_TRUE;
 	device_features.sampleRateShading = VK_TRUE; // performance cost
+#ifdef DEBUG
+	device_features.fillModeNonSolid = VK_TRUE;
+#endif // DEBUG
 
 	// Set up device
 	VkDeviceCreateInfo create_info = {};
@@ -1541,6 +1544,9 @@ s32 vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRe
 	VkDescriptorSetLayout descriptor_set_layouts[5] = {};
 	for (u32 i = 0; i < shader->set.layouts_count; i++) {
 		descriptor_set_layouts[i] = shader->set.layouts[i]->descriptor_set_layout;
+		//GFX_Layout *layout = shader->set.layouts[i];
+		//u32 index = layout->set_number;
+		//descriptor_set_layouts[index] = layout->descriptor_set_layout;
 	}
 
 	VkPushConstantRange push_constant_ranges[5] = {};
@@ -1621,7 +1627,15 @@ s32 vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRe
 	rasterizer.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizer.depthClampEnable        = VK_FALSE;
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
+#ifdef DEBUG
+	if (!debug.wireframe) {
+		rasterizer.polygonMode           = VK_POLYGON_MODE_FILL;
+	} else {
+		rasterizer.polygonMode           = VK_POLYGON_MODE_LINE;
+	}
+#elif
+	rasterizefillModeNonSolidr.polygonMode             = VK_POLYGON_MODE_FILL;
+#endif // DEBUG
 	rasterizer.lineWidth               = 1.0f;
 	rasterizer.cullMode                = VK_CULL_MODE_BACK_BIT;
 	rasterizer.frontFace               = VK_FRONT_FACE_CLOCKWISE;

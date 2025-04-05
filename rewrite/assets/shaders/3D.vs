@@ -17,6 +17,7 @@ layout(location = 2) in vec2 inTexCoord;
 layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec2 fragTexCoord;
 layout(location = 2) out vec3 fragPos;
+
 layout(location = 3) out int fragIndex;
 
 void main() {
@@ -24,5 +25,6 @@ void main() {
     fragNormal = vec3(mat3(object.model) * inNormal);
     fragTexCoord = inTexCoord;
     fragPos = vec3(object.model * vec4(inPosition, 1.0f));
+
     fragIndex = object.index;
 }

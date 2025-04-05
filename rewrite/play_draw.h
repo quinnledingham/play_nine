@@ -1,5 +1,6 @@
 struct Card_Entity {
-    u32 index; // use if player_card == 0
+    u32 index;
+    bool8 hovered;
     Transform transform;
 };
 
@@ -22,6 +23,7 @@ struct Game_Draw {
     float32 rotation;
 
     ArrayB<Card_Entity> card_entities;
+    Mesh hitbox;
 
     Card_Entity *draw_pile_entity;
     Card_Entity *discard_pile_entity;

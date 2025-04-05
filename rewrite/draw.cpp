@@ -74,10 +74,168 @@ get_rect_mesh_2D() {
   mesh.indices[4] = top_right;
   mesh.indices[5] = bottom_right;
 
-  mesh.vertex_info = Vertex_XU::get_vertex_info();
+  mesh.vertex_info = Vertex_XU::info();
   vulkan_init_mesh(&mesh);
 
   return mesh;
+}
+
+internal void
+init_rect_indices(u32 *indices, u32 top_left,    u32 top_right,
+                                u32 bottom_left, u32 bottom_right) {
+    indices[0] = top_left;
+    indices[1] = bottom_right;
+    indices[2] = bottom_left;
+    indices[3] = top_left;
+    indices[4] = top_right;
+    indices[5] = bottom_right;
+}
+
+internal Mesh
+get_cube(bool8 out, Vector3 scale) {
+  Mesh mesh = {};
+  
+  mesh.vertices_count = 8;
+  mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+  Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
+  
+  Vector3 s = scale / 2.0f;
+
+  // back
+  vertices[0] = { {-s.x, -s.y, -s.z }, {  1,  1, 1 }, {0, 0} }; // bottom left
+  vertices[1] = { {-s.x,  s.y, -s.z }, {  1, -1, 1 }, {0, 1} }; // top left
+  vertices[2] = { { s.x, -s.y, -s.z }, { -1,  1, 1 }, {1, 0} }; // bottom right
+  vertices[3] = { { s.x,  s.y, -s.z }, { -1, -1, 1 }, {1, 1} }; // top right
+  
+  // forward
+  vertices[4] = { {-s.x, -s.y, s.z }, {  1,  1, -1 }, {0, 0} }; // bottom left
+  vertices[5] = { {-s.x,  s.y, s.z }, {  1, -1, -1 }, {0, 1} }; // top left
+  vertices[6] = { { s.x, -s.y, s.z }, { -1,  1, -1 }, {1, 0} }; // bottom right
+  vertices[7] = { { s.x,  s.y, s.z }, { -1, -1, -1 }, {1, 1} }; // top right
+
+  mesh.indices_count = 6 * 6; // 6 indices per side (rects), 6 sides
+  mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+  
+  if (out) {
+      init_rect_indices(mesh.indices + 0,  3, 1, 2, 0); // back
+      init_rect_indices(mesh.indices + 6,  5, 7, 4, 6); // front
+      init_rect_indices(mesh.indices + 12, 1, 3, 5, 7); // top
+      init_rect_indices(mesh.indices + 18, 4, 6, 0, 2); // bottom
+      init_rect_indices(mesh.indices + 24, 1, 5, 0, 4); // left
+      init_rect_indices(mesh.indices + 30, 7, 3, 6, 2); // right
+  } else {
+      init_rect_indices(mesh.indices + 0,  1, 3, 0, 2); // back
+      init_rect_indices(mesh.indices + 6,  7, 5, 6, 4); // front
+      init_rect_indices(mesh.indices + 12, 5, 7, 1, 3); // top
+      init_rect_indices(mesh.indices + 18, 0, 2, 4, 6); // bottom
+      init_rect_indices(mesh.indices + 24, 5, 1, 4, 0); // left
+      init_rect_indices(mesh.indices + 30, 3, 7, 2, 6); // right
+  }
+
+  mesh.vertex_info = Vertex_XNU::info();
+  vulkan_init_mesh(&mesh);
+  
+  return mesh;
+}
+
+internal void 
+draw_cube(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.color = color;
+  vulkan_update_ubo(color_desc, (void *)&local);
+
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  Object object = {};
+  object.model = create_transform_m4x4(coords, get_rotation(0, {0, 1, 0}), dim);
+  object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&draw_ctx.cube);
+}
+
+internal Mesh 
+get_sphere(float32 radius, u32 u_subdivision, u32 v_subdivision) {
+    Mesh mesh = {};
+
+    float32 u_degrees = PI;
+    float32 v_degrees = 2.0f * PI;
+
+    float32 u_step = u_degrees / (float32)u_subdivision;
+    float32 v_step = v_degrees / (float32)v_subdivision;
+
+    mesh.vertices_count = (u_subdivision + 1) * (v_subdivision + 1);
+    mesh.vertices = ARRAY_MALLOC(Vertex_XNU, mesh.vertices_count);
+
+    u32 vertices_index = 0;
+    for (u32 u = 0; u <= u_subdivision; ++u) {
+        for (u32 v = 0; v <= v_subdivision; ++v) {
+            float32 u_f = (float32)u * u_step;
+            float32 v_f = (float32)v * v_step;
+
+            float32 inverse_radius = 1.0f / radius;
+            Vector3 position = { 
+                radius * sinf(u_f) * cosf(v_f), 
+                radius * sinf(u_f) * sinf(v_f), 
+                radius * cosf(u_f) 
+            };
+            Vector3 normal = position * inverse_radius;
+            Vector2 texture_coords = { 
+                1 - (v_f / v_degrees), 
+                u_f / u_degrees
+            };
+
+            Vertex_XNU *vertices = (Vertex_XNU *)mesh.vertices;
+            vertices[vertices_index++] = { position, normal, texture_coords };
+        }
+    }
+
+    mesh.indices_count = (u_subdivision * v_subdivision * 6) - (u_subdivision * 6);
+    mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
+
+    u32 indices_index = 0;
+    for (u32 u = 0; u < u_subdivision; u++) {
+        u32 p1 = u * (v_subdivision + 1);
+        u32 p2 = p1 + v_subdivision + 1;
+
+        for (u32 v = 0; v < v_subdivision; v++, p1++, p2++) {
+            if (u != 0) {
+                mesh.indices[indices_index++] = p1;
+                mesh.indices[indices_index++] = p2;
+                mesh.indices[indices_index++] = p1 + 1;
+            } 
+            if (u != (u_subdivision - 1)) {
+                mesh.indices[indices_index++] = p1 + 1;
+                mesh.indices[indices_index++] = p2;
+                mesh.indices[indices_index++] = p2 + 1;
+            }
+        }
+    }
+
+    mesh.vertex_info = Vertex_XNU::info();
+    vulkan_init_mesh(&mesh);
+
+    return mesh;
+}
+
+internal void 
+draw_sphere(Vector3 coords, float32 rotation, Vector3 dim, Vector4 color) {
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.color = color;
+  vulkan_update_ubo(color_desc, (void *)&local);
+
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  Object object = {};
+  object.model = create_transform_m4x4(coords, get_rotation(0, {0, 1, 0}), dim);
+  object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&draw_ctx.sphere);
 }
 
 // From Clay
@@ -192,7 +350,7 @@ draw_rounded_rect(Vector2 coords, Vector2 size, Vector4 color, const float corne
   indices[indices_index++] = 3;
   indices[indices_index++] = vertices_index - 1; //LT
 
-  mesh.vertex_info = Vertex_XU::get_vertex_info();
+  mesh.vertex_info = Vertex_XU::info();
   //vulkan_init_mesh(&mesh);
 
   Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
@@ -200,9 +358,6 @@ draw_rounded_rect(Vector2 coords, Vector2 size, Vector4 color, const float corne
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
   Local local = {};
   local.color = color;
-  local.time.x = (float32)app_time.run_time_s;
-  local.resolution.x = size.x;
-  local.resolution.y = size.y;
   vulkan_update_ubo(color_desc, (void *)&local);
   vulkan_bind_descriptor_set(local_desc_set);
 
@@ -226,9 +381,6 @@ draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
   Local local = {};
   local.color = color;
-  local.time.x = (float32)app_time.run_time_s;
-  local.resolution.x = size.x;
-  local.resolution.y = size.y;
   vulkan_update_ubo(color_desc, (void *)&local);
   vulkan_bind_descriptor_set(local_desc_set);
 
@@ -481,6 +633,7 @@ internal void
 init_draw() {
   draw_ctx.square = get_rect_mesh_2D();
   draw_ctx.square_3D = get_rect_mesh_3D();
+  draw_ctx.sphere = get_sphere(0.025f, 10, 10);
   Rect r = {};
   r.coords = {0, 0};
   r.dim = {1, 1};

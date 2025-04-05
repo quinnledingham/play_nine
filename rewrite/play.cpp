@@ -18,6 +18,7 @@ set_button_ids() {
   set(IN_REFRESH_SHADERS, SDLK_V);
   set(IN_TOGGLE_CAMERA, SDLK_C);
   set(IN_RESET_GAME, SDLK_K);
+  set(IN_TOGGLE_WIREFRAME, SDLK_B);
 
   set(IN_CARD_0, SDLK_Q);
   set(IN_CARD_1, SDLK_W);
@@ -183,6 +184,27 @@ do_keyboard_input(bool8 *input) {
   }
 }
 
+internal void
+do_mouse_input(Game *game, bool8 *input) {
+  bool8 hover[GI_SIZE];
+  memset(hover, 0, sizeof(bool8) * GI_SIZE);
+  set_ray_coords(&mouse_ray, camera, scene, app_input.mouse.coords, gfx.window.dim);
+
+  for (u32 i = 0; i < HAND_SIZE; i++) {
+    Player_Card *card = &game->players[game->active_player].cards[i];
+    hover[i] = ray_model_intersection_cpu(mouse_ray, &game_draw.hitbox, card->entity->transform);
+  }
+
+  if (on_down(app_input.mouse.left)) {
+    memcpy(input, hover, sizeof(bool8) * GI_SIZE);
+  } else {
+    for (u32 i = 0; i < HAND_SIZE; i++) {
+      Player_Card *card = &game->players[game->active_player].cards[i];
+      card->entity->hovered = hover[i];
+    }
+  }
+}
+
 internal s32
 update_game(Game *game) {
 
@@ -193,6 +215,7 @@ update_game(Game *game) {
 
   if (on_down(IN_TOGGLE_CAMERA)) {
     debug.free_camera = !debug.free_camera;
+    sdl_toggle_relative_mouse_mode();
 
     if (!debug.free_camera) {
       camera.pose = get_player_camera(-game_draw.degrees_between_players, debug.test_game.active_player);
@@ -222,6 +245,9 @@ update_game(Game *game) {
     bool8 input[GI_SIZE];
     memset(input, 0, sizeof(bool8) * GI_SIZE);
     do_keyboard_input(input);
+
+    do_mouse_input(game, input);
+
     update_game_with_input(game, input);
 
 #ifdef DEBUG
@@ -231,6 +257,22 @@ update_game(Game *game) {
   return 0;
 }
 
+internal s32
+reload_shaders() {
+  for (u32 i = 0; i < assets.pipelines.count; i++) {
+    Pipeline *pipeline = find_pipeline(i);
+    vulkan_pipeline_cleanup(pipeline);
+  }
+  
+  s32 load_pipelines_result = load_pipelines();
+  if (load_pipelines_result == FAILURE) {
+    return FAILURE;
+  }
+  init_pipelines();
+
+  return SUCCESS;
+}
+
 internal s32 
 do_game_frame() {
   //
@@ -238,17 +280,14 @@ do_game_frame() {
   //
 
 #ifdef DEBUG
+
+  if (on_down(IN_TOGGLE_WIREFRAME)) {
+    debug.wireframe = !debug.wireframe;
+    return reload_shaders();
+  }
+
   if (on_down(IN_REFRESH_SHADERS)) {
-    for (u32 i = 0; i < assets.pipelines.count; i++) {
-      Pipeline *pipeline = find_pipeline(i);
-      vulkan_pipeline_cleanup(pipeline);
-    }
-    
-    s32 load_pipelines_result = load_pipelines();
-    if (load_pipelines_result == FAILURE) {
-      return FAILURE;
-    }
-    init_pipelines();
+    return reload_shaders();
   }
 
 #endif // DEBUG
@@ -266,6 +305,11 @@ do_game_frame() {
     case GFX_ERROR:      return FAILURE;
     case GFX_DO_FRAME:   break;
   }
+
+  Global_Shader global_shader = {};
+  global_shader.time.x = (float32)app_time.run_time_s;
+  global_shader.resolution.xy = cv2(gfx.window.resolution);
+  gfx_ubo(GFXID_GLOBAL, &global_shader, 0);
 
   vulkan_clear_color({0.1f, 0.1f, 0.1f, 1.0f});
   update_scenes(&scene, &ortho_scene, gfx.window.dim);

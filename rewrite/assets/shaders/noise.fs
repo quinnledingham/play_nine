@@ -2,18 +2,25 @@
 // https://www.shadertoy.com/view/tdG3Rd
 
 #version 450
-layout(set = 1, binding = 0) uniform Local {
-  vec4 text; // vec4(1=print text show use alpha from texture, 0, 0, 0)
-  vec4 color;
+
+layout(set = 1, binding = 0) uniform Global {
   vec4 resolution;
   vec4 time;
+} global;
+
+layout(set = 2, binding = 0) uniform Local {
+  vec4 text; // vec4(1=print text show use alpha from texture, 0, 0, 0)
+  vec4 color;
   vec4 region; // (offset.x, offset.y, scale.x, scale.y)
 } local;
-layout(set = 2, binding = 0) uniform sampler2D tex_sampler;
+
+layout(set = 3, binding = 0) uniform sampler2D tex_sampler;
+
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 0) out vec4 outColor;
-float iTime = local.time.x * 0.1;
-vec3 iResolution = vec3(local.resolution.xy, 0);
+
+float iTime = global.time.x * 0.1;
+vec3 iResolution = vec3(global.resolution.xy, 0);
 
 float colormap_red(float x) {
     // Softer red with less variation
@@ -136,6 +143,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
 void main() {
     vec2 fragCoord = gl_FragCoord.xy;
-    fragCoord.y = local.resolution.y - fragCoord.y;
+    fragCoord.y = global.resolution.y - fragCoord.y;
     mainImage(outColor, fragCoord);
 }

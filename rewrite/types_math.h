@@ -152,6 +152,20 @@ magnitude(const Vector3 &v)
     return (float32)sqrt(len_sq);
 }
 
+inline float32
+distance(const Vector3 v1, const Vector3 v2) {
+    float32 x = powf(v2.x - v1.x, 2);
+    float32 y = powf(v2.y - v1.y, 2);
+    float32 z = powf(v2.z - v1.z, 2);
+    return sqrtf(x + y + z);
+}
+
+//
+// Vector4
+//
+
+inline float32 dot_product(const Vector4 l, const Vector4 r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z) + (l.w * r.w); }
+
 //
 // Quaternion
 //
@@ -333,6 +347,146 @@ look_at(const Vector3 &position, const Vector3 &target, const Vector3 &up) {
         r.z, u.z, f.z, 0,
         t.x, t.y, t.z, 1
     };
+}
+
+inline Vector4
+m4x4_get_row(Matrix_4x4 m, u32 i) {
+    Vector4 row;
+    row.E[0] = m.E[0][i];
+    row.E[1] = m.E[1][i];
+    row.E[2] = m.E[2][i];
+    row.E[3] = m.E[3][i];
+    return row;
+}
+
+inline Vector4 
+m4x4_mul_v4(Matrix_4x4 m, Vector4 v) {
+    
+    Vector4 result =  {
+        dot_product(m4x4_get_row(m, 0), v),
+        dot_product(m4x4_get_row(m, 1), v),
+        dot_product(m4x4_get_row(m, 2), v),
+        dot_product(m4x4_get_row(m, 3), v)
+    };
+    return result;
+}
+
+inline Matrix_4x4 m4x4_mul_float32(Matrix_4x4 m, float32 f) {
+    Matrix_4x4 result = {};
+    u32 row = 0;
+    u32 column = 0;
+
+    for (u32 i = 0; i < 16; i++) {
+        result.E[row][column] = f * m.E[row][column];
+
+        column++;
+        if (column == 4) {
+            column = 0;
+            row++;
+        }
+    }
+    return result;
+}
+
+/*
+a b
+c d
+*/
+
+inline float32
+determinant_2x2(float32 a, float32 b, float32 c, float32 d) {
+    float32 result = (a * d - b * c);
+    return result;
+}
+
+inline float32
+determinant_3x3(Matrix_3x3 m) {
+    float32 
+    a11 = m.E[0][0], a12 = m.E[0][1], a13 = m.E[0][2],
+    a21 = m.E[1][0], a22 = m.E[1][1], a23 = m.E[1][2],
+    a31 = m.E[2][0], a32 = m.E[2][1], a33 = m.E[2][2];
+
+    float32 a1 = a11 * determinant_2x2(a22, a23, a32, a33);
+    float32 a2 = a12 * determinant_2x2(a21, a23, a31, a33);
+    float32 a3 = a13 * determinant_2x2(a21, a22, a31, a32);
+    return a1 - a2 + a3;
+}
+
+inline Matrix_3x3
+get_matrix_3x3(Matrix_4x4 m, u32 row, u32 column) {
+    Matrix_3x3 result = {};
+    u32 r_row = 0, r_column = 0;
+
+    for (u32 i = 0; i < 4; i++) {
+        r_column = 0;
+        for (u32 j = 0; j < 4; j++) {
+            if (row != i && column != j) {
+                result.E[r_row][r_column] = m.E[i][j];
+                r_column++;
+            }
+        }
+        if (row != i)
+            r_row++;
+    }
+    
+    return result;
+}
+
+inline float32
+determinant_4x4(Matrix_4x4 m) {
+    float32 
+    a11 = m.E[0][0], a12 = m.E[0][1], a13 = m.E[0][2], a14 = m.E[0][3],
+    a21 = m.E[1][0], a22 = m.E[1][1], a23 = m.E[1][2], a24 = m.E[1][3],
+    a31 = m.E[2][0], a32 = m.E[2][1], a33 = m.E[2][2], a34 = m.E[2][3],
+    a41 = m.E[3][0], a42 = m.E[3][1], a43 = m.E[3][2], a44 = m.E[3][3];
+
+    float32 a1 = a11 * determinant_3x3(get_matrix_3x3(m, 0, 0));
+    float32 a2 = a12 * determinant_3x3(get_matrix_3x3(m, 0, 1));
+    float32 a3 = a13 * determinant_3x3(get_matrix_3x3(m, 0, 2));
+    float32 a4 = a14 * determinant_3x3(get_matrix_3x3(m, 0, 3));
+    return a1 - a2 + a3 - a4;
+}
+
+inline Matrix_4x4
+m4x4_transpose(Matrix_4x4 m) {
+    Matrix_4x4 result = {};
+    for (u32 i = 0; i < 4; i++) {
+        for (u32 j = 0; j < 4; j++) {
+            result.E[j][i] = m.E[i][j];
+        }
+    }
+    return result;
+}
+
+inline Matrix_4x4
+adjugate_matrix_4x4(Matrix_4x4 m) {
+    Matrix_4x4 result  = {};
+    for (u32 i = 0; i < 4; i++) {
+        for (u32 j = 0; j < 4; j++) {
+            float32 sign = 1.0f;
+            if ((i + j) % 2 != 0)
+                sign = -1.0f;
+
+            result.E[i][j] = sign * determinant_3x3(get_matrix_3x3(m, i, j));
+        }
+    }
+    /*
+    00 01 02 03
+    10 11 12 13
+    20 21 22 23
+    30 31 32 33
+    */
+    result = m4x4_transpose(result);
+
+    return result;
+}
+
+inline Matrix_4x4
+inverse(Matrix_4x4 m) {
+    float32 det = determinant_4x4(m);
+    Matrix_4x4 adj = adjugate_matrix_4x4(m);
+    Matrix_4x4 inverse = m4x4_mul_float32(adj,(1.0f/det));
+    return inverse;
 }
 
 //

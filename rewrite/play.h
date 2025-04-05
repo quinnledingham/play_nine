@@ -77,6 +77,7 @@ struct Vulkan_Buffer;
 
 #include "play_game.h"
 #include "play_draw.h"
+#include "play_raytrace.h"
 
 #include "input.h"
 #include "global.h"
@@ -97,6 +98,7 @@ void play_destroy();
 #include "sdl.cpp"
 #include "gui.cpp"
 
+#include "play_raytrace.cpp"
 #include "play_animations.cpp"
 #include "play_game.cpp"
 #include "play_bitmaps.cpp"
