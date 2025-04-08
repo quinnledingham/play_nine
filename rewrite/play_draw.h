@@ -1,6 +1,12 @@
+// This is contains what is needed to draw a card in space.
+// In an array in Game_Draw because a card may exist that is not in any players hand,
+// so each Player_Card just has a pointer to a Card_Entity in Game_Draw.
+// Actually makes a lot of sense to store hovered here.
+
 struct Card_Entity {
     u32 index;
     bool8 hovered;
+    bool8 highlight;
     Transform transform;
 };
 

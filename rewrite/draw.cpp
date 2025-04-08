@@ -634,6 +634,7 @@ init_draw() {
   draw_ctx.square = get_rect_mesh_2D();
   draw_ctx.square_3D = get_rect_mesh_3D();
   draw_ctx.sphere = get_sphere(0.025f, 10, 10);
+  draw_ctx.cube = get_cube(false, {1, 1, 1});
   Rect r = {};
   r.coords = {0, 0};
   r.dim = {1, 1};

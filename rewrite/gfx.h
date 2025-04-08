@@ -144,7 +144,7 @@ struct Animation_Keyframe {
     Transform *dest;
 
     void *func_args;
-    void (*func)(void *args);
+    bool8 (*func)(void *args);
 };
 
 struct Animation {
@@ -155,6 +155,7 @@ struct Animation {
 };
 
 struct Camera {
+    // defines camera
     union {
         struct {
             Vector3 position;
@@ -168,8 +169,11 @@ struct Camera {
         Pose pose;
     };
 
-    Vector3 target;
+    // initialized by pose
+    Vector3 right;
     Vector3 up;
+    Vector3 direction;
+
     float32 fov;
 
     //Animation *animation;

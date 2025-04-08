@@ -114,4 +114,8 @@ void play_destroy();
  ASSETS
  - Load obj and mtl files
  
+ GAME DRAWING
+ - dont be able to point below card so that it lifts above hover then drops
+back down to it repeated.
+
 */

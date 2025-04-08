@@ -165,6 +165,7 @@ distance(const Vector3 v1, const Vector3 v2) {
 //
 
 inline float32 dot_product(const Vector4 l, const Vector4 r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z) + (l.w * r.w); }
+inline float32 dot_product(const Vector4 l, const Vector3 r) { return (l.x * r.x) + (l.y * r.y) + (l.z * r.z) + (l.w * 1.0f); }
 
 //
 // Quaternion
@@ -209,42 +210,6 @@ get_rotation(float32 angle, const Vector3& axis) {
 /*
     Matrix_4x4
 */
-
-inline Matrix_4x4
-get_frustum(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f) {
-    if (l == r || t == b || n == f) {
-        log_error("get_frustum(): Invalid frustum\n");
-        return {};
-    }
-    
-    return {
-        (2.0f * n) / (r - l), 0, 0, 0,
-        0, (2.0f * n) / (t - b), 0, 0,
-        (r + l) / (r - l), (t + b) / (t - b), (-(f + n)) / (f - n), -1,
-        0, 0, (-2 * f * n) / (f - n), 0
-    };
-}
-
-inline Matrix_4x4
-perspective_projection(float32 fov, float32 aspect_ratio, float32 n, float32 f) {
-    float32 y_max = n * tanf(fov * PI / 360.0f);
-    float32 x_max = y_max * aspect_ratio;
-    return get_frustum(-x_max, x_max, -y_max, y_max, n, f);
-}
-
-inline Matrix_4x4
-orthographic_projection(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f) {
-    if (l == r || t == b || n == f) {
-        log_error("orthographic_projection(): Invalid arguments\n");
-        return {};
-    }
-    return {
-        2.0f / (r - l),  0,              0,              0,
-        0,               2.0f / (t - b), 0,              0,
-        0,               0,             -2.0f / (f - n), 0,
-        -((r+l)/(r-l)), -((t+b)/(t-b)), -((f+n)/(f-n)),  1
-    };
-}
 
 inline Matrix_4x4
 identity_m4x4() {
@@ -338,6 +303,7 @@ look_at(const Vector3 &position, const Vector3 &target, const Vector3 &up) {
     if (r == 0) 
         return identity_m4x4();
     normalize(r);
+
     Vector3 u = normalized(cross_product(f, r));
     Vector3 t = { -dot_product(r, position), -dot_product(u, position), -dot_product(f, position) };
     
@@ -360,6 +326,18 @@ m4x4_get_row(Matrix_4x4 m, u32 i) {
 }
 
 inline Vector4 
+m4x4_mul_v3(Matrix_4x4 m, Vector3 v) {
+    
+    Vector4 result =  {
+        dot_product(m4x4_get_row(m, 0), v),
+        dot_product(m4x4_get_row(m, 1), v),
+        dot_product(m4x4_get_row(m, 2), v),
+        dot_product(m4x4_get_row(m, 3), v)
+    };
+    return result;
+}
+
+inline Vector4 
 m4x4_mul_v4(Matrix_4x4 m, Vector4 v) {
     
     Vector4 result =  {
@@ -371,7 +349,8 @@ m4x4_mul_v4(Matrix_4x4 m, Vector4 v) {
     return result;
 }
 
-inline Matrix_4x4 m4x4_mul_float32(Matrix_4x4 m, float32 f) {
+inline Matrix_4x4 
+m4x4_mul_float32(Matrix_4x4 m, float32 f) {
     Matrix_4x4 result = {};
     u32 row = 0;
     u32 column = 0;
@@ -448,7 +427,7 @@ determinant_4x4(Matrix_4x4 m) {
 }
 
 inline Matrix_4x4
-m4x4_transpose(Matrix_4x4 m) {
+transpose(Matrix_4x4 m) {
     Matrix_4x4 result = {};
     for (u32 i = 0; i < 4; i++) {
         for (u32 j = 0; j < 4; j++) {
@@ -476,7 +455,7 @@ adjugate_matrix_4x4(Matrix_4x4 m) {
     20 21 22 23
     30 31 32 33
     */
-    result = m4x4_transpose(result);
+    result = transpose(result);
 
     return result;
 }
@@ -487,6 +466,103 @@ inverse(Matrix_4x4 m) {
     Matrix_4x4 adj = adjugate_matrix_4x4(m);
     Matrix_4x4 inverse = m4x4_mul_float32(adj,(1.0f/det));
     return inverse;
+}
+
+inline Matrix_4x4
+intermediate_X() {
+    Matrix_4x4 X = {
+        1,  0,  0, 0,
+        0, -1,  0, 0,
+        0,  0, -1, 0,
+        0,  0,  0, 1
+    };
+
+    return inverse(X);
+}
+
+inline Matrix_4x4
+get_frustum(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f) {
+    if (l == r || t == b || n == f) {
+        log_error("get_frustum(): Invalid frustum\n");
+        return {};
+    }
+    
+    return {
+        (2.0f * n) / (r - l), 0, 0, 0,
+        0, (2.0f * n) / (t - b), 0, 0,
+        (r + l) / (r - l), (t + b) / (t - b), (-(f + n)) / (f - n), -1,
+        0, 0, (-2 * f * n) / (f - n), 0
+    };
+}
+
+inline Matrix_4x4
+perspective_projection(float32 fov, float32 aspect_ratio, float32 n, float32 f) {
+    float32 y_max = n * tanf(fov * PI / 360.0f);
+    float32 x_max = y_max * aspect_ratio;
+    return get_frustum(-x_max, x_max, -y_max, y_max, n, f);
+}
+
+inline Matrix_4x4
+multiply(Matrix_4x4 a, Matrix_4x4 b) {
+    Matrix_4x4 result = {};
+    memset(result.F, 0, sizeof(float32) * 16);
+
+    for (u32 i = 0; i < 4; i++) {
+        for (u32 j = 0; j < 4; j++) {
+            for (u32 k = 0; k < 4; k++) {
+                result.E[i][j] += a.E[i][k] * b.E[k][j];
+            }
+            
+        }
+    }
+
+    return result;
+}
+
+inline Matrix_4x4
+perspective_projection2(float32 fov, float32 aspect_ratio, float32 n, float32 f) {
+    float32 tan_fov = tanf(fov / 2.0f);
+    Matrix_4x4 P = {
+        aspect_ratio/tan_fov, 0, 0, 0,
+        0, 1/tan_fov, 0, 0,
+        0, 0, f/(f-n), -(n*f)/(f-n),
+        0, 0, 1, 0
+    };
+    return transpose(P);
+}
+
+inline Matrix_4x4
+orthographic_projection(float32 l, float32 r, float32 b, float32 t, float32 n, float32 f) {
+    if (l == r || t == b || n == f) {
+        log_error("orthographic_projection(): Invalid arguments\n");
+        return {};
+    }
+    return {
+        2.0f / (r - l),  0,              0,              0,
+        0,               2.0f / (t - b), 0,              0,
+        0,               0,             -2.0f / (f - n), 0,
+        -((r+l)/(r-l)), -((t+b)/(t-b)), -((f+n)/(f-n)),  1
+    };
+}
+
+inline Matrix_4x4
+test_matrix() {
+    return {
+        1,   2,  3,  4,
+        5,   6,  7,  8,
+        9,  10, 11, 12,
+        13, 14, 15, 16,
+    };
+}
+
+inline void
+print_matrix(Matrix_4x4 m) {
+    for (u32 i = 0; i < 4; i++) {
+        for (u32 j = 0; j < 4; j++) {
+            print("%f ", m.E[i][j]);
+        }
+        print("\n");
+    }
 }
 
 //

@@ -121,6 +121,9 @@ sdl_init() {
   sdl_ctx.pointer_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER);
   sdl_ctx.default_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT);
 
+  Matrix_4x4 test = test_matrix();
+  print_matrix(test);
+
   return 0;
 }
 

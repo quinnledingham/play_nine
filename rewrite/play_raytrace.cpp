@@ -78,7 +78,7 @@ intersect_triangle_mesh(Ray ray, Mesh *mesh, Matrix_4x4 model) {
 }
 
 internal bool8
-ray_model_intersection_cpu(Ray ray, Mesh *hitbox, Transform t) {
+ray_mesh_intersection_cpu(Ray ray, Mesh *hitbox, Transform t) {
 
     Matrix_4x4 t_matrix = m4x4(t);
     Ray_Intersection p = intersect_triangle_mesh(ray, hitbox, t_matrix);
@@ -86,16 +86,9 @@ ray_model_intersection_cpu(Ray ray, Mesh *hitbox, Transform t) {
         //print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
         return true;
     }
-    
 
-/*
-    Ray_Intersection p = intersect_triangle_array(ray, NULL, card);
-    if (p.number_of_intersections != 0) {
-        print("card: %f %f %f\n", p.point.x, p.point.y, p.point.z);
-        return true;
-    }
-*/
     return false;
+
 }
 
 // https://antongerdelan.net/opengl/raycasting.html

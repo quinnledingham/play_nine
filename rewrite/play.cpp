@@ -101,9 +101,7 @@ s32 play_init() {
 
   init_animations(animations);
 
-  camera.up = { 0, -1, 0 };
-  camera.fov = 75.0f;
-
+  camera.fov = 45.0f * DEG2RAD;
   camera.pose = get_player_camera(-game_draw.degrees_between_players, debug.test_game.active_player);
 
   return SUCCESS;
@@ -116,14 +114,15 @@ play_destroy() {
 
 internal void
 update_scenes(Scene *scene, Scene *ortho_scene, Vector2_s32 window_dim) {
-    scene->view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
-    scene->projection = perspective_projection(45.0f, (float32)window_dim.width / (float32)window_dim.height, 0.1f, 1000.0f);
+    //scene->view = look_at({ 2.0f, 2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f });
+    scene->projection = perspective_projection2(camera.fov, (float32)window_dim.height / (float32)window_dim.width, 0.1f, 1000.0f);
+    //scene->projection = perspective_projection(45.0f, (float32)window_dim.width / (float32)window_dim.height, 0.1f, 1000.0f);
 
     ortho_scene->view = identity_m4x4();
     ortho_scene->projection = orthographic_projection(0.0f, (float32)window_dim.width, 0.0f, (float32)window_dim.height, -3.0f, 3.0f);
 }
 
-internal void
+internal void 
 draw_fps() {
   float_to_string((float32)app_time.frames_per_s, global_buffer);
   set_draw_font(FONT_ROBOTO_MONO);
@@ -136,7 +135,7 @@ test_3D() {
   gfx_scissor_push({0, 0}, {(float32)gfx.window.dim.width, (float32)gfx.window.dim.height});
   vulkan_depth_test(true);
 
-  scene.view = get_view(camera);
+  scene.view = get_camera_view(&camera);
   gfx_ubo(GFXID_SCENE, &scene.view, 0);
 
   gfx_bind_pipeline(PIPELINE_3D);
@@ -163,7 +162,7 @@ internal void
 free_fly_update_camera(Camera *camera) {
   float32 mouse_move_speed = 0.1f;
   update_camera_with_mouse(camera, app_input.mouse.relative_coords, mouse_move_speed, mouse_move_speed);
-  update_camera_target(camera);    
+  set_camera_values(camera);
   float32 m_per_s = 6.0f; 
   float32 m_moved = m_per_s * (float32)app_time.frame_time_s;
   Vector3 move_vector = {m_moved, m_moved, m_moved};
@@ -192,16 +191,22 @@ do_mouse_input(Game *game, bool8 *input) {
 
   for (u32 i = 0; i < HAND_SIZE; i++) {
     Player_Card *card = &game->players[game->active_player].cards[i];
-    hover[i] = ray_model_intersection_cpu(mouse_ray, &game_draw.hitbox, card->entity->transform);
+    hover[i] = ray_mesh_intersection_cpu(mouse_ray, &game_draw.hitbox, card->entity->transform);
   }
 
+  hover[GI_DRAW_PILE]    = ray_mesh_intersection_cpu(mouse_ray, &game_draw.hitbox, game_draw.draw_pile_entity->transform);
+  hover[GI_DISCARD_PILE] = ray_mesh_intersection_cpu(mouse_ray, &game_draw.hitbox, game_draw.discard_pile_entity->transform);
+
   if (on_down(app_input.mouse.left)) {
-    memcpy(input, hover, sizeof(bool8) * GI_SIZE);
+    memcpy(input, hover, sizeof(bool8) * GI_SIZE); 
   } else {
     for (u32 i = 0; i < HAND_SIZE; i++) {
       Player_Card *card = &game->players[game->active_player].cards[i];
       card->entity->hovered = hover[i];
     }
+
+    game_draw.draw_pile_entity->hovered = hover[GI_DRAW_PILE];
+    game_draw.discard_pile_entity->hovered = hover[GI_DISCARD_PILE];
   }
 }
 
@@ -234,13 +239,11 @@ update_game(Game *game) {
 
 #endif // DEBUG
 
+    set_camera_values(&camera);
+
     //
     // Game Input
     //
-
-    do_animations(animations, app_time.frame_time_s);
-
-    update_camera_target(&camera);
 
     bool8 input[GI_SIZE];
     memset(input, 0, sizeof(bool8) * GI_SIZE);
@@ -250,6 +253,11 @@ update_game(Game *game) {
 
     update_game_with_input(game, input);
 
+    set_card_highlights(game);
+    set_card_hover_lifts(game, &game_draw);
+
+    do_animations(animations, app_time.frame_time_s);
+  
 #ifdef DEBUG
   }
 #endif // DEBUG
@@ -331,9 +339,10 @@ do_game_frame() {
   draw_fps();
   
   if (game_draw.enabled) {
+    set_draw_font(FONT_ROBOTO_MONO);
     for (u32 i = 0; i < 6; i++) {
-      float_to_string(camera.position.E[i], global_buffer);
-      set_draw_font(FONT_ROBOTO_MONO);
+      float32 value = camera.position.E[i];
+      float_to_string(value, global_buffer);
       draw_text(global_buffer.str(), {i * 100.0f, 100}, 20, {255, 0, 0, 1});
     }
   }

@@ -163,7 +163,7 @@ init_game_draw(Game *game, Game_Draw *draw) {
 
   set_cards_coords(game, draw);
 
-  draw->hitbox = get_cube(false, {game_draw.card_dim.x, 0.05f, game_draw.card_dim.y});
+  draw->hitbox = get_cube(false, {game_draw.card_dim.x, 0.5f, game_draw.card_dim.y});
 }
 
 // draws a individual card
@@ -240,6 +240,81 @@ draw_card(Pose pose, s32 value) {
 }
 
 internal void
+set_card_highlights(Game *game) {
+  Player *active_player = &game->players[game->active_player];
+
+  for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
+    Player_Card *card = &active_player->cards[card_index];
+    if ((game->turn.stage == FLIP_CARD && !card->flipped) || (game->turn.stage == SELECT_CARD)) {
+      card->entity->highlight = true;
+    } else {
+      card->entity->highlight = false;
+    }
+  }
+
+  if (game->turn.stage == SELECT_PILE) {
+    game_draw.draw_pile_entity->highlight    = true;
+    game_draw.discard_pile_entity->highlight = true;
+  } else {
+    game_draw.draw_pile_entity->highlight    = false;
+    game_draw.discard_pile_entity->highlight = false;
+  }
+}
+
+internal void
+set_card_hover_lifts(Game *game, Game_Draw *draw) {
+  bool8 hover_highlight_card = false;
+
+  Player *active_player = &game->players[game->active_player];
+  for (u32 card_index = 0; card_index < HAND_SIZE; card_index++) {
+
+    Player_Card *card = &active_player->cards[card_index];
+    Card_Entity *e = card->entity;
+
+    if (e->highlight && e->hovered) {
+      animation_lift_hovered(e);
+      hover_highlight_card = true;
+    }
+
+  }
+
+  Card_Entity *e = game_draw.draw_pile_entity;
+  if (e->highlight && e->hovered) {
+    animation_lift_hovered(e);
+    hover_highlight_card = true;
+  }
+  e = game_draw.discard_pile_entity;
+  if (e->highlight && e->hovered) {
+    animation_lift_hovered(e);
+    hover_highlight_card = true;
+  }
+
+  if (hover_highlight_card) {
+    SDL_SetCursor(sdl_ctx.pointer_cursor);
+  } else {
+    SDL_SetCursor(sdl_ctx.default_cursor);
+  }
+}
+
+internal void
+draw_hitbox(Card_Entity *e) {
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.color = {255, 0, 0, 1};
+  vulkan_update_ubo(color_desc, (void *)&local);
+
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  Object object = {};
+  object.model = m4x4(e->transform);
+  object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&game_draw.hitbox);
+}
+
+internal void
 draw_cards(Game *game, Game_Draw *draw) {
   float32 thickness = 0.05f;
   float32 half = thickness / 2.0f;
@@ -263,6 +338,8 @@ draw_cards(Game *game, Game_Draw *draw) {
   
   Quaternion flip = get_rotation(PI, X_AXIS);
 
+  float32 hover_lift = 0.5f;
+
   // back side
   for (u32 i = 0; i < draw->card_entities.size(); i++) {
     Card_Entity *e = draw->card_entities.get(i);
@@ -273,10 +350,6 @@ draw_cards(Game *game, Game_Draw *draw) {
 
       Vector3 displacement = rotation(t.orientation) * Vector3{0, half, 0};
       t.position += displacement;
-
-      if (e->hovered) {
-        t.position.y += 2.0f;
-      }
 
       Object object = {};
       object.model = m4x4(t);
@@ -324,31 +397,49 @@ draw_cards(Game *game, Game_Draw *draw) {
       Transform t = e->transform;
       t.scale = {1.0f, thickness, 1.0f};
 
+      if (e->highlight) {
+        local.color = play_nine_yellow;
+        gfx_ubo(GFXID_LOCAL, &local, 0);
+      } else {
+        local.color = game_draw.card_side_color;
+        gfx_ubo(GFXID_LOCAL, &local, 0);
+      }
+
       Object object = {};
       object.model = m4x4(t);
       vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
 
       vkCmdDrawIndexed(VK_CMD, side_mesh->indices_count, 1, 0, 0, 0);
+
+      // reset card entities 
+      e->hovered = false;
+      e->highlight = false;
+
+      if (debug.wireframe) {
+        draw_hitbox(e);
+      }
     }
   }
 }
 
 internal void
-draw_hitbox(Card_Entity *e) {
-  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+draw_axis() {
+  gfx_bind_bitmap(GFXID_TEXTURE, BITMAP_LANA, 0);
+  Material mtl = {};
+  gfx_bind_descriptor_set(GFXID_MATERIAL, &mtl);
 
-  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
-  Local local = {};
-  local.color = {255, 0, 0, 1};
-  vulkan_update_ubo(color_desc, (void *)&local);
+  float32 axis_length = 50.0f;
+  float32 half_axis_length = axis_length / 2.0f;
+  float32 axis_thickness = 0.1f;
 
-  vulkan_bind_descriptor_set(local_desc_set);
+  draw_cube({ half_axis_length, 0, 0}, 0, {axis_length, axis_thickness, axis_thickness}, {255, 0, 0, 1});
+  draw_cube({-half_axis_length, 0, 0}, 0, {axis_length, axis_thickness, axis_thickness}, {255, 100, 100, 1});
 
-  Object object = {};
-  object.model = m4x4(e->transform);
-  object.index = 0;
-  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
-  vulkan_draw_mesh(&game_draw.hitbox);
+  draw_cube({0,  half_axis_length, 0}, 0, {axis_thickness, axis_length, axis_thickness}, {0, 255, 0, 1});
+  draw_cube({0, -half_axis_length, 0}, 0, {axis_thickness, axis_length, axis_thickness}, {100, 255, 100, 1});
+
+  draw_cube({0, 0, half_axis_length}, 0, {axis_thickness, axis_thickness, axis_length}, {0, 0, 255, 1});
+  draw_cube({0, 0, -half_axis_length}, 0, {axis_thickness, axis_thickness, axis_length}, {100, 100, 255, 1});
 }
 
 internal void
@@ -357,14 +448,18 @@ draw_game(Game *game) {
   gfx_scissor_push({0, 0}, {(float32)gfx.window.dim.width, (float32)gfx.window.dim.height});
   vulkan_depth_test(true);
 
-  scene.view = get_view(camera);
-  gfx_ubo(GFXID_SCENE, &scene.view, 0);
+  scene.view = get_camera_view(&camera);
+  gfx_ubo(GFXID_SCENE, &scene, 0);
 
   gfx_bind_pipeline(PIPELINE_3D);
 
-  draw_cards(game, &game_draw);
+#ifdef DEBUG
 
-  //draw_cube({0, 0, 0}, 0, {2, 2, 2}, {255, 0, 0, 1});
+  draw_axis();
+
+#endif // DEBUG
+
+  draw_cards(game, &game_draw);
 
 #ifdef DEBUG
   
@@ -387,12 +482,14 @@ get_player_camera(float32 degrees_between, u32 active_i) {
   float32 y = cam_dis * sinf(rad);
 
   Pose pose = {};
+  
   pose.x = x;
   pose.y = 12.0f;
   pose.z = y;
-  pose.pitch = -44.0f * DEG2RAD;
-  pose.yaw = (target_degrees + 180.0f) * DEG2RAD;
-
+  pose.roll = PI;
+  pose.yaw = 44.0f * DEG2RAD;
+  pose.pitch = (-target_degrees + 180.0f) * DEG2RAD;
+  
   return pose;
 
 }

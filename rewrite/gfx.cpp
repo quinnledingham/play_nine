@@ -116,38 +116,42 @@ gfx_bind_atlas(Texture_Atlas *atlas) {
 // Camera
 //
 
-inline Matrix_4x4 get_view(Camera camera)  { 
-    return look_at(camera.position, camera.position + camera.target, camera.up); 
-}
-
-internal void
-update_camera_target(Camera *camera) {
-    Vector3 camera_direction = {
-        cosf(camera->yaw) * cosf(camera->pitch),
-        sinf(camera->pitch),
-        sinf(camera->yaw) * cosf(camera->pitch)
-    };
-    camera->target = normalized(camera_direction);
-}
-
 // delta_mouse is a relative mouse movement amount
 // as opposed to the screen coords of the mouse
 internal void
 update_camera_with_mouse(Camera *camera, Vector2 delta_mouse, float32 x_speed, float32 y_speed) {   
-    camera->yaw   -= (delta_mouse.x * x_speed) * DEG2RAD;
-    camera->pitch -= (delta_mouse.y * y_speed) * DEG2RAD;
+    camera->pitch += (delta_mouse.x * x_speed) * DEG2RAD;
+    camera->yaw += (delta_mouse.y * y_speed) * DEG2RAD;
     
-    //print("%f\n", camera->yaw);
-
-    // doesnt break withou this - just so it does not keep getting higher and higher
+    // doesnt break without this - just so it does not keep getting higher and higher
     float32 max_yaw = 2*PI;
-    if (camera->yaw > max_yaw) camera->yaw = 0;
-    if (camera->yaw < 0)       camera->yaw = max_yaw;
+    if (camera->pitch > max_yaw) camera->pitch = 0;
+    if (camera->pitch < 0)       camera->pitch = max_yaw;
 
     // breaks with out this check
     float32 max_pitch = 89.0f * DEG2RAD;
-    if (camera->pitch >  max_pitch) camera->pitch =  max_pitch;
-    if (camera->pitch < -max_pitch) camera->pitch = -max_pitch;
+    if (camera->yaw >  max_pitch) camera->yaw =  max_pitch;
+    if (camera->yaw < -max_pitch) camera->yaw = -max_pitch;
+}
+
+
+internal void
+set_camera_values(Camera *camera) {
+  Vector3 up        = { 0, 1, 0 };
+  Vector3 direction = { 1, 0, 0 };
+  
+  Vector3 orientation = camera->orientation;
+  Quaternion x_rot = get_rotation(orientation.w, X_AXIS);
+  Quaternion y_rot = get_rotation(-orientation.p, Y_AXIS);
+  Quaternion z_rot = get_rotation(orientation.k, Z_AXIS);
+
+  Quaternion rot = z_rot * y_rot * x_rot;
+
+  camera->direction = normalized(rot * direction);
+  camera->up = normalized(rot * up);
+  camera->right = normalized(cross_product(camera->direction, camera->up));
+  //camera->right = normalized(cross_product(camera->direction, up));
+  //camera->up = normalized(cross_product(camera->right, camera->direction));
 }
 
 internal void
@@ -155,12 +159,34 @@ update_camera_with_keys(Camera *camera, Vector3 magnitude,
                         bool8 forward, bool8 backward,
                         bool8 left, bool8 right,
                         bool8 up, bool8 down) {
-    if (forward)  camera->position   += camera->target * magnitude;
-    if (backward) camera->position   -= camera->target * magnitude;
-    if (left)     camera->position   -= normalized(cross_product(camera->target, camera->up)) * magnitude;
-    if (right)    camera->position   += normalized(cross_product(camera->target, camera->up)) * magnitude;
-    if (up)       camera->position.y += magnitude.y;
-    if (down)     camera->position.y -= magnitude.y;
+    if (forward)  camera->position   += camera->direction * magnitude;
+    if (backward) camera->position   -= camera->direction * magnitude;
+    if (right)    camera->position   += camera->right * magnitude;
+    if (left)     camera->position   -= camera->right * magnitude;
+    if (up)       camera->position   += camera->up * magnitude;
+    if (down)     camera->position   -= camera->up * magnitude;
+}
+
+inline Matrix_4x4
+get_camera_view(Camera *c) {
+  Vector3 f = c->direction;
+  Vector3 r = c->right;
+  Vector3 u = c->up;
+
+  Vector3 position = c->position;
+
+  Vector3 t = { -dot_product(r, position), -dot_product(u, position), -dot_product(f, position) };
+
+  Matrix_4x4 V = {
+      r.x, u.x, f.x, 0,
+      r.y, u.y, f.y, 0,
+      r.z, u.z, f.z, 0,
+      t.x, t.y, t.z, 1
+  };
+
+  //Matrix_4x4 X = intermediate_X();
+  //Matrix_4x4 XV = multiply(X, V);
+  return V;
 }
 
 //
@@ -340,8 +366,11 @@ do_animation(Animation *a, float64 frame_time_s) {
         case INTERP_LERP:  *a->src = linear_interpolate(key->start, key->end, percent);  break;
         case INTERP_SLERP: *a->src = slerp_intropolation(key->start, key->end, percent); break;
         case INTERP_FUNC: {
-          key->time_elapsed = key->time_duration; // only do interp func once
-          key->func(key->func_args); 
+          bool8 consume_keyframe = key->func(key->func_args); 
+          if (consume_keyframe)
+            key->time_elapsed = key->time_duration;
+          else
+            key->time_elapsed = 0.0f;
         } break;
       }
 
@@ -354,12 +383,12 @@ do_animation(Animation *a, float64 frame_time_s) {
 
 internal void
 do_animations(Array<Animation> &animations, float64 frame_time_s) {
-    for (u32 i = 0; i < animations.size(); i++) {
-        Animation *a = &animations[i];
-        if (a->active) {
-            do_animation(a, frame_time_s);
-        }
+  for (u32 i = 0; i < animations.size(); i++) {
+    Animation *a = &animations[i];
+    if (a->active) {
+        do_animation(a, frame_time_s);
     }
+  }
 }
 
 internal void
@@ -372,7 +401,7 @@ add_keyframe(Animation *a, Animation_Keyframe *new_key) {
   if (index >= 2)
     previous_key = &a->keyframes[index - 2];
 
-  if (previous_key) {
+  if (previous_key && previous_key->interpolation != INTERP_FUNC) {
     key->start = previous_key->end;
   }
 
@@ -399,6 +428,16 @@ add_keyframe(Animation *a, Transform &start, Transform &end, float32 time_durati
 }
 
 internal void
+add_keyframe(Animation *a, Transform &start, Transform &end, float32 time_duration, u32 interpolation) {
+  Animation_Keyframe key = {};
+  key.start = start;
+  key.end = end;
+  key.interpolation = interpolation;
+  key.time_duration = time_duration;
+  add_keyframe(a, &key);
+}
+
+internal void
 add_dynamic_keyframe(Animation *a, Transform &start, Transform *dest, float32 time_duration) {
   Animation_Keyframe key = {};
   key.start = start;
@@ -408,18 +447,33 @@ add_dynamic_keyframe(Animation *a, Transform &start, Transform *dest, float32 ti
   add_keyframe(a, &key);
 }
 
+internal void
+add_keyframe(Animation *a, bool8 (*func)(void *), void *args) {
+  Animation_Keyframe key = {};
+  key.interpolation = INTERP_FUNC;
+  key.func = func;
+  key.func_args = args;
+  add_keyframe(a, &key);
+}
+
 internal Animation*
 find_animation(Array<Animation> &animations, Transform *src) {
+  // check for animation already on src
+  for (u32 i = 0; i < animations.size(); i++) {
+    Animation *a = &animations[i];
+    // src Transform is already being animated
+    if (a->active && a->src == src) {
+      return a;
+    }
+  }
+
+  // otherwise find open slot
   for (u32 i = 0; i < animations.size(); i++) {
     Animation *a = &animations[i];
     if (!a->active) {
       a->active = true;
       a->keyframes.clear();
       a->src = src;
-      return a;
-    }
-    // src Transform is already being animated
-    if (a->active && a->src == src) {
       return a;
     }
   }
@@ -437,3 +491,14 @@ init_animations(Array<Animation> &animations) {
         a->keyframes.clear();
     }
 };
+
+internal u32
+count_active_animations(Array<Animation> &animations) {
+  u32 count = 0;
+  for (u32 i = 0; i < animations.size(); i++) {
+    Animation *a = &animations[i];
+    if (a->active)
+      count++;
+  }
+  return count;
+}
