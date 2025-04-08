@@ -92,7 +92,7 @@ init_rect_indices(u32 *indices, u32 top_left,    u32 top_right,
 }
 
 internal Mesh
-get_cube(bool8 out, Vector3 scale) {
+get_cube(bool8 out, Vector3 coords, Vector3 scale) {
   Mesh mesh = {};
   
   mesh.vertices_count = 8;
@@ -117,19 +117,19 @@ get_cube(bool8 out, Vector3 scale) {
   mesh.indices = ARRAY_MALLOC(u32, mesh.indices_count);
   
   if (out) {
-      init_rect_indices(mesh.indices + 0,  3, 1, 2, 0); // back
-      init_rect_indices(mesh.indices + 6,  5, 7, 4, 6); // front
-      init_rect_indices(mesh.indices + 12, 1, 3, 5, 7); // top
-      init_rect_indices(mesh.indices + 18, 4, 6, 0, 2); // bottom
-      init_rect_indices(mesh.indices + 24, 1, 5, 0, 4); // left
-      init_rect_indices(mesh.indices + 30, 7, 3, 6, 2); // right
+    init_rect_indices(mesh.indices + 0,  3, 1, 2, 0); // back
+    init_rect_indices(mesh.indices + 6,  5, 7, 4, 6); // front
+    init_rect_indices(mesh.indices + 12, 1, 3, 5, 7); // top
+    init_rect_indices(mesh.indices + 18, 4, 6, 0, 2); // bottom
+    init_rect_indices(mesh.indices + 24, 1, 5, 0, 4); // left
+    init_rect_indices(mesh.indices + 30, 7, 3, 6, 2); // right
   } else {
-      init_rect_indices(mesh.indices + 0,  1, 3, 0, 2); // back
-      init_rect_indices(mesh.indices + 6,  7, 5, 6, 4); // front
-      init_rect_indices(mesh.indices + 12, 5, 7, 1, 3); // top
-      init_rect_indices(mesh.indices + 18, 0, 2, 4, 6); // bottom
-      init_rect_indices(mesh.indices + 24, 5, 1, 4, 0); // left
-      init_rect_indices(mesh.indices + 30, 3, 7, 2, 6); // right
+    init_rect_indices(mesh.indices + 0,  1, 3, 0, 2); // back
+    init_rect_indices(mesh.indices + 6,  7, 5, 6, 4); // front
+    init_rect_indices(mesh.indices + 12, 5, 7, 1, 3); // top
+    init_rect_indices(mesh.indices + 18, 0, 2, 4, 6); // bottom
+    init_rect_indices(mesh.indices + 24, 5, 1, 4, 0); // left
+    init_rect_indices(mesh.indices + 30, 3, 7, 2, 6); // right
   }
 
   mesh.vertex_info = Vertex_XNU::info();
@@ -634,7 +634,7 @@ init_draw() {
   draw_ctx.square = get_rect_mesh_2D();
   draw_ctx.square_3D = get_rect_mesh_3D();
   draw_ctx.sphere = get_sphere(0.025f, 10, 10);
-  draw_ctx.cube = get_cube(false, {1, 1, 1});
+  draw_ctx.cube = get_cube(false, {0, 0, 0}, {1, 1, 1});
   Rect r = {};
   r.coords = {0, 0};
   r.dim = {1, 1};

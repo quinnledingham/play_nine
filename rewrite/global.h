@@ -85,6 +85,10 @@ struct Debug_State {
   Bitmap resized_lana = {};
   Game test_game;
 
+  bool8 load_assets = true;
+  FILE *asset_save_file = fopen("assets.ethan", "wb");
+  FILE *asset_load_file = fopen("assets.ethan", "rb");
+
   // GFX
   bool8 wireframe;
 };

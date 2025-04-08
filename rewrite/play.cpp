@@ -191,7 +191,9 @@ do_mouse_input(Game *game, bool8 *input) {
 
   for (u32 i = 0; i < HAND_SIZE; i++) {
     Player_Card *card = &game->players[game->active_player].cards[i];
-    hover[i] = ray_mesh_intersection_cpu(mouse_ray, &game_draw.hitbox, card->entity->transform);
+    Transform t = card->entity->transform;
+    t.position.y = 0.05f;
+    hover[i] = ray_mesh_intersection_cpu(mouse_ray, &game_draw.hitbox, t);
   }
 
   hover[GI_DRAW_PILE]    = ray_mesh_intersection_cpu(mouse_ray, &game_draw.hitbox, game_draw.draw_pile_entity->transform);

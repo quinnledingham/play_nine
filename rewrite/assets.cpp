@@ -37,6 +37,16 @@ load_file(const char *filepath) {
   return result;
 }
 
+internal void
+save_file(File in_file, FILE *out_file) {
+  fwrite(in_file.memory, in_file.size, 1, out_file);
+}
+
+internal void
+read_file(File in_file, FILE *out_file) {
+  fread(in_file.memory, in_file.size, 1, out_file);
+}
+
 internal void 
 destroy_file(File *file) {
   if (!file->memory)
@@ -266,6 +276,28 @@ pipeline_print_filenames(Pipeline *pipe) {
   print("\n");
 }
 
+internal void
+save_pipeline(u32 id, FILE *file) {
+  Pipeline *pipeline = find_pipeline(id);
+  fwrite(pipeline, sizeof(Pipeline), 1, file);
+  for (u32 i = 0; i < SHADER_STAGES_COUNT; i++) {
+    if (pipeline->files[i].loaded) {
+      save_file(pipeline->files[i].spirv, file);
+    }
+  }
+}
+
+internal void
+load_saved_pipeline(u32 id, FILE *file) {
+  Pipeline *pipeline = find_pipeline(id);
+  fread(pipeline, sizeof(Pipeline), 1, file);
+  for (u32 i = 0; i < SHADER_STAGES_COUNT; i++) {
+    if (pipeline->files[i].loaded) {
+      read_file(pipeline->files[i].spirv, file);
+    }
+  }
+}
+
 /*
   Bitmap
 */
@@ -292,6 +324,22 @@ load_bitmap(File file) {
   bitmap.mip_levels = 1;
 
   return bitmap;
+}
+
+internal void
+save_bitmap(u32 id, FILE *file) {
+  Bitmap *bitmap = find_bitmap(id);
+  fwrite(bitmap, sizeof(Bitmap), 1, file);
+  u32 size = bitmap->width * bitmap->height * bitmap->channels;
+  fwrite(bitmap->memory, size, 1, file);
+}
+
+internal void
+load_saved_bitmap(u32 id, FILE *file) {
+  Bitmap *bitmap = find_bitmap(id);
+  fread(bitmap, sizeof(Bitmap), 1, file);
+  u32 size = bitmap->width * bitmap->height * bitmap->channels;
+  fread(bitmap->memory, size, 1, file);
 }
 
 internal Bitmap
@@ -824,46 +872,101 @@ s32 get_glyph_kern_advance(void *info, s32 gl1, s32 gl2) {
   Assets
 */
 
+internal s32
+load_assets_switch(u32 i, u32 asset_type, Asset_Load *loads) {
+  switch(asset_type) {
+    case AT_SHADER: {
+      u32 filenames_count = ARRAY_COUNT(loads[0].filenames);
+      Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
+      Asset_Load *load = &pipeline_loads[i];
+
+      for (u32 file_index = 0; file_index < filenames_count; file_index++) {
+        if (!load->filenames[file_index]) {
+          continue;
+        }
+
+        s32 result = load_shader_file(pipeline, load->filenames[file_index]);
+        if (result == FAILURE) {
+          return FAILURE;
+        }
+      }
+
+      spirv_compile_shader(pipeline);
+    } break;
+    case AT_BITMAP:
+      load_bitmap(loads[i].id, loads[i].filenames[0]);
+      break;
+    case AT_FONT:
+      load_font(loads[i].id, loads[i].filenames[0]);
+      break;
+    case AT_ATLAS:
+      load_atlas(loads[i].id, loads[i].filenames[0], loads[i].filenames[1]);
+      break;
+    case AT_GEOMETRY:
+      load_geometry(loads[i].id, loads[i].filenames[0]);
+      break;
+  }
+
+  return SUCCESS;
+}
+
+internal s32
+save_assets_switch(u32 i, u32 asset_type, FILE *file) {
+  switch(asset_type) {
+    case AT_SHADER:
+      save_pipeline(i, file);
+      break;
+    case AT_BITMAP:
+      save_bitmap(i, file);
+      break;
+    case AT_FONT:
+      break;
+    case AT_ATLAS:
+      break;
+    case AT_GEOMETRY:
+      break;
+  }
+
+  return SUCCESS;
+}
+
+internal s32
+load_saved_assets_switch(u32 i, u32 asset_type, FILE *file) {
+  switch(asset_type) {
+    case AT_SHADER:
+      load_saved_pipeline(i, file);
+      break;
+    case AT_BITMAP:
+      load_saved_bitmap(i, file);
+      break;
+    case AT_FONT:
+      break;
+    case AT_ATLAS:
+      break;
+    case AT_GEOMETRY:
+      break;
+  }
+
+  return SUCCESS;
+}
+
 internal s32 
 load_assets(Asset_Array *asset_array, Asset_Load *loads, u32 loads_count, u32 asset_type) {
   print("loading assets (%s)...\n", asset_folders[asset_type]);
 
   u32 filenames_count = ARRAY_COUNT(loads[0].filenames);
 
-  prepare_asset_array(asset_array, loads_count, asset_size[asset_type]); 
+  prepare_asset_array(asset_array, loads_count, asset_size[asset_type]);   
+
+  if (asset_type == AT_BITMAP && asset_type == AT_SHADER)
+    loads_count = 0;
 
   for (u32 i = 0; i < loads_count; i++) {
-
-    switch(asset_type) {
-      case AT_SHADER: {
-        Pipeline *pipeline = find_pipeline(pipeline_loads[i].id);
-        Asset_Load *load = &pipeline_loads[i];
-
-        for (u32 file_index = 0; file_index < filenames_count; file_index++) {
-          if (!load->filenames[file_index]) {
-            continue;
-          }
-
-          s32 result = load_shader_file(pipeline, load->filenames[file_index]);
-          if (result == FAILURE) {
-            return FAILURE;
-          }
-        }
-
-        spirv_compile_shader(pipeline);
-      } break;
-      case AT_BITMAP:
-        load_bitmap(loads[i].id, loads[i].filenames[0]);
-        break;
-      case AT_FONT:
-        load_font(loads[i].id, loads[i].filenames[0]);
-        break;
-      case AT_ATLAS:
-        load_atlas(loads[i].id, loads[i].filenames[0], loads[i].filenames[1]);
-        break;
-      case AT_GEOMETRY:
-        load_geometry(loads[i].id, loads[i].filenames[0]);
-        break;
+    if (debug.load_assets) {
+      load_assets_switch(i, asset_type, loads);
+      save_assets_switch(i, asset_type, debug.asset_save_file);
+    } else {
+      load_saved_assets_switch(i, asset_type, debug.asset_load_file);
     }
   }
 

@@ -163,7 +163,7 @@ init_game_draw(Game *game, Game_Draw *draw) {
 
   set_cards_coords(game, draw);
 
-  draw->hitbox = get_cube(false, {game_draw.card_dim.x, 0.5f, game_draw.card_dim.y});
+  draw->hitbox = get_cube(false, {0, 0, 0}, {game_draw.card_dim.x, 0.25f, game_draw.card_dim.y});
 }
 
 // draws a individual card
@@ -307,8 +307,11 @@ draw_hitbox(Card_Entity *e) {
 
   vulkan_bind_descriptor_set(local_desc_set);
 
+  Transform t = e->transform;
+  t.position.y = 0.05f;
+
   Object object = {};
-  object.model = m4x4(e->transform);
+  object.model = m4x4(t);
   object.index = 0;
   vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
   vulkan_draw_mesh(&game_draw.hitbox);
