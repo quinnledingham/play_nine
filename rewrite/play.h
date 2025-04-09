@@ -112,10 +112,13 @@ void play_destroy();
  - Speed up rounded rect
 
  ASSETS
- - Load obj and mtl files
+ - Improve obj and mtl file loading
+ - created better card faces
  
  GAME DRAWING
- - dont be able to point below card so that it lifts above hover then drops
-back down to it repeated.
-
+ - make better how the hitbox is fixed to ground to prevent being
+   under the card making it go up and down on hover
+ - add more animations
+ - add continuous scoring
+ 
 */

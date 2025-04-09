@@ -1633,8 +1633,8 @@ s32 vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRe
 	} else {
 		rasterizer.polygonMode           = VK_POLYGON_MODE_LINE;
 	}
-#elif
-	rasterizefillModeNonSolidr.polygonMode             = VK_POLYGON_MODE_FILL;
+#else
+	rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
 #endif // DEBUG
 	rasterizer.lineWidth               = 1.0f;
 	rasterizer.cullMode                = VK_CULL_MODE_BACK_BIT;
