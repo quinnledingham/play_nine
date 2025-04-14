@@ -33,16 +33,35 @@ struct Draw_Style {
   };
 };
 
+struct Draw_Textbox {
+    Draw_Style style;
+    u32 state;
+
+    Vector4 cursor_color;
+    u32 cursor_position;
+    float32 cursor_width;
+    float32 text_shift; // changes depending on cursor position
+
+    Vector2 coords;
+    Vector2 dim;
+
+    Font *font;
+    const char *text;
+    u32 text_align; // inside textbox
+
+    const char *label;
+    Vector4 label_color;
+};
+
 #define TEXTBOX_SIZE 20
 
 struct Textbox {
-    u32 index; // what GUI index is active
-    u32 cursor_position;
-    float32 shift;
-    char text[TEXTBOX_SIZE];
-};
-
-struct GUI_Draw_Command {
+  u32 index; // what GUI index is active
+  void *value;
+  u32 value_type;
+  u32 cursor_position;
+  float32 shift;
+  char text[TEXTBOX_SIZE];
 
 };
 
@@ -94,6 +113,7 @@ enum GUI_Ids {
   GUI_MAIN_MENU,
   GUI_TEST,
   GUI_PAUSE,
+  GUI_DEBUG,
 
   GUI_COUNT
 };
@@ -103,3 +123,4 @@ struct GUI_Manager {
 
   Stack<u32> indices = Stack<u32>(10); // index at the top is the gui that is currently rendered
 };
+

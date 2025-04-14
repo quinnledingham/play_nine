@@ -69,6 +69,66 @@ draw_button(GUI *gui, const Draw_Style style, const u32 state, Rect rect, const 
     }
 }
 
+internal float32
+draw_textbox(Draw_Textbox textbox) {
+    float32 padding = textbox.dim.y * 0.05f;
+    Vector2 label_coords = textbox.coords + Vector2{ padding, padding };
+    float32 label_height = textbox.dim.y * 0.5f;
+    Vector2 label_dim = { textbox.dim.x, label_height };
+    float32 pixel_height = textbox.dim.y * 0.8f;
+
+    Vector4 back_color = textbox.style.background_colors[textbox.state];
+    Vector4 text_color = textbox.style.text_colors[textbox.state];
+
+    String_Draw_Info string_info = get_string_draw_info(textbox.font, textbox.text, -1, pixel_height);
+    Vector2 text_coords = textbox.coords + get_centered_text_coords(string_info, textbox.dim, textbox.text_align);
+
+    String_Draw_Info string_info_cursor = get_string_draw_info(textbox.font, textbox.text, textbox.cursor_position, pixel_height);
+    Vector2 cursor_coords = text_coords;
+    cursor_coords.x += string_info_cursor.dim.x;
+    cursor_coords.y = textbox.coords.y;
+
+    float32 shift = textbox.text_shift;
+    if (textbox.state == GUI_ACTIVE) {
+        if (cursor_coords.x - shift + textbox.cursor_width >= textbox.coords.x + textbox.dim.x) {
+            shift = (cursor_coords.x + textbox.cursor_width) - (textbox.coords.x + textbox.dim.x);
+        } else if (cursor_coords.x - shift <= textbox.coords.x) {
+            shift = cursor_coords.x - textbox.coords.x;
+        }
+
+        text_coords.x -= shift;
+        cursor_coords.x -= shift;
+    }
+
+    if (string_info.dim.x < textbox.dim.x)
+        shift = 0.0f;
+
+    // Back
+    draw_rect(textbox.coords, textbox.dim, back_color);
+
+    // Label
+    if (textbox.label != 0) {
+        Vector4 label_text_color = text_color;
+        label_text_color.a = 0.8f;
+        String_Draw_Info label_info = get_string_draw_info(textbox.font, textbox.label, -1, label_height);
+        label_coords.y += label_info.baseline.y;
+        draw_text(textbox.label, label_coords, label_height, label_text_color);
+    }
+
+    //gfx.draw_string_draw_info(&string_info, text_coords);
+    
+    // Text
+    gfx_scissor_push(textbox.coords, textbox.dim);
+    draw_text(textbox.text, text_coords, pixel_height, text_color);
+    gfx_scissor_pop();
+
+    // Cursor
+    if (textbox.state == GUI_ACTIVE) // clicked on
+        draw_rect(cursor_coords, { textbox.cursor_width, textbox.dim.y }, textbox.cursor_color); // cursor
+
+    return shift;
+}
+
 internal void
 gui_start(GUI *gui) {
     gfx_bind_pipeline(PIPELINE_NOISE);
@@ -194,6 +254,27 @@ gui_button(GUI *gui, const char *label, Vector2_s32 segment_coords) {
         gui->active = 0;
     }
     return button_pressed;
+}
+
+internal bool8
+gui_textbox(GUI *gui, float32 *value, Vector2_s32 segment_coords) {
+    Rect rect = {};
+    rect.coords = gui->coords + (cv2(segment_coords) * gui->segment_dim) + (gui->padding_px * float32(gui->index - 1));
+    rect.dim = gui->segment_dim;
+
+    gui->edit.index = gui->index++;
+    gui->edit.value = (void *)value;
+    gui->edit.value_type = TYPE_FLOAT32;
+
+    u32 state = gui_update(gui, rect.coords, rect.dim);
+
+    Draw_Textbox draw = {};
+    draw.style = gui->style;
+    draw.state = state;
+    draw.cursor_position = gui->edit.cursor_position;
+    draw_textbox(draw);
+
+    return false;
 }
 
 inline s32

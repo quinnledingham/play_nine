@@ -241,8 +241,6 @@ update_game(Game *game) {
 
 #endif // DEBUG
 
-    set_camera_values(&camera);
-
     //
     // Game Input
     //
@@ -259,6 +257,8 @@ update_game(Game *game) {
     set_card_hover_lifts(game, &game_draw);
 
     do_animations(animations, app_time.frame_time_s);
+
+    set_camera_values(&camera);
   
 #ifdef DEBUG
   }
@@ -302,7 +302,7 @@ do_game_frame() {
 
 #endif // DEBUG
 
-  bool8 update_game_flag = game_draw.enabled && gui_manager.indices.empty();
+  bool8 update_game_flag = game_draw.enabled && gui_manager.indices.get_size() <= 1;
   if (update_game_flag) {
     update_game(&debug.test_game);
   }

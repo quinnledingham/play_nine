@@ -220,6 +220,10 @@ struct Stack {
     return data[index - 1];
   }
 
+  u32 get_size() {
+    return index;
+  }
+
   bool8 empty() {
     if (index == 0)
       return true;

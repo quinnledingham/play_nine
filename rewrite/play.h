@@ -104,6 +104,7 @@ void play_destroy();
 #include "play_bitmaps.cpp"
 #include "play_draw.cpp"
 #include "play_menus.cpp"
+#include "play_score.cpp"
 
 /*
  TODO:
@@ -121,4 +122,19 @@ void play_destroy();
  - add more animations
  - add continuous scoring
  
+Settings
+
+Controls
+- toggle all game controls
+
+Audio Settings
+- Sound Volume - slider
+- Music Volume - slider
+
+Video Settings
+- FOV - slider
+- Resolution - multi-option
+- Multi-sampling - Multi-option
+- Fullscreen - Yes/No
+
 */

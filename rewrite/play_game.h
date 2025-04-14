@@ -54,7 +54,9 @@ struct Player_Card {
 
 struct Player {
     Player_Card cards[HAND_SIZE];
-
+    s32 scores[MAX_HOLES];
+    s32 total_score;
+    
     u8 replace_card(u8 card_index, u8 picked_up_card) {
         Player_Card *card = &cards[card_index];
         u8 discarded = card->index;

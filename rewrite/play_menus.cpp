@@ -45,6 +45,7 @@ draw_main_menu(GUI *gui) {
     gui_manager.indices.pop();
     game_draw.enabled = true;
     //sdl_set_relative_mouse_mode(true);
+    //gui_manager.indices.push(GUI_DEBUG);
   }
   if (gui_button(gui, "Join", {0, 1})) {
     gui_manager.indices.push(GUI_TEST);
@@ -122,11 +123,34 @@ draw_pause_menu(GUI *gui) {
   return false;
 }
 
+internal s32
+draw_debug_menu(GUI *gui) {
+  gui->style.background_color = { 10, 10, 10, 0.5f };
+  gui->style.background_color_hover = play_nine_light_yellow;
+  gui->style.background_color_pressed = play_nine_dark_yellow;
+  gui->style.background_color_active = play_nine_yellow;
+
+  Vector4 white_color = { 255, 255, 255, 1 };
+  gui->style.text_color = white_color;
+  gui->style.text_color_hover = white_color;
+  gui->style.text_color_pressed = white_color;
+  gui->style.text_color_active = white_color;
+
+  gui_start(gui);
+
+  gui_textbox(gui, &camera.position.x, { 0, 0 });
+
+  gui_end(gui);
+
+  return false;
+}
+
 internal void
 init_guis() {
   gui_manager.guis[GUI_MAIN_MENU].draw = draw_main_menu;
   gui_manager.guis[GUI_TEST].draw = draw_test_menu;
   gui_manager.guis[GUI_PAUSE].draw = draw_pause_menu;
+  gui_manager.guis[GUI_DEBUG].draw = draw_debug_menu;
 
   gui_manager.indices.push(GUI_MAIN_MENU);
 }

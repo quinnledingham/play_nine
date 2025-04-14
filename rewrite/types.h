@@ -1,6 +1,15 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+enum Type_Enum {
+  TYPE_U32,
+  TYPE_S32,
+  TYPE_FLOAT32,
+  TYPE_FLOAT64,
+
+  TYPE_COUNT
+};
+
 union Vector2 {
 	struct {
 		float32 x, y;

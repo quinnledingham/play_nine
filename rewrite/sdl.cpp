@@ -210,14 +210,33 @@ s32 sdl_process_input() {
   return return_val;
 }
 
-s32 sdl_do_frame() {
-  if (sdl_process_input())
-    return 1;
+internal void
+sdl_enforce_frame_rate() {
+  float64 ns_in_s = 1000000000.0;
 
+  float64 target_frame_time_s = 1.0 / gfx.target_frame_rate;
+  u64 target_frame_time_ns = u64(target_frame_time_s * ns_in_s);
+  u64 frame_time_ns = u64(app_time.frame_time_s * ns_in_s);
+
+  
+  if (target_frame_time_ns > frame_time_ns) {
+    u64 time_left_ns = target_frame_time_ns - frame_time_ns;
+    SDL_DelayNS(time_left_ns);
+  }
+}
+
+s32 sdl_do_frame() {
   // frame time keeping
   sdl_ctx.last_ticks = sdl_ctx.now_ticks;
   sdl_ctx.now_ticks = SDL_GetPerformanceCounter();
-  update_time(&app_time, sdl_ctx.start_ticks, sdl_ctx.last_ticks, sdl_ctx.now_ticks, sdl_ctx.performance_frequency);
+  update_time(&app_time, sdl_ctx.start_ticks, sdl_ctx.last_ticks, sdl_ctx.now_ticks, sdl_ctx.performance_frequency);  
+
+  if (gfx.enforce_frame_rate) {
+    sdl_enforce_frame_rate();
+  }
+
+  if (sdl_process_input())
+    return 1;
 
   //app.update();
   //printf("%f\n", time.frames_per_s);

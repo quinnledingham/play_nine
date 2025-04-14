@@ -49,9 +49,12 @@ struct GFX {
   GFX_Layout *layouts;
   u32 layouts_count;
 
-  bool8 vsync;
+  bool8 vsync = false;
   bool8 anti_aliasing = true;
   bool8 resolution_scaling;
+
+  bool8 enforce_frame_rate = true;
+  u32 target_frame_rate = 60;
 
   Stack<Rect> scissor_stack = Stack<Rect>(10);
 

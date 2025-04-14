@@ -95,3 +95,15 @@ s32 ball_rows[14][3] = {
 
     { 2, 1, 2, }, // -5
 };
+
+Draw_Style default_menu_style = {
+  .background_color = play_nine_yellow,
+  .background_color_hover = play_nine_light_yellow,
+  .background_color_pressed = play_nine_dark_yellow,
+  .background_color_active = play_nine_yellow,
+
+  .text_color = play_nine_green,
+  .text_color_hover = play_nine_green,
+  .text_color_pressed = play_nine_green,
+  .text_color_active = play_nine_green,
+};
