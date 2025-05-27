@@ -53,7 +53,7 @@ struct GFX {
   bool8 anti_aliasing = true;
   bool8 resolution_scaling;
 
-  bool8 enforce_frame_rate = true;
+  bool8 enforce_frame_rate = false;
   u32 target_frame_rate = 60;
 
   Stack<Rect> scissor_stack = Stack<Rect>(10);
@@ -142,7 +142,7 @@ struct Animation_Keyframe {
 
     bool8 dynamic;
 
-    // if dynamic == false
+    // if dynamic == true
     // allows for a moving destination.
     Transform *dest;
 

@@ -38,6 +38,8 @@ struct Game_Draw {
     Vector3 draw_pile_offset      = { -1.0f,    0,     0 };
     Vector3 discard_pile_offset   = {  1.0f,    0,     0 };
     Vector3 picked_up_card_offset = {     0, 1.0f, -3.7f };
+
+    Vulkan_Texture menu_noise;
 };
 
 global const Vector4 play_nine_green        = {  39,  77,  20, 1 };

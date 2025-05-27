@@ -30,6 +30,14 @@ gfx_bind_pipeline(u32 id) {
   vulkan_bind_pipeline(pipeline);
 }
 
+inline void 
+gfx_bind_compute_pipeline(u32 id) {
+  gfx.active_shader_id = id;
+
+  Pipeline *pipeline = find_pipeline(id);
+  vulkan_bind_compute_pipeline(pipeline);
+}
+
 inline Descriptor_Set 
 gfx_descriptor_set(u32 gfx_layout_id) {
   return vulkan_get_descriptor_set(&gfx.layouts[gfx_layout_id]);
@@ -349,10 +357,11 @@ do_animation(Animation *a, float64 frame_time_s) {
     Animation_Keyframe *key = &a->keyframes[i];
 
     if (key->time_elapsed < key->time_duration) {
-      a->active = true;
-      key->time_elapsed += (float32)frame_time_s;
+      a->active = true; // animation is still running
+      key->time_elapsed += (float32)frame_time_s; // track how much of animation has played
 
-      float32 percent = key->time_elapsed / key->time_duration;
+      float32 percent = key->time_elapsed / key->time_duration; // percent completed for where to draw
+      clamp(&percent, 0.0f, 1.0f);
       
       if (key->dynamic) {
         key->end = *key->dest;

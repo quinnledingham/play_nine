@@ -165,12 +165,12 @@ void spirv_compile_shader(Shader *shader) {
   shaderc_compiler_t compiler = shaderc_compiler_initialize();
   shaderc_compile_options_t options = shaderc_compile_options_initialize();
 
-  for (u32 i = 0; i < SHADER_STAGES_COUNT; i++) {
+  for (u32 i = 0; i < shader->files_count; i++) {
     Shader_File *file = &shader->files[i];
     if (!file->loaded) 
       continue; // file was not loaded
     
-    compile_glsl_to_spirv(file, compiler, shaderc_glsl_file_types[i], options);
+    compile_glsl_to_spirv(file, compiler, shaderc_glsl_file_types[file->stage], options);
     //spirv_reflection(file);
   }
 
@@ -209,7 +209,16 @@ internal s32
 load_shader_file(Shader *shader, const char *filename) {
   u32 stage = identify_shader_stage(filename);
 
-  Shader_File *file = &shader->files[stage];
+  if (stage == SHADER_STAGE_COMPUTE) {
+    shader->compute = true;
+  }
+
+  if (shader->files_count == SHADER_STAGES_COUNT) {
+    log_error("load_shader_file(): tried to add too many files/stages\n");
+    return FAILURE;
+  }
+
+  Shader_File *file = &shader->files[shader->files_count++];
 
   file->filename = filename;
   file->stage = stage;
@@ -259,7 +268,11 @@ init_pipelines() {
   print("initializing pipelines...\n");
   for (u32 i = 0; i < assets.pipelines.count; i++) {
     Pipeline *pipeline = find_pipeline(i);
-    vulkan_create_graphics_pipeline(&vk_ctx, pipeline, vk_ctx.draw_render_pass);
+    if (pipeline->compute) {
+      vulkan_create_compute_pipeline(pipeline);
+    } else {
+      vulkan_create_graphics_pipeline(&vk_ctx, pipeline, vk_ctx.draw_render_pass);
+    } 
   }
 
   return SUCCESS;
@@ -626,7 +639,7 @@ texture_atlas_init_gpu_frame(Texture_Atlas *atlas, u32 frame_index) {
   vulkan_destroy_texture(atlas->gpu[frame_index].handle);
   atlas->gpu[frame_index].handle = vulkan_create_texture(&atlas->bitmap, TEXTURE_PARAMETERS_CHAR);
   Descriptor texture_desc = gfx_descriptor(&atlas->gpu[frame_index].set, 1);
-  vulkan_set_texture(&texture_desc, atlas->gpu[frame_index].handle);
+  vulkan_set_texture(&texture_desc, (Vulkan_Texture *)atlas->gpu[frame_index].handle);
 }
 
 internal void

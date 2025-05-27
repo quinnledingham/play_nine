@@ -73,6 +73,7 @@ enum Pipeline_Ids {
   PIPELINE_2D,
   PIPELINE_3D,
   PIPELINE_NOISE,
+  PIPELINE_NOISE_TEXTURE,
 
   PIPELINE_COUNT
 };
@@ -81,6 +82,7 @@ Asset_Load pipeline_loads[] = {
   { PIPELINE_2D, {"2D.vs", "2D.fs"} },
   { PIPELINE_3D, {"3D.vs", "3D.fs"} },
   { PIPELINE_NOISE, {"2D.vs", "noise.fs"} },
+  { PIPELINE_NOISE_TEXTURE, { "noise.comp" } },
 };
 
 enum GFX_Layout_IDs {
@@ -92,6 +94,9 @@ enum GFX_Layout_IDs {
   GFXID_LOCAL,
   GFXID_MATERIAL,
   GFXID_TEXTURE,
+
+  // compute
+  GFXID_NOISE_TEXTURE,
 
   GFXID_COUNT
 };
@@ -115,6 +120,8 @@ gfx_define_layouts() {
   gfx.layouts[GFXID_LOCAL].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Local)); // color.frag, text.frag
   gfx.layouts[GFXID_MATERIAL].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT, 1, sizeof(Material_Shader)); // 3D.frag
   gfx.layouts[GFXID_TEXTURE].add_binding(0, DESCRIPTOR_TYPE_SAMPLER, SHADER_STAGE_FRAGMENT, 1, 0); // texture.frag
+  
+  gfx.layouts[GFXID_NOISE_TEXTURE].add_binding(0, DESCRIPTOR_TYPE_STORAGE_IMAGE, SHADER_STAGE_COMPUTE, 1, 0); // noise.comp
 
   for (u32 i = 0; i < gfx.layouts_count; i++) {
     vulkan_setup_layout(&gfx.layouts[i]);
@@ -158,5 +165,10 @@ gfx_add_layouts_to_shaders() {
     shader->set.add_layout(&gfx.layouts[GFXID_GLOBAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
     shader->set.add_layout(&gfx.layouts[GFXID_TEXTURE]);
+  }
+
+  {
+    Pipeline *shader = find_pipeline(PIPELINE_NOISE_TEXTURE);
+    shader->set.add_layout(&gfx.layouts[GFXID_NOISE_TEXTURE]);
   }
 }

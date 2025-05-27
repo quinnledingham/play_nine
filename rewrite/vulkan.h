@@ -16,6 +16,11 @@ struct Vulkan_Version {
 	u32 patch;
 };
 
+struct Vulkan_Vendor_IDs {
+	const u32 intel = 0x8086;
+	const u32 nvidia = 4318;
+};
+
 struct Vulkan_Queue_Family {
 	bool8 found;
 	u32 index;
@@ -92,6 +97,8 @@ struct Vulkan_Texture {
 	VkImage image;	 		         // similar to VkBuffer
 	VkImageView image_view;      // provides more info about the image
 	VkSampler sampler;           // allows the shader to sample the image
+	// allows for different types of descriptors
+	VkDescriptorType type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 };
 
 struct Vulkan_Debug {
@@ -114,6 +121,8 @@ struct Vulkan_Context {
 	const char **instance_extensions;
 	u32 instance_extensions_count;
 
+	Vulkan_Vendor_IDs vendor_ids;
+	
 	// Debug
   Vulkan_Validation_Layers validation_layers;
   VkDebugUtilsMessengerEXT debug_messenger;
@@ -251,3 +260,4 @@ vulkan_check_buffer_segment(Vulkan_Buffer_Segment *seg) {
 		ASSERT(0);
 	}
 }
+

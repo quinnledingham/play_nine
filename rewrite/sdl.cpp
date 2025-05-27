@@ -101,7 +101,7 @@ sdl_init() {
   // Useful for e.g. debugging which ones a particular build of SDL contains.
   sdl_log("Available renderer drivers:\n");
   for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
-      sdl_log("%d. %s\n", i + 1, SDL_GetRenderDriver(i));
+      sdl_log("  %d. %s\n", i + 1, SDL_GetRenderDriver(i));
   }
 
   sdl_loading_screen();
@@ -123,6 +123,18 @@ sdl_init() {
 
   Matrix_4x4 test = test_matrix();
   print_matrix(test);
+
+  if (SteamAPI_RestartAppIfNecessary(480)) {
+    return 1;
+  }
+
+  if (!SteamAPI_Init()) {
+    sdl_log_error("Steam must be running to play this game (SteamAPI_Init() failed).\n");
+    return 1;
+  }
+
+  const char *name = SteamFriends()->GetPersonaName();
+  sdl_log("Steam Name: %s\n", name);
 
   return 0;
 }
@@ -261,7 +273,10 @@ int main(int argc, char *argv[]) {
   sdl_log("starting sdl application...\n");
   sdl_log("CWD: %s\n", SDL_GetCurrentDirectory());
   
-  sdl_init();
+  if (sdl_init()) {
+    sdl_log_error("sdl_init() failed (EXITING).\n");
+    return 1;
+  }
 
   while (1) {
     if (sdl_do_frame()) {

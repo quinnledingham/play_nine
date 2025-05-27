@@ -50,7 +50,8 @@ vulkan_end_single_time_commands(VkCommandBuffer command_buffer, VkDevice device,
 /*
   Vulkan Debug
 */
-bool8 vulkan_check_validation_layer_support(Vulkan_Validation_Layers validation_layers) {
+internal bool8 
+vulkan_check_validation_layer_support(Vulkan_Validation_Layers validation_layers) {
   u32 layer_count;
   vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
 
@@ -180,7 +181,8 @@ bool8 vulkan_create_instance() {
   return false;
 }
 
-Vulkan_Version vulkan_get_api_version(u32 api_version) {
+inline Vulkan_Version 
+vulkan_get_api_version(u32 api_version) {
 	Vulkan_Version version = {};
 	version.variant = VK_API_VERSION_VARIANT(api_version);
 	version.major   = VK_API_VERSION_MAJOR(api_version);
@@ -189,12 +191,20 @@ Vulkan_Version vulkan_get_api_version(u32 api_version) {
 	return version;
 }
 
-Vulkan_Version vulkan_get_nvidia_driver_version(u32 api_version) {
+inline Vulkan_Version 
+vulkan_get_nvidia_driver_version(u32 api_version) {
 	Vulkan_Version version = {};
 	version.variant = 0;
 	version.major = ((u32)api_version >> 22) & 0x000003FF;
 	version.minor = ((u32)api_version >> 12) & 0x000003FF;
 	version.patch = ((u32)api_version >>  0) & 0x00000FFF;
+	return version;
+}
+
+inline Vulkan_Version
+vulkan_get_intel_driver_version(u32 version_raw) {
+	Vulkan_Version version = {};
+	
 	return version;
 }
 
@@ -309,14 +319,23 @@ void vulkan_print_device(VkPhysicalDevice device) {
   vkGetPhysicalDeviceProperties(device, &device_properties);
 
   Vulkan_Version api_version = vulkan_get_api_version(device_properties.apiVersion);
-  Vulkan_Version driver_version = vulkan_get_nvidia_driver_version(device_properties.driverVersion);
+  Vulkan_Version driver_version = vulkan_get_api_version(device_properties.driverVersion);
 
-  vulkan_log("  Name: %s\n", device_properties.deviceName);
-  vulkan_print_version("  API Version", api_version);
-  vulkan_print_version("  Driver Version", driver_version);
-  vulkan_log("  Max Descriptor Set Samplers: %u\n", device_properties.limits.maxDescriptorSetSamplers);
-  vulkan_log("  Max Descriptor Set Uniform Buffers: %u\n", device_properties.limits.maxDescriptorSetUniformBuffers);
-  vulkan_log("  Max Uniform Buffer Range: %u\n", device_properties.limits.maxUniformBufferRange);
+  // Every other vendor uses default vulkan versioning (like AMD)
+  // Nvidia
+  if (vk_ctx.vendor_ids.nvidia == device_properties.vendorID) {
+  	driver_version = vulkan_get_nvidia_driver_version(device_properties.driverVersion);
+  // Intel
+	} else if (vk_ctx.vendor_ids.intel == device_properties.vendorID) {
+		//driver_version = vulkan_get_intel_driver_version(device_properties.driverVersion);
+	}
+	
+  vulkan_log("    Name: %s\n", device_properties.deviceName);
+  vulkan_print_version("    API Version", api_version);
+  vulkan_print_version("    Driver Version", driver_version);
+  vulkan_log("    Max Descriptor Set Samplers: %u\n", device_properties.limits.maxDescriptorSetSamplers);
+  vulkan_log("    Max Descriptor Set Uniform Buffers: %u\n", device_properties.limits.maxDescriptorSetUniformBuffers);
+  vulkan_log("    Max Uniform Buffer Range: %u\n", device_properties.limits.maxUniformBufferRange);
 }
 
 bool8 vulkan_pick_physical_device() {
@@ -329,15 +348,15 @@ bool8 vulkan_pick_physical_device() {
     return 1;
   }
 
-  vulkan_log("Number of physical devices = %d\n", device_count);
+  //vulkan_log("Number of physical devices = %d\n", device_count);
 
   VkPhysicalDevice *devices = ARRAY_MALLOC(VkPhysicalDevice, device_count);
   vkEnumeratePhysicalDevices(vk_ctx.instance, &device_count, devices);
 
   // print all available devices
-	vulkan_log("Available Physical Devices:\n");
+	vulkan_log("Available Physical Devices (Count: %d):\n", device_count);
 	for (u32 device_index = 0; device_index < device_count; device_index++) {
-		vulkan_log("Physical Device %d:\n", device_index);
+		vulkan_log("  Physical Device %d:\n", device_index);
 		vulkan_print_device(devices[device_index]);
 	}
 
@@ -1378,6 +1397,46 @@ vulkan_end_frame() {
 	vulkan_next_frame();
 }
 
+internal void
+vulkan_start_compute() {
+	Vulkan_Frame *frame = vulkan_frame();
+	
+	vkWaitForFences(vk_ctx.device, 1, &frame->compute_in_flight_fence, VK_TRUE, UINT64_MAX);
+	
+	vkResetFences(vk_ctx.device, 1, &frame->compute_in_flight_fence);
+	vk_ctx.active_command_buffer = &frame->compute_command_buffer;
+	vkResetCommandBuffer(frame->compute_command_buffer, 0);
+
+	VkCommandBufferBeginInfo command_buffer_begin_info = {};
+	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	command_buffer_begin_info.flags = 0;				   // Optional
+	command_buffer_begin_info.pInheritanceInfo = nullptr; // Optional
+	if (vkBeginCommandBuffer(frame->compute_command_buffer, &command_buffer_begin_info) != VK_SUCCESS) {
+		vulkan_log_error("vulkan_record_command_buffer(): failed to begin recording command buffer\n");
+	}	
+}
+
+internal void
+vulkan_end_compute() {
+	Vulkan_Frame *frame = vulkan_frame();
+
+	if (vkEndCommandBuffer(VK_CMD) != VK_SUCCESS) {
+		vulkan_log_error("vulkan_record_command_buffer() failed to record command buffer\n");
+	}
+
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &frame->compute_command_buffer;
+	submit_info.signalSemaphoreCount = 0;
+	submit_info.pSignalSemaphores = &frame->compute_finished_semaphore;
+	if (vkQueueSubmit(vk_ctx.compute_queue, 1, &submit_info, frame->compute_in_flight_fence) != VK_SUCCESS) {
+	  vulkan_log_error("vulkan_end_compute(): failed to submit compute command buffer!\n");
+	};
+
+	//vkWaitForFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
+}
+
 inline VkBool32
 vulkan_bool(bool8 in) {
 	if (in) return VK_TRUE;
@@ -1490,6 +1549,7 @@ vulkan_convert_descriptor_type(u32 descriptor_type) {
 		case DESCRIPTOR_TYPE_SAMPLER:                vulkan_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; break;
 		case DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: vulkan_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC; break;
 		case DESCRIPTOR_TYPE_STORAGE_BUFFER:         vulkan_type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;         break;
+		case DESCRIPTOR_TYPE_STORAGE_IMAGE:          vulkan_type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;          break;
 		default: {
 			log_error("vulkan_convert_descriptor_type()", "%d is not a render descriptor type\n", descriptor_type);
 		} break;
@@ -1513,43 +1573,38 @@ convert_to_vulkan(Vector_Type type) {
 }
 
 internal void
-pipeline_print_filenames(Pipeline *pipe);
-
-s32 vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRenderPass render_pass) {
-	vulkan_log("pipeline filenames: ");
-	pipeline_print_filenames(shader);
-
-	u32 shader_stages_index = 0;
-	VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_COUNT] = {};
-	VkShaderModule shader_modules[SHADER_STAGES_COUNT] = {};
-
-	// Creating shader modules
-	for (u32 i = 0; i < SHADER_STAGES_COUNT; i++) {
+vulkan_get_shader_stages_info(VkPipelineShaderStageCreateInfo *shader_stages, Shader *shader) {
+	for (u32 i = 0; i < shader->files_count; i++) {
 		Shader_File *file = &shader->files[i];
 		if (!file->loaded)
 			continue;
 		
-		shader_modules[i] = vulkan_create_shader_module(vk_ctx->device, file->spirv);
-
 		VkPipelineShaderStageCreateInfo shader_stage_info = {};
 		shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		shader_stage_info.stage = (VkShaderStageFlagBits)vulkan_convert_shader_stage(i);
-		shader_stage_info.module = shader_modules[i];
+		shader_stage_info.stage = (VkShaderStageFlagBits)vulkan_convert_shader_stage(file->stage);
+		shader_stage_info.module = vulkan_create_shader_module(vk_ctx.device, file->spirv);
 		shader_stage_info.pName = "main";
-		shader_stages[shader_stages_index++] = shader_stage_info;
+		shader_stages[i] = shader_stage_info;
 	}
+}
 
-	// define shader descriptor sets
-	
-	VkDescriptorSetLayout descriptor_set_layouts[5] = {};
+internal void
+vulkan_shader_stages_info_cleanup(VkPipelineShaderStageCreateInfo *shader_stages) {
+	for (u32 i = 0; i < SHADER_STAGES_COUNT; i++) {
+		if (shader_stages[i].module != 0) {
+			vkDestroyShaderModule(vk_ctx.device, shader_stages[i].module, nullptr);
+		}
+	}
+}
+
+internal void
+vulkan_create_pipeline_layout(Shader *shader) {	
+	VkDescriptorSetLayout descriptor_set_layouts[5];
 	for (u32 i = 0; i < shader->set.layouts_count; i++) {
 		descriptor_set_layouts[i] = shader->set.layouts[i]->descriptor_set_layout;
-		//GFX_Layout *layout = shader->set.layouts[i];
-		//u32 index = layout->set_number;
-		//descriptor_set_layouts[index] = layout->descriptor_set_layout;
 	}
 
-	VkPushConstantRange push_constant_ranges[5] = {};
+	VkPushConstantRange push_constant_ranges[5];
 	for (u32 i = 0; i < shader->set.push_constants_count; i++) {
 		VkPushConstantRange range = {};
 		range.stageFlags = vulkan_convert_shader_stage(shader->set.push_constants[i].shader_stage);
@@ -1563,11 +1618,26 @@ s32 vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRe
 	pipeline_layout_info.setLayoutCount         = shader->set.layouts_count; 
 	pipeline_layout_info.pSetLayouts            = descriptor_set_layouts;      
 	pipeline_layout_info.pushConstantRangeCount = shader->set.push_constants_count; 
-	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;          
-
-	if (vkCreatePipelineLayout(vk_ctx->device, &pipeline_layout_info, nullptr, &shader->layout) != VK_SUCCESS) {
-		vulkan_log_error("vulkan_create_graphics_pipeline(): failed to create pipeline layout\n");
+	pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;
+	
+	if (vkCreatePipelineLayout(vk_ctx.device, &pipeline_layout_info, nullptr, &shader->layout) != VK_SUCCESS) {
+		vulkan_log_error("vulkan_create_pipeline_layout(): failed to create pipeline layout\n");
 	}
+}
+
+internal void
+pipeline_print_filenames(Pipeline *pipe);
+
+internal s32 
+vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRenderPass render_pass) {
+	vulkan_log("pipeline filenames: ");
+	pipeline_print_filenames(shader);
+
+	VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_COUNT];
+	memset(shader_stages, 0, sizeof(VkPipelineShaderStageCreateInfo) * SHADER_STAGES_COUNT);
+	vulkan_get_shader_stages_info(shader_stages, shader);
+	
+	vulkan_create_pipeline_layout(shader);
 
 	// End of descriptor sets 
 	
@@ -1707,14 +1777,30 @@ s32 vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRe
 	if (vkCreateGraphicsPipelines(vk_ctx->device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &shader->handle) != VK_SUCCESS) {
 		vulkan_log_error("vulkan_create_graphics_pipeline(): failed to create graphics pipelines\n");
 	}
-	
-	for (u32 i = 0; i < SHADER_STAGES_COUNT; i++) {
-		if (shader_modules[i] != 0) {
-			vkDestroyShaderModule(vk_ctx->device, shader_modules[i], nullptr);
-		}
-	}
+
+	vulkan_shader_stages_info_cleanup(shader_stages);
 
 	return 0;
+}
+
+internal void
+vulkan_create_compute_pipeline(Shader *shader) {
+	VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_COUNT];
+	memset(shader_stages, 0, sizeof(VkPipelineShaderStageCreateInfo) * SHADER_STAGES_COUNT);
+	vulkan_get_shader_stages_info(shader_stages, shader);
+	
+	vulkan_create_pipeline_layout(shader);
+
+	VkComputePipelineCreateInfo pipeline_create_info = {};
+	pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	pipeline_create_info.layout = shader->layout;
+	pipeline_create_info.stage = shader_stages[0]; // should just be a compute shader stage
+
+	if (vkCreateComputePipelines(vk_ctx.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &shader->handle) != VK_SUCCESS) {
+		vulkan_log_error("vulkan_create_compute_pipeline() failed to create compute pipelines\n");
+	}
+	
+	vulkan_shader_stages_info_cleanup(shader_stages);
 }
 
 internal void
@@ -1750,6 +1836,14 @@ vulkan_bind_pipeline(Pipeline *pipeline) {
 	vkCmdBindPipeline(VK_CMD, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle);
 }
 
+inline void 
+vulkan_bind_compute_pipeline(Pipeline *pipeline) {
+	if (!pipeline->compute) {
+		vulkan_log_error("vulkan_bind_compute_pipeline(): tried to bind a graphics pipeline as a compute.\n");
+	}
+	pipeline->set.binded_layouts = 0;
+	vkCmdBindPipeline(VK_CMD, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->handle);
+}
 //
 // GFX_Layouts
 //
@@ -1971,28 +2065,27 @@ vulkan_update_ubo(Descriptor desc, void *data) {
 }
 
 internal u32 
-vulkan_set_texture(Descriptor *desc, void *handle) {
-	Vulkan_Texture *texture = (Vulkan_Texture *)handle;
-
+vulkan_set_texture(Descriptor *desc, Vulkan_Texture *texture) {
 	VkDescriptorImageInfo image_info = {};
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	if (texture->type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	} else if (texture->type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ) {
+		image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	}
 	image_info.imageView = texture->image_view;
 	image_info.sampler = texture->sampler;
 
 	VkWriteDescriptorSet descriptor_writes[1] = {};
-
 	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptor_writes[0].dstSet = *desc->set->vulkan_set;
 	descriptor_writes[0].dstBinding = desc->binding->binding;
 	descriptor_writes[0].dstArrayElement = desc->set->texture_index;
-	descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptor_writes[0].descriptorType = texture->type;
 	descriptor_writes[0].descriptorCount = 1;
 	descriptor_writes[0].pImageInfo = &image_info;
-
 	vkUpdateDescriptorSets(vk_ctx.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);
 
 	u32 index = desc->set->texture_index;
-
 	desc->set->texture_index++;
 
 	return index;
@@ -2000,15 +2093,17 @@ vulkan_set_texture(Descriptor *desc, void *handle) {
 
 internal u32 
 vulkan_set_bitmap(Descriptor *desc, Bitmap *bitmap) {
-	return vulkan_set_texture(desc, bitmap->gpu_info);
+	return vulkan_set_texture(desc, (Vulkan_Texture *)bitmap->gpu_info);
 }
 
-void vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {
+internal void 
+vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {
 	Pipeline *pipeline = find_pipeline(gfx.active_shader_id);
 	vkCmdPushConstants(VK_CMD, pipeline->layout, vulkan_convert_shader_stage(shader_stage), 0, data_size, data);
 }
 
-void vulkan_bind_descriptor_set(Descriptor_Set set) {
+internal void 
+vulkan_bind_descriptor_set(Descriptor_Set set) {
 	Pipeline *pipeline = find_pipeline(gfx.active_shader_id);
 	pipeline->set.binded_layouts++;
 	if (pipeline->compute)
@@ -2017,7 +2112,8 @@ void vulkan_bind_descriptor_set(Descriptor_Set set) {
 		vkCmdBindDescriptorSets(VK_CMD, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, set.set_number, 1, set.vulkan_set, 0, nullptr);
 }
 
-void vulkan_clear_color(Vector4 color) {
+internal void 
+vulkan_clear_color(Vector4 color) {
 	vk_ctx.clear_values[0].color = {{color.r, color.g, color.b, color.a}};
 }
 

@@ -1,5 +1,7 @@
 #ifdef OS_WINDOWS
 
+const char *os = "os_windows";
+
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -54,6 +56,8 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkShaderEXT)
 #endif // GFX_VULKAN
 
 //#include "clay/clay_iru.h"
+
+#include "steam_api.h"
 
 #define WINDOW_NAME "Deck Nine"
 #define WINDOW_WIDTH 800

@@ -496,3 +496,51 @@ get_player_camera(float32 degrees_between, u32 active_i) {
   return pose;
 
 }
+
+internal void
+create_noise_texture(Vulkan_Texture *texture) {
+  VkImageCreateInfo imageCreateInfo = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .imageType = VK_IMAGE_TYPE_2D,
+      .format = VK_FORMAT_R8G8B8A8_UNORM, // or another format you want
+      .extent = { 256, 256, 1 },
+      .mipLevels = 1,
+      .arrayLayers = 1,
+      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .tiling = VK_IMAGE_TILING_OPTIMAL,
+      .usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+  };
+  vkCreateImage(vk_ctx.device, &imageCreateInfo, NULL, &texture->image);
+  
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements(vk_ctx.device, texture->image, &memory_requirements);
+
+	VkMemoryAllocateInfo allocate_info = {};
+	allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocate_info.allocationSize = memory_requirements.size;
+	allocate_info.memoryTypeIndex = vulkan_find_memory_type(vk_ctx.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	if (vkAllocateMemory(vk_ctx.device, &allocate_info, nullptr, &texture->image_memory)) {
+		log_error("vulkan_create_image(): failed to allocate image memory\n");
+	}
+
+	vkBindImageMemory(vk_ctx.device, texture->image, texture->image_memory, 0);
+	
+  VkImageViewCreateInfo imageViewCreateInfo = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .image = texture->image,
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .format = VK_FORMAT_R8G8B8A8_UNORM,
+      .subresourceRange = {
+          .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+          .baseMipLevel = 0,
+          .levelCount = 1,
+          .baseArrayLayer = 0,
+          .layerCount = 1
+      }
+  };
+  vkCreateImageView(vk_ctx.device, &imageViewCreateInfo, NULL, &texture->image_view);
+
+  texture->type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; 
+}

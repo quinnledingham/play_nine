@@ -104,6 +104,8 @@ s32 play_init() {
   camera.fov = 45.0f * DEG2RAD;
   camera.pose = get_player_camera(-game_draw.degrees_between_players, debug.test_game.active_player);
 
+  create_noise_texture(&game_draw.menu_noise);
+
   return SUCCESS;
 }
 
@@ -307,6 +309,18 @@ do_game_frame() {
     update_game(&debug.test_game);
   }
 
+  vulkan_start_compute();
+
+  gfx_bind_compute_pipeline(PIPELINE_NOISE_TEXTURE);
+ 
+  Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_NOISE_TEXTURE);
+  Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
+  vulkan_set_texture(&texture_desc, &game_draw.menu_noise);
+  vulkan_bind_descriptor_set(texture_desc_set);
+  vkCmdDispatch(VK_CMD, (256 + 15) / 16, (256 + 15) / 16, 1);
+  
+  vulkan_end_compute();
+
   //
   // Drawing
   //
@@ -315,6 +329,8 @@ do_game_frame() {
     case GFX_ERROR:      return FAILURE;
     case GFX_DO_FRAME:   break;
   }
+
+  gfx_bind_pipeline(PIPELINE_2D);
 
   Global_Shader global_shader = {};
   global_shader.time.x = (float32)app_time.run_time_s;

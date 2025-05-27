@@ -115,6 +115,7 @@ struct Shader_File {
 
 struct Shader {
   Shader_File files[SHADER_STAGES_COUNT]; // stores filename and all intermediate files
+  u32 files_count;
 
 #ifdef GFX_VULKAN
 
