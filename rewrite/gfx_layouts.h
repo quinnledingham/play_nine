@@ -60,7 +60,8 @@ struct GFX_Layout {
     binding->descriptor_type = in_type;
     binding->descriptor_count = in_descriptor_count;
     binding->stages[0] = in_stage;
-    binding->stages_count = 1;
+    binding->stages[1] = SHADER_STAGE_COMPUTE;
+    binding->stages_count = 2;
     binding->size = in_size;
   }
 

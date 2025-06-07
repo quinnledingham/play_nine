@@ -392,6 +392,27 @@ draw_rect(Vector2 coords, Vector2 size, Vector4 color) {
 }
 
 internal void
+draw_rect(Vector2 coords, Vector2 size, Vulkan_Texture *texture) {
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.text.x = 2;
+  vulkan_update_ubo(color_desc, (void *)&local);
+  vulkan_bind_descriptor_set(local_desc_set);
+
+  Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_TEXTURE);
+  Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
+  vulkan_set_texture(&texture_desc, texture);
+  vulkan_bind_descriptor_set(texture_desc_set);
+
+  Object object = {};
+  object.model = create_transform_m4x4(coords, size);
+  object.index = 0;
+  vulkan_push_constants(SHADER_STAGE_VERTEX, (void *)&object, sizeof(Object));
+  vulkan_draw_mesh(&draw_ctx.square);
+}
+
+internal void
 draw_rect(Vector2 coords, Vector2 size, Bitmap *bitmap) {
   Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
   Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);

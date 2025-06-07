@@ -836,28 +836,52 @@ vulkan_transition_image_layout(VkCommandBuffer command_buffer, VkImage image, Vk
 	}
 
 	if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+		
 	    barrier.srcAccessMask = 0;
 	    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	    source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 	    destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	    
 	} else if ((old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) ||
 						 (old_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR      && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)     ||
 						 (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)         ) {
+		
 	    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	    source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 	    destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	    
 	} else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+		
 	    barrier.srcAccessMask = 0;
 	    barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
 	    source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 	    destination_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	    
+	} else if (old_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_GENERAL) {
+		
+	    barrier.srcAccessMask = 0;
+	    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	    source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+	    destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	    
+	} else if (old_layout == VK_IMAGE_LAYOUT_GENERAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+		
+	    barrier.srcAccessMask = 0;
+	    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	    source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+	    destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	    
 	} else {
 	    vulkan_log_error("vulkan_create_texture_image(): unsupported layout transition\n");
 	}
 
 	vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+
+internal void
+vulkan_transition_image_layout(Vulkan_Texture *texture, VkImageLayout old_layout, VkImageLayout new_layout) {
+	vulkan_transition_image_layout(VK_CMD, texture->image, texture->image_format, old_layout, new_layout, 1);
 }
 
 internal VkImageView
@@ -1401,7 +1425,7 @@ internal void
 vulkan_start_compute() {
 	Vulkan_Frame *frame = vulkan_frame();
 	
-	vkWaitForFences(vk_ctx.device, 1, &frame->compute_in_flight_fence, VK_TRUE, UINT64_MAX);
+	//vkWaitForFences(vk_ctx.device, 1, &frame->compute_in_flight_fence, VK_TRUE, UINT64_MAX);
 	
 	vkResetFences(vk_ctx.device, 1, &frame->compute_in_flight_fence);
 	vk_ctx.active_command_buffer = &frame->compute_command_buffer;
@@ -1434,7 +1458,7 @@ vulkan_end_compute() {
 	  vulkan_log_error("vulkan_end_compute(): failed to submit compute command buffer!\n");
 	};
 
-	//vkWaitForFences(vulkan_info.device, 1, &vulkan_info.compute_in_flight_fences[vulkan_info.current_frame], VK_TRUE, UINT64_MAX);
+	vkWaitForFences(vk_ctx.device, 1, &frame->compute_in_flight_fence, VK_TRUE, UINT64_MAX);
 }
 
 inline VkBool32
@@ -2067,9 +2091,9 @@ vulkan_update_ubo(Descriptor desc, void *data) {
 internal u32 
 vulkan_set_texture(Descriptor *desc, Vulkan_Texture *texture) {
 	VkDescriptorImageInfo image_info = {};
-	if (texture->type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+	if (desc->binding->descriptor_type == DESCRIPTOR_TYPE_SAMPLER) {
 		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	} else if (texture->type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ) {
+	} else if (desc->binding->descriptor_type == DESCRIPTOR_TYPE_STORAGE_IMAGE ) {
 		image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 	}
 	image_info.imageView = texture->image_view;
@@ -2080,7 +2104,7 @@ vulkan_set_texture(Descriptor *desc, Vulkan_Texture *texture) {
 	descriptor_writes[0].dstSet = *desc->set->vulkan_set;
 	descriptor_writes[0].dstBinding = desc->binding->binding;
 	descriptor_writes[0].dstArrayElement = desc->set->texture_index;
-	descriptor_writes[0].descriptorType = texture->type;
+	descriptor_writes[0].descriptorType = vulkan_convert_descriptor_type(desc->binding->descriptor_type);
 	descriptor_writes[0].descriptorCount = 1;
 	descriptor_writes[0].pImageInfo = &image_info;
 	vkUpdateDescriptorSets(vk_ctx.device, ARRAY_COUNT(descriptor_writes), descriptor_writes, 0, nullptr);

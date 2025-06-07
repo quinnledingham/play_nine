@@ -309,18 +309,9 @@ do_game_frame() {
     update_game(&debug.test_game);
   }
 
-  vulkan_start_compute();
-
-  gfx_bind_compute_pipeline(PIPELINE_NOISE_TEXTURE);
- 
-  Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_NOISE_TEXTURE);
-  Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
-  vulkan_set_texture(&texture_desc, &game_draw.menu_noise);
-  vulkan_bind_descriptor_set(texture_desc_set);
-  vkCmdDispatch(VK_CMD, (256 + 15) / 16, (256 + 15) / 16, 1);
   
-  vulkan_end_compute();
-
+  update_noise_texture(&game_draw.menu_noise);
+  
   //
   // Drawing
   //
@@ -336,7 +327,7 @@ do_game_frame() {
   global_shader.time.x = (float32)app_time.run_time_s;
   global_shader.resolution.xy = cv2(gfx.window.resolution);
   gfx_ubo(GFXID_GLOBAL, &global_shader, 0);
-
+  
   vulkan_clear_color({0.1f, 0.1f, 0.1f, 1.0f});
   update_scenes(&scene, &ortho_scene, gfx.window.dim);
   vulkan_depth_test(true);

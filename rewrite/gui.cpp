@@ -131,11 +131,12 @@ draw_textbox(Draw_Textbox textbox) {
 
 internal void
 gui_start(GUI *gui) {
-    gfx_bind_pipeline(PIPELINE_NOISE);
+    //gfx_bind_pipeline(PIPELINE_NOISE);
 
-    draw_rect({0, 0}, cv2(gfx.window.dim), gui->background_color);
+    //draw_rect({0, 0}, cv2(gfx.window.dim), gui->background_color);
     gfx_bind_pipeline(PIPELINE_2D);
-
+    draw_rect({0, 0}, cv2(gfx.window.dim), &game_draw.menu_noise);
+    
     Vector2 gui_dim_pixels = gui->dim * cv2(gfx.window.dim);
     float32 x_coord = float32((gfx.window.dim.x/2) - (gui_dim_pixels.x/2));
     float32 y_coord = float32((gfx.window.dim.y/2) - (gui_dim_pixels.y/2));

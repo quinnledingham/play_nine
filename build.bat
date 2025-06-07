@@ -9,13 +9,13 @@ REM CF = Compiler Flags
 REM LF = Linker Flags
 
 REM Change these directories to where the SDKs are on your computer
-set SDL_SDK= C:\Users\quinn\libs\SDL2-devel-2.30.8-VC
-REM set VULKAN_SDK= C:\VulkanSDK\1.3.296.0
-set STEAM_SDK= ..\lib\steam
+set SDL_SDK=C:\Users\quinn\libs\SDL2-devel-2.30.8-VC
+set VULKAN_SDK=C:\VulkanSDK\1.3.296.0
+set STEAM_SDK=..\lib\steam
 
 set CF_DEFAULT= -MD -nologo -Gm- /std:c++17 -GR- -EHa- -Z7 -W3 -EHsc -D_CRT_SECURE_NO_WARNINGS /I..\lib\stb /I..\ /I..\qlib -DSHADERS -DOS_WINDOWS -DDEBUG
 set CF_SDL= /I%SDL_SDK%\include -DSDL
-set CF_VULKAN= /I%VULKAN_SDK%\Include -DVULKAN
+set CF_VULKAN=/I%VULKAN_SDK%\Include -DVULKAN
 set CF_OPENGL= /I..\lib\glad -DOPENGL /I%VULKAN_SDK%\Include
 set CF_STEAM= /I%STEAM_SDK% -DSTEAM
 

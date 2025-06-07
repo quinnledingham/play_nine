@@ -157,6 +157,32 @@ struct Bitmap {
 internal Bitmap load_bitmap(File file);
 internal Bitmap load_bitmap_flip(File file);
 
+struct Texture {
+  // Storage
+  u8 *memory;
+  
+  union {
+      struct {
+          s32 width;
+          s32 height;
+      };
+      Vector2_s32 dim;
+  };
+  s32 pitch;
+  s32 channels;
+
+  // Init values
+  u32 mip_levels;
+  u32 parameters; // type of texture
+
+  // Vulkan Texture Info
+	VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;
+	VkDeviceMemory image_memory; // Could put in vulkan info and save it
+	VkImage image;	 		         // similar to VkBuffer
+	VkImageView image_view;      // provides more info about the image
+	VkSampler sampler;           // allows the shader to sample the image
+};
+
 /*
 ####p2
 ######

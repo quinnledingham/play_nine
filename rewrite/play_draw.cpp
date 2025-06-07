@@ -497,6 +497,10 @@ get_player_camera(float32 degrees_between, u32 active_i) {
 
 }
 
+//
+// Creating menu noise background noise texture
+//
+
 internal void
 create_noise_texture(Vulkan_Texture *texture) {
   VkImageCreateInfo imageCreateInfo = {
@@ -509,7 +513,7 @@ create_noise_texture(Vulkan_Texture *texture) {
       .samples = VK_SAMPLE_COUNT_1_BIT,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
       .usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+      .initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
   };
   vkCreateImage(vk_ctx.device, &imageCreateInfo, NULL, &texture->image);
   
@@ -542,5 +546,37 @@ create_noise_texture(Vulkan_Texture *texture) {
   };
   vkCreateImageView(vk_ctx.device, &imageViewCreateInfo, NULL, &texture->image_view);
 
-  texture->type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; 
+  vulkan_create_sampler(&texture->sampler, TEXTURE_PARAMETERS_DEFAULT, 1);
+}
+
+internal void
+update_noise_texture(Vulkan_Texture *texture) {
+  vulkan_start_compute();
+
+  vulkan_transition_image_layout(VK_CMD, texture->image, texture->image_format, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1);	
+  
+  gfx_bind_compute_pipeline(PIPELINE_NOISE_TEXTURE);
+ 
+  Global_Shader global_shader = {};
+  global_shader.time.x = (float32)app_time.run_time_s;
+  global_shader.resolution.xy = cv2(gfx.window.resolution);
+  gfx_ubo(GFXID_GLOBAL, &global_shader, 0);
+  
+  Descriptor_Set local_desc_set = gfx_descriptor_set(GFXID_LOCAL);
+  Descriptor color_desc = gfx_descriptor(&local_desc_set, 0);
+  Local local = {};
+  local.color = play_nine_green;
+  vulkan_update_ubo(color_desc, (void *)&local);
+  vulkan_bind_descriptor_set(local_desc_set);
+  
+  Descriptor_Set texture_desc_set = gfx_descriptor_set(GFXID_NOISE_TEXTURE);
+  Descriptor texture_desc = gfx_descriptor(&texture_desc_set, 0);
+  vulkan_set_texture(&texture_desc, texture);
+  vulkan_bind_descriptor_set(texture_desc_set);
+  vkCmdDispatch(VK_CMD, (256 + 15) / 16, (256 + 15) / 16, 1);
+  
+  //vulkan_transition_image_layout(VK_CMD, texture->image, texture->image_format, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);	
+  vulkan_transition_image_layout(texture, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  
+  vulkan_end_compute();
 }

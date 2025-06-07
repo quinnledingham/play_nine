@@ -113,6 +113,7 @@ gfx_define_layouts() {
   gfx.layouts[GFXID_LOCAL].set_number = 2;
   gfx.layouts[GFXID_MATERIAL].set_number = 4;
   gfx.layouts[GFXID_TEXTURE].set_number = 3;
+  gfx.layouts[GFXID_NOISE_TEXTURE].set_number = 0;
 
   gfx.layouts[GFXID_SCENE].add_binding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX, 1, sizeof(Scene)); // 2D.vert
 
@@ -170,5 +171,7 @@ gfx_add_layouts_to_shaders() {
   {
     Pipeline *shader = find_pipeline(PIPELINE_NOISE_TEXTURE);
     shader->set.add_layout(&gfx.layouts[GFXID_NOISE_TEXTURE]);
+    shader->set.add_layout(&gfx.layouts[GFXID_GLOBAL]);
+    shader->set.add_layout(&gfx.layouts[GFXID_LOCAL]);
   }
 }

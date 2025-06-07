@@ -97,8 +97,6 @@ struct Vulkan_Texture {
 	VkImage image;	 		         // similar to VkBuffer
 	VkImageView image_view;      // provides more info about the image
 	VkSampler sampler;           // allows the shader to sample the image
-	// allows for different types of descriptors
-	VkDescriptorType type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 };
 
 struct Vulkan_Debug {
