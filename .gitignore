@@ -9,3 +9,5 @@
 
 /rewrite/build
 rewrite/local.bat
+/golfo/build
+/golfo/libs

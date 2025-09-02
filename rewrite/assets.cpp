@@ -1016,7 +1016,7 @@ init_assets() {
   }
 
   return SUCCESS;
-}
+} 
 
 internal void
 assets_cleanup() {
