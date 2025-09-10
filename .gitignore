@@ -11,3 +11,9 @@
 rewrite/local.bat
 /golfo/build
 /golfo/libs
+
+/libs
+/old_versions/0.1/lib
+/old_versions/0.1/build
+/old_versions/0.2/libs
+/old_versions/0.2/build
