@@ -1,18 +1,11 @@
-/build
-/golf/build
-/sdl-vc
-/VulkanSDK
 /.idea
 *.sublime-project
 *.sublime-workspace
 *.10x
 
-/rewrite/build
-rewrite/local.bat
-/golfo/build
-/golfo/libs
-
+/build
 /libs
+
 /old_versions/0.1/lib
 /old_versions/0.1/build
 /old_versions/0.2/libs
