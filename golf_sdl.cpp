@@ -49,13 +49,19 @@ sdl_init() {
     sdl_log("Window created successfully.\n");
   }
 
-  sdl_log("Available Render Drivers:");
+  sdl_ctx.renderer = SDL_CreateRenderer(sdl_ctx.window, NULL);
+  const char *renderer_name = SDL_GetRendererName(sdl_ctx.renderer);
+
+  sdl_log("Render Drivers:");
   int num_render_drivers = SDL_GetNumRenderDrivers();
   for (int i = 0; i < num_render_drivers; i++) {
-    sdl_log("  %s", SDL_GetRenderDriver(i));
+    const char* driver = SDL_GetRenderDriver(i);
+    if (!SDL_strcmp(driver, renderer_name)) {
+      sdl_log("  %s *", driver);
+    } else {
+      sdl_log("  %s", driver);
+    }
   }
-  sdl_ctx.renderer = SDL_CreateRenderer(sdl_ctx.window, NULL);
-  sdl_log("Renderer: %s\n", SDL_GetRendererName(sdl_ctx.renderer));
 
   if (!TTF_Init()) {
       sdl_log("Couldn't initialize SDL_ttf: %s\n", SDL_GetError());
