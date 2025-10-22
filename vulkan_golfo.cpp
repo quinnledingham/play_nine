@@ -1,11 +1,11 @@
 //
 // Vulkan Debug
 //
- 
-internal bool8 
+
+internal bool8
 vulkan_check_validation_layer_support() {
   u32 requested_layers_count = ARRAY_COUNT(vk_ctx.validation_layers);
-  
+
   u32 available_layers_count;
   vkEnumerateInstanceLayerProperties(&available_layers_count, nullptr);
 
@@ -15,10 +15,10 @@ vulkan_check_validation_layer_support() {
   bool8 all_layers_found = true;
   for (u32 requested_index = 0; requested_index < requested_layers_count; requested_index++) {
     const char *requested_str = vk_ctx.validation_layers[requested_index];
-    
+
     bool8 layer_found = false;
     for (u32 available_index = 0; available_index < available_layers_count; available_index++) {
-      const char *available_str = available_layers[available_index].layerName; 
+      const char *available_str = available_layers[available_index].layerName;
       if (SDL_strcmp(requested_str, available_str)) {
         layer_found = true;
         break;
@@ -168,7 +168,7 @@ vulkan_create_instance() {
 	if (vk_ctx.validation_layers_enabled) {
     vulkan_populate_debug_messenger_create_info(debug_create_info);
     create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debug_create_info;
-    
+
     create_info.enabledLayerCount = ARRAY_COUNT(vk_ctx.validation_layers);
     create_info.ppEnabledLayerNames = vk_ctx.validation_layers;
 	} else {
@@ -184,7 +184,7 @@ vulkan_create_instance() {
   return SUCCESS;
 }
 
-inline Vulkan_Version 
+inline Vulkan_Version
 vulkan_get_api_version(u32 api_version) {
   Vulkan_Version version = {};
   version.variant = VK_API_VERSION_VARIANT(api_version);
@@ -194,7 +194,7 @@ vulkan_get_api_version(u32 api_version) {
   return version;
 }
 
-inline Vulkan_Version 
+inline Vulkan_Version
 vulkan_get_nvidia_driver_version(u32 api_version) {
   Vulkan_Version version = {};
   version.variant = 0;
@@ -207,7 +207,7 @@ vulkan_get_nvidia_driver_version(u32 api_version) {
 inline Vulkan_Version
 vulkan_get_intel_driver_version(u32 version_raw) {
   Vulkan_Version version = {};
-  
+
   return version;
 }
 
@@ -218,7 +218,7 @@ inline void  vulkan_print_version(const char *name, Vulkan_Version version) {
     vulkan_log("%s: %d.%d.%d\n", name, version.major, version.minor, version.patch);
 }
 
-internal bool8 
+internal bool8
 vulkan_check_device_extension_support(VkPhysicalDevice device) {
   u32 available_count;
   vkEnumerateDeviceExtensionProperties(device, nullptr, &available_count, nullptr);
@@ -241,13 +241,13 @@ vulkan_check_device_extension_support(VkPhysicalDevice device) {
       break;
     }
   }
-  
+
   SDL_free(available_extensions);
 
   return all_extensions_found;
 }
 
-internal Vulkan_Queue_Family_Indices 
+internal Vulkan_Queue_Family_Indices
 vulkan_find_queue_families(VkPhysicalDevice device) {
   Vulkan_Queue_Family_Indices indices;
 
@@ -284,21 +284,21 @@ bool8 vulkan_is_device_suitable(VkPhysicalDevice device) {
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, vk_ctx.surface, &present_modes_supported, nullptr);
 
   Vulkan_Queue_Family_Indices indices = vulkan_find_queue_families(device);
-  
+
   VkPhysicalDeviceProperties device_properties = {};
   VkPhysicalDeviceFeatures device_features = {};
   vkGetPhysicalDeviceProperties(device, &device_properties);
   vkGetPhysicalDeviceFeatures(device, &device_features);
 
-  return indices.graphics_and_compute_family.found && 
+  return indices.graphics_and_compute_family.found &&
          extensions_supported && // all extensions asked for supported
          formats_supported && // any format supported
          present_modes_supported && // any present mode supportecd
-         device_features.samplerAnisotropy;// && 
+         device_features.samplerAnisotropy;// &&
          //device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 }
 
-internal void 
+internal void
 vulkan_print_device(VkPhysicalDevice device) {
   VkPhysicalDeviceProperties device_properties;
   vkGetPhysicalDeviceProperties(device, &device_properties);
@@ -314,7 +314,7 @@ vulkan_print_device(VkPhysicalDevice device) {
   } else if (Vulkan_Vendor_IDs::intel == device_properties.vendorID) {
     //driver_version = vulkan_get_intel_driver_version(device_properties.driverVersion);
   }
-  
+
   vulkan_log("    Name: %s\n", device_properties.deviceName);
   vulkan_print_version("    API Version", api_version);
   vulkan_print_version("    Driver Version", driver_version);
@@ -323,7 +323,7 @@ vulkan_print_device(VkPhysicalDevice device) {
   vulkan_log("    Max Uniform Buffer Range: %u\n", device_properties.limits.maxUniformBufferRange);
 }
 
-internal bool8 
+internal bool8
 vulkan_pick_physical_device() {
   vk_ctx.physical_device = VK_NULL_HANDLE;
 
@@ -366,7 +366,7 @@ vulkan_pick_physical_device() {
   return 0;
 }
 
-internal bool8 
+internal bool8
 vulkan_create_logical_device() {
   // Specify the device queues we want
   VkDeviceQueueCreateInfo *queue_create_infos = ARRAY_MALLOC(VkDeviceQueueCreateInfo, ARRAY_COUNT(vk_ctx.queue_family_indices.queue_families));
@@ -385,7 +385,7 @@ vulkan_create_logical_device() {
       unique_queue_families[unique_queue_families_index++] = vk_ctx.queue_family_indices.queue_families[i].index;
     }
   }
-  
+
   float32 queue_priority = 1.0f;
   for (u32 queue_index = 0; queue_index < unique_queue_families_index; queue_index++) {
     VkDeviceQueueCreateInfo queue_create_info = {};
@@ -437,7 +437,7 @@ vulkan_create_logical_device() {
 }
 
 
-void vulkan_create_command_pool() { 
+void vulkan_create_command_pool() {
   VkCommandPoolCreateInfo pool_info = {};
   pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -448,7 +448,7 @@ void vulkan_create_command_pool() {
   }
 }
 
-internal void 
+internal void
 vulkan_create_frames() {
   VkSemaphoreCreateInfo semaphore_info = {};
   semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -467,15 +467,15 @@ vulkan_create_frames() {
     Vulkan_Frame *frame = &vk_ctx.frames[frame_index];
 
     // sync objects
-    for (u32 semaphore_index = 0; semaphore_index < ARRAY_COUNT(frame->semaphores); semaphore_index++) {      
+    for (u32 semaphore_index = 0; semaphore_index < ARRAY_COUNT(frame->semaphores); semaphore_index++) {
       if (vkCreateSemaphore(vk_ctx.device, &semaphore_info, nullptr, &frame->semaphores[semaphore_index]) != VK_SUCCESS) {
-        vulkan_log_error("vulkan_create_sync_objects(): failed to create semaphores\n");        
+        vulkan_log_error("vulkan_create_sync_objects(): failed to create semaphores\n");
       }
     }
 
-    for (u32 fence_index = 0; fence_index < ARRAY_COUNT(frame->fences); fence_index++) {      
+    for (u32 fence_index = 0; fence_index < ARRAY_COUNT(frame->fences); fence_index++) {
       if (vkCreateFence(vk_ctx.device, &fence_info, nullptr, &frame->fences[fence_index]) != VK_SUCCESS) {
-        vulkan_log_error("vulkan_create_sync_objects(): failed to create fences\n");        
+        vulkan_log_error("vulkan_create_sync_objects(): failed to create fences\n");
       }
     }
 
@@ -509,7 +509,7 @@ vulkan_create_descriptor_pool() {
 internal void
 vulkan_query_swap_chain_support() {
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_ctx.physical_device, vk_ctx.surface, &vk_ctx.surface_capabilities);
-  
+
   vkGetPhysicalDeviceSurfaceFormatsKHR(vk_ctx.physical_device, vk_ctx.surface, &vk_ctx.formats.count, nullptr);
   ASSERT(vk_ctx.formats.count); // only run this function after a suitable physical device has been picked
   vk_ctx.formats.init();
@@ -521,7 +521,7 @@ vulkan_query_swap_chain_support() {
   vkGetPhysicalDeviceSurfacePresentModesKHR(vk_ctx.physical_device, vk_ctx.surface, &vk_ctx.present_modes.count, vk_ctx.present_modes.data);
 }
 
-internal u32 
+internal u32
 vulkan_find_memory_type(VkPhysicalDevice physical_device, u32 type_filter, VkMemoryPropertyFlags properties) {
   VkPhysicalDeviceMemoryProperties memory_properties;
   vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
@@ -536,7 +536,7 @@ vulkan_find_memory_type(VkPhysicalDevice physical_device, u32 type_filter, VkMem
   return 0;
 }
 
-internal void 
+internal void
 vulkan_create_buffer(Vulkan_Buffer *buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
   buffer->size = size;
 
@@ -553,12 +553,12 @@ vulkan_create_buffer(Vulkan_Buffer *buffer, VkDeviceSize size, VkBufferUsageFlag
 
   VkMemoryRequirements memory_requirements = {};
   vkGetBufferMemoryRequirements(vk_ctx.device, buffer->handle, &memory_requirements);
-  
+
   VkMemoryAllocateInfo allocate_info = {};
   allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocate_info.allocationSize = memory_requirements.size;
   allocate_info.memoryTypeIndex = vulkan_find_memory_type(vk_ctx.physical_device, memory_requirements.memoryTypeBits, properties);
-  
+
   if (vkAllocateMemory(vk_ctx.device, &allocate_info, nullptr, &buffer->memory) != VK_SUCCESS) {
     vulkan_log_error("vulkan_create_buffer() failed to allocate buffer memory\n");
     return;
@@ -571,7 +571,7 @@ vulkan_create_buffer(Vulkan_Buffer *buffer, VkDeviceSize size, VkBufferUsageFlag
   }
 }
 
-internal void 
+internal void
 vulkan_copy_buffer(Vulkan_Buffer src_buffer, Vulkan_Buffer dest_buffer, VkDeviceSize size, u32 src_offset, u32 dest_offset) {
   VkCommandBuffer command_buffer = vulkan_begin_single_time_commands(vk_ctx.command_pool);
 
@@ -585,10 +585,10 @@ vulkan_copy_buffer(Vulkan_Buffer src_buffer, Vulkan_Buffer dest_buffer, VkDevice
 }
 
 // return the offset to the memory set in the buffer
-internal void 
+internal void
 vulkan_update_buffer(Vulkan_Context *vk_ctx, Vulkan_Buffer *buffer, void *in_data, u32 in_data_size, u32 offset) {
   Vulkan_Buffer staging_buffer = {};
-  vulkan_create_buffer(&staging_buffer, (VkDeviceSize)in_data_size, 
+  vulkan_create_buffer(&staging_buffer, (VkDeviceSize)in_data_size,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -623,7 +623,7 @@ vulkan_sdl_init() {
   if (vk_ctx.validation_layers_enabled && !vulkan_check_validation_layer_support()) {
     vulkan_log_error("Validation layers requested but not supported\n");
   }
-  
+
 	if (vulkan_sdl_load_instance_extensions()) {
 	  return FAILURE;
 	}
@@ -633,7 +633,7 @@ vulkan_sdl_init() {
   if (vk_ctx.validation_layers_enabled) {
 		vulkan_setup_debug_messenger(vk_ctx.instance, &vk_ctx.debug_messenger);
   }
-  
+
 	if (SDL_Vulkan_CreateSurface(sdl_ctx.window, vk_ctx.instance, NULL, &vk_ctx.surface) == false) {
 		vulkan_log_error("vulkan surface failed being created\n");
 		return FAILURE;
@@ -648,32 +648,32 @@ vulkan_sdl_init() {
   }
 
   vulkan_create_command_pool();
-  vulkan_create_frames();  
+  vulkan_create_frames();
 
   vk_ctx.uniform_buffer_min_alignment = vk_ctx.physical_device_properties.limits.minUniformBufferOffsetAlignment;
 
-  vulkan_create_buffer(&vk_ctx.static_buffer, VULKAN_STATIC_BUFFER_SIZE, 
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+  vulkan_create_buffer(&vk_ctx.static_buffer, VULKAN_STATIC_BUFFER_SIZE,
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-  
-  vulkan_create_buffer(&vk_ctx.dynamic_buffer, VULKAN_STATIC_BUFFER_SIZE, 
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  
-  vulkan_create_buffer(&vk_ctx.static_uniform_buffer,  VULKAN_STATIC_UNIFORM_BUFFER_SIZE, 
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  
-  vulkan_create_buffer(&vk_ctx.dynamic_uniform_buffer, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE, 
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+
+  vulkan_create_buffer(&vk_ctx.dynamic_buffer, VULKAN_STATIC_BUFFER_SIZE,
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-  vulkan_create_buffer(&vk_ctx.storage_buffer, 500, 
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
+  vulkan_create_buffer(&vk_ctx.static_uniform_buffer,  VULKAN_STATIC_UNIFORM_BUFFER_SIZE,
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-  vulkan_create_buffer(&vk_ctx.triangle_buffer, 10000, 
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
+  vulkan_create_buffer(&vk_ctx.dynamic_uniform_buffer, VULKAN_DYNAMIC_UNIFORM_BUFFER_SIZE,
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+  vulkan_create_buffer(&vk_ctx.storage_buffer, 500,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+  vulkan_create_buffer(&vk_ctx.triangle_buffer, 10000,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
   vulkan_split_buffer_over_frames(&vk_ctx.dynamic_buffer, vk_ctx.frames, Vulkan_Context::max_frames_in_flight);
@@ -689,8 +689,8 @@ vulkan_choose_swap_surface_format() {
   VkFormat vulkan_target_formats[2] = {
     VK_FORMAT_R8G8B8A8_SRGB,
     VK_FORMAT_B8G8R8A8_UNORM,
-  }; 
-  
+  };
+
   for (u32 target_index = 0; target_index < ARRAY_COUNT(vulkan_target_formats); target_index++) {
     for (u32 i = 0; i < vk_ctx.formats.count; i++) {
       if ((vk_ctx.formats[i].format == vulkan_target_formats[target_index]) && vk_ctx.formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -708,20 +708,20 @@ vulkan_choose_swap_surface_format() {
 }
 
 // VSYNC SETTINGS AREA
-// VK_PRESENT_MODE_IMMEDIATE_KHR 
+// VK_PRESENT_MODE_IMMEDIATE_KHR
 // VK_PRESENT_MODE_MAILBOX_KHR   (VSYNC)
 // VK_PRESENT_MODE_FIFO_KHR      (VSYNC)
 internal VkPresentModeKHR
 vulkan_choose_swap_present_mode() {
   if (vk_ctx.vsync)
     return VK_PRESENT_MODE_FIFO_KHR;
-  
+
   for (u32 i = 0; i < vk_ctx.present_modes.count; i++) {
     if (vk_ctx.present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
       return vk_ctx.present_modes[i];
     }
   }
-  
+
   return VK_PRESENT_MODE_FIFO_KHR; // this mode is required to be supported
 }
 
@@ -771,10 +771,10 @@ vulkan_create_swap_chain() {
   create_info.presentMode = present_mode;
   create_info.clipped = VK_TRUE;
   create_info.oldSwapchain = VK_NULL_HANDLE;
-	
-  u32 queue_family_indexs[2] = { 
-    vk_ctx.queue_family_indices.graphics_and_compute_family.index, 
-    vk_ctx.queue_family_indices.present_family.index 
+
+  u32 queue_family_indexs[2] = {
+    vk_ctx.queue_family_indices.graphics_and_compute_family.index,
+    vk_ctx.queue_family_indices.present_family.index
   };
 
   if (vk_ctx.queue_family_indices.graphics_and_compute_family.index != vk_ctx.queue_family_indices.present_family.index) {
@@ -845,7 +845,7 @@ vulkan_create_image(Texture *texture, VkSampleCountFlagBits num_samples, VkImage
   allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocate_info.allocationSize = memory_requirements.size;
   allocate_info.memoryTypeIndex = vulkan_find_memory_type(memory_requirements.memoryTypeBits, properties);
-  
+
   if (vkAllocateMemory(vk_ctx.device, &allocate_info, nullptr, &texture->memory)) {
     vulkan_log_error("vulkan_create_image() failed to allocate image memory\n");
   }
@@ -875,7 +875,7 @@ internal void
 vulkan_create_sampler(Texture *texture, u32 texture_parameters) {
   VkPhysicalDeviceProperties properties = {};
   vkGetPhysicalDeviceProperties(vk_ctx.physical_device, &properties);
-  
+
   VkSamplerCreateInfo sampler_info = {};
   sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 
@@ -975,7 +975,7 @@ vulkan_create_draw_render_pass() {
   else
     color_attachment.finalLayout = final_layout;
     //color_attachment.finalLayout  = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
- 
+
   VkAttachmentReference color_attachment_ref = {};
   color_attachment_ref.attachment = 0;
   color_attachment_ref.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1015,7 +1015,7 @@ vulkan_create_draw_render_pass() {
   subpass.pDepthStencilAttachment = &depth_attachment_ref;
   if (vk_ctx.anti_aliasing)
       subpass.pResolveAttachments = &color_attachment_resolve_ref;
-  
+
   // Subpass dependencies
   VkSubpassDependency dependencies[1];
   dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -1025,10 +1025,10 @@ vulkan_create_draw_render_pass() {
   dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
   dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
   dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-  
+
   /*
   ALLOWS FOR SECOND RENDER PASS
-  
+
   VkSubpassDependency dependencies[2];
   dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
   dependencies[0].dstSubpass = 0;
@@ -1044,10 +1044,10 @@ vulkan_create_draw_render_pass() {
   dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
   dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
   dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-  dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;              
-  */                                                
+  dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+  */
   VkAttachmentDescription attachments[] = { color_attachment, depth_attachment, color_attachment_resolve };
-  
+
   VkRenderPassCreateInfo render_pass_info = {};
   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   if (vk_ctx.anti_aliasing)
@@ -1079,7 +1079,7 @@ vulkan_create_present_render_pass() {
   color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
   color_attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
   color_attachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-  
+
   VkAttachmentReference color_attachment_ref = {};
   color_attachment_ref.attachment = 0;
   color_attachment_ref.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1088,7 +1088,7 @@ vulkan_create_present_render_pass() {
   subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
   subpass.colorAttachmentCount    = 1;
   subpass.pColorAttachments       = &color_attachment_ref;
-  
+
   VkRenderPassCreateInfo render_pass_create_info = {};
   render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   render_pass_create_info.attachmentCount = 1;
@@ -1102,7 +1102,7 @@ vulkan_create_present_render_pass() {
   }
 
   return 0;
-  
+
 }
 
 internal bool8
@@ -1144,7 +1144,7 @@ vulkan_transition_image_layout(VkCommandBuffer command_buffer, Texture *texture,
   }
 
   if (texture->layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-    
+
       barrier.srcAccessMask = 0;
       barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
       source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -1155,38 +1155,38 @@ vulkan_transition_image_layout(VkCommandBuffer command_buffer, Texture *texture,
       barrier.srcAccessMask = 0;
       barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
       source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-      destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;    
+      destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
   } else if ((texture->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) ||
              (texture->layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR      && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)     ||
              (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)         ) {
-    
+
       barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
       barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
       source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
       destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-      
+
   } else if (texture->layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-    
+
       barrier.srcAccessMask = 0;
       barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
       source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
       destination_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-      
+
   } else if (texture->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_GENERAL) {
-    
+
       barrier.srcAccessMask = 0;
       barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
       source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
       destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-      
+
   } else if (texture->layout == VK_IMAGE_LAYOUT_GENERAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-    
+
       barrier.srcAccessMask = 0;
       barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
       source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
       destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-      
+
   } else {
       vulkan_log_error("vulkan_transition_image_layout(): unsupported layout transition\n");
   }
@@ -1203,9 +1203,9 @@ vulkan_create_depth_resources() {
   vk_ctx.depth_texture.dim.height = vk_ctx.resolution.height;
   vulkan_create_image(&vk_ctx.depth_texture, vk_ctx.msaa_samples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   vulkan_create_image_view(&vk_ctx.depth_texture, VK_IMAGE_ASPECT_DEPTH_BIT);
-  
+
   VkCommandBuffer command_buffer = vulkan_begin_single_time_commands(vk_ctx.command_pool);
-  vulkan_transition_image_layout(command_buffer, &vk_ctx.depth_texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);  
+  vulkan_transition_image_layout(command_buffer, &vk_ctx.depth_texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
   vulkan_end_single_time_commands(command_buffer, vk_ctx.command_pool, vk_ctx.graphics_queue);
 }
 
@@ -1220,7 +1220,7 @@ vulkan_create_color_resources() {
 
 internal VkSampleCountFlagBits
 vulkan_get_max_usable_sample_count() {
-    VkSampleCountFlags counts = vk_ctx.physical_device_properties.limits.framebufferColorSampleCounts & 
+    VkSampleCountFlags counts = vk_ctx.physical_device_properties.limits.framebufferColorSampleCounts &
                                 vk_ctx.physical_device_properties.limits.framebufferDepthSampleCounts;
     if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
     if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
@@ -1233,12 +1233,12 @@ vulkan_get_max_usable_sample_count() {
 }
 
 internal bool8
-vulkan_create_draw_framebuffers() {  
+vulkan_create_draw_framebuffers() {
   vk_ctx.draw_framebuffers.count = vk_ctx.swap_chain_textures.count;
   vk_ctx.draw_framebuffers.init();
 
   Arr<Texture> *textures;
-  
+
   VkImageView attachments[3];
   VkFramebufferCreateInfo framebuffer_info = {};
   framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1255,7 +1255,7 @@ vulkan_create_draw_framebuffers() {
     framebuffer_info.height          = vk_ctx.swap_chain_extent.height;
   }
   framebuffer_info.layers          = 1;
-  
+
   if (vk_ctx.anti_aliasing) {
     attachments[0] = vk_ctx.color_texture.image_view;
     attachments[1] = vk_ctx.depth_texture.image_view;
@@ -1264,7 +1264,7 @@ vulkan_create_draw_framebuffers() {
     attachments[1] = vk_ctx.depth_texture.image_view;
   }
 
-  for (u32 i = 0; i < vk_ctx.draw_framebuffers.count; i++) {  
+  for (u32 i = 0; i < vk_ctx.draw_framebuffers.count; i++) {
     if (vk_ctx.anti_aliasing) {
       attachments[2] = (*textures)[i].image_view;
     } else {
@@ -1292,7 +1292,7 @@ vulkan_create_swap_chain_framebuffers() {
   framebuffer_info.width           = vk_ctx.swap_chain_extent.width;
   framebuffer_info.height          = vk_ctx.swap_chain_extent.height;
   framebuffer_info.layers          = 1;
-  
+
   for (u32 i = 0; i < vk_ctx.swap_chain_framebuffers.count; i++) {
     framebuffer_info.pAttachments = &vk_ctx.swap_chain_textures[i].image_view;
 
@@ -1321,7 +1321,7 @@ vulkan_create_frame_resources() {
   vulkan_create_present_render_pass();
   vulkan_create_depth_resources();
   vulkan_create_color_resources();
-  
+
   // Get the size of the offscreen draw buffer
   if (vk_ctx.resolution_scaling) {
     VkExtent2D extent = {};
@@ -1334,15 +1334,15 @@ vulkan_create_frame_resources() {
 
   vulkan_create_draw_framebuffers();
   vulkan_create_swap_chain_framebuffers();
-  
+
   vk_ctx.clear_values[1].depthStencil = {1.0f, 0};
 }
 
-internal void 
+internal void
 vulkan_destroy_texture(Texture *texture) {
   if (texture == 0)
     return;
-  
+
   vkDestroySampler(vk_ctx.device, texture->sampler, nullptr);
   vkDestroyImageView(vk_ctx.device, texture->image_view, nullptr);
   vkDestroyImage(vk_ctx.device, texture->image, nullptr);
@@ -1382,7 +1382,7 @@ vulkan_destroy_frame_resources() {
   vk_ctx.swap_chain_created = FALSE;
 }
 
-inline Vulkan_Frame* 
+inline Vulkan_Frame*
 vulkan_frame() {
   return &vk_ctx.frames[vk_ctx.current_frame];
 }
@@ -1392,7 +1392,7 @@ vulkan_next_frame() {
   vk_ctx.current_frame = (vk_ctx.current_frame + 1) % vk_ctx.max_frames_in_flight;
 }
 
-internal s32 
+internal s32
 vulkan_start_frame() {
   Vulkan_Frame *frame = vulkan_frame();
 
@@ -1419,14 +1419,14 @@ vulkan_start_frame() {
   vkResetFences(vk_ctx.device, 1, &frame->in_flight_fence);
   vk_ctx.active_command_buffer = &frame->command_buffer;
   vkResetCommandBuffer(VK_CMD, 0);
-  
+
   VkCommandBufferBeginInfo command_buffer_begin_info = {};
   command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   command_buffer_begin_info.flags = 0;           // Optional
   command_buffer_begin_info.pInheritanceInfo = nullptr; // Optional
   if (vkBeginCommandBuffer(VK_CMD, &command_buffer_begin_info) != VK_SUCCESS) {
     vulkan_log_error("vulkan_record_command_buffer(): failed to begin recording command buffer\n");
-  } 
+  }
 
   VkRenderPassBeginInfo render_pass_begin_info = {};
   render_pass_begin_info.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1456,7 +1456,7 @@ vulkan_end_frame() {
   }
 
   vk_ctx.recording_frame = FALSE;
-  
+
   Vulkan_Frame *frame = vulkan_frame();
 
 #ifdef DEBUG
@@ -1482,11 +1482,11 @@ vulkan_end_frame() {
     region.dstOffsets[1].x = vk_ctx.swap_chain_extent.width;
     region.dstOffsets[1].y = vk_ctx.swap_chain_extent.height;
     region.dstOffsets[1].z = 1;
-    
+
     Texture *texture = &vk_ctx.swap_chain_textures[vk_ctx.image_index];
-    vulkan_transition_image_layout(VK_CMD, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);  
+    vulkan_transition_image_layout(VK_CMD, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     vkCmdBlitImage(VK_CMD, vk_ctx.draw_textures[vk_ctx.image_index].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_LINEAR);
-    vulkan_transition_image_layout(VK_CMD, texture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);  
+    vulkan_transition_image_layout(VK_CMD, texture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
   }
   // End draw render pass
 
@@ -1504,7 +1504,7 @@ vulkan_end_frame() {
   submit_info.pWaitSemaphores = wait_semaphores;
   submit_info.pWaitDstStageMask = vk_ctx.wait_stages;
   submit_info.commandBufferCount = 1;
-  submit_info.pCommandBuffers = &frame->command_buffer; 
+  submit_info.pCommandBuffers = &frame->command_buffer;
   submit_info.signalSemaphoreCount = 1;
   submit_info.pSignalSemaphores = &frame->render_finished_semaphore;
   if (vkQueueSubmit(vk_ctx.graphics_queue, 1, &submit_info, frame->in_flight_fence) != VK_SUCCESS) {
@@ -1532,7 +1532,7 @@ vulkan_end_frame() {
   vulkan_next_frame();
 }
 
-internal void 
+internal void
 vulkan_clear_color(Vector4 color) {
   vk_ctx.clear_values[0].color = {{color.r, color.g, color.b, color.a}};
 }
@@ -1541,9 +1541,9 @@ vulkan_clear_color(Vector4 color) {
 internal void
 vulkan_start_compute() {
   Vulkan_Frame *frame = vulkan_frame();
-  
+
   //vkWaitForFences(vk_ctx.device, 1, &frame->compute_in_flight_fence, VK_TRUE, UINT64_MAX);
-  
+
   vkResetFences(vk_ctx.device, 1, &frame->compute_in_flight_fence);
   vk_ctx.active_command_buffer = &frame->compute_command_buffer;
   vkResetCommandBuffer(frame->compute_command_buffer, 0);
@@ -1554,7 +1554,7 @@ vulkan_start_compute() {
   command_buffer_begin_info.pInheritanceInfo = nullptr; // Optional
   if (vkBeginCommandBuffer(frame->compute_command_buffer, &command_buffer_begin_info) != VK_SUCCESS) {
     vulkan_log_error("vulkan_record_command_buffer(): failed to begin recording command buffer\n");
-  } 
+  }
 }
 
 internal void
@@ -1664,7 +1664,7 @@ void vulkan_create_set_layout(Vulkan_Context *vk_ctx, GFX_Layout *layout) {
   layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   layout_info.bindingCount = layout->bindings_count;
   layout_info.pBindings = vulkan_bindings;
-  
+
   if (vkCreateDescriptorSetLayout(vk_ctx->device, &layout_info, nullptr, &layout->descriptor_set_layout) != VK_SUCCESS) {
     vulkan_log_error("vulkan_create_descriptor_set_layout()", "failed to create descriptor set layout\n");
   }
@@ -1687,11 +1687,11 @@ void vulkan_allocate_descriptor_set(Vulkan_Context *vk_ctx, GFX_Layout *layout) 
 
   for (u32 i = 0; i < 1; i++) {
     u32 *allocated = 0;
-    
+
     switch(layout->bindings[i].descriptor_type) {
       case DESCRIPTOR_TYPE_UNIFORM_BUFFER: allocated = &vk_ctx->debug.allocated_descriptors_uniform_buffer; break;
       case DESCRIPTOR_TYPE_SAMPLER:        allocated = &vk_ctx->debug.allocated_descriptors_sampler;        break;
-      case DESCRIPTOR_TYPE_STORAGE_BUFFER: allocated = &vk_ctx->debug.allocated_descriptors_storage_buffer; break; 
+      case DESCRIPTOR_TYPE_STORAGE_BUFFER: allocated = &vk_ctx->debug.allocated_descriptors_storage_buffer; break;
     }
 
     if (allocated != 0)
@@ -1774,7 +1774,7 @@ void vulkan_init_ubos(Vulkan_Context *vk_ctx, VkDescriptorSet *sets, GFX_Layout_
       static_buffer_info.buffer = vk_ctx->static_uniform_buffer.handle;
 
       static_buffer_infos[i] = static_buffer_info;
-    } 
+    }
 
   }
 
@@ -1812,7 +1812,7 @@ vulkan_setup_layout(GFX_Layout *layout) {
 }
 
 internal void
-vulkan_create_pipeline_layout(Shader *shader) { 
+vulkan_create_pipeline_layout(Shader *shader) {
   VkDescriptorSetLayout descriptor_set_layouts[5];
   for (u32 i = 0; i < shader->set.layouts_count; i++) {
     descriptor_set_layouts[i] = shader->set.layouts[i]->descriptor_set_layout;
@@ -1829,11 +1829,11 @@ vulkan_create_pipeline_layout(Shader *shader) {
 
   VkPipelineLayoutCreateInfo pipeline_layout_info = {};
   pipeline_layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipeline_layout_info.setLayoutCount         = shader->set.layouts_count; 
-  pipeline_layout_info.pSetLayouts            = descriptor_set_layouts;      
-  pipeline_layout_info.pushConstantRangeCount = shader->set.push_constants_count; 
+  pipeline_layout_info.setLayoutCount         = shader->set.layouts_count;
+  pipeline_layout_info.pSetLayouts            = descriptor_set_layouts;
+  pipeline_layout_info.pushConstantRangeCount = shader->set.push_constants_count;
   pipeline_layout_info.pPushConstantRanges    = push_constant_ranges;
-  
+
   if (vkCreatePipelineLayout(vk_ctx.device, &pipeline_layout_info, nullptr, &shader->layout) != VK_SUCCESS) {
     vulkan_log_error("vulkan_create_pipeline_layout(): failed to create pipeline layout\n");
   }
@@ -1880,7 +1880,7 @@ vulkan_get_shader_stages_info(VkPipelineShaderStageCreateInfo *shader_stages, Sh
     Shader_File *file = &shader->files[i];
     if (!file->loaded)
       continue;
-    
+
     VkPipelineShaderStageCreateInfo shader_stage_info = {};
     shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stage_info.stage = (VkShaderStageFlagBits)vulkan_convert_shader_stage(file->stage);
@@ -1899,7 +1899,7 @@ vulkan_shader_stages_info_cleanup(VkPipelineShaderStageCreateInfo *shader_stages
   }
 }
 
-internal s32 
+internal s32
 vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRenderPass render_pass) {
   vulkan_log("pipeline filenames: ");
   pipeline_print_filenames(shader);
@@ -1907,28 +1907,28 @@ vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRender
   VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_COUNT];
   SDL_memset(shader_stages, 0, sizeof(VkPipelineShaderStageCreateInfo) * SHADER_STAGES_COUNT);
   vulkan_get_shader_stages_info(shader_stages, shader);
-  
+
   vulkan_create_pipeline_layout(shader);
 
-  // End of descriptor sets 
-  
-  VkDynamicState dynamic_states[] = { 
-    VK_DYNAMIC_STATE_VIEWPORT, 
+  // End of descriptor sets
+
+  VkDynamicState dynamic_states[] = {
+    VK_DYNAMIC_STATE_VIEWPORT,
     VK_DYNAMIC_STATE_SCISSOR,
     VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE
   };
-  
+
   VkPipelineDynamicStateCreateInfo dynamic_state = {};
   dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
   dynamic_state.dynamicStateCount = ARRAY_COUNT(dynamic_states);
   dynamic_state.pDynamicStates = dynamic_states;
-    
+
   u32 vertex_size = 0;
   VkVertexInputAttributeDescription attribute_descriptions[shader->vertex_info.max_attributes] = {}; // 5 = vertex max attributes
   for (u32 i = 0; i < shader->vertex_info.attributes_count; i++) {
     Vertex_Attribute *attribute = &shader->vertex_info.attributes[i];
     VkVertexInputAttributeDescription *desc = &attribute_descriptions[i];
-    
+
     desc->binding = 0;
     desc->location = i;
     desc->format = convert_to_vulkan(attribute->format);
@@ -1941,19 +1941,19 @@ vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRender
       case VECTOR4: vertex_size += sizeof(Vector4); break;
     }
   }
-  
+
   VkVertexInputBindingDescription binding_description = {};
   binding_description.binding = 0;
   binding_description.stride = vertex_size;
   binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-  
+
   VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
   vertex_input_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertex_input_info.vertexBindingDescriptionCount   = 1;
   vertex_input_info.pVertexBindingDescriptions      = &binding_description;         // Optional
   vertex_input_info.vertexAttributeDescriptionCount = shader->vertex_info.attributes_count;
   vertex_input_info.pVertexAttributeDescriptions    = attribute_descriptions;       // Optional
-  
+
   VkPipelineInputAssemblyStateCreateInfo input_assembly = {};
   input_assembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
   input_assembly.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -1984,7 +1984,7 @@ vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRender
   rasterizer.depthBiasConstantFactor = 0.0f; // Optional
   rasterizer.depthBiasClamp          = 0.0f; // Optional
   rasterizer.depthBiasSlopeFactor    = 0.0f; // Optional
-  
+
   VkPipelineMultisampleStateCreateInfo multisampling = {};
   multisampling.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   multisampling.sampleShadingEnable   = VK_TRUE;
@@ -1993,7 +1993,7 @@ vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRender
   multisampling.pSampleMask           = nullptr;  // Optional
   multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
   multisampling.alphaToOneEnable      = VK_FALSE; // Optional
-  
+
   VkPipelineColorBlendAttachmentState color_blend_attachment = {};
   color_blend_attachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
   color_blend_attachment.blendEnable         = VK_TRUE;
@@ -2014,7 +2014,7 @@ vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRender
   color_blending.blendConstants[1] = 0.0f;             // Optional
   color_blending.blendConstants[2] = 0.0f;             // Optional
   color_blending.blendConstants[3] = 0.0f;             // Optional
-  
+
   VkPipelineDepthStencilStateCreateInfo depth_stencil = {};
   depth_stencil.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
   depth_stencil.depthTestEnable       = vulkan_bool(shader->depth_test);
@@ -2026,7 +2026,7 @@ vulkan_create_graphics_pipeline(Vulkan_Context *vk_ctx, Shader *shader, VkRender
   depth_stencil.stencilTestEnable     = VK_FALSE;
   depth_stencil.front                 = {};                 // Optional
   depth_stencil.back                  = {};                 // Optional
-  
+
   VkGraphicsPipelineCreateInfo pipeline_create_info = {};
   pipeline_create_info.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipeline_create_info.stageCount          = 2;
@@ -2059,7 +2059,7 @@ vulkan_create_compute_pipeline(Shader *shader) {
   VkPipelineShaderStageCreateInfo shader_stages[SHADER_STAGES_COUNT];
   memset(shader_stages, 0, sizeof(VkPipelineShaderStageCreateInfo) * SHADER_STAGES_COUNT);
   vulkan_get_shader_stages_info(shader_stages, shader);
-  
+
   vulkan_create_pipeline_layout(shader);
 
   VkComputePipelineCreateInfo pipeline_create_info = {};
@@ -2070,20 +2070,20 @@ vulkan_create_compute_pipeline(Shader *shader) {
   if (vkCreateComputePipelines(vk_ctx.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &shader->handle) != VK_SUCCESS) {
     vulkan_log_error("vulkan_create_compute_pipeline() failed to create compute pipelines\n");
   }
-  
+
   vulkan_shader_stages_info_cleanup(shader_stages);
 }
 
 //
 // Mesh
-// 
+//
 
-internal void 
+internal void
 vulkan_init_mesh(Mesh *mesh) {
   mesh->buffer = &vk_ctx.static_buffer;
 
   u32 vertices_size = mesh->vertices_count * mesh->vertex_info.size;
-  u32 indices_size = mesh->indices_count * sizeof(mesh->indices[0]);   
+  u32 indices_size = mesh->indices_count * sizeof(mesh->indices[0]);
   u32 buffer_size = vertices_size + indices_size;
 
   void *memory = malloc(buffer_size);
@@ -2108,7 +2108,7 @@ vulkan_bind_mesh(Mesh *mesh) {
 
 void vulkan_draw_mesh(Mesh *mesh) {
 #ifdef DEBUG
-  
+
   Pipeline *pipeline = find_pipeline(gfx.active_shader_id);
   if (pipeline->set.binded_layouts != pipeline->set.layouts_count) {
     //ASSERT(0);
@@ -2178,7 +2178,7 @@ vulkan_update_ubo(Descriptor desc, void *data) {
   memcpy((char*)vk_ctx.static_uniform_buffer.data + desc.set->offset, data, desc.binding->size);
 }
 
-internal void 
+internal void
 vulkan_bind_descriptor_set(Descriptor_Set set) {
   Pipeline *pipeline = find_pipeline(vk_ctx.active_shader_id);
   pipeline->set.binded_layouts++;
@@ -2188,7 +2188,7 @@ vulkan_bind_descriptor_set(Descriptor_Set set) {
     vkCmdBindDescriptorSets(VK_CMD, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, set.set_number, 1, set.vulkan_set, 0, nullptr);
 }
 
-internal void 
+internal void
 vulkan_push_constants(u32 shader_stage, void *data, u32 data_size) {
   Pipeline *pipeline = find_pipeline(gfx.active_shader_id);
   vkCmdPushConstants(VK_CMD, pipeline->layout, vulkan_convert_shader_stage(shader_stage), 0, data_size, data);
@@ -2199,11 +2199,11 @@ vulkan_bind_pipeline(u32 id) {
   vk_ctx.active_shader_id = id;
   Pipeline *pipeline = find_pipeline(id);
   pipeline->set.binded_layouts = 0;
-  
+
   vkCmdBindPipeline(VK_CMD, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle);
 }
 
-inline void 
+inline void
 vulkan_bind_compute_pipeline(u32 id) {
   Pipeline *pipeline = find_pipeline(id);
   vk_ctx.active_shader_id = id;
@@ -2234,7 +2234,7 @@ vulkan_set_viewport(u32 window_width, u32 window_height) {
   vkCmdSetViewport(VK_CMD, 0, 1, &viewport);
 }
 
-internal void 
+internal void
 vulkan_set_scissor(s32 x, s32 y, u32 width, u32 height) {
   VkRect2D scissor;
   scissor.offset = { x, y };
@@ -2259,7 +2259,7 @@ vulkan_copy_buffer_to_image(Vulkan_Buffer *buffer, VkImage image, u32 width, u32
   region.imageExtent = { width, height, 1 };
 
   vkCmdCopyBufferToImage(command_buffer, buffer->handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-  
+
   vulkan_end_single_time_commands(command_buffer, vk_ctx.command_pool, vk_ctx.graphics_queue);
 }
 
@@ -2347,8 +2347,8 @@ vulkan_create_texture_image(Texture *bitmap) {
 
   Vulkan_Buffer staging_buffer;
 
-  vulkan_create_buffer(&staging_buffer, image_size, 
-    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+  vulkan_create_buffer(&staging_buffer, image_size,
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
   //void *data;
@@ -2361,7 +2361,7 @@ vulkan_create_texture_image(Texture *bitmap) {
   VkCommandBuffer command_buffer = vulkan_begin_single_time_commands(vk_ctx.command_pool);
   vulkan_transition_image_layout(command_buffer, bitmap, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   vulkan_end_single_time_commands(command_buffer, vk_ctx.command_pool, vk_ctx.graphics_queue);
-  
+
   vulkan_copy_buffer_to_image(&staging_buffer, bitmap->image, (u32)bitmap->width, (u32)bitmap->height);
   //transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
   //vulkan_transition_image_layout(vk_ctx, texture->image, texture->image_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, bitmap->mip_levels);
@@ -2375,7 +2375,7 @@ internal void
 vulkan_create_texture(Texture *bitmap, u32 texture_parameters) {
   if (bitmap->mip_levels == 0) {
     bitmap->mip_levels = (u32)SDL_floor(SDL_logf((float32)SDL_max(bitmap->width, bitmap->height))) + 1;
-  }   
+  }
 
   if (bitmap->channels == 0) {
     vulkan_log_error("vulkan_create_texture() bitmap not loaded\n");
@@ -2387,7 +2387,7 @@ vulkan_create_texture(Texture *bitmap, u32 texture_parameters) {
   vulkan_create_sampler(bitmap, texture_parameters);
 }
 
-internal u32 
+internal u32
 vulkan_set_texture(Descriptor *desc, Texture *texture) {
   VkDescriptorImageInfo image_info = {};
   if (desc->binding->descriptor_type == DESCRIPTOR_TYPE_SAMPLER) {
@@ -2418,13 +2418,13 @@ vulkan_set_texture(Descriptor *desc, Texture *texture) {
 // Immediate Mode
 //
 
-inline void 
+inline void
 vulkan_immediate_vertex_xu(Vertex_XU vertex) {
   memcpy((char*)vk_ctx.dynamic_buffer.data + vk_ctx.dynamic_buffer.offset, &vertex, sizeof(Vertex_XU));
   vk_ctx.dynamic_buffer.offset += sizeof(Vertex_XU);
 }
 
-inline void 
+inline void
 vulkan_immediate_vertex_xnu(Vertex_XNU vertex) {
   memcpy((char*)vk_ctx.dynamic_buffer.data + vk_ctx.dynamic_buffer.offset, &vertex, sizeof(Vertex_XNU));
   vk_ctx.dynamic_buffer.offset += sizeof(Vertex_XNU);
@@ -2442,6 +2442,6 @@ vulkan_draw_immediate_mesh(Mesh *mesh) {
   Vertex_XU *vertices = (Vertex_XU *)mesh->vertices;
   for (u32 i = 0; i < mesh->indices_count; i++) {
     vulkan_immediate_vertex_xu(vertices[mesh->indices[i]]);
-  } 
+  }
   vulkan_draw_immediate(mesh->indices_count);
 }
