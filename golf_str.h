@@ -1,8 +1,8 @@
-inline u32 
+inline u32
 get_length(const char *string) {
   if (string == 0)
     return 0;
-    
+
   u32 length = 0;
   const char *ptr = string;
   while(*ptr != 0) {
@@ -12,11 +12,11 @@ get_length(const char *string) {
   return length;
 }
 
-inline u32 
+inline u32
 str_length(const char *str) {
   if (str == 0)
     return 0;
-    
+
   u32 length = 0;
   const char *ptr = str;
   while(*ptr != 0) {
@@ -119,7 +119,7 @@ String::String(const char *a, const char *b) {
 
   memory = SDL_malloc(size);
   SDL_memset(memory, 0, size);
-  
+
   SDL_memcpy(memory, a, a_length);
   SDL_memcpy(((char *)memory) + a_length, b, b_length);
 }
@@ -141,12 +141,12 @@ void String::remove_ending() {
 
 inline void
 float_to_string(float32 f, char *buffer, u32 buffer_size) {
-  u32 ret = snprintf(buffer, buffer_size, "%f", f);
+  u32 ret = SDL_snprintf(buffer, buffer_size, "%f", f);
   if (ret < 0) {
       app_log_error("float_to_char_array(float32 f, char *buffer, u32 buffer_size) ftos() failed\n");
       return;
   }
-  if (ret >= buffer_size) 
+  if (ret >= buffer_size)
     app_log_error("float_to_char_array(float32 f, char *buffer, u32 buffer_size) ftos(): result was truncated\n");
 }
 
@@ -174,7 +174,7 @@ char_array_to_s32(const char *ptr, s32 *result) {
 
 inline const char*
 char_array_to_u32(const char *ptr, u32 *result)
-{   
+{
     s32 num = 0;
     ptr = char_array_to_s32(ptr, &num);
     *result = (u32)num;
