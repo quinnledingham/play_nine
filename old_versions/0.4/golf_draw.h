@@ -1,7 +1,7 @@
-global const Vector4 golf_green        = {  39,  77,  20, 1 };
-global const Vector4 golf_yellow       = { 231, 213,  36, 1 };
-global const Vector4 golf_light_yellow = { 240, 229, 118, 1 };
-global const Vector4 golf_dark_yellow  = { 197, 180,  22, 1 };
+global const Color_RGBA golf_green        = {  39,  77,  20, 1 };
+global const Color_RGBA golf_yellow       = { 231, 213,  36, 1 };
+global const Color_RGBA golf_light_yellow = { 240, 229, 118, 1 };
+global const Color_RGBA golf_dark_yellow  = { 197, 180,  22, 1 };
 
 /*
 (0, 0)

@@ -1,4 +1,1 @@
-# play_nine
-
-![screenshot of play nine in-game](/images/screenshot.png)
-September 23, 2024
+Repo storing older versions of this project. Newest project [here](https://github.com/quinnledingham/canadian_golf)
